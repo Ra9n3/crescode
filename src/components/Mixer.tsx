@@ -198,7 +198,7 @@ export function Mixer() {
             onChange={(v) => edit((p) => ({ ...p, masterVolume: v }), 'master')}
           />
         </div>
-        <span className="printed absolute bottom-1.5 right-1 text-[6px] tracking-[0.1em]" style={{ opacity: 0.75 }} title="Scorch unit serial number">SN 0001</span>
+        <span className="printed absolute bottom-1.5 right-1 text-[6px] tracking-[0.1em]" style={{ opacity: 0.75 }} title="Crescode unit serial number">SN 0001</span>
       </div>
     </div>
   );

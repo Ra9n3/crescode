@@ -65,8 +65,8 @@ export function pickFile(accept: string): Promise<File | null> {
 }
 
 /* ---------- recent projects & autosave ---------- */
-const RECENT_KEY = 'scorch.recent.v1';
-const RECOVERY_KEY = 'scorch.recovery.v1';
+const RECENT_KEY = 'crescode.recent.v1';
+const RECOVERY_KEY = 'crescode.recovery.v1';
 export interface RecentEntry { name: string; file: string; savedAt: string; json: string }
 
 export function getRecent(): RecentEntry[] {
@@ -81,8 +81,8 @@ export async function saveProject(saveAs = false): Promise<boolean> {
   const s = useStore.getState();
   const p = s.project;
   const json = JSON.stringify(p, null, 2);
-  const suggested = (!saveAs && s.filePath) || `${p.name || 'Untitled'}.scorch`;
-  const name = await saveFile(suggested, json, 'application/json', 'scorch');
+  const suggested = (!saveAs && s.filePath) || `${p.name || 'Untitled'}.crescode`;
+  const name = await saveFile(suggested, json, 'application/json', 'crescode');
   if (!name) return false;
   s.markSaved(name);
   pushRecent({ name: p.name, file: name, savedAt: new Date().toISOString(), json });
@@ -102,7 +102,7 @@ export function openProjectText(text: string, fileName: string): boolean {
 }
 
 export async function openProject(): Promise<void> {
-  const f = await pickFile('.scorch,.json,application/json');
+  const f = await pickFile('.crescode,.json,application/json');
   if (!f) return;
   openProjectText(await f.text(), f.name);
 }

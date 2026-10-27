@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- *  SCORCH GENERATION RULES — PLACEHOLDER EXAMPLES. REPLACE WITH YOUR OWN.
+ *  CRESCODE GENERATION RULES — PLACEHOLDER EXAMPLES. REPLACE WITH YOUR OWN.
  * ============================================================================
  * These are deliberately simple rules so "Compose All" works straight away.
  * They are NOT the app's composition logic; the engine (src/engine/generate.ts)

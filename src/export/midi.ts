@@ -78,7 +78,7 @@ export function buildMergedMidi(p: Project, tracks: Track[]): Uint8Array {
   const data: MidiData = {
     header: { format: 1, numTracks: tracks.length + 1, ticksPerBeat: PPQ },
     tracks: [
-      finalize([nameEvent(p.name || 'Scorch'), ...conductorEvents(p, true)], end),
+      finalize([nameEvent(p.name || 'Crescode'), ...conductorEvents(p, true)], end),
       ...tracks.map((t) => finalize([nameEvent(t.name), ...noteEvents(t.notes, t.midiChannel, end)], end)),
     ],
   };

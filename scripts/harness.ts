@@ -22,7 +22,7 @@ const ms = performance.now() - t0;
 const out = { ...project, tracks };
 const v = validateProject(out);
 
-console.log(`\nScorch harness — ${project.name}`);
+console.log(`\nCrescode harness — ${project.name}`);
 console.log(`${NOTE_NAMES[project.key]} ${project.mode} · ${project.bpm} BPM · ${project.timeSignature.numerator}/${project.timeSignature.denominator} · ${projectBars(project)} bars · seed ${seed}`);
 console.log(`Generated in ${ms.toFixed(1)} ms · validation: ${v.ok ? 'OK' : `${v.errors.length} errors`}\n`);
 if (!v.ok) v.errors.slice(0, 20).forEach((e) => console.log(`  ! ${e.path}: ${e.message}`));

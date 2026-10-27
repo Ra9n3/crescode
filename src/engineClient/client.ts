@@ -1,5 +1,5 @@
 /**
- * Client for the scorch-engine WebSocket protocol (docs/PROTOCOL.md).
+ * Client for the crescode-engine WebSocket protocol (docs/PROTOCOL.md).
  * Connects to 127.0.0.1 only. Version handshake, heartbeat, auto-reconnect.
  * When the engine is not running, the app keeps working with the built-in
  * preview sound (graceful degradation).
@@ -53,7 +53,7 @@ class EngineClient {
     this.ws = ws;
     ws.onopen = () => {
       this.backoff = 500;
-      this.send({ type: 'engine/hello', protocolVersion: PROTOCOL_VERSION, client: 'scorch-ui' });
+      this.send({ type: 'engine/hello', protocolVersion: PROTOCOL_VERSION, client: 'crescode-ui' });
     };
     ws.onmessage = (ev) => {
       let m: Msg;

@@ -123,7 +123,7 @@ export function TopBar() {
       {/* Brand & Project Name */}
       <div className="flex shrink-0 items-center gap-1">
         <div className="flex flex-col leading-none">
-          <div className="script text-[18px] leading-none text-[var(--c-text)]" style={{ fontFamily: 'var(--font-script)' }}>Scorch</div>
+          <div className="script text-[18px] leading-none text-[var(--c-text)]" style={{ fontFamily: 'var(--font-script)' }}>Crescode</div>
           <div className="printed mt-0.5 text-[6.5px]">orchestral midi</div>
         </div>
         <input
@@ -137,7 +137,7 @@ export function TopBar() {
       {/* File & Edit Actions */}
       <div className="panel-raised flex shrink-0 items-center gap-0.5 rounded-md border border-[#0e0e10] p-0.5">
         <IconButton size="sm" icon={I.file} tip="New project" onClick={() => guardUnsaved(() => useStore.getState().loadProject(createDefaultProject()))} />
-        <IconButton size="sm" icon={I.folder} tip="Open project (.scorch / .json) — Ctrl+O" onClick={() => guardUnsaved(() => void openProject())} />
+        <IconButton size="sm" icon={I.folder} tip="Open project (.crescode / .json) — Ctrl+O" onClick={() => guardUnsaved(() => void openProject())} />
         <IconButton size="sm" icon={I.save} tip="Save project — Ctrl+S (Shift for Save As)" onClick={(e) => void saveProject(e.shiftKey)} />
         <IconButton size="sm" icon={I.clock} tip="Recent projects" onClick={() => set({ modal: 'recent' })} />
         <IconButton size="sm" icon={I.exportIc} tip="Export / Import (JSON, MIDI)" onClick={() => set({ modal: 'export' })} testId="export-btn" />
@@ -168,7 +168,7 @@ export function TopBar() {
         <IconButton size="sm" icon={I.rewind} tip="Rewind to bar 1" onClick={rewind} />
         <IconButton icon={playing ? I.stop : I.play} tip={playing ? 'Stop — Space' : 'Play — Space'} onClick={togglePlay} active={playing} activeColor="var(--c-success)" size="md" testId="play-btn" />
         <IconButton size="sm" icon={I.stop} tip="Stop (press again to return to start)" onClick={stop} />
-        <IconButton size="sm" icon={I.record} tip="Record — not available: Scorch generates MIDI, it does not record" disabled />
+        <IconButton size="sm" icon={I.record} tip="Record — not available: Crescode generates MIDI, it does not record" disabled />
         <IconButton size="sm" icon={I.repeat} tip={loop ? 'Loop on (selected section or whole song)' : 'Loop off — loops the selected section or whole song'} onClick={() => set({ loop: !loop })} active={loop} activeColor="var(--c-info)" />
         <IconButton size="sm" icon={I.metronome} tip={metronome ? 'Metronome on' : 'Metronome off'} onClick={() => set({ metronome: !metronome })} active={metronome} activeColor="var(--c-warn)" />
       </div>
@@ -196,7 +196,7 @@ export function TopBar() {
             testId="routing-toggle"
           />
           <IconButton icon={I.gear} tip="Settings" onClick={() => set({ modal: 'settings' })} />
-          <IconButton icon={I.info} tip="About Scorch" onClick={() => set({ modal: 'about' })} />
+          <IconButton icon={I.info} tip="About Crescode" onClick={() => set({ modal: 'about' })} />
         </div>
       </div>
     </header>

@@ -1,5 +1,5 @@
 /**
- * Scorch generation engine — a generic interpreter of the rules config.
+ * Crescode generation engine — a generic interpreter of the rules config.
  * Contains no musical decisions; it only expands what the rules describe
  * and enforces engineering invariants (determinism, ranges, no overlaps,
  * no zero-length notes, nothing past the project end, locked tracks untouched).

@@ -19,7 +19,7 @@ import { isInstrumentTrack } from './shared/schema';
 applyThemeVars();
 bindTransport();
 // Test hooks for the automated UI smoke test (scripts/e2e-smoke.mjs).
-(window as unknown as { scorchTest: unknown }).scorchTest = { store: useStore, runAlignmentTest, fillRandomNotes };
+(window as unknown as { crescodeTest: unknown }).crescodeTest = { store: useStore, runAlignmentTest, fillRandomNotes };
 
 function useShortcuts() {
   useEffect(() => {

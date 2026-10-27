@@ -55,7 +55,7 @@ function ExportDialog() {
     if (!tracks.length) { s.toast('warn', 'No tracks selected for export'); return; }
     if (fmt === 'midi') {
       const data = buildMergedMidi(p, tracks);
-      const n = await saveFile(`${p.name || 'Scorch'}.mid`, data as BlobPart, 'audio/midi', 'mid');
+      const n = await saveFile(`${p.name || 'Crescode'}.mid`, data as BlobPart, 'audio/midi', 'mid');
       if (!n) return;
       const parsed = parseMidiFile(data);
       const count = parsed.tracks.reduce((a, t) => a + t.notes.length, 0);
@@ -71,7 +71,7 @@ function ExportDialog() {
   };
 
   const importJson = () => guardUnsaved(async () => {
-    const f = await pickFile('.json,.scorch,application/json');
+    const f = await pickFile('.json,.crescode,application/json');
     if (f && openProjectText(await f.text(), f.name)) close();
   });
 
@@ -181,7 +181,7 @@ function SettingsDialog() {
       <Row label="Buffer size" hint="Lower = less latency, more CPU">
         {([256, 512] as const).map((b) => <Button key={b} primary={st.bufferSize === b} onClick={() => applyAudio({ bufferSize: b })}>{b} samples</Button>)}
       </Row>
-      <Row label="Audio engine" hint="Native scorch-engine for VST3 hosting (127.0.0.1 only). Off = built-in preview sound.">
+      <Row label="Audio engine" hint="Native crescode-engine for VST3 hosting (127.0.0.1 only). Off = built-in preview sound.">
         <div className="flex items-center gap-2 text-xs"><ToggleSwitch on={st.connectEngine} tip="Connect to the local audio engine" onChange={(on) => { s.setSettings({ connectEngine: on }); if (on) engine.start(); else engine.stopClient(); }} /> Connect</div>
         <NumberField value={st.enginePort} min={1024} max={65535} tip="Engine port on 127.0.0.1" width={60} onCommit={(v) => s.setSettings({ enginePort: Math.round(v) })} />
         <span className={cn('text-[11px]', s.engineConnected ? 'text-[var(--c-success)]' : 'text-[var(--c-textMute)]')}>{s.engineConnected ? 'Connected' : 'Engine disconnected'}</span>
@@ -203,9 +203,9 @@ function AboutDialog() {
   const close = () => useStore.getState().set({ modal: null });
   const keys: [string, string][] = [['Space', 'Play / Stop'], ['Delete', 'Delete selected section / chord / notes'], ['Ctrl+Z / Ctrl+Shift+Z', 'Undo / Redo'], ['L / M / S', 'Lock / Mute / Solo selected tracks'], ['Ctrl+wheel', 'Zoom timeline'], ['Ctrl+S / Ctrl+O', 'Save / Open'], ['X', 'Toggle mixer'], ['Double-click lane', 'Open piano roll']];
   return (
-    <Modal title="About Scorch" icon={I.flame} onClose={close} width={520} footer={<Button primary onClick={close}>Close</Button>}>
+    <Modal title="About Crescode" icon={I.flame} onClose={close} width={520} footer={<Button primary onClick={close}>Close</Button>}>
       <div className="mb-4">
-        <div className="text-lg font-bold">Scorch <span className="font-mono text-xs font-normal text-[var(--c-textMute)]">v1.0.0 · schema v1</span></div>
+        <div className="text-lg font-bold">Crescode <span className="font-mono text-xs font-normal text-[var(--c-textMute)]">v1.0.0 · schema v1</span></div>
         <p className="mt-1 text-xs leading-relaxed text-[var(--c-textDim)]">Orchestral MIDI generator with a DAW-style arranger. All musical decisions come from your editable rules config — the engine only interprets it. Local only: no accounts, no cloud, no network calls. Your audio never leaves your machine.</p>
       </div>
       <div className="text-[10px] font-semibold uppercase tracking-widest text-[var(--c-textMute)]">Keyboard</div>

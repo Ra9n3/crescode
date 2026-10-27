@@ -7,7 +7,7 @@ export function exportProjectJson(p: Project): string {
 
 export type ImportResult = { ok: true; project: Project } | { ok: false; errors: ValidationError[] };
 
-/** Parses and validates a project JSON (.scorch or export). Strips exportedAt. */
+/** Parses and validates a project JSON (.crescode or export). Strips exportedAt. */
 export function importProjectJson(text: string): ImportResult {
   let doc: unknown;
   try {

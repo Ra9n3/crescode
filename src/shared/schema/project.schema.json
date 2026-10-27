@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "scorch://project.schema.json",
-  "title": "Scorch Project",
-  "description": "Scorch project document. All times are ticks at 960 PPQ.",
+  "$id": "crescode://project.schema.json",
+  "title": "Crescode Project",
+  "description": "Crescode project document. All times are ticks at 960 PPQ.",
   "type": "object",
   "required": ["schemaVersion", "name", "bpm", "tempoMap", "timeSignature", "key", "mode", "sections", "chords", "referenceAudio", "tracks", "libraryGroups", "masterVolume"],
   "properties": {

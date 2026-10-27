@@ -1,4 +1,4 @@
-# scorch-engine WebSocket protocol (v1)
+# crescode-engine WebSocket protocol (v1)
 
 Transport: WebSocket on `ws://127.0.0.1:<port>` only. Messages are JSON objects with `type` and `id` (string). Replies reuse the request `id`. All times in ticks (960 PPQ). Always address instruments by `groupId` from the project schema.
 

@@ -94,7 +94,7 @@ export function StatusBar() {
   return (
     <footer className="panel relative flex h-7 shrink-0 items-center gap-4 border-t border-[#0c0c0e] px-3 text-[10px] text-[var(--c-textMute)]">
       <div className="absolute inset-x-0 top-0 h-px bg-[rgba(255,255,255,0.08)]" aria-hidden />
-      <span className={cn('flex items-center gap-1.5', engineConnected ? 'text-[var(--c-success)]' : 'text-[var(--c-warn)]')} title={engineConnected ? 'scorch-engine connected (127.0.0.1)' : 'Engine disconnected — playback uses the built-in preview sound. Export is unaffected.'}>
+      <span className={cn('flex items-center gap-1.5', engineConnected ? 'text-[var(--c-success)]' : 'text-[var(--c-warn)]')} title={engineConnected ? 'crescode-engine connected (127.0.0.1)' : 'Engine disconnected — playback uses the built-in preview sound. Export is unaffected.'}>
         <span className={cn('h-1.5 w-1.5 rounded-full', engineConnected ? 'bg-[var(--c-success)]' : 'bg-[var(--c-warn)]')} />
         {engineConnected ? 'Engine connected' : 'Engine disconnected · preview sound'}
       </span>

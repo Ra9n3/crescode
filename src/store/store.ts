@@ -21,7 +21,7 @@ export interface Settings {
   devMode: boolean;
 }
 
-const SETTINGS_KEY = 'scorch.settings.v1';
+const SETTINGS_KEY = 'crescode.settings.v1';
 const loadSettings = (): Settings => {
   const d: Settings = { scanDirectory: 'C:\\Program Files\\Common Files\\VST3', audioDevice: 'default', bufferSize: 512, enginePort: 47800, connectEngine: false, devMode: true };
   try { return { ...d, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') }; } catch { return d; }

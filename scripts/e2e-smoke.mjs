@@ -24,21 +24,21 @@ await page.goto(url);
 await page.waitForSelector('[data-track-header]');
 
 const st = (fn) => page.evaluate(fn);
-check('Fixture loaded on startup', await st(() => { const p = window.scorchTest.store.getState().project; return p.name === 'Dorian 16 Bars' && p.mode === 'Dorian' && p.bpm === 100 && p.sections.length === 2; }));
+check('Fixture loaded on startup', await st(() => { const p = window.crescodeTest.store.getState().project; return p.name === 'Dorian 16 Bars' && p.mode === 'Dorian' && p.bpm === 100 && p.sections.length === 2; }));
 check('21 default tracks rendered', (await page.locator('[data-track-header]').count()) === 21);
 
 await page.click('[data-testid=compose-all]');
-const noteCount = await st(() => window.scorchTest.store.getState().project.tracks.reduce((a, t) => a + t.notes.length, 0));
+const noteCount = await st(() => window.crescodeTest.store.getState().project.tracks.reduce((a, t) => a + t.notes.length, 0));
 check('Compose All fills lanes', noteCount > 100, `${noteCount} notes`);
 
-let align = await st(() => window.scorchTest.runAlignmentTest());
+let align = await st(() => window.crescodeTest.runAlignmentTest());
 check('Alignment (21 tracks) before/after scroll', align.ok, `${align.checked} checks ${align.failures.slice(0, 2).join(';')}`);
 
-await st(() => { const s = window.scorchTest.store.getState(); for (let i = 0; i < 10; i++) s.addTrack(['Strings', 'Brass', 'Woodwinds', 'Percussion', 'Keys'][i % 5]); });
-await st(() => window.scorchTest.fillRandomNotes(5000));
-const total = await st(() => window.scorchTest.store.getState().project.tracks.reduce((a, t) => a + t.notes.length, 0));
+await st(() => { const s = window.crescodeTest.store.getState(); for (let i = 0; i < 10; i++) s.addTrack(['Strings', 'Brass', 'Woodwinds', 'Percussion', 'Keys'][i % 5]); });
+await st(() => window.crescodeTest.fillRandomNotes(5000));
+const total = await st(() => window.crescodeTest.store.getState().project.tracks.reduce((a, t) => a + t.notes.length, 0));
 check('5,000 random notes loaded across 31 tracks', total >= 5000, `${total} notes`);
-align = await st(() => window.scorchTest.runAlignmentTest());
+align = await st(() => window.crescodeTest.runAlignmentTest());
 check('Alignment (31 tracks, 5k notes) before/after scroll', align.ok, `${align.checked} checks`);
 
 const scrollMs = await page.evaluate(async () => {
@@ -50,7 +50,7 @@ const scrollMs = await page.evaluate(async () => {
 check('Scrolling with 5k notes stays smooth', scrollMs < 50, `${scrollMs.toFixed(1)} ms/frame (headless)`);
 
 await page.setViewportSize({ width: 1100, height: 700 });
-align = await st(() => window.scorchTest.runAlignmentTest());
+align = await st(() => window.crescodeTest.runAlignmentTest());
 check('Alignment after window resize', align.ok);
 await page.setViewportSize({ width: 1600, height: 950 });
 
@@ -158,12 +158,12 @@ await panKnob.hover();
 await page.mouse.wheel(0, -160);
 await page.waitForTimeout(60);
 check('Scroll wheel turns the pan knob', panBefore !== (await panKnob.getAttribute('aria-valuenow')), `${panBefore} → ${await panKnob.getAttribute('aria-valuenow')}`);
-const expectStrips = await st(() => window.scorchTest.store.getState().project.tracks.filter((t) => t.family !== 'Structure').length);
+const expectStrips = await st(() => window.crescodeTest.store.getState().project.tracks.filter((t) => t.family !== 'Structure').length);
 const stripsNow = await page.locator('[data-testid=mixer-strip]').count();
 check('Mixer: one strip per track + master', stripsNow === expectStrips && (await page.locator('[data-testid=master-strip]').count()) === 1, `${stripsNow} strips`);
-const vId = await st(() => window.scorchTest.store.getState().project.tracks[3].id);
+const vId = await st(() => window.crescodeTest.store.getState().project.tracks[3].id);
 await page.locator(`[data-strip="${vId}"] button[aria-label^="Mute"]`).click();
-check('Mute in mixer reflects in header', await st(() => window.scorchTest.store.getState().project.tracks[3].muted) && (await page.locator(`[data-track-header="${vId}"] button[aria-label^="Mute"]`).getAttribute('aria-pressed')) === 'true');
+check('Mute in mixer reflects in header', await st(() => window.crescodeTest.store.getState().project.tracks[3].muted) && (await page.locator(`[data-track-header="${vId}"] button[aria-label^="Mute"]`).getAttribute('aria-pressed')) === 'true');
 // VST browser states
 await page.locator('[data-testid=vst-btn]').first().click();
 check('VST browser: Not scanned state', await page.locator('[data-testid=vst-notscanned]').isVisible());
@@ -186,26 +186,26 @@ check('Settings control is an analog switch with on/off state and glow', beforeS
 await page.getByRole('button', { name: 'Done' }).click();
 
 // Chords: invalid symbol shows red
-await st(() => window.scorchTest.store.getState().edit((p) => ({ ...p, chords: [...p.chords, { id: 'bad1', symbol: 'Hxyz', startTick: 0, durationTicks: 10 }] })));
+await st(() => window.crescodeTest.store.getState().edit((p) => ({ ...p, chords: [...p.chords, { id: 'bad1', symbol: 'Hxyz', startTick: 0, durationTicks: 10 }] })));
 check('Invalid chord symbol shown red', (await page.locator('[data-testid=chord][data-invalid]').count()) === 1);
-await st(() => { const s = window.scorchTest.store.getState(); s.deleteChord('bad1'); s.set({ pxPerTick: 0.2 }); });
+await st(() => { const s = window.crescodeTest.store.getState(); s.deleteChord('bad1'); s.set({ pxPerTick: 0.2 }); });
 check('Chords survive zoom', (await page.locator('[data-testid=chord]').count()) === 18);
-await st(() => window.scorchTest.store.getState().set({ pxPerTick: 0.06 }));
+await st(() => window.crescodeTest.store.getState().set({ pxPerTick: 0.06 }));
 
 // Piano roll edit -> export
-await st(() => window.scorchTest.store.getState().edit((p) => ({ ...p, tracks: p.tracks.map((t, i) => (i === 3 ? { ...t, notes: [] } : t)) })));
+await st(() => window.crescodeTest.store.getState().edit((p) => ({ ...p, tracks: p.tracks.map((t, i) => (i === 3 ? { ...t, notes: [] } : t)) })));
 await page.locator(`[data-track-lane="${vId}"]`).dblclick({ position: { x: 400, y: 20 } });
 await page.waitForSelector('[data-testid=piano-roll]');
 check('Mixer remains visible with piano roll open', await page.locator('[data-testid=mixer]').isVisible());
 const grid = page.locator('[data-testid=piano-roll] .cursor-crosshair');
 const box = await grid.boundingBox();
 await page.mouse.click(box.x + 200, box.y + 300);
-const prNotes = await st(() => window.scorchTest.store.getState().project.tracks[3].notes);
+const prNotes = await st(() => window.crescodeTest.store.getState().project.tracks[3].notes);
 check('Piano roll: draw note returns to timeline', prNotes.length === 1, JSON.stringify(prNotes[0]));
 await page.keyboard.press('Escape');
 
 const undoOk = await st(() => {
-  const s = window.scorchTest.store;
+  const s = window.crescodeTest.store;
   const start = JSON.stringify(s.getState().project);
   for (let i = 0; i < 50; i++) s.getState().updateTrack(s.getState().project.tracks[4 + (i % 10)].id, { pan: ((i % 9) - 4) / 4 });
   const after = JSON.stringify(s.getState().project);

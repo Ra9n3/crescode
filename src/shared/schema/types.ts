@@ -1,5 +1,5 @@
 /**
- * Scorch data contracts (fixed). Time unit: ticks at 960 PPQ everywhere.
+ * Crescode data contracts (fixed). Time unit: ticks at 960 PPQ everywhere.
  * No seconds anywhere in the model.
  */
 export const PPQ = 960;

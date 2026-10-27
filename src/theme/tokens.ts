@@ -1,5 +1,5 @@
 /**
- * Scorch design tokens — the single source of every color used by the UI.
+ * Crescode design tokens — the single source of every color used by the UI.
  * Components reference these via CSS variables (see applyThemeVars) or directly
  * for canvas drawing. Do not hard-code colors elsewhere.
  *

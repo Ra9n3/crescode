@@ -33,7 +33,7 @@ export function VstBrowser() {
 
   const scan = () => {
     if (!engine.scan(s.settings.scanDirectory)) {
-      s.toast('error', 'The audio engine (scorch-engine) is not connected, so VST3s cannot be scanned. Everything else works; tracks play the built-in preview sound.');
+      s.toast('error', 'The audio engine (crescode-engine) is not connected, so VST3s cannot be scanned. Everything else works; tracks play the built-in preview sound.');
       return;
     }
     s.set({ vstState: 'scanning', scanProgress: { loaded: 0, total: 0 } });
@@ -105,7 +105,7 @@ export function VstBrowser() {
           <div className="flex h-[260px] flex-col items-center justify-center gap-3 text-sm text-[var(--c-textDim)]" data-testid="vst-notscanned">
             <div>No scan performed.</div>
             <Button primary onClick={scan}>Scan Plugins</Button>
-            <p className="max-w-sm text-center text-[11px] leading-relaxed text-[var(--c-textMute)]">Scanning runs inside the native scorch-engine. {s.engineConnected ? 'Engine connected.' : 'Engine not connected — tracks use the built-in preview sound. Export is never affected.'}</p>
+            <p className="max-w-sm text-center text-[11px] leading-relaxed text-[var(--c-textMute)]">Scanning runs inside the native crescode-engine. {s.engineConnected ? 'Engine connected.' : 'Engine not connected — tracks use the built-in preview sound. Export is never affected.'}</p>
           </div>
         )}
         {state === 'loaded' && (

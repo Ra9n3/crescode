@@ -1,0 +1,306 @@
+@import "tailwindcss";
+@import "./theme/material.css";
+
+@theme {
+  --font-sans: "Barlow Semi Condensed", "Inter", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --font-script: "Kaushan Script", "Segoe Script", cursive;
+}
+
+html, body, #root { height: 100%; margin: 0; overflow: hidden; background: var(--c-bg0); color-scheme: dark; }
+body {
+  font-family: var(--font-sans);
+  letter-spacing: 0.012em;
+  user-select: none;
+}
+input, select, button { font-family: inherit; }
+input, textarea { user-select: text; }
+
+/* ---------------- vintage hardware surfaces ---------------- */
+/* Brushed graphite panel (top bar, mixer, headers, modal bodies). */
+.panel {
+  background-color: var(--c-bg1);
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(0,0,0,0.16)), var(--tex-graphite);
+  background-size: auto, 420px auto;
+  background-blend-mode: normal, overlay;
+}
+/* Chassis frame: the mixer and top bar read as one enclosure with visible fasteners.
+   Scoped to --chassis so per-row .panel elements (strips, headers) never get screws. */
+.panel--chassis { position: relative; }
+.panel--chassis::before, .panel--chassis::after {
+  content: ""; position: absolute; width: 9px; height: 9px; border-radius: 50%; z-index: 1;
+  background:
+    linear-gradient(45deg, transparent 45%, rgba(0,0,0,0.7) 45% 55%, transparent 55%),
+    radial-gradient(circle at 35% 30%, #6a6a72, #2a2a2e 70%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 1px 1px rgba(0,0,0,0.55);
+  pointer-events: none;
+}
+.panel--chassis::before { top: 6px; left: 6px; }
+.panel--chassis::after  { bottom: 6px; right: 6px; }
+/* Selected mixer channel: symmetrical inner glow across the strip. */
+[data-testid="mixer-strip"][data-selected] {
+  box-shadow: inset 0 0 24px -6px var(--strip-color);
+  border-left: 1px solid var(--strip-color);
+  border-right: 1px solid var(--strip-color);
+}
+.panel-raised {
+  background-color: var(--c-bg2);
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.12)), var(--tex-graphite);
+  background-size: auto, 320px auto;
+  background-blend-mode: normal, overlay;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.09), 0 1px 2px rgba(0,0,0,0.45);
+}
+/* Brushed aluminium plate — the light panels of the reference unit. */
+:root {
+  --knob-tick: rgba(233,230,224,0.38);
+  --knob-tick-hi: var(--c-text);
+}
+.plate {
+  --knob-tick: rgba(34,34,38,0.48);
+  --knob-tick-hi: var(--c-plateInk);
+  background-color: var(--c-plate);
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.28), rgba(0,0,0,0.16)), var(--tex-plate);
+  background-size: auto, 360px auto;
+  background-blend-mode: normal, multiply;
+  color: var(--c-plateInk);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 1px 3px rgba(0,0,0,0.5);
+}
+
+/* Panel title: script word sitting on a silkscreen rule — the signature detail. */
+.panel-title { display: flex; align-items: center; gap: 10px; }
+.panel-title::before, .panel-title::after {
+  content: ""; flex: 1; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, transparent, rgba(233,230,224,0.55));
+}
+.panel-title::after { background: linear-gradient(270deg, transparent, rgba(233,230,224,0.55)); }
+.panel-title > .script {
+  font-family: var(--font-script);
+  font-size: 17px;
+  line-height: 1;
+  color: var(--c-text);
+  text-shadow: 0 1px 0 rgba(0,0,0,0.75);
+  letter-spacing: 0.01em;
+}
+.plate .panel-title::before, .plate .panel-title::after {
+  background: linear-gradient(90deg, transparent, rgba(38,38,42,0.5));
+}
+.plate .panel-title::after { background: linear-gradient(270deg, transparent, rgba(38,38,42,0.5)); }
+.plate .panel-title > .script { color: var(--c-plateInk); text-shadow: 0 1px 0 rgba(255,255,255,0.45); }
+
+/* Silkscreen micro label. */
+.printed, .engrave {
+  font-family: var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--c-textDim);
+  text-shadow: 0 1px 0 rgba(0,0,0,0.7);
+}
+.plate .printed, .plate .engrave { color: var(--c-plateInk); text-shadow: 0 1px 0 rgba(255,255,255,0.5); }
+.plate .screen .printed { color: var(--c-warn); text-shadow: 0 1px 0 rgba(0,0,0,0.7); }
+
+/* Inset display window (timecode, readouts). */
+.screen {
+  background-image: linear-gradient(180deg, #0c0c0e, #17171a);
+  border: 1px solid #0a0a0b;
+  border-radius: 3px;
+  box-shadow: inset 0 2px 10px rgba(0,0,0,0.85), 0 1px 0 rgba(255,255,255,0.07);
+}
+
+/* ----- vintage mixer button: physical bevel, silkscreen label, golden press glow ----- */
+button, [role="button"] { user-select: none; -webkit-tap-highlight-color: transparent; outline: none; }
+.hw {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-image: linear-gradient(180deg, #3e3e44, #2d2d32);
+  border: 1px solid #141416;
+  border-top-color: #5a5a62;
+  border-bottom-color: #0f0f12;
+  border-radius: 3px;
+  box-shadow:
+    0 4px 0 #16161a,
+    inset 0 1px 0 rgba(255,255,255,0.10),
+    inset 0 -1px 0 rgba(0,0,0,0.55),
+    0 2px 6px rgba(0,0,0,0.45);
+  color: #c9c7c2;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.8);
+  transition: transform 60ms ease, box-shadow 60ms ease, border-color 60ms ease, background-image 60ms ease;
+}
+.hw:hover { border-top-color: #7a7a84; box-shadow: 0 4px 0 #1a1a1e, inset 0 1px 0 rgba(255,255,255,0.16), inset 0 -1px 0 rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.5); }
+/* pressed state — golden glow, whether held (:active) or tapped instantly ([data-pressed]) */
+.hw:active, .hw[data-pressed="true"] {
+  transform: translateY(3px);
+  border-color: #121214;
+  border-top-color: #121214;
+  border-bottom-color: #121214;
+  box-shadow:
+    0 1px 0 #16161a,
+    inset 0 2px 5px rgba(0,0,0,0.75),
+    inset 0 1px 0 rgba(255,255,255,0.15),
+    0 0 14px -3px rgba(233,184,76,0.95);
+  background-image: linear-gradient(180deg, #2d2d32, #3e3e44);
+  color: #f0be78;
+}
+.hw-primary {
+  background-image: linear-gradient(180deg, var(--c-accentHi), var(--c-accent) 46%, #b97f31 54%, #96621f);
+  border-color: #4a3212;
+  color: var(--c-accentText);
+  box-shadow: inset 0 1px 0 rgba(255,240,210,0.7), inset 0 -1px 0 rgba(0,0,0,0.35), 0 4px 0 #16161a, 0 2px 6px rgba(0,0,0,0.45);
+}
+.hw-primary:hover { background-image: linear-gradient(180deg, #f8d19a, var(--c-accentHi) 46%, #c88c39 54%, #a46c22); color: var(--c-accentText); }
+.hw-primary:active, .hw-primary[data-pressed="true"] {
+  transform: translateY(3px);
+  color: #1a1305;
+  box-shadow:
+    0 1px 0 #16161a,
+    inset 0 2px 5px rgba(0,0,0,0.55),
+    inset 0 1px 0 rgba(255,240,210,0.45),
+    0 0 14px -3px rgba(233,184,76,1);
+}
+
+/* Lamp button (L / M / S / freeze) — graphite face and dark hardware border in both states;
+   a small LED dot lights in the top-right corner when on. The golden press glow is unchanged. */
+.lamp {
+  position: relative;
+  background-image: linear-gradient(180deg, #2c2c31, #202024);
+  border: 1px solid #121214;
+  border-radius: 2px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.10),
+    0 3px 0 #141416,
+    0 2px 4px rgba(0,0,0,0.5);
+  transition: transform 60ms ease, box-shadow 60ms ease;
+}
+.plate .lamp {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.12),
+    0 3px 0 #141416,
+    0 4px 1px rgba(255,255,255,0.38),
+    0 2px 5px rgba(0,0,0,0.45);
+}
+.lamp:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,0.16), 0 3px 0 #1a1a1e, 0 2px 6px rgba(0,0,0,0.55); }
+.lamp[data-on="true"] { color: var(--c-text); }
+.lamp[data-on="true"]::after {
+  content: ""; position: absolute; top: 2px; right: 2px;
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--lamp-color);
+  box-shadow: 0 0 4px 0 var(--lamp-color);
+}
+.lamp:active, .lamp[data-pressed="true"] {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.15),
+    0 1px 0 #141416,
+    inset 0 2px 4px rgba(0,0,0,0.7),
+    0 0 12px -2px rgba(233,184,76,0.9);
+}
+.lamp[data-on="true"]:active, .lamp[data-on="true"][data-pressed="true"] {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.15),
+    0 1px 0 #141416,
+    inset 0 2px 4px rgba(0,0,0,0.7),
+    0 0 12px -2px rgba(233,184,76,0.9);
+}
+.plate .screen {
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.85), 0 1px 0 rgba(255,255,255,0.45);
+}
+
+/* Miniature analog toggle: unlit silver down, warm lamp glow up. */
+.toggle-slot {
+  background-image: linear-gradient(180deg, #111113, #252529);
+  border: 1px solid #0b0b0d;
+  box-shadow: inset 0 2px 5px rgba(0,0,0,0.82), 0 1px 0 rgba(255,255,255,0.09);
+}
+.toggle-slot[data-on="true"] {
+  border-color: #a8792e;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.75), 0 0 8px -1px rgba(226,160,74,0.7), 0 0 3px rgba(226,160,74,0.35);
+}
+.chrome-stem {
+  background-image: linear-gradient(90deg, #69696f, #e5e3de 42%, #85858a);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.65);
+}
+.toggle-slot[data-on="true"] .chrome-stem {
+  background-image: linear-gradient(90deg, #986b27, #ffe3a2 42%, #b27c2d);
+  box-shadow: 0 0 7px rgba(226,160,74,0.8), 0 1px 3px rgba(0,0,0,0.6);
+}
+.chrome-ball {
+  background-image: radial-gradient(circle at 34% 30%, #ffffff, #c8c6c2 42%, #7d7b78);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.7);
+}
+.toggle-slot[data-on="true"] .chrome-ball {
+  background-image: radial-gradient(circle at 34% 30%, #fff7dc, #edc16b 42%, #95651f);
+  box-shadow: 0 0 7px rgba(226,160,74,0.85), 0 1px 3px rgba(0,0,0,0.7);
+}
+
+/* SSL / Standard Wedge: classic rectangular console fader cap with concave finger scoop */
+.fader-cap {
+  background-image:
+    linear-gradient(180deg, #3d3d44 0%, #242428 20%, #151518 42%, #0c0c0e 50%, #151518 58%, #222226 80%, #34343a 100%);
+  border: 1px solid #08080a;
+  border-top-color: #55555c;
+  border-bottom-color: #050507;
+  border-radius: 2px;
+  box-shadow:
+    0 3px 6px rgba(0,0,0,0.7),
+    0 1px 2px rgba(0,0,0,0.5),
+    inset 0 1px 0 rgba(255,255,255,0.2),
+    inset 0 -1px 0 rgba(0,0,0,0.7);
+}
+/* Deep center groove + sharp contrasting painted indicator line down the middle */
+.fader-cap::before {
+  content: "";
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  background-color: #ffffff;
+  background-image: linear-gradient(180deg, #ffffff 0%, #edeae5 60%, #c4c1bb 100%);
+  box-shadow:
+    0 -1px 0 rgba(8,8,10,0.95),
+    0 1px 0 rgba(8,8,10,0.95),
+    0 0 1px rgba(255,255,255,0.9);
+  border-radius: 0.5px;
+}
+/* Slim horizontal slider cap in the track headers keeps its tighter profile. */
+.fader-cap--mini { border-radius: 2px; }
+.fader-cap--mini::before { left: 1px; right: 1px; height: 2px; margin-top: -1px; }
+.fader-slot {
+  background-image: linear-gradient(90deg, #0d0d0f, #1b1b1e 55%, #101012);
+  border: 1px solid #0a0a0c;
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.07);
+}
+.plate .fader-slot {
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.5);
+}
+
+/* Fine film/print grain over the whole unit. */
+.grain::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 70; opacity: 0.22; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+}
+
+:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 1px; }
+::selection { background: rgba(226,160,74,0.85); color: var(--c-accentText); }
+
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: var(--c-bg0); }
+::-webkit-scrollbar-thumb { background: #45454b; border-radius: 8px; border: 3px solid var(--c-bg0); }
+::-webkit-scrollbar-thumb:hover { background: #5c5c63; }
+::-webkit-scrollbar-corner { background: var(--c-bg0); }
+
+select option { background: var(--c-bg2); color: var(--c-text); }
+
+@keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes pop { from { opacity: 0; transform: translateY(6px) scale(.985) } to { opacity: 1; transform: none } }
+@keyframes slidein { from { opacity: 0; transform: translateX(14px) } to { opacity: 1; transform: none } }
+@keyframes rise { from { transform: translateY(24px); opacity: 0 } to { transform: none; opacity: 1 } }

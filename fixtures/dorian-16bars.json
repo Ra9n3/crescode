@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "name": "Dorian 16 Bars",
+  "bpm": 100,
+  "tempoMap": [{ "tick": 0, "bpm": 100 }],
+  "timeSignature": { "numerator": 4, "denominator": 4 },
+  "key": 2,
+  "mode": "Dorian",
+  "sections": [
+    { "id": "sec_verse", "name": "Verse", "startBar": 1, "lengthBars": 8 },
+    { "id": "sec_chorus", "name": "Chorus", "startBar": 9, "lengthBars": 8 }
+  ],
+  "chords": [
+    { "id": "c01", "symbol": "Dm7", "startTick": 0, "durationTicks": 3840 },
+    { "id": "c02", "symbol": "G7", "startTick": 3840, "durationTicks": 3840 },
+    { "id": "c03", "symbol": "Dm7", "startTick": 7680, "durationTicks": 3840 },
+    { "id": "c04", "symbol": "Em7", "startTick": 11520, "durationTicks": 1920 },
+    { "id": "c05", "symbol": "Fmaj7", "startTick": 13440, "durationTicks": 1920 },
+    { "id": "c06", "symbol": "Dm9", "startTick": 15360, "durationTicks": 3840 },
+    { "id": "c07", "symbol": "C/E", "startTick": 19200, "durationTicks": 3840 },
+    { "id": "c08", "symbol": "Am7", "startTick": 23040, "durationTicks": 3840 },
+    { "id": "c09", "symbol": "G", "startTick": 26880, "durationTicks": 3840 },
+    { "id": "c10", "symbol": "Dm", "startTick": 30720, "durationTicks": 3840 },
+    { "id": "c11", "symbol": "Fmaj7", "startTick": 34560, "durationTicks": 3840 },
+    { "id": "c12", "symbol": "C", "startTick": 38400, "durationTicks": 3840 },
+    { "id": "c13", "symbol": "G/B", "startTick": 42240, "durationTicks": 3840 },
+    { "id": "c14", "symbol": "Dm7", "startTick": 46080, "durationTicks": 3840 },
+    { "id": "c15", "symbol": "Bbmaj7", "startTick": 49920, "durationTicks": 3840 },
+    { "id": "c16", "symbol": "C", "startTick": 53760, "durationTicks": 1920 },
+    { "id": "c17", "symbol": "A7sus4", "startTick": 55680, "durationTicks": 1920 },
+    { "id": "c18", "symbol": "Dm7", "startTick": 57600, "durationTicks": 3840 }
+  ],
+  "referenceAudio": { "path": null, "offsetMs": 0 },
+  "tracks": [],
+  "libraryGroups": [],
+  "masterVolume": 1
+}

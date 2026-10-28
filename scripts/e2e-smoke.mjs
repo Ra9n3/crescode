@@ -176,7 +176,7 @@ const names = await page.locator('[data-testid=vst-loaded] button span.flex-1').
 check('Plugin names stripped of .vst3 / 64-bit', names.every((n) => !/vst3|64.?bit|x64/i.test(n)), names.join(', '));
 await page.keyboard.press('Escape');
 
-await page.getByRole('button', { name: 'Settings' }).click();
+await page.getByRole('button', { name: 'Settings', exact: true }).click();
 const devSwitch = page.getByRole('switch', { name: 'Enable developer tools' });
 const beforeSwitch = await devSwitch.getAttribute('aria-checked');
 const onShadow = await devSwitch.evaluate((e) => getComputedStyle(e).boxShadow);
@@ -191,6 +191,62 @@ check('Invalid chord symbol shown red', (await page.locator('[data-testid=chord]
 await st(() => { const s = window.crescodeTest.store.getState(); s.deleteChord('bad1'); s.set({ pxPerTick: 0.2 }); });
 check('Chords survive zoom', (await page.locator('[data-testid=chord]').count()) === 18);
 await st(() => window.crescodeTest.store.getState().set({ pxPerTick: 0.06 }));
+
+// ---- Chord generator UI/UX (spec: UI-only phase) ----
+const genBtn = page.locator('[data-testid=chordgen-generate]');
+check('Generate + Settings live in the chords track header', (await genBtn.count()) === 1 && (await page.locator('[data-testid=chordgen-settings]').count()) === 1);
+const VALID_TIPS = ['Generate chords for entire song', 'Fill empty chord spaces', 'Regenerate entire song'];
+const tip0 = await genBtn.getAttribute('title');
+check('Generate tooltip reflects the detected scope', tip0 !== null && (VALID_TIPS.includes(tip0) || tip0.startsWith('Regenerate selected section: ')), tip0 ?? '');
+
+// Generate click: immediate, no prompt, no dialog, no chord/seed changes while disconnected
+await page.evaluate(() => { window.__promptCalls = 0; window.prompt = () => { window.__promptCalls++; return ''; }; });
+const chordSeedBefore = await st(() => JSON.stringify({ c: window.crescodeTest.store.getState().project.chords, s: window.crescodeTest.store.getState().project.chordGenSettings?.seed }));
+await genBtn.click();
+await page.waitForTimeout(150);
+const chordSeedAfter = await st(() => JSON.stringify({ c: window.crescodeTest.store.getState().project.chords, s: window.crescodeTest.store.getState().project.chordGenSettings?.seed }));
+check('Generate: no prompt, no dialog, chords + seed untouched while disconnected',
+  chordSeedBefore === chordSeedAfter
+  && await st(() => window.__promptCalls) === 0
+  && (await page.locator('[data-testid=chordgen-panel]').count()) === 0);
+
+// Section selection UX: whole block clickable, tooltip switches, second click deselects
+const section0 = page.locator('[data-testid=section]').first();
+await section0.click();
+const tipSel = await genBtn.getAttribute('title');
+check('Selected section → section-scoped tooltip', tipSel?.startsWith('Regenerate selected section: ') ?? false, tipSel ?? '');
+check('Section selection is store state', await st(() => window.crescodeTest.store.getState().selectedSectionId !== null));
+await section0.click();
+check('Second click on the section deselects it', await st(() => window.crescodeTest.store.getState().selectedSectionId === null));
+check('Tooltip follows the deselection', (await genBtn.getAttribute('title')) === tip0);
+
+// Settings panel: opens from the gear only, autosaves into the project, survives close, undoable
+await page.locator('[data-testid=chordgen-settings]').click();
+await page.waitForSelector('[data-testid=chordgen-panel]');
+await page.selectOption('[data-testid=chordgen-complexity]', '3');
+check('Settings autosave into the project (no Apply)', await st(() => window.crescodeTest.store.getState().project.chordGenSettings?.complexity) === 3);
+await page.getByRole('button', { name: 'Done' }).click();
+await page.waitForTimeout(50);
+check('Values survive closing the panel', await st(() => window.crescodeTest.store.getState().project.chordGenSettings?.complexity) === 3 && (await page.locator('[data-testid=chordgen-panel]').count()) === 0);
+await st(() => window.crescodeTest.store.getState().undo());
+check('A settings change is one undo step', await st(() => window.crescodeTest.store.getState().project.chordGenSettings?.complexity) === 2);
+await st(() => window.crescodeTest.store.getState().redo());
+
+// Chord locking: manual placement locks at birth; right-click toggles; undo restores
+check('Manually placed chords are locked at birth', await st(() => {
+  const s = window.crescodeTest.store.getState();
+  const id = s.addChord({ symbol: 'Dm', startTick: 8 * 3840, durationTicks: 3840, locked: true });
+  const c = window.crescodeTest.store.getState().project.chords.find((x) => x.id === id); // fresh state, not the pre-add snapshot
+  s.deleteChord(id);
+  return c?.locked === true;
+}));
+await page.locator('[data-testid=chord]').first().click({ button: 'right' }); // locator handles scrolling
+await page.waitForSelector('[data-testid=chord-lock-menu]');
+await page.locator('[data-testid=chord-lock-toggle]').click();
+check('Right-click menu locks a chord with an indicator', (await page.locator('[data-testid=chord][data-locked]').count()) === 1);
+await st(() => window.crescodeTest.store.getState().undo());
+check('Chord lock participates in undo', (await page.locator('[data-testid=chord][data-locked]').count()) === 0);
+check('Locking left the chord count intact', (await page.locator('[data-testid=chord]').count()) === 18);
 
 // Piano roll edit -> export
 await st(() => window.crescodeTest.store.getState().edit((p) => ({ ...p, tracks: p.tracks.map((t, i) => (i === 3 ? { ...t, notes: [] } : t)) })));

@@ -87,14 +87,14 @@ export function ToggleSwitch({ on, tip, onChange, size = 'md', testId }: { on: b
   );
 }
 
-export function Modal({ title, onClose, children, width = 560, footer, icon }: { title: string; onClose: () => void; children: ReactNode; width?: number; footer?: ReactNode; icon?: IconifyIcon }) {
+export function Modal({ title, onClose, children, width = 560, footer, icon, testId }: { title: string; onClose: () => void; children: ReactNode; width?: number; footer?: ReactNode; icon?: IconifyIcon; testId?: string }) {
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } };
     window.addEventListener('keydown', k, true);
     return () => window.removeEventListener('keydown', k, true);
   }, [onClose]);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--c-overlay)] backdrop-blur-[2px] animate-[fade_.15s_ease]" onPointerDown={onClose}>
+    <div data-testid={testId} className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--c-overlay)] backdrop-blur-[2px] animate-[fade_.15s_ease]" onPointerDown={onClose}>
       <div className="panel flex max-h-[86vh] flex-col overflow-hidden rounded-lg border border-[#0d0d0f] shadow-[0_24px_60px_rgba(0,0,0,0.7)] animate-[pop_.18s_ease]" style={{ width }} onPointerDown={(e) => e.stopPropagation()}>
         <div className="relative flex items-center gap-2 border-b border-[#0e0e10] px-4 py-3">
           <div className="absolute inset-x-0 top-0 h-px bg-[rgba(255,255,255,0.08)]" />
@@ -109,10 +109,10 @@ export function Modal({ title, onClose, children, width = 560, footer, icon }: {
   );
 }
 
-export function Button({ children, onClick, primary, disabled, tip, className, danger }: { children: ReactNode; onClick?: () => void; primary?: boolean; disabled?: boolean; tip?: string; className?: string; danger?: boolean }) {
+export function Button({ children, onClick, primary, disabled, tip, className, danger, testId }: { children: ReactNode; onClick?: () => void; primary?: boolean; disabled?: boolean; tip?: string; className?: string; danger?: boolean; testId?: string }) {
   return (
     <button
-      type="button" title={tip} disabled={disabled} onClick={onClick}
+      type="button" title={tip} disabled={disabled} onClick={onClick} data-testid={testId}
       className={cn(
         'hw inline-flex h-8 items-center justify-center gap-2 px-3 text-[11px] font-semibold uppercase tracking-[0.11em] transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-40',
         primary && 'hw-primary', danger && 'border-[#5c241c]',
@@ -319,10 +319,10 @@ export function Toasts() {
 
 /* ---------------------------------------------------------------- fields */
 
-export function Select<T extends string | number>({ value, options, onChange, tip, className, mono }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; tip: string; className?: string; mono?: boolean }) {
+export function Select<T extends string | number>({ value, options, onChange, tip, className, mono, testId }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; tip: string; className?: string; mono?: boolean; testId?: string }) {
   return (
     <select
-      title={tip} aria-label={tip} value={String(value)}
+      title={tip} aria-label={tip} value={String(value)} data-testid={testId}
       onChange={(e) => { const o = options.find((x) => String(x.value) === e.target.value); if (o) onChange(o.value); }}
       className={cn('screen h-7 rounded-[3px] px-2 text-[11px] uppercase tracking-[0.08em] text-[var(--c-text)] outline-none hover:brightness-125', mono && 'font-mono tracking-normal normal-case', className)}
     >

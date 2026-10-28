@@ -4,6 +4,8 @@ import type { Track } from '../shared/schema/types';
 import { routingInfo, toggleFreeze } from '../lib/routing';
 import { preview } from '../audio/preview';
 import { pickFile } from '../lib/files';
+import { detectGenerationScope, scopeTooltip } from '../lib/genScope';
+import { runChordGenerate } from '../lib/chordGenUi';
 import { cn } from '../utils/cn';
 import { I } from './icons';
 import { HEADER_W, Ico, IconButton, Knob, MiniSlider, NumberField, ROW_H, ToggleChip } from './ui';
@@ -57,6 +59,31 @@ function Strip({ color }: { color: string }) {
   );
 }
 
+/** Generate + Settings for the Chords track header (spec §1, §2, §4).
+ *  Generate: primary hardware action — executes immediately, never opens a
+ *  dialog; its tooltip states the auto-detected scope and follows the project
+ *  and selection live. Settings: small gear beside it, opens the settings
+ *  panel only. */
+export const ChordGenButtons = memo(function ChordGenButtons() {
+  const project = useStore((s) => s.project);
+  const selectedSectionId = useStore((s) => s.selectedSectionId);
+  const tip = scopeTooltip(detectGenerationScope(project, selectedSectionId), project);
+  return (
+    <div className="flex shrink-0 items-center gap-1.5 self-center" data-testid="chordgen-controls">
+      <button
+        type="button" data-testid="chordgen-generate" title={tip} aria-label={tip}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); runChordGenerate(); }}
+        className="hw hw-primary flex h-[27px] items-center gap-1.5 rounded px-3 text-[11px] font-bold uppercase tracking-[0.1em]"
+      >
+        <Ico icon={I.magic} className="text-[13px]" /> Generate
+      </button>
+      <IconButton icon={I.gear} tip="Chord generator settings" testId="chordgen-settings" size="sm"
+        onClick={() => useStore.getState().set({ modal: 'chordgenSettings' })} />
+    </div>
+  );
+});
+
 export const TrackHeader = memo(function TrackHeader({ track, index, selected }: { track: Track; index: number; selected: boolean }) {
   const updateTrack = useStore((s) => s.updateTrack);
   const freeze = useStore((s) => s.freezeProgress[track.id]);
@@ -85,10 +112,11 @@ export const TrackHeader = memo(function TrackHeader({ track, index, selected }:
           </div>
           <div className="truncate text-[10px] text-[var(--c-textMute)]">
             {track.role === 'structure' && 'Drag to create · double-click to rename'}
-            {track.role === 'chords' && 'Click to place · type a symbol'}
+            {track.role === 'chords' && 'Click to place · type a symbol · right-click a chord to lock'}
             {track.family === 'Audio' && (refPath ? refPath : 'No audio loaded (wav / mp3 / flac)')}
           </div>
         </div>
+        {track.role === 'chords' && <ChordGenButtons />}
         {track.family === 'Audio' && (
           <div className="flex items-center gap-1">
             <IconButton icon={I.upload} tip="Load reference audio (wav, mp3, flac)" onClick={() => void loadReferenceAudio()} />

@@ -1,6 +1,6 @@
 import { FAMILY_COLORS } from '../../theme/tokens';
 import { ADD_TRACK_TEMPLATES, INSTRUMENTS, instrumentRange } from './ranges';
-import { PPQ, SCHEMA_VERSION, isInstrumentTrack, type Project, type Track, type TrackFamily } from './types';
+import { DEFAULT_CHORDGEN_SETTINGS, PPQ, SCHEMA_VERSION, isInstrumentTrack, type Project, type Track, type TrackFamily } from './types';
 
 let counter = 0;
 export function uid(prefix = 'id'): string {
@@ -56,6 +56,7 @@ export function createDefaultProject(): Project {
     mode: 'Ionian',
     sections: [],
     chords: [],
+    chordGenSettings: { ...DEFAULT_CHORDGEN_SETTINGS },
     referenceAudio: { path: null, offsetMs: 0 },
     tracks: createDefaultTracks(),
     libraryGroups: [],

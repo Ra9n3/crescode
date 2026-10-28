@@ -2,8 +2,9 @@ import { create } from 'zustand';
 import fixture from '../../fixtures/dorian-16bars.json';
 import {
   createAddedTrack, projectFromFixture, uid, MAX_TRACKS_PER_GROUP,
-  type Chord, type LibraryGroup, type Note, type Project, type Section, type Track, type TrackFamily,
+  type Chord, type ChordGenSettings, type LibraryGroup, type Note, type Project, type Section, type Track, type TrackFamily,
 } from '../shared/schema';
+import { DEFAULT_CHORDGEN_SETTINGS } from '../shared/schema/types';
 import { generate } from '../engine/generate';
 
 export const HISTORY_LIMIT = 200;
@@ -11,6 +12,10 @@ export const HISTORY_LIMIT = 200;
 export type VstState = 'notScanned' | 'scanning' | 'empty' | 'loaded';
 export interface PluginInfo { id: string; name: string; vendor: string; path: string }
 export interface Toast { id: string; kind: 'info' | 'success' | 'error' | 'warn'; text: string; action?: { label: string; run: () => void } }
+
+/** Brief, subtle highlight for freshly generated/changed chords (spec §4). The
+ *  future generator triggers it by setting this — no coupling to the algorithm. */
+export interface GenHighlight { at: number; /** ids to flash; null = flash every chord in view. */ chordIds: string[] | null }
 
 export interface Settings {
   scanDirectory: string;
@@ -44,7 +49,7 @@ interface State {
   mixerOpen: boolean;
   routingOpen: boolean;
   pianoRollTrackId: string | null;
-  modal: null | 'export' | 'settings' | 'about' | 'vst' | 'import' | 'recent';
+  modal: null | 'export' | 'settings' | 'about' | 'vst' | 'import' | 'recent' | 'chordgenSettings';
   vstTargetTrackId: string | null;
   importErrors: { path: string; message: string }[];
 
@@ -57,6 +62,7 @@ interface State {
   composeOptions: ComposeOptions;
   settings: Settings;
   toasts: Toast[];
+  genHighlight: GenHighlight | null;
 
   vstState: VstState;
   vstForced: VstState | null;
@@ -91,6 +97,9 @@ interface State {
   deleteGroup: (id: string) => void;
   routeTrack: (trackId: string, groupId: string | null) => boolean;
   composeAll: () => number;
+  /** Merge a chord-generator settings patch into the project — one undo step
+   *  (pass a coalesce key to merge slider drags into a single step, spec §7/§9). */
+  setChordGenSettings: (patch: Partial<ChordGenSettings>, coalesce?: string) => void;
 
   set: (patch: Partial<State>) => void;
   setSettings: (patch: Partial<Settings>) => void;
@@ -110,6 +119,7 @@ export const useStore = create<State>((set, get) => ({
   composeOptions: { seed: 1, density: 1, humanize: true },
   settings: loadSettings(),
   toasts: [],
+  genHighlight: null,
   vstState: 'notScanned', vstForced: null, scanProgress: { loaded: 0, total: 0 }, plugins: [], failedPlugins: [],
   engineConnected: false, freezeProgress: {}, pluginLoading: {}, refVersion: 0,
 
@@ -186,6 +196,15 @@ export const useStore = create<State>((set, get) => ({
     const tracks = generate(project, { ...composeOptions, lockedTrackIds: project.tracks.filter((t) => t.locked).map((t) => t.id) });
     get().edit((p) => ({ ...p, tracks: p.tracks.map((t) => tracks.find((g) => g.id === t.id) ?? t) }));
     return performance.now() - t0;
+  },
+
+  // Chord-generator settings: auto-saved into the project (serialization picks
+  // the field up) as ONE undoable step; slider drags coalesce (spec §6/§7/§9).
+  setChordGenSettings: (patch, coalesce) => {
+    get().edit((p) => ({
+      ...p,
+      chordGenSettings: { ...DEFAULT_CHORDGEN_SETTINGS, ...(p.chordGenSettings ?? {}), ...patch },
+    }), coalesce);
   },
 
   set: (patch) => set(patch),

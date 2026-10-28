@@ -9,6 +9,7 @@ import { engine } from '../engineClient/client';
 import { cn } from '../utils/cn';
 import { I } from './icons';
 import { Button, Ico, Modal, NumberField, Select, ToggleSwitch } from './ui';
+import { ChordGenSettingsDialog } from './ChordGenSettings';
 
 /* ---------- unsaved-changes guard ---------- */
 const useConfirm = create<{ pending: null | (() => void) }>(() => ({ pending: null }));
@@ -245,6 +246,7 @@ export function Dialogs() {
       {modal === 'about' && <AboutDialog />}
       {modal === 'import' && <ImportErrorsDialog />}
       {modal === 'recent' && <RecentDialog />}
+      {modal === 'chordgenSettings' && <ChordGenSettingsDialog />}
       <UnsavedDialog />
     </>
   );

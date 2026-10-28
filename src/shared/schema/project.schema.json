@@ -22,7 +22,7 @@
     "mode": { "enum": ["Ionian", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Aeolian", "Locrian", "Harmonic Minor", "Melodic Minor", "Whole Tone", "Diminished (Half-Whole)", "Diminished (Whole-Half)"] },
     "sections": {
       "type": "array",
-      "items": { "type": "object", "required": ["id", "name", "startBar", "lengthBars"], "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "startBar": { "type": "integer", "minimum": 1 }, "lengthBars": { "type": "integer", "minimum": 1 } } }
+      "items": { "type": "object", "required": ["id", "name", "startBar", "lengthBars"], "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "startBar": { "type": "integer", "minimum": 1 }, "lengthBars": { "type": "integer", "minimum": 1 }, "energy": { "type": "number", "minimum": 0, "maximum": 1, "description": "Section energy 0..1. Optional; missing = neutral 0.5. Single canonical energy field read by the harmony planner." } } }
     },
     "chords": {
       "type": "array",

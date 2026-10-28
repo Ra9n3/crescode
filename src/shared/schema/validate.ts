@@ -51,6 +51,7 @@ export function validateProject(input: unknown): ValidationResult {
     if (!s.name || typeof s.name !== 'string') err(`${at}.name`, 'Section needs a name');
     if (!isInt(s.startBar) || s.startBar < 1) err(`${at}.startBar`, `Section "${s.name}": startBar must be ≥ 1`);
     if (!isInt(s.lengthBars) || s.lengthBars < 1) err(`${at}.lengthBars`, `Section "${s.name}": lengthBars must be ≥ 1`);
+    if (s.energy !== undefined && (!isNum(s.energy) || s.energy < 0 || s.energy > 1)) err(`${at}.energy`, `Section "${s.name}": energy must be a number 0–1 when present`);
   });
   const sorted = [...p.sections].sort((a, b) => a.startBar - b.startBar);
   for (let i = 1; i < sorted.length; i++) {

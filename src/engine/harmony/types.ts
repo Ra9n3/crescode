@@ -145,3 +145,168 @@ export interface ChordRelationship {
    *  twins, e.g. Bdim7 vs Ddim7). */
   enharmonicallyEquivalent: boolean;
 }
+
+/* ==========================================================================
+ * Phase 2 — Section harmony profiles (planning descriptions, not decisions)
+ * ==========================================================================
+ *
+ * Everything below describes HOW harmony may behave in a section and across
+ * a song: identity, structural context, flexible dimension preferences,
+ * contours and repetition relationships. Nothing here selects, places or
+ * modifies chords, and nothing here is visible UI state. All numeric
+ * preferences are INTERNAL PLANNING PARAMETERS (spec §6) — normalized
+ * conveniences that shape the possibility space for later phases, not
+ * measurements of musical emotion.
+ */
+
+/** Coarse structural family a section name resolves to. 'unknown' = no
+ *  recognized identity — fully supported, treated neutrally. */
+export type SectionFamily =
+  | 'intro' | 'verse' | 'prechorus' | 'chorus' | 'build' | 'bridge'
+  | 'breakdown' | 'outro' | 'instrumental' | 'interlude' | 'solo'
+  | 'transition' | 'reprise' | 'unknown';
+
+/** Specific normalized identity. Finer than the family: 'coda' shares the
+ *  'outro' family, 'reprise' may share the family it reprises. */
+export type SectionIdentity = SectionFamily | 'coda';
+
+/** Result of recognizing one section name. */
+export interface ResolvedSectionIdentity {
+  identity: SectionIdentity;
+  family: SectionFamily;
+  /** 'final' when the name carries a final/last qualifier ("Final Chorus"). */
+  qualifier: 'final' | null;
+  /** Occurrence number written in the name ("Verse 2" → 2), when present. */
+  explicitOccurrence: number | null;
+  /** 0 = unrecognized (neutral), 0.95 = single clear keyword,
+   *  0.7 = several conflicting keywords (best guess kept). */
+  confidence: number;
+}
+
+/** One neighboring section as seen from the analyzed section. */
+export interface NeighborSummary {
+  sectionId: string;
+  name: string;
+  identity: SectionIdentity;
+  family: SectionFamily;
+  energy: number;
+}
+
+/** Where a section sits in the arrangement. Pure facts plus the resolved
+ *  identity — no harmonic decisions. */
+export interface SectionContext {
+  sectionId: string;
+  name: string;
+  identity: SectionIdentity;
+  family: SectionFamily;
+  qualifier: 'final' | null;
+  confidence: number;
+  /** 1-based position within this section's relationship group (explicit
+   *  numbering in the name wins; otherwise chronological order). */
+  occurrence: number;
+  /** How many sections share this section's relationship group. */
+  familyCount: number;
+  /** The family occurs more than once — related material exists. */
+  isRepeated: boolean;
+  startBar: number;
+  lengthBars: number;
+  /** Inclusive last bar (startBar + lengthBars - 1). */
+  endBar: number;
+  durationBars: number;
+  /** lengthBars × barTicks(project.timeSignature) — meter-aware. */
+  durationTicks: number;
+  /** Resolved energy: the section's own value, else neutral 0.5. */
+  energy: number;
+  /** Whether the section carried an explicit energy value. */
+  energyExplicit: boolean;
+  /** Section start/center/end normalized over the song's section span. */
+  normalizedPosition: { start: number; center: number; end: number };
+  isFirst: boolean;
+  isLast: boolean;
+  /** Normalized center ≤ 0.2 / ≥ 0.8. */
+  nearBeginning: boolean;
+  nearEnd: boolean;
+  previous: NeighborSummary | null;
+  next: NeighborSummary | null;
+  /** energy minus previous energy (null when no previous section). */
+  energyDeltaFromPrevious: number | null;
+  /** next energy minus energy (null when no next section). */
+  energyDeltaToNext: number | null;
+  /** The next section changes family, or the energy jumps by ≥ 0.3 — a
+   *  factual structural boundary, not a prescription to build. */
+  precedesMajorTransition: boolean;
+}
+
+/** A flexible preference: a general target plus how far behavior may range
+ *  around it. `preferred` is 0..1 (internal planning parameter); `flexibility`
+ *  describes the allowed spread, not a hard clamp for later phases. */
+export interface HarmonicPreference {
+  preferred: number;
+  flexibility: number;
+}
+
+/** Shape of harmonic activity a section tends toward. A descriptor for the
+ *  future generator — NOT a chord-duration template. */
+export type RhythmShape =
+  | 'hold' | 'regular' | 'mixed' | 'accelerating' | 'decelerating' | 'periodic';
+
+/** Meter-aware harmonic-rhythm preference. `preferredChangesPerBar` is bar-
+ *  relative; the interval fields are derived through the project's actual
+ *  meter utilities (barTicks / felt beats), never by assuming 4/4. */
+export interface HarmonicRhythmPreference {
+  preferredChangesPerBar: number;
+  /** Allowed spread in changes-per-bar units. */
+  flexibility: number;
+  /** barTicks / preferredChangesPerBar — concrete ticks in THIS meter. */
+  preferredChangeIntervalTicks: number;
+  /** Felt beats between changes (beatsPerBar / preferredChangesPerBar). */
+  preferredChangeIntervalBeats: number;
+  shape: RhythmShape;
+}
+
+export type DevelopmentRole = 'establish' | 'repeat' | 'develop' | 'contrast';
+
+/** Repetition/development description for one section. */
+export interface SectionDevelopment {
+  role: DevelopmentRole;
+  /** Other sections sharing the relationship group, chronological. */
+  relatedSectionIds: string[];
+}
+
+/** Meter facts read from the project — so later phases never re-derive them
+ *  and never assume 4/4. */
+export interface SectionMeterFacts {
+  timeSignature: { numerator: number; denominator: number };
+  barTicks: number;
+  beatTicks: number;
+  /** Felt beats per bar (compound meters group pulses in threes). */
+  beatsPerBar: number;
+  compound: boolean;
+}
+
+/** The complete Phase-2 planning description of one section. */
+export interface SectionHarmonyProfile {
+  sectionId: string;
+  sectionName: string;
+  identity: SectionIdentity;
+  family: SectionFamily;
+  context: SectionContext;
+  meter: SectionMeterFacts;
+  preferences: {
+    stability: HarmonicPreference;
+    movement: HarmonicPreference;
+    rhythm: HarmonicRhythmPreference;
+    complexity: HarmonicPreference;
+    tension: HarmonicPreference;
+    modalEmphasis: HarmonicPreference;
+    contrast: HarmonicPreference;
+  };
+  /** How each dimension may evolve across the section. Any dimension may
+   *  carry a contour — tension is not privileged. */
+  contours: {
+    tension: import('./contours').Contour;
+    rhythm: import('./contours').Contour;
+    complexity: import('./contours').Contour;
+  };
+  development: SectionDevelopment;
+}

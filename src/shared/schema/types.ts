@@ -18,7 +18,20 @@ export type TrackFamily =
 export interface TempoEntry { tick: number; bpm: number }
 export interface TimeSignature { numerator: number; denominator: number }
 
-export interface Section { id: string; name: string; startBar: number; lengthBars: number }
+export interface Section {
+  id: string;
+  name: string;
+  startBar: number;
+  lengthBars: number;
+  /** Section energy 0..1 (0 = dormant, 1 = peak). Optional: missing = neutral
+   *  0.5. This is the SINGLE canonical energy field — the harmony planner
+   *  (engine/harmony) reads it as one contextual influence among several; it
+   *  never directly determines harmonic values. Old files load unchanged. */
+  energy?: number;
+}
+
+/** Energy used when a section omits the optional field. */
+export const DEFAULT_SECTION_ENERGY = 0.5;
 
 export interface Chord { id: string; symbol: string; startTick: number; durationTicks: number; /** true = protected from future generation. Missing/false = unlocked (old files load unlocked). */ locked?: boolean }
 

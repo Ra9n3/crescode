@@ -9,6 +9,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { generateChordProgression } from '../src/engine/harmony/generation';
 import { resolveScopePlan } from '../src/engine/harmony/coverage';
+import { foundationId, getHarmonicFoundation } from '../src/engine/harmony/foundation';
 import { parseChord } from '../src/shared/schema/chords';
 import { barTicks } from '../src/shared/schema/meter';
 import { runChordGenerate, __setChordGenerator } from '../src/lib/chordGenUi';
@@ -277,22 +278,29 @@ describe('Test 9 — different meters (spec §17.9)', () => {
   }
 });
 
-describe('Test 10 — repeated sections preserve recognizable identity (spec §17.10)', () => {
+describe('Test 10 — repeated sections preserve recognizable identity (spec §17.10, §15)', () => {
   const fourSections = [
     sec('v1', 'Verse', 1, 8), sec('c1', 'Chorus', 9, 4),
     sec('v2', 'Verse 2', 13, 8), sec('c2', 'Chorus 2', 21, 4),
   ];
-  const overlapAt = (chords: Chord[], a: [number, number], b: [number, number]): number => {
+  /** Position-aligned STRUCTURAL identity: Phase 4.1 §15 requires repeated
+   *  sections to share harmonic foundations while colors are re-treated
+   *  contextually, so identity is asserted on foundations, not symbols. */
+  const foundationOverlapAt = (chords: Chord[], a: [number, number], b: [number, number]): number => {
     const inSpan = (c: Chord, s: number, e: number) => c.startTick >= s * BT && c.startTick < e * BT;
-    const xa = chords.filter((c) => inSpan(c, a[0], a[1])).map((c) => c.symbol);
-    const xb = chords.filter((c) => inSpan(c, b[0], b[1])).map((c) => c.symbol);
+    const fid = (c: Chord) => {
+      const f = getHarmonicFoundation(c.symbol, { root: 2, mode: 'Dorian' });
+      return f ? foundationId(f) : `?${c.symbol}`;
+    };
+    const xa = chords.filter((c) => inSpan(c, a[0], a[1])).map(fid);
+    const xb = chords.filter((c) => inSpan(c, b[0], b[1])).map(fid);
     if (!xa.length || !xb.length) return 0;
     let hits = 0;
     for (let i = 0; i < Math.min(xa.length, xb.length); i++) if (xa[i] === xb[i]) hits++;
     return hits / Math.min(xa.length, xb.length);
   };
 
-  it('Verse 2 / Chorus 2 reuse Verse 1 / Chorus 1 material when preserveIdentity is on', () => {
+  it('Verse 2 / Chorus 2 reuse Verse 1 / Chorus 1 harmonic foundations when preserveIdentity is on', () => {
     const base = projectFromFixture({ name: 'rep', tracks: [] });
     const p = makeProject(fourSections, [], {
       key: 2, mode: 'Dorian',
@@ -300,8 +308,8 @@ describe('Test 10 — repeated sections preserve recognizable identity (spec §1
     });
     const r = generateChordProgression(p, { scope: { type: 'all' }, seed: 5 });
     expectWellFormed(r.chords, 0, 24 * BT);
-    expect(overlapAt(r.chords, [0, 8], [12, 20])).toBeGreaterThanOrEqual(0.8);
-    expect(overlapAt(r.chords, [8, 12], [20, 24])).toBeGreaterThanOrEqual(0.8);
+    expect(foundationOverlapAt(r.chords, [0, 8], [12, 20])).toBeGreaterThanOrEqual(0.8);
+    expect(foundationOverlapAt(r.chords, [8, 12], [20, 24])).toBeGreaterThanOrEqual(0.8);
   });
 
   it('identity weakens into development when preserveIdentity is off', () => {
@@ -311,7 +319,7 @@ describe('Test 10 — repeated sections preserve recognizable identity (spec §1
       chordGenSettings: { ...base.chordGenSettings!, preserveIdentity: false, variation: 0.5, seed: 5 },
     });
     const r = generateChordProgression(p, { scope: { type: 'all' }, seed: 5 });
-    expect(overlapAt(r.chords, [0, 8], [12, 20])).toBeLessThanOrEqual(0.4);
+    expect(foundationOverlapAt(r.chords, [0, 8], [12, 20])).toBeLessThanOrEqual(0.4);
   });
 
   it('related sections of different lengths adapt shared material to valid timing', () => {
@@ -323,9 +331,13 @@ describe('Test 10 — repeated sections preserve recognizable identity (spec §1
     const r = generateChordProgression(p, { scope: { type: 'all' }, seed: 5 });
     expectWellFormed(r.chords, 0, 10 * BT);
     expect(coversExactly(r.chords, 0, 10 * BT)).toBe(true);
-    const c1 = r.chords.filter((c) => c.startTick < 4 * BT).map((c) => c.symbol);
-    const c2 = r.chords.filter((c) => c.startTick >= 4 * BT).map((c) => c.symbol);
-    const shared = c2.filter((s) => c1.includes(s)).length;
+    const fid = (c: Chord) => {
+      const f = getHarmonicFoundation(c.symbol, { root: 2, mode: 'Dorian' });
+      return f ? foundationId(f) : `?${c.symbol}`;
+    };
+    const c1 = r.chords.filter((c) => c.startTick < 4 * BT).map(fid);
+    const c2 = r.chords.filter((c) => c.startTick >= 4 * BT).map(fid);
+    const shared = c2.filter((f) => c1.includes(f)).length;
     expect(shared / Math.max(1, c2.length)).toBeGreaterThanOrEqual(0.5);
   });
 });

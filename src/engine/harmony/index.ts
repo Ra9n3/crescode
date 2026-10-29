@@ -40,6 +40,9 @@ export * from './plan';
 export * from './coverage';
 export * from './rhythm';
 export * from './candidates';
+// Phase 4.1 — structural harmony separated from chord color.
+export * from './foundation';
 export * from './progression';
+export * from './color';
 export * from './generation';
 export * from './generation-types';

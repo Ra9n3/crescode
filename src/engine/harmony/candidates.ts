@@ -25,9 +25,7 @@ import { NOTE_NAMES } from '../../shared/schema/modes';
 import { CHORD_STRUCTURES, getChordVocabulary, resolveTonic } from './vocabulary';
 import { analyzeChordInMode } from './analysis';
 import type { ChordGenSettings, ModeName } from '../../shared/schema/types';
-import type {
-  CadenceEnvironment, CadenceFamily, CadenceIntention, ChordStructureId,
-} from './types';
+import type { ChordStructureId } from './types';
 
 /** Everything the generator needs to know about one chord candidate. */
 export interface CandidateInfo {
@@ -199,7 +197,7 @@ export function buildCandidatePool(
 }
 
 /* --------------------------------------------------------------------------
- * Relationship facts + contextual scoring (no tables — computed every time)
+ * Colored pair facts (used by the color stage and diagnostics)
  * ----------------------------------------------------------------------- */
 
 export interface PairFacts {
@@ -232,167 +230,4 @@ export function pairFacts(a: CandidateInfo, b: CandidateInfo): PairFacts {
     semitonePairs: semi,
     rootInterval,
   };
-}
-
-/** The per-phrase context transition and arrival scoring judge against. */
-export interface SelectionContext {
-  stability: number;
-  movement: number;
-  tension: number;
-  complexityPref: number;
-  modalPref: number;
-  contrastPref: number;
-  borrowing: ChordGenSettings['borrowing'];
-  role: string;
-  pool: CandidatePool;
-  env: CadenceEnvironment;
-}
-
-/**
- * How naturally `b` follows `a`. A weighted blend of Phase 1 relationship
- * facts against the phrase's direction — smooth chords for stable phrases,
- * root motion and tension points for active ones. Chromatic candidates are
- * graded, never excluded: their connection to the tonic, the borrowing
- * setting, the phrase role and the profile's contrast preference decide.
- */
-export function transitionScore(a: CandidateInfo | null, b: CandidateInfo, ctx: SelectionContext): number {
-  let score = 0.2; // base plausibility — every pool chord stays reachable
-  if (a !== null) {
-    const f = pairFacts(a, b);
-    const stabilityFit = f.smoothness * (0.3 + 0.7 * ctx.stability);
-    const movementFit = (1 - f.smoothness) * (0.2 + 0.8 * ctx.movement);
-    const tensionFit = 1 - Math.abs(Math.min(1, f.semitonePairs) - ctx.tension);
-    score += 0.16 * stabilityFit + 0.2 * movementFit + 0.14 * tensionFit;
-    if (a.symbol === b.symbol) score -= 0.25; // immediate repetition is the emit pass's job
-  } else {
-    score += 0.1 * (b.rootPc === ctx.pool.tonic ? 1 : 0.3); // openings lean home
-  }
-
-  if (b.diatonic) {
-    score += 0.22;
-  } else {
-    score += ctx.borrowing === 'more' ? 0.16 : 0.05;
-    if (ctx.role === 'contrast' || ctx.role === 'develop') score += 0.07;
-    if (ctx.contrastPref >= 0.6) score += 0.05;
-    if (ctx.modalPref >= 0.65) score -= 0.06; // protect modal color from chromatic wash
-    if (b.pcs.some((p) => ctx.pool.tonicTriadPcs.includes(p))) score += 0.06;
-  }
-
-  // Modal color: carry the mode's characteristic tones when emphasis asks.
-  const modalWeight = Math.max(-0.3, ctx.modalPref - 0.35);
-  score += 0.18 * b.characteristicToneCoverage * modalWeight * 2;
-
-  // Complexity fit: triad ↔ seventh ↔ extension against the profile target.
-  const rank = b.tier === 'triad' ? 0 : b.tier === 'seventh' ? 0.5 : 1;
-  score += 0.15 * (1 - Math.abs(rank - ctx.complexityPref));
-
-  return Math.max(0, score);
-}
-
-/**
- * How well `b` realizes the intended arrival from `a` (spec §8). Property-
- * based, never a cadence dictionary: resolution is read from tonic roots,
- * stable qualities, leading-tone semitone pairs and dominant-side approach —
- * facts derived from Phase 1's environment. Symmetrical scales resolve
- * through pedal tones and repetition instead of function.
- */
-export function arrivalFit(
-  a: CandidateInfo | null,
-  b: CandidateInfo,
-  intention: CadenceIntention,
-  ctx: SelectionContext,
-): number {
-  const tonic = ctx.pool.tonic;
-  const stableQuality = b.quality === 'major' || b.quality === 'minor';
-  const atHome = b.rootPc === tonic;
-  switch (intention) {
-    case 'resolved': {
-      let fit = atHome && stableQuality ? 1 : atHome ? 0.5 : 0.15;
-      if (a !== null) {
-        const f = pairFacts(a, b);
-        // Leading-tone-like resolution: a semitone pair into a tonic-triad tone.
-        const leadsHome = a.pcs.some((x) =>
-          ctx.pool.tonicTriadPcs.some((t) => ((t - x + 12) % 12 === 1 || (x - t + 12) % 12 === 1)));
-        if (leadsHome && f.semitonePairs > 0) fit += 0.3;
-        // Dominant-side approach to the tonic (only when the environment supports it).
-        if (ctx.env.dominantAvailable && atHome && a.rootPc === (tonic + 7) % 12
-          && (a.quality === '7' || a.quality === 'major')) fit += 0.35;
-        if (ctx.pool.symmetric && f.commonToneCount > 0) fit += 0.2; // pedal/repetition resolve here
-      }
-      return fit;
-    }
-    case 'open': {
-      let fit = 0.5;
-      if (atHome && stableQuality) fit -= 0.5; // landing home closes the phrase
-      if (b.tonicRelationship === 5 || b.tonicRelationship === 7) fit += 0.2;
-      if (a !== null && pairFacts(a, b).semitonePairs > 0) fit += 0.15;
-      return Math.max(0, fit);
-    }
-    case 'suspended': {
-      let fit = 0.3;
-      if (b.quality.includes('sus')) fit += 0.6;
-      if (atHome && b.quality.includes('sus')) fit += 0.2;
-      if (a !== null && pairFacts(a, b).commonToneCount >= 2) fit += 0.3; // held tones
-      return fit;
-    }
-    case 'transitional': {
-      let fit = 0.3;
-      if (ctx.env.dominantAvailable && b.rootPc === (tonic + 7) % 12
-        && (b.quality === '7' || b.quality === 'major')) fit += 0.4;
-      if (!atHome) fit += 0.2;
-      if (a !== null && pairFacts(a, b).semitonePairs > 0) fit += 0.2;
-      return fit;
-    }
-    case 'deceptive': {
-      let fit = 0.25;
-      if (a !== null && a.rootPc === (tonic + 7) % 12 && (a.quality === '7' || a.quality === 'major')
-        && stableQuality && !atHome) {
-        fit += 0.5; // dominant expectation lands on a different stable triad
-        if (pairFacts(a, b).commonToneCount >= 1) fit += 0.2;
-      }
-      return fit;
-    }
-    case 'modal': {
-      if (ctx.pool.symmetric) return 0.3; // modal language does not apply here
-      let fit = 0.3 + 0.6 * b.characteristicToneCoverage;
-      if (b.tags.includes('covers-all-characteristic-tones')) fit += 0.3;
-      return fit;
-    }
-    case 'ambiguous': {
-      let fit = 0.3;
-      const coloristicIds: ReadonlyArray<ChordStructureId> = ['dominant7b5', 'augmented7', 'augmented', 'diminished7', 'halfDiminished7'];
-      if (ctx.pool.symmetric && b.structureId !== null && coloristicIds.includes(b.structureId)) fit += 0.4;
-      const lowClarity = ['diminished', 'm7b5', 'dim7', 'sus2', 'sus4'].includes(b.quality);
-      if (!ctx.pool.symmetric && lowClarity) fit += 0.3;
-      if (!atHome) fit += 0.2;
-      return fit;
-    }
-  }
-}
-
-/**
- * Which broad cadence approach the actual a→b arrival realizes (spec §14
- * diagnostics + family matching). Derived from transition facts in a fixed
- * deterministic precedence; null when none applies.
- */
-export function realizedFamily(
-  a: CandidateInfo | null,
-  b: CandidateInfo,
-  ctx: SelectionContext,
-): CadenceFamily | null {
-  if (a === null) return null;
-  if (!b.diatonic) return 'chromatic';
-  const tonic = ctx.pool.tonic;
-  if (a.rootPc === (tonic + 7) % 12 && b.rootPc === tonic
-    && (a.quality === '7' || a.quality === 'major') && ctx.env.dominantAvailable) {
-    return 'functional-tonal';
-  }
-  if (a.rootPc === (tonic + 5) % 12 && b.rootPc === tonic && ctx.env.subdominantAvailable) return 'plagal';
-  const folded = pairFacts(a, b).motion;
-  if ((folded === 1 || folded === 2) && b.rootPc === tonic) return 'stepwise';
-  if (b.characteristicToneCoverage >= 0.5 && b.diatonic) return 'modal';
-  if (a.rootPc === b.rootPc) return 'pedal';
-  const coloristicIds: ReadonlyArray<ChordStructureId> = ['dominant7b5', 'augmented7', 'augmented', 'diminished7'];
-  if (ctx.pool.symmetric && b.structureId !== null && coloristicIds.includes(b.structureId)) return 'coloristic';
-  return null;
 }

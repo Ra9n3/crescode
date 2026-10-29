@@ -6,7 +6,7 @@
  * types are plain data: no React, no store, no async.
  */
 import type { Chord, ChordGenSettings } from '../../shared/schema/types';
-import type { CadenceFamily } from './types';
+import type { CadenceFamily, CadenceIntention } from './types';
 
 /** What the generator was asked to do (mirrors lib/genScope.ts). */
 export type GenerationScope =
@@ -43,6 +43,27 @@ export interface ChordGenerationReport {
     /** Number of protected (preserved) spans inside the region. */
     protectedSpans: number;
   };
+  /* ------------------------------------------------------------------
+   * Phase 4.1 structural diagnostics (spec §17) — debugging/evaluation
+   * only; no UI is built on these.
+   * ------------------------------------------------------------------ */
+  /** Distinct structural foundations selected, in order of first appearance
+   *  (e.g. "E minor", "C major"). */
+  structuralFoundations: string[];
+  /** Distinct foundation roots per phrase window that produced events. */
+  distinctRootsPerPhrase: number[];
+  /** Adjacent generated event pairs sharing one foundation (kept phrase-
+   *  boundary rearticulations; within-phrase prolongations are merged). */
+  sameFoundationRepetitions: number;
+  /** Subset of those pairs whose colored symbols also differ (color-only
+   *  movement across a phrase boundary). */
+  colorOnlyChanges: number;
+  /** Generated events whose foundation reinforces the tonal center. */
+  tonicReinforcementEvents: number;
+  /** Structural cadence realizations at planned arrivals. */
+  structuralCadences: Array<{ intention: CadenceIntention; family: CadenceFamily | null }>;
+  /** Foundation-set overlap between related (repeated) sections, 0..1. */
+  sectionFoundationOverlap: Array<{ a: string; b: string; overlap: number }>;
 }
 
 export interface ChordGenerationResult {

@@ -1,5 +1,5 @@
 /**
- * Chord progression generation (Phase 4) — the first Crescode engine stage
+ * Chord progression generation (Phase 4.1) — the first Crescode engine stage
  * that CREATES chord events (spec §1).
  *
  * Pipeline per request:
@@ -9,10 +9,16 @@
  *   3. clip phrase windows onto each target (synthesizing neutral windows
  *      where no section exists — projects without sections stay first-class)
  *   4. plan harmonic rhythm per target (rhythm.ts — WHEN chords change)
- *   5. select chords per window (progression.ts + candidates.ts — WHICH
- *      chords, using Phase 1 vocabulary facts, cadence intentions, anchors
- *      and repeated-material links)
- *   6. emit events, merge sustains, assemble the full chord array + report
+ *   5. STAGE A — select STRUCTURAL harmony per window (progression.ts over
+ *      foundation.ts): a sequence of harmonic foundations with phrase-level
+ *      trajectory evaluation, tonal-center awareness and diversity-aware
+ *      search; anchors and repeated material enter as foundations
+ *   6. merge same-foundation slot runs into sustained harmonic events
+ *      (spec §9 — prolongation by default, never automatic re-chords)
+ *   7. STAGE B — apply harmonic COLOR per event (color.ts): richness,
+ *      continuity and arrival-aware chord symbols from the foundation's
+ *      parser-validated palette; complexity can no longer steer the harmony
+ *   8. emit events, assemble the full chord array + report
  *
  * Musical guarantees (spec §5, §11, §12, §16): integer ticks at 960 PPQ,
  * exact target coverage (no gaps, no overlaps, nothing outside the region,
@@ -34,9 +40,13 @@ import { hashString, mulberry32 } from '../generate';
 import { buildSongHarmonyProfiles } from './profiles';
 import { planSongHarmony } from './plan';
 import { cadenceEnvironment, compatibleCadenceFamilies } from './cadences';
-import { candidateFromSymbol, buildCandidatePool, type CandidateInfo, type CandidatePool } from './candidates';
+import { applyHarmonicColor, type PreviousColor } from './color';
+import {
+  buildFoundationPool, foundationInfoFromSymbol, foundationLabel, reinforcesTonic,
+  realizedFoundationFamily, type FoundationInfo, type FoundationPool, type StructuralContext,
+} from './foundation';
+import { selectWindowFoundations, type MaterialReference, type SelectionWindow } from './progression';
 import { meterFacts, planRhythmSlots, type RhythmSlot, type RhythmWindowInput } from './rhythm';
-import { selectWindowChords, type MaterialReference, type SelectionWindow } from './progression';
 import { resolveScopePlan, generationRegionEnd, engineSongSpanTicks } from './coverage';
 import type {
   BoundaryIntention, CadenceEnvironment, HarmonicPhrase, PhraseRole, RhythmShape,
@@ -184,23 +194,23 @@ function windowsForTarget(
   return windows;
 }
 
-/** Material for a linked phrase: this run's choices, else the existing chords
- *  sounding through the related phrase's span (spec §10). Self-references are
- *  skipped — a phrase never reuses itself. */
+/** Structural material for a linked phrase: this run's foundations, else the
+ *  existing chords sounding through the related phrase's span (spec §10, §15).
+ *  Self-references are skipped — a phrase never reuses itself. */
 function materialForPhrase(
   relatedIds: string[],
   ownId: string | null,
   byId: Map<string, PlannedPhraseInfo>,
-  chosenByPhrase: Map<string, string[]>,
+  chosenByPhrase: Map<string, FoundationInfo[]>,
   project: Project,
 ): MaterialReference | null {
   for (const id of relatedIds) {
     if (ownId !== null && id === ownId) continue;
-    let symbols: string[] | null = null;
+    let foundations: FoundationInfo[] | null = null;
     let intention: MaterialReference['intention'] = null;
     const chosen = chosenByPhrase.get(id);
-    if (chosen !== undefined) {
-      symbols = chosen.filter((s): s is string => s !== null);
+    if (chosen !== undefined && chosen.length > 0) {
+      foundations = chosen;
     } else {
       const info = byId.get(id);
       if (!info) continue;
@@ -209,21 +219,25 @@ function materialForPhrase(
       const inside = project.chords
         .filter((c) => c.startTick >= p.startTick && c.startTick < end)
         .sort((a, b) => a.startTick - b.startTick)
-        .map((c) => c.symbol);
+        .map((c) => foundationInfoFromSymbol(c.symbol, project.key, project.mode))
+        .filter((f): f is FoundationInfo => f !== null);
       if (inside.length > 0) {
-        symbols = inside;
+        foundations = inside;
       } else {
         const sounding = project.chords
           .filter((c) => c.startTick <= p.startTick && c.startTick + c.durationTicks > p.startTick)
           .sort((a, b) => a.startTick - b.startTick);
-        if (sounding.length > 0) symbols = [sounding[0].symbol];
+        if (sounding.length > 0) {
+          const f = foundationInfoFromSymbol(sounding[0].symbol, project.key, project.mode);
+          if (f) foundations = [f];
+        }
       }
       intention = p.cadence.intention;
     }
-    if (!symbols || symbols.length === 0) continue;
+    if (!foundations || foundations.length === 0) continue;
     // Collapse consecutive duplicates: reuse maps chord content, not slots.
-    const collapsed = symbols.filter((s, i) => i === 0 || s !== symbols[i - 1]);
-    return { symbols: collapsed, mode: 'full', intention };
+    const collapsed = foundations.filter((f, i) => i === 0 || f.id !== foundations![i - 1].id);
+    return { foundations: collapsed, mode: 'full', intention };
   }
   return null;
 }
@@ -237,6 +251,16 @@ function makeIdFactory(seed: number, existing: Chord[]): (n: number) => string {
     used.add(id);
     return id;
   };
+}
+
+/** One sustained structural event: a foundation plus the exact span it holds. */
+interface StructuralEvent {
+  foundation: FoundationInfo;
+  startTick: number;
+  durationTicks: number;
+  startWindowIndex: number;
+  endWindowIndex: number;
+  slotCount: number;
 }
 
 /**
@@ -283,14 +307,28 @@ export function generateChordProgression(
   const { phrases: plannedPhrases, byId } = flattenPhrases(songPlan);
   const env = cadenceEnvironment(project.key, project.mode);
   const meter = meterFacts(project.timeSignature);
-  const pool: CandidatePool = buildCandidatePool(project.key, project.mode, settings);
+  // STAGE SEPARATION (Phase 4.1): the foundation pool is the structural
+  // possibility space; the colored pool inside it is the palette.
+  const pool: FoundationPool = buildFoundationPool(project.key, project.mode, settings);
   if (pool.all.length === 0) warnings.push('Candidate pool was empty — no chords could be generated.');
+  const sctx: StructuralContext = {
+    stability: 0.5, movement: 0.5, tension: 0.5, modalPref: 0.5, contrastPref: 0.5,
+    borrowing: settings.borrowing, role: '', pool, env,
+  };
 
-  // 3..6) Targets → windows → slots → selection → events.
-  const chosenByPhrase = new Map<string, string[]>();
+  // 3..8) Targets → windows → slots → structural selection → merge → color.
+  const chosenByPhrase = new Map<string, FoundationInfo[]>();
   const generated: Chord[] = [];
   const familiesUsed = new Set<string>();
+  const structuralCadences: ChordGenerationReport['structuralCadences'] = [];
   const sectionsAffected = new Set<string>();
+  const borrowedColorSet = new Set<string>();
+  const foundationOrder: string[] = [];
+  const foundationSeen = new Set<string>();
+  const distinctRootsPerPhrase: number[] = [];
+  let sameFoundationRepetitions = 0;
+  let colorOnlyChanges = 0;
+  let tonicReinforcementEvents = 0;
   let phraseWindowCount = 0;
   let nextId = 0;
   const nextChordId = makeIdFactory(seed, project.chords);
@@ -326,28 +364,32 @@ export function generateChordProgression(
       if (mergeRng() < 0.3 + 0.3 * prevWindow.direction.stability) mergeFirst[wi] = true;
     }
 
-    // Selection walks the windows, chaining the sounding chord.
-    let prev: CandidateInfo | null = target.before
-      ? candidateFromSymbol(target.before.symbol, project.key, project.mode)
+    // Structural context walks the windows, chaining the sounding foundation.
+    let prev: FoundationInfo | null = target.before
+      ? foundationInfoFromSymbol(target.before.symbol, project.key, project.mode)
       : null;
     if (target.before && prev === null) {
       warnings.push(`Anchor symbol "${target.before.symbol}" could not be parsed — continuity context reduced.`);
     }
-    const after: CandidateInfo | null = target.after
-      ? candidateFromSymbol(target.after.symbol, project.key, project.mode)
+    const after: FoundationInfo | null = target.after
+      ? foundationInfoFromSymbol(target.after.symbol, project.key, project.mode)
       : null;
+    if (target.after && after === null) {
+      warnings.push(`Anchor symbol "${target.after.symbol}" could not be parsed — continuity context reduced.`);
+    }
 
+    // Structural events accumulate per target; same-foundation slot runs
+    // merge into one sustained harmonic event (spec §9).
+    const targetEvents: StructuralEvent[] = [];
     for (let wi = 0; wi < windows.length; wi++) {
       const window = windows[wi];
       const windowSlots = slices[wi] ?? [];
       if (windowSlots.length === 0) continue;
 
-      // Repeated material (spec §10): full reuse when the plan links this
-      // phrase to earlier material as a repeat — by role, or through a
-      // CROSS-SECTION link (a repeated section's phrases may carry roles like
-      // 'conclude' while still being repeated material). preserveIdentity
-      // gates the whole mechanism; without it related sections develop
-      // independently.
+      // Repeated material (spec §10, §15): full reuse when the plan links
+      // this phrase to earlier material as a repeat — by role, or through a
+      // CROSS-SECTION link. preserveIdentity gates the whole mechanism;
+      // without it related sections develop independently.
       let material: MaterialReference | null = null;
       if (settings.preserveIdentity && window.relatedPhraseIds.length > 0) {
         const crossLink = window.phraseRef !== null
@@ -363,61 +405,143 @@ export function generateChordProgression(
       const selectRng = mulberry32(hashString(
         ['crescode:gen:select', String(window.startTick), String(window.endTick), window.phraseRef?.id ?? `syn${wi}`, String(seed)].join('|'),
       ));
-      const output = selectWindowChords({
+      const output = selectWindowFoundations({
         window, slots: windowSlots, pool, env, prev, after,
-        material, settings, rng: selectRng, mergeFirst: mergeFirst[wi], isSongEnd: isRegionEnd,
+        material, settings, rng: selectRng,
+        forcedFirst: mergeFirst[wi] && prev !== null ? prev : null,
+        isSongEnd: isRegionEnd,
       });
 
-      // Emit events; null symbols sustain the previous event; same-symbol
-      // adjacents within a window merge into one sustained event.
-      const windowStart = windowSlots[0].startTick;
-      const phraseKey = window.phraseRef?.id ?? `@${windowStart}`;
-      const chosenForPhrase: string[] = [];
-      for (let si = 0; si < windowSlots.length; si++) {
+      // Emit slots → structural events with foundation-based merging.
+      for (let si = 0; si < output.foundations.length && si < windowSlots.length; si++) {
+        const f = output.foundations[si];
         const slot = windowSlots[si];
-        const symbol = output.symbols[si] ?? null;
-        if (symbol === null) {
-          const lastEvent = generated[generated.length - 1];
-          if (lastEvent !== undefined && lastEvent.startTick + lastEvent.durationTicks === slot.startTick) {
-            lastEvent.durationTicks += slot.durationTicks; // sustain across the boundary
-            continue;
-          }
-          continue; // defensive: continuation without a sounding event drops out
-        }
-        const lastEvent = generated[generated.length - 1];
-        if (lastEvent !== undefined
-          && lastEvent.symbol === symbol
-          && lastEvent.startTick + lastEvent.durationTicks === slot.startTick
-          && lastEvent.startTick >= windowStart && lastEvent.startTick < window.endTick
-          && !slot.phraseEnd) {
-          lastEvent.durationTicks += slot.durationTicks; // intra-window sustain
+        const last = targetEvents[targetEvents.length - 1];
+        const adjacent = last !== undefined && last.startTick + last.durationTicks === slot.startTick;
+        const withinWindow = last !== undefined && last.endWindowIndex === wi;
+        const crossWindow = last !== undefined && wi > 0
+          && (mergeFirst[wi] || !windows[wi - 1].arrivalPlanned);
+        if (last !== undefined && adjacent && last.foundation.id === f.id
+          && (withinWindow || crossWindow)) {
+          last.durationTicks += slot.durationTicks; // deliberate prolongation
+          last.endWindowIndex = wi;
+          last.slotCount += 1;
           continue;
         }
-        generated.push({
-          id: nextChordId(nextId++),
-          symbol,
+        targetEvents.push({
+          foundation: f,
           startTick: slot.startTick,
           durationTicks: slot.durationTicks,
+          startWindowIndex: wi,
+          endWindowIndex: wi,
+          slotCount: 1,
         });
-        chosenForPhrase.push(symbol);
-        // Sections affected: which REAL project section contains this tick.
-        for (const sec of project.sections) {
-          const s = barToTick(sec.startBar, project.timeSignature);
-          const e = s + sec.lengthBars * barTicks(project.timeSignature);
-          if (slot.startTick >= s && slot.startTick < e) sectionsAffected.add(sec.id);
-        }
       }
-      chosenByPhrase.set(phraseKey, chosenForPhrase);
-      if (output.arrivalFamily !== null) familiesUsed.add(output.arrivalFamily);
+
+      // Per-window diagnostics + material record.
+      distinctRootsPerPhrase.push(new Set(output.foundations.map((f) => f.rootPc)).size);
+      chosenByPhrase.set(window.phraseRef?.id ?? `@${window.startTick}`, output.foundations);
       prev = output.last;
+    }
+
+    // STAGE B — color every structural event (foundation → chord symbol).
+    const colorRng = mulberry32(hashString(
+      ['crescode:gen:color', String(target.startTick), String(target.endTick), String(seed)].join('|'),
+    ));
+    let prevColor: PreviousColor | null = null;
+    for (let ei = 0; ei < targetEvents.length; ei++) {
+      const ev = targetEvents[ei];
+      const endWindow = windows[ev.endWindowIndex];
+      const startWindow = windows[ev.startWindowIndex];
+      const isArrival = endWindow.arrivalPlanned
+        && ev.startTick + ev.durationTicks === endWindow.endTick;
+      const res = applyHarmonicColor(ev.foundation, pool, {
+        complexityPref: startWindow.prefs.complexity,
+        modalPref: startWindow.prefs.modal,
+        variation: settings.variation,
+        isArrival,
+        intention: isArrival ? endWindow.cadence.intention : null,
+        role: startWindow.role,
+        prev: prevColor,
+      }, colorRng);
+
+      // Structural cadence realization diagnostics at planned arrivals.
+      if (isArrival) {
+        const before = ei > 0 ? targetEvents[ei - 1].foundation : prev;
+        const family = realizedFoundationFamily(before, ev.foundation, sctx);
+        structuralCadences.push({ intention: endWindow.cadence.intention, family });
+        if (family !== null) familiesUsed.add(family);
+      }
+      // Same-foundation adjacency diagnostics (kept rearticulations).
+      const prevEv = targetEvents[ei - 1];
+      if (prevEv !== undefined && prevEv.foundation.id === ev.foundation.id) {
+        sameFoundationRepetitions += 1;
+        if (prevColor !== null && prevColor.symbol !== res.symbol) colorOnlyChanges += 1;
+      }
+      if (reinforcesTonic(ev.foundation, pool.tonic, pool.tonicTriadPcs)) tonicReinforcementEvents += 1;
+      if (!res.diatonic) borrowedColorSet.add(res.symbol);
+      if (!foundationSeen.has(ev.foundation.id)) {
+        foundationSeen.add(ev.foundation.id);
+        foundationOrder.push(foundationLabel(ev.foundation));
+      }
+
+      generated.push({
+        id: nextChordId(nextId++),
+        symbol: res.symbol,
+        startTick: ev.startTick,
+        durationTicks: ev.durationTicks,
+      });
+      // Sections affected: which REAL project section contains this tick.
+      for (const sec of project.sections) {
+        const s = barToTick(sec.startBar, project.timeSignature);
+        const e = s + sec.lengthBars * barTicks(project.timeSignature);
+        if (ev.startTick >= s && ev.startTick < e) sectionsAffected.add(sec.id);
+      }
+      prevColor = { symbol: res.symbol, tierRank: res.tierRank, pitchClasses: res.pitchClasses };
     }
   }
 
-  // Diagnostics: borrowed chords among the generated events.
-  const borrowedSymbols = [...new Set(generated
-    .map((c) => pool.all.find((p) => p.symbol === c.symbol))
-    .filter((c): c is NonNullable<typeof c> => c !== undefined && !c.diatonic)
-    .map((c) => c.symbol))];
+  // Borrowed-color diagnostics: generated events whose color carries tones
+  // outside the project mode (availability was already borrowing-filtered).
+  const borrowedSymbols = [...borrowedColorSet];
+
+  // Foundation-set overlap between related (repeated) sections.
+  const sectionFoundationOverlap: ChordGenerationReport['sectionFoundationOverlap'] = [];
+  {
+    const fsets = new Map<string, Set<string>>();
+    for (const c of [...plan.keep, ...generated]) {
+      const f = foundationInfoFromSymbol(c.symbol, project.key, project.mode);
+      if (f === null) continue;
+      for (const sec of planProject.sections) {
+        const s = barToTick(sec.startBar, project.timeSignature);
+        const e = s + sec.lengthBars * barTicks(project.timeSignature);
+        if (c.startTick >= s && c.startTick < e) {
+          let set = fsets.get(sec.id);
+          if (!set) { set = new Set(); fsets.set(sec.id, set); }
+          set.add(f.id);
+        }
+      }
+    }
+    const orderOf = new Map(planProject.sections.map((s, i) => [s.id, i]));
+    const seenPairs = new Set<string>();
+    for (const p of profiles) {
+      for (const rid of p.development.relatedSectionIds) {
+        if (rid === p.sectionId) continue;
+        const A = fsets.get(p.sectionId);
+        const B = fsets.get(rid);
+        if (!A || !B || (A.size === 0 && B.size === 0)) continue;
+        const [a, b] = (orderOf.get(p.sectionId) ?? 0) <= (orderOf.get(rid) ?? 0)
+          ? [p.sectionId, rid] : [rid, p.sectionId];
+        const key = `${a}::${b}`;
+        if (seenPairs.has(key)) continue;
+        seenPairs.add(key);
+        const union = new Set([...A, ...B]);
+        let shared = 0;
+        for (const x of A) if (B.has(x)) shared++;
+        sectionFoundationOverlap.push({ a, b, overlap: union.size > 0 ? shared / union.size : 0 });
+      }
+    }
+  }
 
   const durations = generated.map((c) => c.durationTicks);
   const report: ChordGenerationReport = {
@@ -442,6 +566,13 @@ export function generateChordProgression(
       protectedSpans: plan.keep.filter((c) =>
         c.startTick < regionEnd && c.startTick + c.durationTicks > plan.regionStart).length,
     },
+    structuralFoundations: foundationOrder,
+    distinctRootsPerPhrase,
+    sameFoundationRepetitions,
+    colorOnlyChanges,
+    tonicReinforcementEvents,
+    structuralCadences,
+    sectionFoundationOverlap,
   };
 
   // Assemble: preserved events keep their exact objects; stable sort by time.

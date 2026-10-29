@@ -10,6 +10,7 @@
     "test": "vitest run",
     "harness": "vite-node scripts/harness.ts",
     "harmony:diagnose": "vite-node scripts/harmony-diagnose.ts",
+    "harmony:audit": "vite-node scripts/harmony-audit.ts",
     "e2e": "npm run build && node scripts/e2e-smoke.mjs"
   },
   "dependencies": {

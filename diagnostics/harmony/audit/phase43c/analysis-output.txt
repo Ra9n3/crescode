@@ -1,0 +1,77 @@
+=== 1. Structural identity of A vs B vs C (does complexity/borrowing change the journey?) ===
+A≡B structurally identical cells: 36/54
+A vs C structurally divergent cells (>0.5 changes or different foundation sets): 54/54
+
+=== 2. Change rate distribution (harmonic pacing) ===
+E Aeolian: A 1.09 chg/bar · C 1.10 chg/bar
+D Dorian: A 1.00 chg/bar · C 0.99 chg/bar
+C Ionian: A 1.11 chg/bar · C 1.12 chg/bar
+D Phrygian: A 1.04 chg/bar · C 1.04 chg/bar
+D Lydian: A 1.05 chg/bar · C 1.11 chg/bar
+E Harmonic Minor: A 1.10 chg/bar · C 1.12 chg/bar
+C Whole Tone: A 0.92 chg/bar · C 1.37 chg/bar
+D Diminished (Half-Whole): A 0.93 chg/bar · C 0.96 chg/bar
+D Diminished (Whole-Half): A 1.07 chg/bar · C 1.16 chg/bar
+
+=== 3. Phrase arrivals: how do planned intentions realize? (Q4, Q5) ===
+open: n=12267 · tonic-rooted 7.3% · family realized 92.8% [modal 58.1% · coloristic 24.0% · chromatic 11.4% · stepwise 3.3%]
+suspended: n=6624 · tonic-rooted 32.9% · family realized 92.1% [modal 33.5% · coloristic 19.1% · pedal 17.8% · chromatic 16.5%]
+resolved: n=5661 · tonic-rooted 89.5% · family realized 69.6% [stepwise 25.0% · coloristic 20.6% · modal 18.3% · chromatic 16.3%]
+transitional: n=5229 · tonic-rooted 3.3% · family realized 90.0% [modal 58.1% · coloristic 25.5% · chromatic 11.4% · pedal 2.7%]
+modal: n=3654 · tonic-rooted 3.7% · family realized 97.5% [modal 89.9% · coloristic 6.4% · chromatic 1.8% · stepwise 1.1%]
+ambiguous: n=2637 · tonic-rooted 3.9% · family realized 98.9% [modal 49.9% · coloristic 41.5% · pedal 3.7% · chromatic 3.3%]
+deceptive: n=918 · tonic-rooted 18.1% · family realized 85.1% [modal 62.5% · coloristic 21.4% · chromatic 5.1% · pedal 4.0%]
+
+=== 4. Tonic-rooted FINAL arrivals only (resolved intention) ===
+resolved arrivals ending on tonic-root harmony: 5068/5661 = 89.5%
+
+=== 5. Chromatic foundations in config C — what are they? (Q3) ===
+sampled runs with ≥1 chromatic foundation: 1438 · without: 722
+  507× F minor (needs F) — provenance: Phrygian×507, Aeolian×507, Locrian×507
+  408× G suspended (needs G) — provenance: Dorian×408, Mixolydian×408, Aeolian×408
+  351× A minor (needs A) — provenance: Ionian×351, Lydian×351, Mixolydian×351
+  206× G major (needs G) — provenance: Ionian×206, Dorian×206, Mixolydian×206
+  155× D minor (needs A) — provenance: Dorian×155, Phrygian×155, Aeolian×155
+  144× E major (needs Ab) — provenance: Ionian×144, Lydian×144, Mixolydian×144
+  139× G minor (needs G/Bb) — provenance: Phrygian×139, Aeolian×139, Locrian×139
+  136× Eb suspended (needs Eb) — provenance: Locrian×136, Phrygian×124, Aeolian×32
+  133× C major (needs G) — provenance: Ionian×133, Lydian×133, Mixolydian×133
+  107× D major (needs F#) — provenance: Ionian×107, Lydian×107, Mixolydian×107
+  102× F major (needs F/A) — provenance: Ionian×102, Dorian×102, Mixolydian×102
+  98× F suspended (needs F) — provenance: Phrygian×98, Locrian×98, Dorian×32
+  92× D suspended (needs A) — provenance: Ionian×92, Mixolydian×92, Dorian×66
+  87× A minor (needs C) — provenance: Dorian×87, Mixolydian×87, Aeolian×87
+  86× C minor (needs Eb) — provenance: Harmonic Minor×86, Dorian×79, Phrygian×79
+
+=== 6. Symmetric-mode C anomaly: Whole Tone & Diminished chromatic share ===
+C Whole Tone (verse-chorus, C): chromatic events/run 5.3 (17.7% of duration)
+  kinds: F minor×79 · A minor×56 · C major×21 · F major×12 · C suspended×11 · G suspended×7 · C minor×4 · C# major×4
+D Diminished (Half-Whole) (verse-chorus, C): chromatic events/run 2.1 (7.3% of duration)
+  kinds: G suspended×28 · G major×17 · G minor×8 · F# suspended×8 · D suspended×5 · A suspended×5 · E suspended×4 · B suspended×3
+D Diminished (Whole-Half) (verse-chorus, C): chromatic events/run 2.5 (8.6% of duration)
+  kinds: D minor×25 · A major×11 · A suspended×10 · F# suspended×10 · Eb suspended×9 · A augmented×7 · D suspended×7 · C suspended×6
+
+=== 7. Repeated-section identity (Q7): foundation overlap between related Chorus sections ===
+overlap pairs n=1080 · mean 88.2% · range 44%–100%
+
+=== 8. Recurring harmonic motifs (Q7) — distinct motifs per run (A vs C, full-form) ===
+E Aeolian full-form: runs with ≥1 recurring 3-motif — A 40/40 · C 40/40
+  example motifs: 11|2.6.11 → 7|2.7.11 → 0|0.4.7 ×2 ; 7|2.7.11 → 0|0.4.7 → 4|4.7.11 ×2 ; 0|0.4.7 → 4|4.7.11 → 0|0.2.7 ×2
+
+=== 9. Per-seed spread of changesPerBar (E Aeolian verse-chorus) ===
+Config A: min 0.63 · p25 0.94 · median 1.06 · p75 1.13 · max 1.44
+Config C: min 0.63 · p25 0.88 · median 1.06 · p75 1.19 · max 1.44
+
+=== 10. Seed-34 E Aeolian verse-chorus matched example (spec §8 illustration) ===
+CONFIG A:
+  a: Em | G | D | D | G | Bm | C | D | Bm | Gsus4
+  b: D | G | Em | Bm | G | Bm | Em
+  foundations (6): E minor → G major → D major → B minor → C major → G suspended
+CONFIG B:
+  a: Em7 | Gmaj7 | D | D7 | Gmaj7 | Bm7 | C | D7 | Bm7 | Gsus4
+  b: D | Gmaj7 | Em7 | Bm | G | Bm | Em7
+  foundations (6): E minor → G major → D major → B minor → C major → G suspended
+CONFIG C:
+  a: Em7 | C7 | Bm | Bm7 | D7 | Am7 | C | Em7 | Bm7 | Gmaj7 | Csus2
+  b: Em7 | C | G | E* | Bsus4 | Cmaj7 | Em7
+  foundations (9): E minor → C major → B minor → D major → A minor → G major → C suspended → E major → B suspended

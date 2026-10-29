@@ -200,6 +200,18 @@ export function formatHarmonyDiagnostics(report: HarmonyDiagnosticReport): strin
       L.push(`    score: total ${num(sc.total)} = parent ${num(sc.parentScore)} + transition ${num(sc.transition)} + position ${num(sc.position)}${sc.loopPenalty ? ` − loop ${num(sc.loopPenalty)}` : ''} + jitter ${num(sc.jitter)} (rank ${sc.rankInExpansion})`);
       if (sc.transitionParts) L.push(`      transition parts: ${transitionPartsLine(sc.transitionParts)}`);
     }
+    // Phase 4.3A: the corrected stability model, from the recorded values.
+    // The four factors are objective evidence; the "score contribution" is
+    // the ACTUAL scored sum of the transition parts the stability term
+    // produces (structural consonance + modal quality norm), or — when no
+    // searched score exists (reuse path) — not stated at all.
+    {
+      const ev = slotRec.stabilityEvidence;
+      const contribution = sc?.transitionParts
+        ? sc.transitionParts.structuralConsonance + sc.transitionParts.qualityStability
+        : null;
+      L.push(`    stability evidence: structural ${pc(ev.structuralConsonance)} · tonic-root ${pc(ev.tonicRootRelationship)} · tonic-chord ${pc(ev.tonicChordRelationship)} · modal ${pc(ev.modalCompatibility)} · score contribution ${signed(contribution)}`);
+    }
     const alts = alternativesLine(slotRec);
     if (alts) L.push(`    contest: ${alts}`);
   }

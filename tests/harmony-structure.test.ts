@@ -15,6 +15,7 @@ import {
   analyzeFoundationRelationship, foundationId, foundationOf, getHarmonicFoundation,
   isStructuralMovement, sameHarmonicFoundation,
 } from '../src/engine/harmony/foundation';
+import { cadenceEnvironment, compatibleCadenceFamilies } from '../src/engine/harmony/cadences';
 import { parseChord } from '../src/shared/schema/chords';
 import { barTicks } from '../src/shared/schema/meter';
 import { MODE_NAMES, scalePitchClasses, type ModeName } from '../src/shared/schema/modes';
@@ -283,10 +284,28 @@ describe('Test 5 — modal integrity (spec §18.5, §7)', () => {
     // where the environment cannot support it.
     if (mode === 'Whole Tone' || mode === 'Diminished (Half-Whole)' || mode === 'Diminished (Whole-Half)') {
       expect(rd.report.cadenceFamiliesUsed).not.toContain('functional-tonal');
-      expect(rd.report.cadenceFamiliesUsed).not.toContain('plagal');
     }
     if (mode === 'Locrian') {
-      expect(rd.report.cadenceFamiliesUsed).not.toContain('plagal');
+      // Locrian's diminished tonic removes plagal support at the planner
+      // (see below); the realized-family label itself is motion-descriptive.
+      const env = cadenceEnvironment(key, mode);
+      expect(compatibleCadenceFamilies(env)).not.toContain('plagal');
+    }
+    // Phase 4.3A invariant — the NO-IMPOSED-CLICHÉ guarantee is mechanistic,
+    // not an emergent-label coincidence. The planner cannot offer
+    // 'functional-tonal' or 'plagal' in these contexts (structural support
+    // floor: no leading tone / stable tonic triad), and no arrival bonus is
+    // reachable (dominantAvailable is false). `realizedFoundationFamily` may
+    // still DESCRIBE a (tonic+5)→tonic root motion as 'plagal' — a motion
+    // label carrying no score anywhere (corrected stability legitimately
+    // lets symmetrical progressions arrive home more often, e.g.
+    // G major → D diminished in D WH, which the labeler calls 'plagal').
+    // What can never appear is the dominant-quality cliché itself.
+    if (mode === 'Whole Tone' || mode === 'Diminished (Half-Whole)' || mode === 'Diminished (Whole-Half)') {
+      const env = cadenceEnvironment(key, mode);
+      expect(env.dominantAvailable).toBe(false);
+      expect(compatibleCadenceFamilies(env)).not.toContain('functional-tonal');
+      expect(compatibleCadenceFamilies(env)).not.toContain('plagal');
     }
   });
 

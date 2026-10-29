@@ -44,7 +44,7 @@ import { cadenceEnvironment, compatibleCadenceFamilies } from './cadences';
 import { applyHarmonicColor, type PreviousColor } from './color';
 import {
   analyzeFoundationRelationship, buildFoundationPool, foundationInfoFromSymbol, foundationLabel,
-  foundationTransitionScoreDetailed, reinforcesTonic,
+  foundationTransitionScoreDetailed, reinforcesTonic, stabilityEvidence,
   realizedFoundationFamily, type FoundationInfo, type FoundationPool, type StructuralContext,
 } from './foundation';
 import {
@@ -608,6 +608,7 @@ export function generateChordProgression(
             selectedCandidateScores: null,
             alternatives: [],
             mergedWithNext: false,
+            stabilityEvidence: stabilityEvidence(f, pool),
           };
           // Selected-candidate scores: only from an unmodified beam path (a
           // forced first slot or develop override replaced the searched choice

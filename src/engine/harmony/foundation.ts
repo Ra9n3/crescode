@@ -210,6 +210,58 @@ const QUALITY_TENSION: Record<FoundationQuality, number> = {
   major: 0.45, minor: 0.5, suspended: 0.7, other: 0.7, diminished: 0.85, augmented: 0.9,
 };
 
+/** How structurally consonant a sonority is IN ITSELF — an intrinsic,
+ *  mode-independent and root-independent property of the chord shape (Phase
+ *  4.3A). Tertian triads settle; suspensions defer resolution; diminished
+ *  and augmented structures are symmetrical and carry tension. This number
+ *  describes the SONORITY ONLY: it never implies tonic function, and it
+ *  applies equally to diatonic and chromatic chords so that a chromatic
+ *  consonant triad stays a viable sonority (spec §4, §7) while gaining
+ *  nothing from the mode's identity. Heuristic by design — a transparent,
+ *  documented scale, not a perceptual measurement. */
+const STRUCTURAL_CONSONANCE: Record<FoundationQuality, number> = {
+  major: 1, minor: 1, suspended: 0.5, other: 0.45, diminished: 0.3, augmented: 0.25,
+};
+
+/** The four descriptive stability factors of a foundation against the key
+ *  (Phase 4.3A): what the chord IS, versus how it RELATES to the selected
+ *  tonal center and mode. These are objective, comparable facts — the score
+ *  consumes them through its own components; they are never themselves a
+ *  perceived-stability number.
+ *
+ *  - structuralConsonance — intrinsic sonority stability (see
+ *    STRUCTURAL_CONSONANCE). Mode-independent. This is what the pre-4.3A
+ *    scorer confused with tonic identity: a chromatic minor chord is as
+ *    stable a SONORITY as the tonic minor, but that says nothing about its
+ *    relation to the tonal center.
+ *  - tonicRootRelationship — 1 when the chord's root IS the tonic pitch
+ *    class. An objective fact, not inferred from quality.
+ *  - tonicChordRelationship — fraction of the TONIC TRIAD's pitch classes
+ *    the chord's structural core shares. Useful evidence of connection to
+ *    the tonic harmony, never proof of tonic function by itself.
+ *  - modalCompatibility — 1 when the chord's structural core is diatonic to
+ *    the selected mode. Supports coherence; does not by itself establish the
+ *    tonal center. */
+export interface StabilityEvidence {
+  structuralConsonance: number;
+  tonicRootRelationship: number;
+  tonicChordRelationship: number;
+  modalCompatibility: number;
+}
+
+/** Compute the descriptive stability evidence of `cand` against the pool's
+ *  key and mode — the SAME facts the corrected transition score consumes
+ *  (diagnostics report these actual values, never recomputed lookalikes). */
+export function stabilityEvidence(cand: FoundationInfo, pool: FoundationPool): StabilityEvidence {
+  const shared = pool.tonicTriadPcs.filter((t) => cand.corePitchClasses.includes(t)).length;
+  return {
+    structuralConsonance: STRUCTURAL_CONSONANCE[cand.quality],
+    tonicRootRelationship: cand.rootPc === pool.tonic ? 1 : 0,
+    tonicChordRelationship: pool.tonicTriadPcs.length === 0 ? 0 : shared / pool.tonicTriadPcs.length,
+    modalCompatibility: cand.diatonic ? 1 : 0,
+  };
+}
+
 /**
  * Mode-relative quality stability, DERIVED from the mode's own vocabulary
  * (never a per-mode table). The mode's TERTIAN backbone — its diatonic
@@ -220,6 +272,13 @@ const QUALITY_TENSION: Record<FoundationQuality, number> = {
  * structures diatonically (Whole Tone's 7b5 sonorities, the diminished
  * modes' altered dominants). Ionian's norm is major/minor; Whole Tone's is
  * augmented; Locrian's is diminished — each derived, none hard-coded.
+ *
+ * Phase 4.3A scope note: this map describes the mode's DIATONIC quality
+ * norm. It is keyed by quality because its question is "how normal is this
+ * chord SHAPE inside the mode's own vocabulary" — the consumers gate it on
+ * diatonic membership so chromatic chords (Ab minor in E Aeolian) cannot
+ * inherit the tonic quality's anchor. Tonic identity itself lives in the
+ * root/common-tone facts (reinforcesTonic, stabilityEvidence), never here.
  */
 export function deriveQualityStability(tonic: number, mode: ModeName): Record<FoundationQuality, number> {
   const scale = scalePitchClasses(tonic, mode);
@@ -303,7 +362,10 @@ export interface FoundationPool {
   tonicFoundationId: string | null;
   /** The tonic triad's own quality — the mode's identity anchor. */
   tonicQuality: FoundationQuality;
-  /** Mode-relative quality stability (see deriveQualityStability). */
+  /** Mode-relative quality stability of the DIATONIC vocabulary (see
+   *  deriveQualityStability). Describes the mode's own chords only — chromatic
+   *  foundations must not read it (Phase 4.3A): their quality matching the
+   *  tonic triad's is coincidence, not tonal identity. */
   qualityStability: Record<FoundationQuality, number>;
 }
 
@@ -496,7 +558,12 @@ export interface TransitionScoreParts {
   stepwiseModal: number;
   /** Settled-vs-unstable quality against the phrase's tension. */
   tensionFit: number;
-  /** Mode-relative quality stability (the local diatonic norm). */
+  /** Intrinsic sonority consonance (Phase 4.3A) — mode-independent,
+   *  applies to every foundation equally. Never implies tonic function. */
+  structuralConsonance: number;
+  /** Mode-relative quality norm — the DIATONIC vocabulary's preference
+   *  for this quality (0 for chromatic foundations, which the mode's
+   *  norm does not describe; Phase 4.3A). */
   qualityStability: number;
   /** Tonal-center reinforcement under the role's center need. */
   tonicReinforcement: number;
@@ -538,7 +605,8 @@ export function foundationTransitionScoreDetailed(
   const parts: TransitionScoreParts = {
     base: 0.2, openingTonic: 0, openingTonicQuality: 0, stabilityFit: 0, movementFit: 0,
     prolongation: 0, pedalReclassification: 0, leadingTone: 0, stepwiseModal: 0,
-    tensionFit: 0, qualityStability: 0, tonicReinforcement: 0, modalColor: 0,
+    tensionFit: 0, structuralConsonance: 0, qualityStability: 0,
+    tonicReinforcement: 0, modalColor: 0,
     diatonicPreference: 0, roleChromaticBonus: 0, contrastBonus: 0, modalProtect: 0,
     chromaticTonicTone: 0,
   };
@@ -597,15 +665,30 @@ export function foundationTransitionScoreDetailed(
   parts.tensionFit = 0.12 * tensionFit;
   score += parts.tensionFit;
 
-  // Mode-relative quality stability: qualities that are the local diatonic
-  // NORM carry the harmony naturally (Ionian's major/minor, Whole Tone's
-  // augmented, Locrian's diminished); foreign qualities stay reachable but
-  // fit calmer phrases less, and the preference flattens as the phrase
-  // genuinely seeks tension. Derived from the mode's own vocabulary —
-  // never a per-mode table (spec §6, §16).
-  const stability = ctx.pool.qualityStability[cand.quality];
-  parts.qualityStability = 0.18 * stability * (1.05 - 0.55 * ctx.tension);
-  score += parts.qualityStability;
+  // STABILITY, corrected in Phase 4.3A into its two genuinely different
+  // halves (spec §4–§5). The pre-4.3A score keyed one 0.18-weighted term on
+  // QUALITY alone, so a chromatic chord sharing the tonic triad's quality
+  // (Ab minor in E Aeolian) inherited the tonic's full stability anchor.
+  //
+  // 1) Structural consonance — the sonority's OWN stability. Applies to
+  //    EVERY foundation equally, diatonic or not: a consonant chromatic
+  //    triad stays viable (spec §4, §7), but this number is about the chord
+  //    shape and says nothing about the tonal center.
+  // 2) Mode-relative quality norm — the mode's DIATONIC vocabulary prefers
+  //    its own qualities (Ionian's major/minor, Whole Tone's augmented,
+  //    Locrian's diminished). The mode speaks only about chords it contains:
+  //    a chromatic foundation is gated OFF this term entirely — sharing the
+  //    tonic quality does not make it the tonic (E Aeolian: Abm ≠ Em).
+  // Tonic identity remains rooted in the root/common-tone facts scored below
+  // (tonicReinforcement, openingTonic*, chromaticTonicTone). Both terms
+  // flatten as the phrase genuinely seeks tension, as before.
+  parts.structuralConsonance = 0.10 * STRUCTURAL_CONSONANCE[cand.quality] * (1.05 - 0.55 * ctx.tension);
+  score += parts.structuralConsonance;
+  if (cand.diatonic) {
+    const stability = ctx.pool.qualityStability[cand.quality];
+    parts.qualityStability = 0.10 * stability * (1.05 - 0.55 * ctx.tension);
+    score += parts.qualityStability;
+  }
 
   // Tonal-center reinforcement (spec §7): foundations that communicate the
   // intended center fit phrases whose role asks for one — weighted by the

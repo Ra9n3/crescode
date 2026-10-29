@@ -38,7 +38,7 @@ import type { Chord, ChordGenSettings, ModeName, Project, Section } from '../../
 import {
   foundationLabel,
   type FoundationInfo, type FoundationPool, type FoundationQuality,
-  type TransitionScoreParts,
+  type StabilityEvidence, type TransitionScoreParts,
 } from './foundation';
 import type { BeamCandidateTrace, PositionScoreParts, SelectionTrace } from './progression';
 import type { ColorVariantTrace } from './color';
@@ -170,7 +170,8 @@ export interface PoolRecord {
   size: number;
   diatonicCount: number;
   tonicQuality: FoundationQuality;
-  /** Mode-relative quality stability (derived, per foundation.ts). */
+  /** Mode-relative quality stability of the DIATONIC vocabulary (derived,
+   *  per foundation.ts; gated to diatonic chords in the score — Phase 4.3A). */
   qualityStability: Record<FoundationQuality, number>;
   foundations: FoundationFactsRecord[];
   /** The pruning configuration that governed structural search. */
@@ -295,6 +296,13 @@ export interface StructuralSlotRecord {
     rejectedBy: 'successor-cut' | 'beam-width' | 'signature-cap' | null;
   }>;
   mergedWithNext: boolean;
+  /** Descriptive stability evidence of the SELECTED foundation against the
+   *  key (Phase 4.3A) — the four factors the corrected stability term is
+   *  built from, computed by the same helper the scorer's semantics rest on.
+   *  The score's own contribution is the `structuralConsonance` +
+   *  `qualityStability` fields of `selectedCandidateScores.transitionParts`
+   *  (the actual scored values), not a re-derivation. */
+  stabilityEvidence: StabilityEvidence;
 }
 
 export interface MergeRecord {

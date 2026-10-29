@@ -27,7 +27,7 @@ import { NOTE_NAMES } from '../../shared/schema/modes';
 import { parseChord } from '../../shared/schema/chords';
 import { applyVariation, pickWeighted } from './planning';
 import type { CadenceIntention } from './types';
-import { poolFoundationOrFallback, type FoundationInfo, type FoundationPool } from './foundation';
+import { foundationLabel, poolFoundationOrFallback, type FoundationInfo, type FoundationPool } from './foundation';
 
 /** Richness rank of a color: triad 0, seventh 0.5, extension 1. */
 export function colorTierRank(tier: 'triad' | 'seventh' | 'extension'): number {
@@ -59,6 +59,39 @@ export interface ColorResult {
   diatonic: boolean;
   tierRank: number;
   pitchClasses: number[];
+}
+
+/** One color variant as the weighting saw it (Phase 4.2 diagnostics). */
+export interface ColorVariantTrace {
+  symbol: string;
+  tier: 'triad' | 'seventh' | 'extension';
+  diatonic: boolean;
+  characteristicToneCoverage: number;
+  /** Raw contextual weight from `colorWeight`, before variation entropy. */
+  rawWeight: number;
+  /** Weight after `applyVariation` — what the seeded pick actually consumed. */
+  variedWeight: number;
+}
+
+/** Everything one color decision exposes (Phase 4.2 spec §11). */
+export interface ColorObservation {
+  foundationId: string;
+  foundationLabel: string;
+  /** The pool entry the color was resolved to (may differ for anchor-derived
+   *  foundations outside the settings' palette). */
+  resolvedFoundationId: string;
+  availableColors: ColorVariantTrace[];
+  /** Index into `availableColors` of the picked variant (null for the
+   *  basic-color fallback path, which has no weighted choice). */
+  pickedIndex: number | null;
+  /** True when the deterministic basic-color fallback ran (no pooled colors). */
+  basicFallback: boolean;
+  complexityPref: number;
+  modalPref: number;
+  variation: number;
+  isArrival: boolean;
+  intention: CadenceIntention | null;
+  role: string;
 }
 
 /** Last-resort color for a foundation with no pooled colors (an anchor-derived
@@ -139,18 +172,39 @@ function colorWeight(
 /**
  * Choose the color of one structural foundation. Never throws, never changes
  * the foundation, always returns a parser-compatible symbol.
+ *
+ * The optional `observe` callback (Phase 4.2) receives the actual weights and
+ * the actual pick — recorded strictly between the existing computations, so
+ * generation is bit-identical with or without it.
  */
 export function applyHarmonicColor(
   foundation: FoundationInfo,
   pool: FoundationPool,
   cctx: ColorContext,
   rng: () => number,
+  observe?: (o: ColorObservation) => void,
 ): ColorResult {
   const f = foundation.colors.length > 0 ? foundation : poolFoundationOrFallback(pool, foundation);
   if (f.colors.length === 0) {
     // Anchor-derived foundation outside the pool: deterministic basic color.
     const symbol = basicColorFor(f);
     const r = parseChord(symbol);
+    if (observe) {
+      observe({
+        foundationId: foundation.id,
+        foundationLabel: foundationLabel(foundation),
+        resolvedFoundationId: f.id,
+        availableColors: [],
+        pickedIndex: null,
+        basicFallback: true,
+        complexityPref: cctx.complexityPref,
+        modalPref: cctx.modalPref,
+        variation: cctx.variation,
+        isArrival: cctx.isArrival,
+        intention: cctx.intention,
+        role: cctx.role,
+      });
+    }
     return {
       symbol,
       diatonic: f.diatonic,
@@ -164,6 +218,29 @@ export function applyHarmonicColor(
   const pick = pickWeighted(varied, rng);
   const idx = Number(pick.slice(1));
   const c = f.colors[idx];
+  if (observe) {
+    observe({
+      foundationId: foundation.id,
+      foundationLabel: foundationLabel(foundation),
+      resolvedFoundationId: f.id,
+      availableColors: f.colors.map((cc, i) => ({
+        symbol: cc.symbol,
+        tier: cc.tier,
+        diatonic: cc.diatonic,
+        characteristicToneCoverage: cc.characteristicToneCoverage,
+        rawWeight: weights[i][1],
+        variedWeight: varied[i][1],
+      })),
+      pickedIndex: idx,
+      basicFallback: false,
+      complexityPref: cctx.complexityPref,
+      modalPref: cctx.modalPref,
+      variation: cctx.variation,
+      isArrival: cctx.isArrival,
+      intention: cctx.intention,
+      role: cctx.role,
+    });
+  }
   return {
     symbol: c.symbol,
     diatonic: c.diatonic,

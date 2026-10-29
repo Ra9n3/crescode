@@ -7,6 +7,7 @@
  */
 import type { Chord, ChordGenSettings } from '../../shared/schema/types';
 import type { CadenceFamily, CadenceIntention } from './types';
+import type { HarmonyDiagnosticReport } from './diagnostics';
 
 /** What the generator was asked to do (mirrors lib/genScope.ts). */
 export type GenerationScope =
@@ -75,6 +76,10 @@ export interface ChordGenerationResult {
    */
   chords: Chord[];
   report: ChordGenerationReport;
+  /** Phase 4.2: deep diagnostic report — present ONLY when the caller passed
+   *  `diagnostics: true`. Strictly observational: identical chords either way
+   *  (Phase 4.2 spec §4). */
+  diagnostics?: HarmonyDiagnosticReport;
 }
 
 export interface GenerateProgressionOptions {
@@ -85,4 +90,9 @@ export interface GenerateProgressionOptions {
   scope?: GenerationScope;
   /** Overrides merged over the project's persisted chordGenSettings. */
   settings?: Partial<ChordGenSettings>;
+  /** Phase 4.2: when true, capture a full diagnostic report on the result.
+   *  Strictly observational — generation output, candidate ordering,
+   *  tie-breaking, pruning and PRNG consumption are identical either way
+   *  (Phase 4.2 spec §4). Default false: nothing is collected. */
+  diagnostics?: boolean;
 }

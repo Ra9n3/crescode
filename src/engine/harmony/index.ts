@@ -46,3 +46,6 @@ export * from './progression';
 export * from './color';
 export * from './generation';
 export * from './generation-types';
+// Phase 4.2 — observational diagnostics (explain decisions, change nothing).
+export * from './diagnostics';
+export * from './diagnostics-format';

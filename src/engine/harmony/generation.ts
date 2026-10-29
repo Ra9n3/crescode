@@ -36,21 +36,32 @@ import {
   DEFAULT_CHORDGEN_SETTINGS, type Chord, type ChordGenSettings, type Project,
 } from '../../shared/schema/types';
 import { barToTick, barTicks, projectBars } from '../../shared/schema/meter';
+import { scalePitchClasses } from '../../shared/schema/modes';
 import { hashString, mulberry32 } from '../generate';
 import { buildSongHarmonyProfiles } from './profiles';
 import { planSongHarmony } from './plan';
 import { cadenceEnvironment, compatibleCadenceFamilies } from './cadences';
 import { applyHarmonicColor, type PreviousColor } from './color';
 import {
-  buildFoundationPool, foundationInfoFromSymbol, foundationLabel, reinforcesTonic,
+  analyzeFoundationRelationship, buildFoundationPool, foundationInfoFromSymbol, foundationLabel,
+  foundationTransitionScoreDetailed, reinforcesTonic,
   realizedFoundationFamily, type FoundationInfo, type FoundationPool, type StructuralContext,
 } from './foundation';
-import { selectWindowFoundations, type MaterialReference, type SelectionWindow } from './progression';
+import {
+  positionScoreDetailed, selectWindowFoundations, structuralContext,
+  type MaterialReference, type SelectionTrace, type SelectionWindow,
+} from './progression';
+import {
+  classifyColorOperation, classifyTransition, createDiagnosticCollector, extractAlternatives,
+  foundationFactsRecord, signedRootMovement,
+  type ColorDecisionRecord, type RhythmSlotRecord, type StructuralSlotRecord, type WindowRecord,
+} from './diagnostics';
 import { meterFacts, planRhythmSlots, type RhythmSlot, type RhythmWindowInput } from './rhythm';
 import { resolveScopePlan, generationRegionEnd, engineSongSpanTicks } from './coverage';
 import type {
   BoundaryIntention, CadenceEnvironment, HarmonicPhrase, PhraseRole, RhythmShape,
 } from './types';
+import type { ColorObservation } from './color';
 import type {
   ChordGenerationResult, ChordGenerationReport, GenerateProgressionOptions, GenerationScope,
 } from './generation-types';
@@ -261,6 +272,8 @@ interface StructuralEvent {
   startWindowIndex: number;
   endWindowIndex: number;
   slotCount: number;
+  /** Global (run-wide) index of this event — used by diagnostics records. */
+  eventIndex: number;
 }
 
 /**
@@ -333,6 +346,26 @@ export function generateChordProgression(
   let nextId = 0;
   const nextChordId = makeIdFactory(seed, project.chords);
 
+  // Phase 4.2 diagnostics — created ONLY when requested; strictly
+  // observational (no rng consumption, no ordering changes, no score edits).
+  const diag = options.diagnostics === true
+    ? createDiagnosticCollector({
+        project, settings, seed, scope,
+        regionStart: plan.regionStart, regionEnd,
+        pool, profiles, plan: songPlan,
+        anchorBefore: plan.targets[0]?.before?.symbol ?? null,
+        anchorAfter: plan.targets[0]?.after?.symbol ?? null,
+        protectedSpans: plan.keep.filter((c) =>
+          c.startTick < regionEnd && c.startTick + c.durationTicks > plan.regionStart).length,
+        warnings: [...warnings],
+        preservedCount: plan.keep.length,
+      }).report
+    : null;
+  const scalePcs = diag !== null ? scalePitchClasses(project.key, project.mode) : [];
+  let nextEventIndex = 0;
+  let nextSlotIndex = 0;
+  const generatedFoundations: FoundationInfo[] = [];
+
   const targets = plan.targets;
   for (let ti = 0; ti < targets.length; ti++) {
     const target = targets[ti];
@@ -352,6 +385,39 @@ export function generateChordProgression(
     // Slot slices per window.
     const slices: RhythmSlot[][] = windows.map(() => []);
     for (const slot of slots) slices[slot.windowIndex]?.push(slot);
+
+    // Diagnostics: rhythm-slot records (spec §7). Flags are filled during the
+    // emission loop below; the continuation model is stated in the report.
+    const slotRecords: RhythmSlotRecord[] = [];
+    let srCursor = 0;
+    if (diag !== null) {
+      const posInWindow = new Map<RhythmSlot, number>();
+      for (let wi = 0; wi < windows.length; wi++) {
+        (slices[wi] ?? []).forEach((s, i) => posInWindow.set(s, i));
+      }
+      slots.forEach((slot, idx) => {
+        const w = windows[slot.windowIndex];
+        slotRecords.push({
+          slotIndex: nextSlotIndex + idx,
+          startTick: slot.startTick,
+          durationTicks: slot.durationTicks,
+          windowIndex: slot.windowIndex,
+          phraseId: w.phraseRef?.id ?? null,
+          sectionId: w.sectionId,
+          positionInPhrase: posInWindow.get(slot) ?? 0,
+          phraseSlotCount: (slices[slot.windowIndex] ?? []).length,
+          phraseEnd: slot.phraseEnd,
+          preference: { changesPerBar: w.prefs.changesPerBar, shape: w.prefs.shape },
+          plannerForcesNewFoundation: true,
+          continuationRealizedStructurally: false,
+          mergedIntoPreviousEvent: false,
+          previousHarmonySustained: false,
+          newFoundationSelected: true,
+        });
+      });
+      diag.rhythm.slots.push(...slotRecords);
+      nextSlotIndex += slots.length;
+    }
 
     // Sustain-across-boundary decisions (intention-driven, seeded, spec §8).
     const mergeFirst = windows.map(() => false);
@@ -381,6 +447,8 @@ export function generateChordProgression(
     // Structural events accumulate per target; same-foundation slot runs
     // merge into one sustained harmonic event (spec §9).
     const targetEvents: StructuralEvent[] = [];
+    let prevSlotFoundation: FoundationInfo | null = prev;
+    let lastStructRec: StructuralSlotRecord | null = null;
     for (let wi = 0; wi < windows.length; wi++) {
       const window = windows[wi];
       const windowSlots = slices[wi] ?? [];
@@ -402,15 +470,49 @@ export function generateChordProgression(
         }
       }
 
+      const prevAtWindowStart = prev;
       const selectRng = mulberry32(hashString(
         ['crescode:gen:select', String(window.startTick), String(window.endTick), window.phraseRef?.id ?? `syn${wi}`, String(seed)].join('|'),
       ));
+      const trace: SelectionTrace | undefined = diag !== null
+        ? {
+            mode: 'beam', reuseReason: null, forcedFirst: null, developOpeningOverride: null,
+            poolSize: pool.all.length, slotCount: windowSlots.length,
+            beam: null, material: null, pathEvaluation: null, pathLabels: [],
+          }
+        : undefined;
       const output = selectWindowFoundations({
         window, slots: windowSlots, pool, env, prev, after,
         material, settings, rng: selectRng,
         forcedFirst: mergeFirst[wi] && prev !== null ? prev : null,
         isSongEnd: isRegionEnd,
+        trace,
       });
+
+      // Diagnostics: window record with the full selection trace (spec §6, §9, §10).
+      if (diag !== null && trace !== undefined) {
+        const winRec: WindowRecord = {
+          targetIndex: ti,
+          windowIndex: wi,
+          startTick: window.startTick,
+          endTick: window.endTick,
+          sectionId: window.sectionId,
+          phraseId: window.phraseRef?.id ?? null,
+          synthetic: window.phraseRef === null,
+          role: window.role,
+          direction: { ...window.direction },
+          cadenceIntention: window.cadence.intention,
+          compatibleFamilies: [...window.cadence.compatibleFamilies],
+          arrivalPlanned: window.arrivalPlanned,
+          isSectionStart: window.isSectionStart,
+          boundaryIntoNext: window.boundaryIntoNext,
+          relatedPhraseIds: [...window.relatedPhraseIds],
+          prefs: { ...window.prefs },
+          slotCount: windowSlots.length,
+          selection: trace,
+        };
+        diag.structure.windows.push(winRec);
+      }
 
       // Emit slots → structural events with foundation-based merging.
       for (let si = 0; si < output.foundations.length && si < windowSlots.length; si++) {
@@ -421,11 +523,40 @@ export function generateChordProgression(
         const withinWindow = last !== undefined && last.endWindowIndex === wi;
         const crossWindow = last !== undefined && wi > 0
           && (mergeFirst[wi] || !windows[wi - 1].arrivalPlanned);
+
+        // Diagnostics: continuation/merge flags (spec §7, §12). The emission
+        // loop walks slots in the same order they were planned.
+        const rec = diag !== null ? slotRecords[srCursor] ?? null : null;
+        srCursor += 1;
+        if (rec !== null) {
+          rec.continuationRealizedStructurally = prevSlotFoundation !== null && prevSlotFoundation.id === f.id;
+          rec.previousHarmonySustained = rec.continuationRealizedStructurally;
+          rec.newFoundationSelected = !rec.continuationRealizedStructurally;
+        }
+
         if (last !== undefined && adjacent && last.foundation.id === f.id
           && (withinWindow || crossWindow)) {
           last.durationTicks += slot.durationTicks; // deliberate prolongation
           last.endWindowIndex = wi;
           last.slotCount += 1;
+          if (rec !== null) {
+            rec.mergedIntoPreviousEvent = true;
+            rec.previousHarmonySustained = true;
+            rec.newFoundationSelected = false;
+          }
+          if (diag !== null) {
+            if (lastStructRec !== null) lastStructRec.mergedWithNext = true;
+            diag.structure.merges.push({
+              eventIndex: last.eventIndex,
+              startTick: last.startTick,
+              durationTicks: last.durationTicks,
+              slotCount: last.slotCount,
+              foundation: foundationLabel(last.foundation),
+              withinWindow,
+              crossWindow,
+            });
+          }
+          prevSlotFoundation = f;
           continue;
         }
         targetEvents.push({
@@ -435,7 +566,79 @@ export function generateChordProgression(
           startWindowIndex: wi,
           endWindowIndex: wi,
           slotCount: 1,
+          eventIndex: nextEventIndex++,
         });
+
+        // Diagnostics: the structural decision at this slot (spec §8).
+        if (diag !== null && rec !== null) {
+          const rel = prevSlotFoundation !== null
+            ? analyzeFoundationRelationship(prevSlotFoundation, f)
+            : null;
+          const forcedSustain = trace !== undefined && trace.forcedFirst !== null && si === 0;
+          const structRec: StructuralSlotRecord = {
+            targetIndex: ti,
+            slotIndex: rec.slotIndex,
+            startTick: slot.startTick,
+            durationTicks: slot.durationTicks,
+            windowIndex: wi,
+            phraseId: window.phraseRef?.id ?? null,
+            sectionId: window.sectionId,
+            positionInPhrase: si,
+            phraseEnd: slot.phraseEnd,
+            selected: foundationFactsRecord(f, project.key, project.mode),
+            previousFoundation: prevSlotFoundation !== null ? foundationLabel(prevSlotFoundation) : null,
+            relationshipToPrevious: rel === null ? null : {
+              rootInterval: rel.rootInterval,
+              rootMovementSemitones: signedRootMovement(rel.rootInterval),
+              rootDirection: rel.rootDirection,
+              sharedCoreTones: rel.sharedCoreTones,
+              coreCommonRatio: rel.coreCommonRatio,
+              sameQuality: rel.sameQuality,
+              leadingToneIntoCandidate: rel.leadingToneIntoB,
+              sameRootDifferentCore: rel.sameRootDifferentCore,
+            },
+            structuralRole: forcedSustain ? 'forced-sustain'
+              : si === 0 ? 'opening'
+                : slot.phraseEnd && window.arrivalPlanned ? 'arrival' : 'middle',
+            repeatsPreviousFoundation: prevSlotFoundation !== null && prevSlotFoundation.id === f.id,
+            rootChange: prevSlotFoundation !== null && prevSlotFoundation.rootPc !== f.rootPc,
+            chromaticDeparture: prevSlotFoundation !== null && prevSlotFoundation.diatonic && !f.diatonic,
+            phraseRole: window.role,
+            cadenceIntention: window.cadence.intention,
+            selectedCandidateScores: null,
+            alternatives: [],
+            mergedWithNext: false,
+          };
+          // Selected-candidate scores: only from an unmodified beam path (a
+          // forced first slot or develop override replaced the searched choice
+          // after the fact — reporting the searched scores would be misleading).
+          if (trace !== undefined && trace.mode === 'beam' && trace.beam !== null
+            && trace.forcedFirst === null && trace.developOpeningOverride === null) {
+            const st = trace.beam.slots[si];
+            const chosenCand = st?.candidates.find((c) => c.selected) ?? null;
+            if (chosenCand !== undefined && chosenCand !== null) {
+              const beamPrev = si === 0 ? prevAtWindowStart : output.foundations[si - 1];
+              const sctxFull = structuralContext(window, pool, env, settings);
+              structRec.selectedCandidateScores = {
+                total: chosenCand.total,
+                parentScore: chosenCand.parentScore,
+                transition: chosenCand.transition,
+                position: chosenCand.position,
+                loopPenalty: chosenCand.loopPenalty,
+                jitter: chosenCand.jitter,
+                rankInExpansion: chosenCand.rankInExpansion,
+                transitionParts: foundationTransitionScoreDetailed(beamPrev, f, sctxFull).parts,
+                positionParts: positionScoreDetailed(
+                  beamPrev, f, si, windowSlots.length, window, sctxFull,
+                ).parts,
+              };
+            }
+            structRec.alternatives = extractAlternatives(trace, si);
+          }
+          diag.structure.slots.push(structRec);
+          lastStructRec = structRec;
+        }
+        prevSlotFoundation = f;
       }
 
       // Per-window diagnostics + material record.
@@ -455,6 +658,7 @@ export function generateChordProgression(
       const startWindow = windows[ev.startWindowIndex];
       const isArrival = endWindow.arrivalPlanned
         && ev.startTick + ev.durationTicks === endWindow.endTick;
+      const observations: ColorObservation[] = [];
       const res = applyHarmonicColor(ev.foundation, pool, {
         complexityPref: startWindow.prefs.complexity,
         modalPref: startWindow.prefs.modal,
@@ -463,7 +667,7 @@ export function generateChordProgression(
         intention: isArrival ? endWindow.cadence.intention : null,
         role: startWindow.role,
         prev: prevColor,
-      }, colorRng);
+      }, colorRng, diag !== null ? (o) => { observations.push(o); } : undefined);
 
       // Structural cadence realization diagnostics at planned arrivals.
       if (isArrival) {
@@ -471,6 +675,17 @@ export function generateChordProgression(
         const family = realizedFoundationFamily(before, ev.foundation, sctx);
         structuralCadences.push({ intention: endWindow.cadence.intention, family });
         if (family !== null) familiesUsed.add(family);
+        if (diag !== null) {
+          diag.structure.cadences.push({
+            phraseId: endWindow.phraseRef?.id ?? null,
+            sectionId: endWindow.sectionId,
+            startTick: ev.startTick,
+            intention: endWindow.cadence.intention,
+            family,
+            arrivalFoundation: foundationLabel(ev.foundation),
+            previousFoundation: before !== null ? foundationLabel(before) : null,
+          });
+        }
       }
       // Same-foundation adjacency diagnostics (kept rearticulations).
       const prevEv = targetEvents[ei - 1];
@@ -491,6 +706,34 @@ export function generateChordProgression(
         startTick: ev.startTick,
         durationTicks: ev.durationTicks,
       });
+      if (diag !== null) {
+        generatedFoundations.push(ev.foundation);
+        const obs = observations[0] ?? null;
+        const tierLabel: 'triad' | 'seventh' | 'extension' | 'basic' = obs?.basicFallback === true
+          ? 'basic'
+          : res.tierRank === 0 ? 'triad' : res.tierRank === 0.5 ? 'seventh' : 'extension';
+        const colorRec: ColorDecisionRecord = {
+          eventIndex: ev.eventIndex,
+          startTick: ev.startTick,
+          durationTicks: ev.durationTicks,
+          foundationId: ev.foundation.id,
+          foundationLabel: foundationLabel(ev.foundation),
+          resolvedFoundationId: obs !== null ? obs.resolvedFoundationId : null,
+          symbol: res.symbol,
+          availableColors: obs !== null ? obs.availableColors : [],
+          pickedIndex: obs !== null ? obs.pickedIndex : null,
+          basicFallback: obs !== null ? obs.basicFallback : false,
+          complexityPref: startWindow.prefs.complexity,
+          modalPref: startWindow.prefs.modal,
+          variation: settings.variation,
+          isArrival,
+          intention: isArrival ? endWindow.cadence.intention : null,
+          role: startWindow.role,
+          slotCount: ev.slotCount,
+          operation: classifyColorOperation(res.symbol, ev.foundation, scalePcs, tierLabel),
+        };
+        diag.color.push(colorRec);
+      }
       // Sections affected: which REAL project section contains this tick.
       for (const sec of project.sections) {
         const s = barToTick(sec.startBar, project.timeSignature);
@@ -499,6 +742,24 @@ export function generateChordProgression(
       }
       prevColor = { symbol: res.symbol, tierRank: res.tierRank, pitchClasses: res.pitchClasses };
     }
+  }
+
+  // Diagnostics: adjacent emitted pairs classified on FOUNDATION identity
+  // (Phase 4.2 spec §12 — symbol inequality alone never implies movement).
+  if (diag !== null) {
+    for (let i = 1; i < generated.length; i++) {
+      const a = generated[i - 1];
+      const b = generated[i];
+      const adjacent = b.startTick === a.startTick + a.durationTicks;
+      const t = classifyTransition(
+        a.symbol, generatedFoundations[i - 1] ?? null,
+        b.symbol, generatedFoundations[i] ?? null,
+        !adjacent,
+      );
+      t.index = diag.transitions.length;
+      diag.transitions.push(t);
+    }
+    diag.warnings = [...warnings];
   }
 
   // Borrowed-color diagnostics: generated events whose color carries tones
@@ -582,6 +843,9 @@ export function generateChordProgression(
   ].sort((a, b) => a.c.startTick - b.c.startTick || a.i - b.i);
   const chords = indexed.map((x) => x.c);
 
+  // Phase 4.2: the deep diagnostic report is attached ONLY when requested —
+  // the plain result shape (and everything downstream of it) is unchanged.
+  if (diag !== null) return { chords, report, diagnostics: diag };
   return { chords, report };
 }
 

@@ -471,6 +471,49 @@ const CENTER_NEED: Record<string, number> = {
   establish: 1, conclude: 0.9, repeat: 0.7, continue: 0.55, develop: 0.4, prepare: 0.3, contrast: 0.15,
 };
 
+/** Named breakdown of `foundationTransitionScore` — the diagnostics layer
+ *  reports the ACTUAL components that produced a score, so this decomposition
+ *  is the single implementation and the public score delegates to it. Field
+ *  values mirror the additions applied inside the function, in order. */
+export interface TransitionScoreParts {
+  /** Base plausibility every pool foundation receives. */
+  base: number;
+  /** Opening only: root on the tonic. */
+  openingTonic: number;
+  /** Opening only: root on the tonic AND quality = the tonic triad's own. */
+  openingTonicQuality: number;
+  /** Shared structural tones, weighted by the phrase's stability. */
+  stabilityFit: number;
+  /** Root-change facts, weighted by the phrase's movement. */
+  movementFit: number;
+  /** Same-foundation prolongation (positive when stable, negative when active). */
+  prolongation: number;
+  /** Same root, different core (+0.04). */
+  pedalReclassification: number;
+  /** Leading-tone pull into the candidate. */
+  leadingTone: number;
+  /** Stepwise root motion under modal emphasis. */
+  stepwiseModal: number;
+  /** Settled-vs-unstable quality against the phrase's tension. */
+  tensionFit: number;
+  /** Mode-relative quality stability (the local diatonic norm). */
+  qualityStability: number;
+  /** Tonal-center reinforcement under the role's center need. */
+  tonicReinforcement: number;
+  /** Characteristic-tone coverage under modal emphasis. */
+  modalColor: number;
+  /** Diatonic grading (or the borrowing-shaped chromatic grade). */
+  diatonicPreference: number;
+  /** Chromatic bonus in contrast/develop roles. */
+  roleChromaticBonus: number;
+  /** Chromatic bonus when the profile seeks contrast. */
+  contrastBonus: number;
+  /** Chromatic penalty under strong modal emphasis (may be negative). */
+  modalProtect: number;
+  /** Chromatic bonus when the core shares a tonic-triad tone. */
+  chromaticTonicTone: number;
+}
+
 /**
  * How naturally foundation `b` follows `prev` — structural harmony only.
  *
@@ -481,19 +524,35 @@ const CENTER_NEED: Record<string, number> = {
  * continuation is neither banned nor free: stable phrases sustain it (pedal,
  * prolongation), active phrases discourage it — context decides, never a
  * repetition cap.
+ *
+ * This detailed variant returns the full component breakdown alongside the
+ * total; the total is accumulated in EXACTLY the order the historical public
+ * score applied it, so `foundationTransitionScore` simply delegates here and
+ * diagnostics can report the values that actually produced a decision.
  */
-export function foundationTransitionScore(
+export function foundationTransitionScoreDetailed(
   prev: FoundationInfo | null,
   cand: FoundationInfo,
   ctx: StructuralContext,
-): number {
-  let score = 0.2; // base plausibility — every pool foundation stays reachable
+): { total: number; parts: TransitionScoreParts } {
+  const parts: TransitionScoreParts = {
+    base: 0.2, openingTonic: 0, openingTonicQuality: 0, stabilityFit: 0, movementFit: 0,
+    prolongation: 0, pedalReclassification: 0, leadingTone: 0, stepwiseModal: 0,
+    tensionFit: 0, qualityStability: 0, tonicReinforcement: 0, modalColor: 0,
+    diatonicPreference: 0, roleChromaticBonus: 0, contrastBonus: 0, modalProtect: 0,
+    chromaticTonicTone: 0,
+  };
+  let score = parts.base;
 
   if (prev === null) {
     // Openings lean home, and lean hardest on the mode's OWN tonic triad.
     if (cand.rootPc === ctx.pool.tonic) {
-      score += 0.12;
-      if (cand.quality === ctx.pool.tonicQuality) score += 0.07;
+      parts.openingTonic = 0.12;
+      score += parts.openingTonic;
+      if (cand.quality === ctx.pool.tonicQuality) {
+        parts.openingTonicQuality = 0.07;
+        score += parts.openingTonicQuality;
+      }
     }
   } else {
     const rel = analyzeFoundationRelationship(prev, cand);
@@ -503,27 +562,40 @@ export function foundationTransitionScore(
     // (same foundation) reads as almost no structural motion here.
     const motion = rel.sameRoot ? MOTION_BY_CLASS[0] : MOTION_BY_CLASS[rel.intervalClass] ?? 0.6;
     const movementFit = motion * (0.15 + 0.85 * ctx.movement);
-    score += 0.16 * stabilityFit + 0.22 * movementFit;
+    parts.stabilityFit = 0.16 * stabilityFit;
+    parts.movementFit = 0.22 * movementFit;
+    score += parts.stabilityFit + parts.movementFit;
 
     // Same-foundation prolongation: welcomed by stability, discouraged by
     // movement — the deliberate-pedal vs accidental-stasis distinction.
-    if (cand.id === prev.id) score += 0.12 * ctx.stability - 0.3 * ctx.movement;
+    if (cand.id === prev.id) {
+      parts.prolongation = 0.12 * ctx.stability - 0.3 * ctx.movement;
+      score += parts.prolongation;
+    }
     // Same root, different core (e.g. Dm → D): a pedal reclassification.
-    if (rel.sameRootDifferentCore) score += 0.04;
+    if (rel.sameRootDifferentCore) {
+      parts.pedalReclassification = 0.04;
+      score += parts.pedalReclassification;
+    }
 
     // Leading-tone pull into the candidate, when the phrase wants tension.
-    if (rel.leadingToneIntoB) score += 0.06 * (0.3 + 0.7 * ctx.tension);
+    if (rel.leadingToneIntoB) {
+      parts.leadingTone = 0.06 * (0.3 + 0.7 * ctx.tension);
+      score += parts.leadingTone;
+    }
 
     // Stepwise root motion carries modal flavor (non-symmetrical contexts).
     if (!ctx.pool.symmetric && (rel.intervalClass === 1 || rel.intervalClass === 2)) {
-      score += 0.05 * ctx.modalPref;
+      parts.stepwiseModal = 0.05 * ctx.modalPref;
+      score += parts.stepwiseModal;
     }
   }
 
   // Tension fit: settled vs unstable foundation quality against the phrase
   // (applies to openings too — it needs no preceding harmony).
   const tensionFit = 1 - Math.abs(QUALITY_TENSION[cand.quality] - ctx.tension);
-  score += 0.12 * tensionFit;
+  parts.tensionFit = 0.12 * tensionFit;
+  score += parts.tensionFit;
 
   // Mode-relative quality stability: qualities that are the local diatonic
   // NORM carry the harmony naturally (Ionian's major/minor, Whole Tone's
@@ -532,7 +604,8 @@ export function foundationTransitionScore(
   // genuinely seeks tension. Derived from the mode's own vocabulary —
   // never a per-mode table (spec §6, §16).
   const stability = ctx.pool.qualityStability[cand.quality];
-  score += 0.18 * stability * (1.05 - 0.55 * ctx.tension);
+  parts.qualityStability = 0.18 * stability * (1.05 - 0.55 * ctx.tension);
+  score += parts.qualityStability;
 
   // Tonal-center reinforcement (spec §7): foundations that communicate the
   // intended center fit phrases whose role asks for one — weighted by the
@@ -540,25 +613,49 @@ export function foundationTransitionScore(
   // requirement: every foundation stays reachable in every context.
   const need = CENTER_NEED[ctx.role] ?? 0.5;
   if (reinforcesTonic(cand, ctx.pool.tonic, ctx.pool.tonicTriadPcs)) {
-    score += 0.09 * need * (0.35 + 0.65 * (1 - ctx.movement));
+    parts.tonicReinforcement = 0.09 * need * (0.35 + 0.65 * (1 - ctx.movement));
+    score += parts.tonicReinforcement;
   }
 
   // Modal color: carry the mode's characteristic tones when emphasis asks.
   const modalWeight = Math.max(-0.3, ctx.modalPref - 0.35);
-  score += 0.18 * cand.characteristicToneCoverage * modalWeight * 2;
+  parts.modalColor = 0.18 * cand.characteristicToneCoverage * modalWeight * 2;
+  score += parts.modalColor;
 
   // Diatonic vs borrowed grading — a graded preference, never a prohibition.
   if (cand.diatonic) {
-    score += 0.2;
+    parts.diatonicPreference = 0.2;
+    score += parts.diatonicPreference;
   } else {
-    score += ctx.borrowing === 'more' ? 0.16 : 0.05;
-    if (ctx.role === 'contrast' || ctx.role === 'develop') score += 0.07;
-    if (ctx.contrastPref >= 0.6) score += 0.05;
-    if (ctx.modalPref >= 0.65) score -= 0.06; // protect modal color from chromatic wash
-    if (cand.corePitchClasses.some((p) => ctx.pool.tonicTriadPcs.includes(p))) score += 0.06;
+    parts.diatonicPreference = ctx.borrowing === 'more' ? 0.16 : 0.05;
+    score += parts.diatonicPreference;
+    if (ctx.role === 'contrast' || ctx.role === 'develop') {
+      parts.roleChromaticBonus = 0.07;
+      score += parts.roleChromaticBonus;
+    }
+    if (ctx.contrastPref >= 0.6) {
+      parts.contrastBonus = 0.05;
+      score += parts.contrastBonus;
+    }
+    if (ctx.modalPref >= 0.65) {
+      parts.modalProtect = -0.06; // protect modal color from chromatic wash
+      score += parts.modalProtect;
+    }
+    if (cand.corePitchClasses.some((p) => ctx.pool.tonicTriadPcs.includes(p))) {
+      parts.chromaticTonicTone = 0.06;
+      score += parts.chromaticTonicTone;
+    }
   }
 
-  return Math.max(0, score);
+  return { total: Math.max(0, score), parts };
+}
+
+export function foundationTransitionScore(
+  prev: FoundationInfo | null,
+  cand: FoundationInfo,
+  ctx: StructuralContext,
+): number {
+  return foundationTransitionScoreDetailed(prev, cand, ctx).total;
 }
 
 /**

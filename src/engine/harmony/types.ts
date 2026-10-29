@@ -310,3 +310,158 @@ export interface SectionHarmonyProfile {
   };
   development: SectionDevelopment;
 }
+
+/* ==========================================================================
+ * Phase 3 — Harmonic phrase & cadence planning (blueprint, not content)
+ * ========================================================================== *
+ *
+ * The planner describes HOW harmonic ideas are organized over time: where
+ * phrases begin and end, what each phrase is for, how arrivals should feel
+ * and how neighboring sections connect. It contains no chords, selects no
+ * chords, places no chord events, and never touches the manual workflow or
+ * the orchestral generator — it is the blueprint Phase 4 will interpret.
+ */
+
+/** How a phrase's harmonic arrival is INTENDED to feel. Outcomes, not chord
+ *  formulas (spec §5): 'resolved' does not mean V–I — in D Dorian a G→Dm or
+ *  C→Dm arrival resolves just as fully, and in symmetrical scales resolution
+ *  may come from pedal tones and repetition instead of function. */
+export type CadenceIntention =
+  | 'resolved' | 'open' | 'suspended' | 'transitional'
+  | 'deceptive' | 'modal' | 'ambiguous';
+
+/** Broad cadential APPROACHES the harmonic environment structurally supports
+ *  (spec §6). Derived from Phase 1 facts — leading tone, dominant-quality
+ *  degree-5 triad, tonic-triad stability, characteristic tones, symmetry —
+ *  never a mode-name lookup table, and never a chord sequence. */
+export type CadenceFamily =
+  | 'functional-tonal' | 'plagal' | 'modal' | 'stepwise'
+  | 'pedal' | 'chromatic' | 'coloristic';
+
+/** Structural facts about the project key/mode that cadence compatibility is
+ *  derived from. Pure Phase 1 derivatives — no evaluation, no preferences. */
+export interface CadenceEnvironment {
+  scalePitchClasses: number[];
+  symmetric: boolean;
+  /** A semitone leading tone (interval 11) exists below the tonic. */
+  hasLeadingTone: boolean;
+  /** Degree 5 hosts a major or dominant-quality diatonic triad. */
+  dominantAvailable: boolean;
+  /** Degree 4 hosts a major or minor diatonic triad. */
+  subdominantAvailable: boolean;
+  /** The diatonic tonic triad is major or minor (dim/aug/sus are not —
+   *  arrivals home to an unstable tonic read as suspended, not resolved). */
+  tonicTriadStable: boolean;
+  /** 0 for symmetrical scales — where 'modal' arrivals do not apply. */
+  characteristicToneCount: number;
+}
+
+/** The cadence description carried by every planned phrase. */
+export interface PhraseCadence {
+  intention: CadenceIntention;
+  compatibleFamilies: CadenceFamily[];
+}
+
+export type PhraseRole =
+  | 'establish' | 'continue' | 'repeat' | 'develop'
+  | 'contrast' | 'conclude' | 'prepare';
+
+/** One planned phrase: an exact span of the section plus descriptive intent.
+ *  No chords are attached, generated or implied. */
+export interface HarmonicPhrase {
+  /** `${sectionId}#p${index}` — deterministic and unique. */
+  id: string;
+  sectionId: string;
+  /** 0-based position within the section's phrase sequence. */
+  index: number;
+  /** Absolute ticks at 960 PPQ. Bar-aligned through the project's meter
+   *  utilities — never a hardcoded bar length. */
+  startTick: number;
+  durationTicks: number;
+  /** Absolute 1-based bar numbers (meter-aware). */
+  startBar: number;
+  lengthBars: number;
+  role: PhraseRole;
+  /** Broad trajectory at the phrase's center, sampled from the section
+   *  profile's contours and preferences — internal planning parameters, not
+   *  bar-by-bar commands (spec §7). */
+  direction: { stability: number; movement: number; tension: number };
+  cadence: PhraseCadence;
+  /** Phrases this one continues, repeats, develops or contrasts: earlier
+   *  phrases of the same section and — inside repeated sections — phrases
+   *  of the group's first occurrence. Explicit so Phase 4 decides how much
+   *  material to preserve (spec §4). */
+  relatedPhraseIds: string[];
+}
+
+/** Read-only observations of manually written chords inside one section.
+ *  Collected as planning context only (spec §11): chord changes may make
+ *  nearby boundaries more plausible and locked chords act as anchors, but
+ *  the planner never moves, deletes, resizes or replaces a single chord. */
+export interface ExistingHarmonyContext {
+  /** Sorted unique start ticks of chords beginning inside the section. */
+  chordChangeTicks: number[];
+  /** Locked chords overlapping the section, clamped to the section span. */
+  lockedChordSpans: Array<{ startTick: number; endTick: number }>;
+}
+
+/** Phrase plans of one section — without the song-level boundary, which only
+ *  planSongHarmony can fill in (it knows the next section). */
+export interface SectionPhrases {
+  sectionId: string;
+  phrases: HarmonicPhrase[];
+}
+
+/** How the seam into the NEXT section is intended to feel (spec §8).
+ *  Tendencies, not mandates — smooth and abrupt transitions are both
+ *  first-class outcomes. */
+export type BoundaryIntention =
+  | 'continuation' | 'preparation' | 'resolution'
+  | 'contrast' | 'suspension' | 'abrupt';
+
+export interface SectionBoundaryPlan {
+  fromSectionId: string;
+  toSectionId: string;
+  intention: BoundaryIntention;
+}
+
+/** One section's entry in a song-level plan. */
+export interface PlannedSection {
+  sectionId: string;
+  sectionName: string;
+  startBar: number;
+  lengthBars: number;
+  startTick: number;
+  durationTicks: number;
+  phrases: HarmonicPhrase[];
+  /** null for the last section — there is no seam to plan. */
+  boundary: SectionBoundaryPlan | null;
+}
+
+/** The complete Phase 3 blueprint: structure, phrase roles, cadential
+ *  intentions, section boundaries and repeated-material links. Describes
+ *  musical DIRECTION only — contains no chords and generates no chord
+ *  events (spec §9). */
+export interface SongHarmonyPlan {
+  /** The effective seed used (options.seed, else the project's persisted
+   *  generator seed). Echoed for transparency; the planner never advances
+   *  or persists it. */
+  seed: number;
+  /** Chronological (stable sort by startBar, matching the profile layer). */
+  sections: PlannedSection[];
+}
+
+export interface PhrasePlanOptions {
+  /** Optional deterministic seed; defaults to the project's persisted
+   *  chordGenSettings seed. Identical (project, profile, seed) → identical
+   *  plan. Never advanced or persisted. */
+  seed?: number;
+  /** Precomputed phrase lengths in bars (positive integers summing to the
+   *  section length). Used by planSongHarmony so related sections can share
+   *  a form; silently ignored when it does not fit the section. */
+  structureOverride?: number[];
+}
+
+export interface SongPlanOptions {
+  seed?: number;
+}

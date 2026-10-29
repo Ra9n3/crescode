@@ -343,6 +343,8 @@ export function generateChordProgression(
   let colorOnlyChanges = 0;
   let tonicReinforcementEvents = 0;
   let phraseWindowCount = 0;
+  let continuationSlotCount = 0;
+  let sustainedEventCount = 0;
   let nextId = 0;
   const nextChordId = makeIdFactory(seed, project.chords);
 
@@ -408,11 +410,15 @@ export function generateChordProgression(
           phraseSlotCount: (slices[slot.windowIndex] ?? []).length,
           phraseEnd: slot.phraseEnd,
           preference: { changesPerBar: w.prefs.changesPerBar, shape: w.prefs.shape },
-          plannerForcesNewFoundation: true,
+          // Phase 4.3B: the planner proposes OPPORTUNITIES, not changes.
+          // Filled during the emission loop — true only for slots where no
+          // continuation option existed AND a new foundation was selected.
+          plannerForcesNewFoundation: false,
           continuationRealizedStructurally: false,
           mergedIntoPreviousEvent: false,
           previousHarmonySustained: false,
           newFoundationSelected: true,
+          continuationDecision: null,
         });
       });
       diag.rhythm.slots.push(...slotRecords);
@@ -444,11 +450,13 @@ export function generateChordProgression(
       warnings.push(`Anchor symbol "${target.after.symbol}" could not be parsed — continuity context reduced.`);
     }
 
-    // Structural events accumulate per target; same-foundation slot runs
-    // merge into one sustained harmonic event (spec §9).
+    // Structural events accumulate per target; a CONTINUED foundation (the
+    // selector's explicit hold decision, Phase 4.3B) and any same-foundation
+    // slot run merge into one sustained harmonic event (spec §8, §9).
     const targetEvents: StructuralEvent[] = [];
     let prevSlotFoundation: FoundationInfo | null = prev;
     let lastStructRec: StructuralSlotRecord | null = null;
+    const eventOfRec = new Map<RhythmSlotRecord, StructuralEvent>();
     for (let wi = 0; wi < windows.length; wi++) {
       const window = windows[wi];
       const windowSlots = slices[wi] ?? [];
@@ -510,6 +518,14 @@ export function generateChordProgression(
           prefs: { ...window.prefs },
           slotCount: windowSlots.length,
           selection: trace,
+          // Phase 4.3B: filled in after the window's emission loop below.
+          continuation: {
+            opportunities: 0, changes: 0, continuations: 0,
+            meanSustainedDurationTicks: 0, structuralChangesPerBar: 0,
+            phraseMovementPreference: window.direction.movement,
+            sectionMovementPreference: window.prefs.movement,
+            actualActivity: 0,
+          },
         };
         diag.structure.windows.push(winRec);
       }
@@ -528,10 +544,49 @@ export function generateChordProgression(
         // loop walks slots in the same order they were planned.
         const rec = diag !== null ? slotRecords[srCursor] ?? null : null;
         srCursor += 1;
+        // Phase 4.3B: the slot's structural action from the selector.
+        const action: 'continue' | 'change' = output.actions[si]
+          ?? (prevSlotFoundation !== null && prevSlotFoundation.id === f.id ? 'continue' : 'change');
         if (rec !== null) {
           rec.continuationRealizedStructurally = prevSlotFoundation !== null && prevSlotFoundation.id === f.id;
           rec.previousHarmonySustained = rec.continuationRealizedStructurally;
           rec.newFoundationSelected = !rec.continuationRealizedStructurally;
+          // Phase 4.3B continuation decision — recorded from the search trace
+          // and the selector's own actions; never rescored here. Scored
+          // components are omitted when a forced first slot / develop override
+          // decided the outcome after the search (the same honesty rule as
+          // selectedCandidateScores), and on the reuse path (which maps
+          // source material instead of searching).
+          const beamMode = trace !== undefined && trace.mode === 'beam';
+          const searchedSlot = beamMode && trace.beam !== null ? trace.beam.slots[si] ?? null : null;
+          const searchedChosen = searchedSlot?.candidates.find((c) => c.selected) ?? null;
+          const contestGroup = searchedSlot !== null && searchedChosen !== undefined && searchedChosen !== null
+            ? searchedSlot.candidates.filter((c) => c.parentBeamIndex === searchedChosen.parentBeamIndex)
+            : [];
+          const continuationAvailable = beamMode
+            ? si > 0 || (prevAtWindowStart !== null && pool.all.some((p) => p.id === prevAtWindowStart.id))
+            : false;
+          const scoresHonest = searchedChosen !== null
+            && trace?.forcedFirst === null && trace?.developOpeningOverride === null;
+          // Best recorded change score in the selected candidate's own
+          // expansion (candidates are bounded to the top 10 by cumulative
+          // score per beam — the honest recorded contest).
+          const changeScores = contestGroup.filter((c) => c.kind === 'change').map((c) => c.transition);
+          rec.plannerForcesNewFoundation = action === 'change' && !continuationAvailable;
+          rec.continuationDecision = {
+            available: continuationAvailable,
+            selectedAction: action,
+            continuationScore: scoresHonest && searchedChosen !== null && searchedChosen.kind === 'continuation'
+              ? searchedChosen.transition
+              : null,
+            bestChangeScore: scoresHonest && changeScores.length > 0 ? Math.max(...changeScores) : null,
+            phraseMovementPreference: window.direction.movement,
+            sectionMovementPreference: window.prefs.movement,
+            rhythmPreference: { changesPerBar: window.prefs.changesPerBar, shape: window.prefs.shape },
+            positionInPhrase: si,
+            mergedIntoOneEvent: false,
+            resultingDurationTicks: slot.durationTicks,
+          };
         }
 
         if (last !== undefined && adjacent && last.foundation.id === f.id
@@ -543,6 +598,7 @@ export function generateChordProgression(
             rec.mergedIntoPreviousEvent = true;
             rec.previousHarmonySustained = true;
             rec.newFoundationSelected = false;
+            eventOfRec.set(rec, last);
           }
           if (diag !== null) {
             if (lastStructRec !== null) lastStructRec.mergedWithNext = true;
@@ -559,7 +615,7 @@ export function generateChordProgression(
           prevSlotFoundation = f;
           continue;
         }
-        targetEvents.push({
+        const newEvent: StructuralEvent = {
           foundation: f,
           startTick: slot.startTick,
           durationTicks: slot.durationTicks,
@@ -567,7 +623,9 @@ export function generateChordProgression(
           endWindowIndex: wi,
           slotCount: 1,
           eventIndex: nextEventIndex++,
-        });
+        };
+        targetEvents.push(newEvent);
+        if (rec !== null) eventOfRec.set(rec, newEvent);
 
         // Diagnostics: the structural decision at this slot (spec §8).
         if (diag !== null && rec !== null) {
@@ -620,6 +678,11 @@ export function generateChordProgression(
             if (chosenCand !== undefined && chosenCand !== null) {
               const beamPrev = si === 0 ? prevAtWindowStart : output.foundations[si - 1];
               const sctxFull = structuralContext(window, pool, env, settings);
+              // Phase 4.3B: a selected CONTINUATION reports its own recorded
+              // components (transitionParts is null — the transition score
+              // did not rank it); a selected change reports the recomputed
+              // transition parts as before.
+              const selectedIsContinuation = chosenCand.kind === 'continuation';
               structRec.selectedCandidateScores = {
                 total: chosenCand.total,
                 parentScore: chosenCand.parentScore,
@@ -628,7 +691,10 @@ export function generateChordProgression(
                 loopPenalty: chosenCand.loopPenalty,
                 jitter: chosenCand.jitter,
                 rankInExpansion: chosenCand.rankInExpansion,
-                transitionParts: foundationTransitionScoreDetailed(beamPrev, f, sctxFull).parts,
+                transitionParts: selectedIsContinuation
+                  ? null
+                  : foundationTransitionScoreDetailed(beamPrev, f, sctxFull).parts,
+                continuationParts: selectedIsContinuation ? chosenCand.continuationParts : null,
                 positionParts: positionScoreDetailed(
                   beamPrev, f, si, windowSlots.length, window, sctxFull,
                 ).parts,
@@ -645,7 +711,53 @@ export function generateChordProgression(
       // Per-window diagnostics + material record.
       distinctRootsPerPhrase.push(new Set(output.foundations.map((f) => f.rootPc)).size);
       chosenByPhrase.set(window.phraseRef?.id ?? `@${window.startTick}`, output.foundations);
+      // Phase 4.3B: continuation counts are generation output — accumulated
+      // UNCONDITIONALLY (report parity with/without diagnostics, Phase 4.2
+      // non-interference contract). Slot 0 counts as an opportunity only
+      // when a harmony was sounding at the window start.
+      {
+        const hasPrev = prevAtWindowStart !== null;
+        continuationSlotCount += output.actions.filter((a, i) => (i > 0 || hasPrev) && a === 'continue').length;
+      }
+      if (diag !== null) {
+        // Phase 4.3B whole-phrase continuation summary (descriptive — never
+        // an optimization target).
+        const winRec = diag.structure.windows[diag.structure.windows.length - 1];
+        const hasPrev = prevAtWindowStart !== null;
+        const changes = output.actions.filter((a, i) => (i > 0 || hasPrev) && a === 'change').length;
+        const continuations = output.actions.filter((a, i) => (i > 0 || hasPrev) && a === 'continue').length;
+        const opportunities = Math.max(0, windowSlots.length - (hasPrev ? 0 : 1));
+        const eventsInWindow = targetEvents.filter((e) => e.startWindowIndex === wi);
+        winRec.continuation = {
+          opportunities,
+          changes,
+          continuations,
+          meanSustainedDurationTicks: eventsInWindow.length > 0
+            ? Math.round(eventsInWindow.reduce((s, e) => s + e.durationTicks, 0) / eventsInWindow.length)
+            : 0,
+          structuralChangesPerBar: window.endTick > window.startTick
+            ? changes / ((window.endTick - window.startTick) / meter.barTicksValue)
+            : 0,
+          phraseMovementPreference: window.direction.movement,
+          sectionMovementPreference: window.prefs.movement,
+          actualActivity: opportunities > 0 ? changes / opportunities : 0,
+        };
+      }
       prev = output.last;
+    }
+
+    // Phase 4.3B: fill each slot record's merged-event facts — the duration
+    // of the event the slot ended up in, and whether that event spans
+    // multiple slots (a sustained hold). The event count itself is
+    // generation output and accumulated unconditionally.
+    sustainedEventCount += targetEvents.filter((e) => e.slotCount > 1).length;
+    if (diag !== null) {
+      for (const [rec, ev] of eventOfRec) {
+        if (rec.continuationDecision !== null) {
+          rec.continuationDecision.mergedIntoOneEvent = ev.slotCount > 1;
+          rec.continuationDecision.resultingDurationTicks = ev.durationTicks;
+        }
+      }
     }
 
     // STAGE B — color every structural event (foundation → chord symbol).
@@ -670,18 +782,30 @@ export function generateChordProgression(
         prev: prevColor,
       }, colorRng, diag !== null ? (o) => { observations.push(o); } : undefined);
 
-      // Structural cadence realization diagnostics at planned arrivals.
-      if (isArrival) {
+      // Structural cadence realization diagnostics at planned arrivals —
+      // INCLUDING arrivals absorbed into a sustained event that spans the
+      // boundary (Phase 4.3B: the arrival harmony sustains across it, and
+      // the realized family is still judged from the harmony that led INTO
+      // this event). Every planned-arrival window the event covers is
+      // recorded exactly once.
+      const coveredArrivals: typeof windows = [];
+      for (let wj = ev.startWindowIndex; wj <= ev.endWindowIndex; wj++) {
+        const w = windows[wj];
+        if (!w.arrivalPlanned) continue;
+        const covers = ev.startTick < w.endTick && ev.startTick + ev.durationTicks >= w.endTick;
+        if (covers) coveredArrivals.push(w);
+      }
+      for (const arrivalWindow of coveredArrivals) {
         const before = ei > 0 ? targetEvents[ei - 1].foundation : prev;
         const family = realizedFoundationFamily(before, ev.foundation, sctx);
-        structuralCadences.push({ intention: endWindow.cadence.intention, family });
+        structuralCadences.push({ intention: arrivalWindow.cadence.intention, family });
         if (family !== null) familiesUsed.add(family);
         if (diag !== null) {
           diag.structure.cadences.push({
-            phraseId: endWindow.phraseRef?.id ?? null,
-            sectionId: endWindow.sectionId,
+            phraseId: arrivalWindow.phraseRef?.id ?? null,
+            sectionId: arrivalWindow.sectionId,
             startTick: ev.startTick,
-            intention: endWindow.cadence.intention,
+            intention: arrivalWindow.cadence.intention,
             family,
             arrivalFoundation: foundationLabel(ev.foundation),
             previousFoundation: before !== null ? foundationLabel(before) : null,
@@ -833,6 +957,8 @@ export function generateChordProgression(
     sameFoundationRepetitions,
     colorOnlyChanges,
     tonicReinforcementEvents,
+    continuationSlots: continuationSlotCount,
+    sustainedEvents: sustainedEventCount,
     structuralCadences,
     sectionFoundationOverlap,
   };

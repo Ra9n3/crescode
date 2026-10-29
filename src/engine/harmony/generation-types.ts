@@ -61,6 +61,12 @@ export interface ChordGenerationReport {
   colorOnlyChanges: number;
   /** Generated events whose foundation reinforces the tonal center. */
   tonicReinforcementEvents: number;
+  /** Phase 4.3B: slots whose structural action was CONTINUATION (the
+   *  selector kept the sounding foundation). */
+  continuationSlots: number;
+  /** Phase 4.3B: generated events spanning more than one slot (merged
+   *  sustained holds). */
+  sustainedEvents: number;
   /** Structural cadence realizations at planned arrivals. */
   structuralCadences: Array<{ intention: CadenceIntention; family: CadenceFamily | null }>;
   /** Foundation-set overlap between related (repeated) sections, 0..1. */

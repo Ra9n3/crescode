@@ -40,10 +40,12 @@ import type { ChordGenSettings } from '../../shared/schema/types';
 import type { BoundaryIntention, CadenceIntention, HarmonicPhrase, PhraseRole, RhythmShape } from './types';
 import type { RhythmSlot } from './rhythm';
 import {
-  analyzeFoundationRelationship, foundationArrivalFit, foundationTransitionScore,
+  analyzeFoundationRelationship, foundationArrivalFit, foundationContinuationScoreDetailed,
+  foundationTransitionScore,
   foundationLabel,
   poolFoundationOrFallback, realizedFoundationFamily,
-  reinforcesTonic, type FoundationInfo, type FoundationPool, type StructuralContext,
+  reinforcesTonic, type ContinuationPosition, type ContinuationScoreParts,
+  type FoundationInfo, type FoundationPool, type StructuralContext,
 } from './foundation';
 
 const BEAM_WIDTH = 8;
@@ -124,10 +126,16 @@ export interface BeamCandidateTrace {
   /** Candidate path (foundation ids) including this candidate. */
   pathKey: string;
   parentScore: number;
+  /** Expansion score component: the CONTINUATION score when this candidate
+   *  keeps the sounding foundation (Phase 4.3B), else the transition score. */
   transition: number;
   position: number;
   loopPenalty: number;
   jitter: number;
+  /** Phase 4.3B: which structural action this candidate represents. */
+  kind: 'continuation' | 'change';
+  /** Continuation-score component breakdown (continuation candidates only). */
+  continuationParts: ContinuationScoreParts | null;
   /** Score that ranked this candidate: parent + transition + position
    *  − loopPenalty + jitter. */
   total: number;
@@ -245,6 +253,12 @@ export interface SelectionOutput {
   /** One foundation per slot (never null — sustain decisions happen at the
    *  event-merging layer). */
   foundations: FoundationInfo[];
+  /** Phase 4.3B: the structural action per slot — 'continue' when the slot
+   *  keeps the previously sounding foundation (same id; at slot 0 this means
+   *  the window's incoming harmony), 'change' when a new foundation was
+   *  selected. Derived from the FINAL path (after forcedFirst / develop
+   *  overrides) against the incoming harmony — the honest outcome. */
+  actions: Array<'continue' | 'change'>;
   /** The foundation now sounding after the window (for chaining). */
   last: FoundationInfo | null;
 }
@@ -272,6 +286,39 @@ export function structuralContext(
 
 /** Seeded coin with probability p. */
 const coin = (rng: () => number, p: number): boolean => rng() < p;
+
+const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
+
+/** Build the continuation-position facts for one opportunity — the SAME
+ *  builder the beam search uses and the diagnostics layer reuses, so
+ *  recomputed continuation scores consume identical inputs (Phase 4.2
+ *  single-implementation rule).
+ *
+ *  `pathBefore` is the beam path EXCLUDING the sounding foundation (the
+ *  candidate's potential arrival predecessor lives one slot earlier). */
+export function continuationPositionFor(
+  window: SelectionWindow,
+  slotIndex: number,
+  slotCount: number,
+  sounding: FoundationInfo,
+  pathBefore: FoundationInfo[],
+  inputPrev: FoundationInfo | null,
+  after: FoundationInfo | null,
+): ContinuationPosition {
+  const isLast = slotIndex === slotCount - 1;
+  const arrival = isLast && window.arrivalPlanned;
+  return {
+    position: slotIndex === 0 ? 'opening' : arrival ? 'arrival' : 'middle',
+    sectionMovement: window.prefs.movement,
+    changesPerBar: window.prefs.changesPerBar,
+    shape: window.prefs.shape,
+    anchorAfterMatches: after !== null && after.id === sounding.id,
+    arrivalIntention: arrival ? window.cadence.intention : null,
+    arrivalPrev: arrival
+      ? (pathBefore.length > 0 ? pathBefore[pathBefore.length - 1] : inputPrev)
+      : null,
+  };
+}
 
 /** Prefix key of a chosen path up to slot si (for candidate marking). */
 const finalPathPrefixKey = (path: FoundationInfo[], si: number): string =>
@@ -363,11 +410,32 @@ export function evaluatePathDetailed(
   if (path.length === 0) return { total: 0, components };
   let score = 0;
   const distinctRoots = new Set(path.map((f) => f.rootPc)).size;
-  const distinctRatio = distinctRoots / path.length;
 
-  // Movement diversity vs the phrase's movement preference.
-  const targetDistinct = 0.35 + 0.55 * ctx.movement;
-  components.movementDiversity = 0.4 * (1 - Math.abs(distinctRatio - targetDistinct));
+  // Movement diversity vs the phrase's movement preference — CORRECTED in
+  // Phase 4.3B (spec §6): harmonic activity is measured relative to the
+  // phrase's INTENDED activity, never rewarded absolutely. The pre-4.3B form
+  // fitted `distinctRoots / slots` against `0.35 + 0.55·movement` — an ideal
+  // of ≈62% distinct roots at neutral movement that scored ANY sustain as a
+  // failure (the diagnosed root-churn bias: 29/29 transitions changing).
+  // Activity is now the FOUNDATION CHANGE RATE across the path's
+  // opportunities — continuations (same-id adjacencies, the explicit hold
+  // decision) are not changes — and root VARIETY among the harmonies actually
+  // used still matters at equal activity, so equal-activity paths with more
+  // varied roots outrank alternating ones. Both fits are soft and contextual:
+  // no continuation percentage is required anywhere.
+  let changes = 0;
+  for (let i = 1; i < path.length; i++) {
+    if (path[i].id !== path[i - 1].id) changes += 1;
+  }
+  const changeRate = path.length > 1 ? changes / (path.length - 1) : 1;
+  // Intended activity blends the phrase's direction (Phase 3) with the
+  // section's movement preference (Phase 2) — a contextual preference, not
+  // a universal target (spec §6 "avoid arbitrary targets").
+  const movementIntent = clamp01((ctx.movement + window.prefs.movement) / 2);
+  const intendedRate = 0.15 + 0.7 * movementIntent;
+  const activityFit = 1 - Math.abs(changeRate - intendedRate);
+  const varietyFit = changes === 0 ? 1 : distinctRoots / (changes + 1);
+  components.movementDiversity = 0.4 * (0.7 * activityFit + 0.3 * varietyFit);
   score += components.movementDiversity;
 
   // Tonal identity: how much the path communicates the intended center.
@@ -452,16 +520,40 @@ function beamSelect(input: SelectionInput, ctx: StructuralContext): FoundationIn
       const recentIds = new Set(recent.map((f) => f.id));
 
       const scored = pool.all.map((c, ci) => {
-        const transition = foundationTransitionScore(beamPrev, c, ctx);
+        // Phase 4.3B: a pool entry that IS the sounding foundation is the
+        // CONTINUATION action — scored on its own musical terms (hold fit,
+        // phrase direction, position, rhythm preference, neighbors), not as
+        // a root change. Continuation is available wherever the sounding
+        // harmony is pooled: every slot after the first, and slot 0 when the
+        // incoming anchor's foundation is pooled (a non-pooled chromatic
+        // anchor offers nothing to sustain — nothing can re-voice it).
+        const isContinuation = beamPrev !== null && c.id === beamPrev.id;
+        let transition: number;
+        let continuationParts: ContinuationScoreParts | null = null;
+        if (isContinuation && beamPrev !== null) {
+          const d = foundationContinuationScoreDetailed(beamPrev, ctx, continuationPositionFor(
+            input.window, si, slots.length, beamPrev, beam.path.slice(0, -1), input.prev, input.after,
+          ));
+          transition = d.total;
+          continuationParts = d.parts;
+        } else {
+          transition = foundationTransitionScore(beamPrev, c, ctx);
+        }
         const position = positionScoreDetailed(beamPrev, c, si, slots.length, input.window, ctx).total;
-        const loopPenalty = recentIds.has(c.id) ? 0.3 : 0;
+        // Foundation-identity loop detection: returning to a foundation visited
+        // just before the current one reads as an accidental A→B→A loop. The
+        // SOUNDING foundation is exempt — continuing it is prolongation at any
+        // run length (Phase 4.3B): run-length judgment belongs to the
+        // whole-path evaluation (activity fit + prolongation purposefulness),
+        // not to a flat tax that silently capped holds at two slots.
+        const loopPenalty = recentIds.has(c.id) && !isContinuation ? 0.3 : 0;
         // Seeded jitter inside the STRUCTURAL search: seeds move where the
         // harmony goes, not merely how it is decorated (spec §11).
         const jitter = (input.rng() - 0.5) * jitterScale;
         let s = beam.score + transition + position;
         if (loopPenalty > 0) s -= loopPenalty;
         s += jitter;
-        return { c, s, ci, transition, position, loopPenalty, jitter };
+        return { c, s, ci, transition, position, loopPenalty, jitter, isContinuation, continuationParts };
       }).sort((x, y) => y.s - x.s || x.c.id.localeCompare(y.c.id));
 
       if (trace) {
@@ -477,6 +569,8 @@ function beamSelect(input: SelectionInput, ctx: StructuralContext): FoundationIn
             position: e.position,
             loopPenalty: e.loopPenalty,
             jitter: e.jitter,
+            kind: e.isContinuation ? 'continuation' : 'change',
+            continuationParts: e.continuationParts,
             total: e.s,
             rankInExpansion: rank,
             keptAsSuccessor: rank < SUCCESSORS_PER_BEAM,
@@ -626,12 +720,13 @@ function mapMaterial(material: FoundationInfo[], slotCount: number, pool: Founda
 
 /** Reuse path: structural repetition with bounded, variation-scaled
  *  foundation-level development (spec §10, §15). */
-function materialSelect(input: SelectionInput, ctx: StructuralContext): FoundationInfo[] {
+function materialSelect(input: SelectionInput, ctx: StructuralContext): SelectionOutput {
   const { slots, pool, settings, window } = input;
   const material = input.material!;
   const mapped = mapMaterial(material.foundations, slots.length, pool);
   const variation = Math.min(1, Math.max(0, settings.variation));
   const out: FoundationInfo[] = [];
+  const actions: Array<'continue' | 'change'> = [];
   const trace = input.trace;
   const slotTraces = trace
     ? [] as MaterialSelectTrace['slots']
@@ -681,6 +776,7 @@ function materialSelect(input: SelectionInput, ctx: StructuralContext): Foundati
       }
     }
     out.push(cand);
+    actions.push(actualPrev !== null && cand.id === actualPrev.id ? 'continue' : 'change');
     if (trace) {
       slotTraces.push({
         slotIndex: si,
@@ -701,7 +797,8 @@ function materialSelect(input: SelectionInput, ctx: StructuralContext): Foundati
       slots: slotTraces,
     };
   }
-  return out;
+  const last = out.length > 0 ? out[out.length - 1] : input.prev;
+  return { foundations: out, actions, last };
 }
 
 /**
@@ -733,7 +830,8 @@ export function selectWindowFoundations(input: SelectionInput): SelectionOutput 
         ? 'repeat role with linked material'
         : 'cross-section repeated-material link';
     }
-    path = materialSelect(input, ctx);
+    const reused = materialSelect(input, ctx);
+    path = reused.foundations;
   } else {
     path = beamSelect(input, ctx);
     if (trace && trace.beam !== null) {
@@ -753,6 +851,12 @@ export function selectWindowFoundations(input: SelectionInput): SelectionOutput 
   }
 
   if (trace) trace.pathLabels = path.map((f) => foundationLabel(f));
+  // Phase 4.3B: the per-slot structural action of the FINAL path (after any
+  // forcedFirst / develop override) against the incoming harmony.
+  const actions: Array<'continue' | 'change'> = path.map((f, i) => {
+    const prevF = i > 0 ? path[i - 1] : input.prev;
+    return prevF !== null && f.id === prevF.id ? 'continue' : 'change';
+  });
   const last = path.length > 0 ? path[path.length - 1] : input.prev;
-  return { foundations: path, last };
+  return { foundations: path, actions, last };
 }

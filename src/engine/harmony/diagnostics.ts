@@ -41,6 +41,7 @@ import {
   type StabilityEvidence, type TransitionScoreParts,
 } from './foundation';
 import type { BeamCandidateTrace, PositionScoreParts, SelectionTrace } from './progression';
+import type { ContinuationScoreParts } from './foundation';
 import type { ColorVariantTrace } from './color';
 import type {
   BoundaryIntention, CadenceFamily, CadenceIntention, PhraseRole, RhythmShape,
@@ -191,12 +192,12 @@ export interface RhythmSlotRecord {
   /** Last slot of its window (the planned arrival point). */
   phraseEnd: boolean;
   preference: { changesPerBar: number; shape: RhythmShape };
-  /** MODEL FACT (Phase 4.2 spec §7): the rhythm planner always assigns
-   *  exactly one foundation per slot — continuation is never a rhythm-time
-   *  option. It exists only as (a) the structural selector re-choosing the
-   *  same foundation, or (b) the event-merging layer folding same-foundation
-   *  slot runs into one sustained event. */
-  plannerForcesNewFoundation: true;
+  /** Since Phase 4.3B the planner proposes OPPORTUNITIES, never changes:
+   *  the flag is true only for slots where NO continuation option existed
+   *  (no sounding pooled harmony — e.g. the song's opening, or a
+   *  non-pooled chromatic anchor) or the material-reuse path mapped a
+   *  different foundation, AND a new foundation was indeed selected. */
+  plannerForcesNewFoundation: boolean;
   /** The selector chose the same foundation as the previous slot. */
   continuationRealizedStructurally: boolean;
   /** This slot was folded into the previous slot's sustained event. */
@@ -204,6 +205,41 @@ export interface RhythmSlotRecord {
   /** Sustained harmony: structurally continued OR merged. */
   previousHarmonySustained: boolean;
   newFoundationSelected: boolean;
+  /** Phase 4.3B: the continuation decision at this harmonic opportunity.
+   *  Values are recorded from the search trace and the selector's actions —
+   *  never rescored. Null only when diagnostics were collected without a
+   *  decision record (defensive; the emission loop always fills it). */
+  continuationDecision: {
+    /** A continuation option existed for this slot (the sounding harmony
+     *  was pooled). False on the reuse path, which maps source material
+     *  instead of searching. */
+    available: boolean;
+    /** What the selector DID: 'continue' keeps the sounding foundation,
+     *  'change' selects a new one. */
+    selectedAction: 'continue' | 'change';
+    /** The scored continuation component in the selected candidate's own
+     *  beam expansion (comparable with `bestChangeScore`). Null when the
+     *  action was forced (forcedFirst / develop override), on the reuse
+     *  path, or the selected action was a change. */
+    continuationScore: number | null;
+    /** Best recorded change score in the same expansion (candidates are
+     *  bounded to the top 10 by cumulative score per beam — the honest
+     *  recorded contest). Null under the same conditions as above. */
+    bestChangeScore: number | null;
+    /** Phrase direction movement (Phase 3 plan). */
+    phraseMovementPreference: number;
+    /** Section profile movement (Phase 2). */
+    sectionMovementPreference: number;
+    /** Section harmonic-rhythm preference (Phase 2). */
+    rhythmPreference: { changesPerBar: number; shape: RhythmShape };
+    /** 0-based position within the phrase window's slots. */
+    positionInPhrase: number;
+    /** The final chord event this slot belongs to spans > 1 slot. */
+    mergedIntoOneEvent: boolean;
+    /** Exact duration of the final chord event this slot belongs to
+     *  (integer ticks; the merged total for sustained holds). */
+    resultingDurationTicks: number;
+  } | null;
 }
 
 export interface WindowRecord {
@@ -230,6 +266,27 @@ export interface WindowRecord {
   slotCount: number;
   /** Full selection trace (beam internals / reuse internals / path evaluation). */
   selection: SelectionTrace | null;
+  /** Phase 4.3B whole-phrase continuation summary — descriptive metrics,
+   *  never an optimization target. Slot 0 counts as an opportunity only
+   *  when a harmony was sounding at the window start. */
+  continuation: {
+    /** Slots with a sounding harmony to continue or move from. */
+    opportunities: number;
+    /** Actual foundation changes among those opportunities. */
+    changes: number;
+    /** Continuations among those opportunities. */
+    continuations: number;
+    /** Mean duration of the events STARTING in this window (ticks). */
+    meanSustainedDurationTicks: number;
+    /** changes per bar of window span. */
+    structuralChangesPerBar: number;
+    /** Phrase direction movement (Phase 3). */
+    phraseMovementPreference: number;
+    /** Section profile movement (Phase 2). */
+    sectionMovementPreference: number;
+    /** changes / opportunities — the actual structural activity. */
+    actualActivity: number;
+  };
 }
 
 /** One structural decision (spec §8) — objective facts + the actual scores. */
@@ -271,14 +328,21 @@ export interface StructuralSlotRecord {
      *  value that ranked it. Comparable only within the same expansion. */
     total: number;
     parentScore: number;
+    /** The CONTINUATION score when the selected candidate kept the sounding
+     *  foundation (Phase 4.3B), else the transition score. */
     transition: number;
     position: number;
     loopPenalty: number;
     jitter: number;
     rankInExpansion: number;
     /** Transition-score component breakdown (same implementation as the
-     *  generator — recomputed exactly, never approximated). */
+     *  generator — recomputed exactly, never approximated). Null for a
+     *  selected continuation — its components are `continuationParts`. */
     transitionParts: TransitionScoreParts | null;
+    /** Continuation-score component breakdown for a selected continuation
+     *  (Phase 4.3B) — the actual recorded values from the search, not a
+     *  recomputation. Null for change candidates. */
+    continuationParts: ContinuationScoreParts | null;
     /** Position-score component breakdown (opening fit / arrival fit /
      *  cadence-family compatibility). */
     positionParts: PositionScoreParts | null;
@@ -294,6 +358,8 @@ export interface StructuralSlotRecord {
     survivedToNextBeam: boolean;
     selected: boolean;
     rejectedBy: 'successor-cut' | 'beam-width' | 'signature-cap' | null;
+    /** Phase 4.3B: continuation vs change. */
+    kind: 'continuation' | 'change';
   }>;
   mergedWithNext: boolean;
   /** Descriptive stability evidence of the SELECTED foundation against the
@@ -382,7 +448,8 @@ export interface TransitionRecord {
 export interface HarmonyDiagnosticReport {
   meta: {
     engine: 'crescode-harmony-diagnostics';
-    version: 1;
+    /** 2 = Phase 4.3B (continuation decisions + summaries added). */
+    version: 2;
     /** Honest statement of what produced the chords (Phase 4.2 spec §9). */
     generationModel: 'two-stage: structural foundation selection, then harmonic color';
     selectionModel: 'complete-path beam search — a chord is selected because its PATH won, not because it won its slot locally';
@@ -650,13 +717,13 @@ export function createDiagnosticCollector(init: DiagnosticInit): { report: Harmo
   const report: HarmonyDiagnosticReport = {
     meta: {
       engine: 'crescode-harmony-diagnostics',
-      version: 1,
+      version: 2,
       generationModel: 'two-stage: structural foundation selection, then harmonic color',
       selectionModel: 'complete-path beam search — a chord is selected because its PATH won, not because it won its slot locally',
     },
     context: {
       engine: 'crescode-harmony',
-      reportVersion: 1,
+      reportVersion: 2,
       key: project.key,
       keyName: NOTE_NAMES[project.key],
       mode: project.mode,
@@ -682,7 +749,7 @@ export function createDiagnosticCollector(init: DiagnosticInit): { report: Harmo
       pool: poolRecord,
     },
     rhythm: {
-      continuationModelNote: 'The rhythm planner assigns exactly one foundation per slot; there is no explicit sustain decision at rhythm time. Continuation exists only as (a) the structural selector re-choosing the same foundation, or (b) the event-merging layer folding same-foundation slot runs into one sustained event.',
+      continuationModelNote: 'Slots are opportunities for harmonic change (Phase 4.3B): the structural selector may CONTINUE the sounding foundation — a scored structural action judged on phrase direction, section movement and harmonic-rhythm preferences, position and neighboring anchors — or select a new one. Continued slot runs merge into one sustained event with a single color decision. Cross-phrase sustain stays gated by the intention-driven boundary rule (suspended/ambiguous cadences, continuation/suspension seams, unplanned arrivals); a window-opening continuation after a planned arrival is emitted as a rearticulated event. The material-reuse path maps source material and offers no continuation search option (recorded honestly per slot).',
       slots: [],
     },
     structure: { windows: [], slots: [], merges: [], cadences: [] },
@@ -725,6 +792,7 @@ export function extractAlternatives(
       survivedToNextBeam: c.survivedToNextBeam,
       selected: c.selected,
       rejectedBy: c.notAdmittedReason,
+      kind: c.kind,
     }));
 }
 

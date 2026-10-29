@@ -42,6 +42,7 @@ function alternativesLine(slot: StructuralSlotRecord): string {
     .map((a) => {
       const marks = [
         a.selected ? 'SEL' : null,
+        a.kind === 'continuation' ? 'cont' : null,
         a.rejectedBy ?? null,
       ].filter(Boolean).join(',');
       const suffix = marks ? ` [${marks}]` : '';
@@ -88,10 +89,22 @@ export function formatHarmonyDiagnostics(report: HarmonyDiagnosticReport): strin
   // ---- Rhythm --------------------------------------------------------------
   L.push(`RHYTHM (${report.rhythm.slots.length} slots)`);
   L.push(`  Note: ${report.rhythm.continuationModelNote}`);
+  {
+    const decisions = report.rhythm.slots.map((s) => s.continuationDecision);
+    const holds = decisions.filter((d) => d?.selectedAction === 'continue').length;
+    const moves = decisions.filter((d) => d?.selectedAction === 'change').length;
+    const noOption = report.rhythm.slots.filter((s) => s.plannerForcesNewFoundation).length;
+    L.push(`  Continuation: ${holds} hold(s) · ${moves} change(s) · ${noOption} slot(s) with no continuation option`);
+  }
   for (const slot of report.rhythm.slots) {
+    const dec = slot.continuationDecision;
+    const decision = dec
+      ? `${dec.selectedAction === 'continue' ? 'HOLD' : 'move'}${dec.continuationScore !== null ? ` (cont ${num(dec.continuationScore)} vs chg ${num(dec.bestChangeScore)})` : ''}${dec.mergedIntoOneEvent ? ` · sustained event ${dec.resultingDurationTicks}t` : ''}`
+      : null;
     const flags = [
       slot.mergedIntoPreviousEvent ? 'merged' : null,
       slot.continuationRealizedStructurally ? 'foundation continued' : 'new foundation',
+      decision,
     ].filter(Boolean).join(' · ');
     L.push(`  #${String(slot.slotIndex).padStart(2, '0')} bar ${barOf(slot.startTick)} t${slot.startTick}+${slot.durationTicks} ${slot.phraseId ?? '(synthetic)'} pos ${slot.positionInPhrase}/${slot.phraseSlotCount}${slot.phraseEnd ? ' ARRIVAL' : ''} pref ${slot.preference.changesPerBar}/bar ${slot.preference.shape} · ${flags}`);
   }
@@ -141,6 +154,10 @@ export function formatHarmonyDiagnostics(report: HarmonyDiagnosticReport): strin
   for (const win of report.structure.windows) {
     const phrase = report.planning.phrases.find((p) => p.id === win.phraseId);
     L.push(`─ ${win.phraseId ?? `(synthetic ${win.startTick})`} ${phrase ? `(${phrase.role}, cadence ${win.cadenceIntention})` : `(role ${win.role}, cadence ${win.cadenceIntention})`} ticks ${win.startTick}–${win.endTick} · section ${win.sectionId ?? '—'} · slots ${win.slotCount} · arrival ${win.arrivalPlanned ? 'planned' : 'clipped'}`);
+    {
+      const c = win.continuation;
+      L.push(`    continuation: ${c.continuations} hold / ${c.changes} change of ${c.opportunities} opportunities · activity ${pc(c.actualActivity)} (phrase move ${pc(c.phraseMovementPreference)}, section move ${pc(c.sectionMovementPreference)}, rhythm ${win.prefs.changesPerBar}/bar ${win.prefs.shape}) · mean event ${c.meanSustainedDurationTicks}t · ${roundTo(c.structuralChangesPerBar, 2)} changes/bar`);
+    }
     const sel = win.selection;
     if (sel === null) {
       L.push('    search trace: Not collected');
@@ -199,6 +216,7 @@ export function formatHarmonyDiagnostics(report: HarmonyDiagnosticReport): strin
     if (sc) {
       L.push(`    score: total ${num(sc.total)} = parent ${num(sc.parentScore)} + transition ${num(sc.transition)} + position ${num(sc.position)}${sc.loopPenalty ? ` − loop ${num(sc.loopPenalty)}` : ''} + jitter ${num(sc.jitter)} (rank ${sc.rankInExpansion})`);
       if (sc.transitionParts) L.push(`      transition parts: ${transitionPartsLine(sc.transitionParts)}`);
+      if (sc.continuationParts) L.push(`      continuation parts: ${transitionPartsLine(sc.continuationParts)}`);
     }
     // Phase 4.3A: the corrected stability model, from the recorded values.
     // The four factors are objective evidence; the "score contribution" is
@@ -207,8 +225,11 @@ export function formatHarmonyDiagnostics(report: HarmonyDiagnosticReport): strin
     // searched score exists (reuse path) — not stated at all.
     {
       const ev = slotRec.stabilityEvidence;
-      const contribution = sc?.transitionParts
-        ? sc.transitionParts.structuralConsonance + sc.transitionParts.qualityStability
+      // Phase 4.3B: a selected continuation's stability contribution lives in
+      // its continuation parts (same shared destination terms).
+      const stabilityParts = sc?.transitionParts ?? sc?.continuationParts ?? null;
+      const contribution = stabilityParts
+        ? stabilityParts.structuralConsonance + stabilityParts.qualityStability
         : null;
       L.push(`    stability evidence: structural ${pc(ev.structuralConsonance)} · tonic-root ${pc(ev.tonicRootRelationship)} · tonic-chord ${pc(ev.tonicChordRelationship)} · modal ${pc(ev.modalCompatibility)} · score contribution ${signed(contribution)}`);
     }

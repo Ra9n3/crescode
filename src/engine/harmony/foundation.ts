@@ -35,7 +35,7 @@ import { parseChord, type ParsedChord } from '../../shared/schema/chords';
 import { NOTE_NAMES, scalePitchClasses } from '../../shared/schema/modes';
 import type { ChordGenSettings, ModeName } from '../../shared/schema/types';
 import { buildCandidatePool, type CandidateInfo, type CandidatePool } from './candidates';
-import type { CadenceEnvironment, CadenceFamily, CadenceIntention } from './types';
+import type { CadenceEnvironment, CadenceFamily, CadenceIntention, RhythmShape } from './types';
 import {
   CHORD_STRUCTURES, getCharacteristicTones, harmonicCharacteristics, resolveTonic,
 } from './vocabulary';
@@ -533,29 +533,13 @@ const CENTER_NEED: Record<string, number> = {
   establish: 1, conclude: 0.9, repeat: 0.7, continue: 0.55, develop: 0.4, prepare: 0.3, contrast: 0.15,
 };
 
-/** Named breakdown of `foundationTransitionScore` — the diagnostics layer
- *  reports the ACTUAL components that produced a score, so this decomposition
- *  is the single implementation and the public score delegates to it. Field
- *  values mirror the additions applied inside the function, in order. */
-export interface TransitionScoreParts {
-  /** Base plausibility every pool foundation receives. */
-  base: number;
-  /** Opening only: root on the tonic. */
-  openingTonic: number;
-  /** Opening only: root on the tonic AND quality = the tonic triad's own. */
-  openingTonicQuality: number;
-  /** Shared structural tones, weighted by the phrase's stability. */
-  stabilityFit: number;
-  /** Root-change facts, weighted by the phrase's movement. */
-  movementFit: number;
-  /** Same-foundation prolongation (positive when stable, negative when active). */
-  prolongation: number;
-  /** Same root, different core (+0.04). */
-  pedalReclassification: number;
-  /** Leading-tone pull into the candidate. */
-  leadingTone: number;
-  /** Stepwise root motion under modal emphasis. */
-  stepwiseModal: number;
+/** The destination terms of a candidate — every term that describes the
+ *  SONORITY being chosen (or, for continuation, the sonority being held),
+ *  independent of where the harmony came from. Single shared implementation:
+ *  the transition score and the continuation score (Phase 4.3B) both consume
+ *  `scoreDestination`, so a held harmony is judged as a sonority by exactly
+ *  the same components a fresh candidate for it would be. */
+export interface DestinationParts {
   /** Settled-vs-unstable quality against the phrase's tension. */
   tensionFit: number;
   /** Intrinsic sonority consonance (Phase 4.3A) — mode-independent,
@@ -581,6 +565,27 @@ export interface TransitionScoreParts {
   chromaticTonicTone: number;
 }
 
+export interface TransitionScoreParts extends DestinationParts {
+  /** Base plausibility every pool foundation receives. */
+  base: number;
+  /** Opening only: root on the tonic. */
+  openingTonic: number;
+  /** Opening only: root on the tonic AND quality = the tonic triad's own. */
+  openingTonicQuality: number;
+  /** Shared structural tones, weighted by the phrase's stability. */
+  stabilityFit: number;
+  /** Root-change facts, weighted by the phrase's movement. */
+  movementFit: number;
+  /** Same-foundation prolongation (positive when stable, negative when active). */
+  prolongation: number;
+  /** Same root, different core (+0.04). */
+  pedalReclassification: number;
+  /** Leading-tone pull into the candidate. */
+  leadingTone: number;
+  /** Stepwise root motion under modal emphasis. */
+  stepwiseModal: number;
+}
+
 /**
  * How naturally foundation `b` follows `prev` — structural harmony only.
  *
@@ -597,6 +602,59 @@ export interface TransitionScoreParts {
  * score applied it, so `foundationTransitionScore` simply delegates here and
  * diagnostics can report the values that actually produced a decision.
  */
+/** Compute the destination terms of one candidate against the phrase
+ *  context — the single implementation shared by the transition score and
+ *  the continuation score. Pure facts about `cand` in `ctx`. */
+function scoreDestination(cand: FoundationInfo, ctx: StructuralContext): DestinationParts {
+  const dest: DestinationParts = {
+    tensionFit: 0, structuralConsonance: 0, qualityStability: 0, tonicReinforcement: 0,
+    modalColor: 0, diatonicPreference: 0, roleChromaticBonus: 0, contrastBonus: 0,
+    modalProtect: 0, chromaticTonicTone: 0,
+  };
+  // Tension fit: settled vs unstable foundation quality against the phrase.
+  dest.tensionFit = 0.12 * (1 - Math.abs(QUALITY_TENSION[cand.quality] - ctx.tension));
+  // STABILITY, corrected in Phase 4.3A into its two genuinely different
+  // halves (spec §4–§5). The pre-4.3A score keyed one 0.18-weighted term on
+  // QUALITY alone, so a chromatic chord sharing the tonic triad's quality
+  // (Ab minor in E Aeolian) inherited the tonic's full stability anchor.
+  //
+  // 1) Structural consonance — the sonority's OWN stability. Applies to
+  //    EVERY foundation equally, diatonic or not: a consonant chromatic
+  //    triad stays viable (spec §4, §7), but this number is about the chord
+  //    shape and says nothing about the tonal center.
+  // 2) Mode-relative quality norm — the mode's DIATONIC vocabulary prefers
+  //    its own qualities (Ionian's major/minor, Whole Tone's augmented,
+  //    Locrian's diminished). The mode speaks only about chords it contains:
+  //    a chromatic foundation is gated OFF this term entirely — sharing the
+  //    tonic quality does not make it the tonic (E Aeolian: Abm ≠ Em).
+  dest.structuralConsonance = 0.10 * STRUCTURAL_CONSONANCE[cand.quality] * (1.05 - 0.55 * ctx.tension);
+  if (cand.diatonic) {
+    dest.qualityStability = 0.10 * ctx.pool.qualityStability[cand.quality] * (1.05 - 0.55 * ctx.tension);
+  }
+  // Tonal-center reinforcement (spec §7): foundations that communicate the
+  // intended center fit phrases whose role asks for one — weighted by the
+  // role's center need and muted in movement-seeking phrases. Never a
+  // requirement: every foundation stays reachable in every context.
+  const need = CENTER_NEED[ctx.role] ?? 0.5;
+  if (reinforcesTonic(cand, ctx.pool.tonic, ctx.pool.tonicTriadPcs)) {
+    dest.tonicReinforcement = 0.09 * need * (0.35 + 0.65 * (1 - ctx.movement));
+  }
+  // Modal color: carry the mode's characteristic tones when emphasis asks.
+  const modalWeight = Math.max(-0.3, ctx.modalPref - 0.35);
+  dest.modalColor = 0.18 * cand.characteristicToneCoverage * modalWeight * 2;
+  // Diatonic vs borrowed grading — a graded preference, never a prohibition.
+  if (cand.diatonic) {
+    dest.diatonicPreference = 0.2;
+  } else {
+    dest.diatonicPreference = ctx.borrowing === 'more' ? 0.16 : 0.05;
+    if (ctx.role === 'contrast' || ctx.role === 'develop') dest.roleChromaticBonus = 0.07;
+    if (ctx.contrastPref >= 0.6) dest.contrastBonus = 0.05;
+    if (ctx.modalPref >= 0.65) dest.modalProtect = -0.06; // protect modal color from chromatic wash
+    if (cand.corePitchClasses.some((p) => ctx.pool.tonicTriadPcs.includes(p))) dest.chromaticTonicTone = 0.06;
+  }
+  return dest;
+}
+
 export function foundationTransitionScoreDetailed(
   prev: FoundationInfo | null,
   cand: FoundationInfo,
@@ -659,78 +717,196 @@ export function foundationTransitionScoreDetailed(
     }
   }
 
-  // Tension fit: settled vs unstable foundation quality against the phrase
-  // (applies to openings too — it needs no preceding harmony).
-  const tensionFit = 1 - Math.abs(QUALITY_TENSION[cand.quality] - ctx.tension);
-  parts.tensionFit = 0.12 * tensionFit;
+  // Destination terms — the shared single implementation (the continuation
+  // score consumes the same values for the sonority it holds). Added in the
+  // historical order so totals stay byte-identical with the inline form.
+  const dest = scoreDestination(cand, ctx);
+  parts.tensionFit = dest.tensionFit;
   score += parts.tensionFit;
-
-  // STABILITY, corrected in Phase 4.3A into its two genuinely different
-  // halves (spec §4–§5). The pre-4.3A score keyed one 0.18-weighted term on
-  // QUALITY alone, so a chromatic chord sharing the tonic triad's quality
-  // (Ab minor in E Aeolian) inherited the tonic's full stability anchor.
-  //
-  // 1) Structural consonance — the sonority's OWN stability. Applies to
-  //    EVERY foundation equally, diatonic or not: a consonant chromatic
-  //    triad stays viable (spec §4, §7), but this number is about the chord
-  //    shape and says nothing about the tonal center.
-  // 2) Mode-relative quality norm — the mode's DIATONIC vocabulary prefers
-  //    its own qualities (Ionian's major/minor, Whole Tone's augmented,
-  //    Locrian's diminished). The mode speaks only about chords it contains:
-  //    a chromatic foundation is gated OFF this term entirely — sharing the
-  //    tonic quality does not make it the tonic (E Aeolian: Abm ≠ Em).
-  // Tonic identity remains rooted in the root/common-tone facts scored below
-  // (tonicReinforcement, openingTonic*, chromaticTonicTone). Both terms
-  // flatten as the phrase genuinely seeks tension, as before.
-  parts.structuralConsonance = 0.10 * STRUCTURAL_CONSONANCE[cand.quality] * (1.05 - 0.55 * ctx.tension);
+  parts.structuralConsonance = dest.structuralConsonance;
   score += parts.structuralConsonance;
-  if (cand.diatonic) {
-    const stability = ctx.pool.qualityStability[cand.quality];
-    parts.qualityStability = 0.10 * stability * (1.05 - 0.55 * ctx.tension);
-    score += parts.qualityStability;
-  }
-
-  // Tonal-center reinforcement (spec §7): foundations that communicate the
-  // intended center fit phrases whose role asks for one — weighted by the
-  // role's center need and muted in movement-seeking phrases. Never a
-  // requirement: every foundation stays reachable in every context.
-  const need = CENTER_NEED[ctx.role] ?? 0.5;
-  if (reinforcesTonic(cand, ctx.pool.tonic, ctx.pool.tonicTriadPcs)) {
-    parts.tonicReinforcement = 0.09 * need * (0.35 + 0.65 * (1 - ctx.movement));
-    score += parts.tonicReinforcement;
-  }
-
-  // Modal color: carry the mode's characteristic tones when emphasis asks.
-  const modalWeight = Math.max(-0.3, ctx.modalPref - 0.35);
-  parts.modalColor = 0.18 * cand.characteristicToneCoverage * modalWeight * 2;
+  parts.qualityStability = dest.qualityStability;
+  score += parts.qualityStability;
+  parts.tonicReinforcement = dest.tonicReinforcement;
+  score += parts.tonicReinforcement;
+  parts.modalColor = dest.modalColor;
   score += parts.modalColor;
-
-  // Diatonic vs borrowed grading — a graded preference, never a prohibition.
-  if (cand.diatonic) {
-    parts.diatonicPreference = 0.2;
-    score += parts.diatonicPreference;
-  } else {
-    parts.diatonicPreference = ctx.borrowing === 'more' ? 0.16 : 0.05;
-    score += parts.diatonicPreference;
-    if (ctx.role === 'contrast' || ctx.role === 'develop') {
-      parts.roleChromaticBonus = 0.07;
-      score += parts.roleChromaticBonus;
-    }
-    if (ctx.contrastPref >= 0.6) {
-      parts.contrastBonus = 0.05;
-      score += parts.contrastBonus;
-    }
-    if (ctx.modalPref >= 0.65) {
-      parts.modalProtect = -0.06; // protect modal color from chromatic wash
-      score += parts.modalProtect;
-    }
-    if (cand.corePitchClasses.some((p) => ctx.pool.tonicTriadPcs.includes(p))) {
-      parts.chromaticTonicTone = 0.06;
-      score += parts.chromaticTonicTone;
-    }
-  }
+  parts.diatonicPreference = dest.diatonicPreference;
+  score += parts.diatonicPreference;
+  parts.roleChromaticBonus = dest.roleChromaticBonus;
+  score += parts.roleChromaticBonus;
+  parts.contrastBonus = dest.contrastBonus;
+  score += parts.contrastBonus;
+  parts.modalProtect = dest.modalProtect;
+  score += parts.modalProtect;
+  parts.chromaticTonicTone = dest.chromaticTonicTone;
+  score += parts.chromaticTonicTone;
 
   return { total: Math.max(0, score), parts };
+}
+
+/* --------------------------------------------------------------------------
+ * Continuation — keeping the current harmony sounding (Phase 4.3B)
+ * ----------------------------------------------------------------------- */
+
+/** Position facts the continuation score judges against. The structural
+ *  search supplies them from the phrase window and slot grid; diagnostics
+ *  supply the same values when recomputing (single implementation). */
+export interface ContinuationPosition {
+  /** Where in the phrase the opportunity sits: an opening (identity), a
+   *  middle slot (space), or the phrase's final slot with a planned arrival
+   *  the sounding harmony already achieved. */
+  position: 'opening' | 'middle' | 'arrival';
+  /** Phase 2 section movement preference (raw profile value, 0..1). */
+  sectionMovement: number;
+  /** Phase 2 harmonic-rhythm preference. */
+  changesPerBar: number;
+  shape: RhythmShape;
+  /** The preserved anchor AFTER the target sounds the SAME foundation —
+  *  sustaining joins it instead of re-striking it. */
+  anchorAfterMatches: boolean;
+  /** At an arrival position: the planned intention and the foundation the
+   *  arrival was reached FROM (to judge the arrival that was achieved). */
+  arrivalIntention: CadenceIntention | null;
+  arrivalPrev: FoundationInfo | null;
+}
+
+export interface ContinuationScoreParts extends DestinationParts {
+  /** Base plausibility — the SAME floor any action receives. Continuation
+   *  is neither banned nor free (Phase 4.3B spec §4). */
+  base: number;
+  /** (A) Harmonic stability: holding retains EVERY structural tone — the
+   *  full common-tone credit, weighted by the phrase's stability. */
+  holdFit: number;
+  /** (B) Phrase direction (Phase 3): stability welcomes holds, movement
+   *  discourages them. The sign is CONTEXT — there is no constant
+   *  continuation advocate (spec §6: never reverse the churn bias). */
+  directionFit: number;
+  /** (C) Phase 2 movement preference: movement-seeking sections discourage
+   *  holds; sparse ones welcome them. */
+  movementPrefFit: number;
+  /** (D) Position within the phrase: holding an opening can establish
+   *  identity, a middle hold creates space, sustaining a final harmony
+   *  reinforces an ALREADY-ACHIEVED arrival. */
+  positionFit: number;
+  /** (F) Harmonic-rhythm preference: sparse profiles (low changes-per-bar,
+   *  hold shapes) make holds more competitive; dense ones discourage them. */
+  rhythmFit: number;
+  /** (E) Neighboring harmony: a matching preserved anchor after the target. */
+  neighborFit: number;
+}
+
+const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
+
+/**
+ * How musical it is to KEEP the current foundation sounding instead of
+ * moving (Phase 4.3B) — continuation as a genuine structural action, not a
+ * post-hoc merge and not the movement-centric transition score.
+ *
+ * Design contract (spec §5, §6):
+ * - The factors are CONTEXTUAL, computed from the phrase plan (Phase 3
+ *   direction), the section profile (Phase 2 movement + harmonic rhythm),
+ *   the slot's position and the neighboring anchors. No factor is a
+ *   probability and none is keyed on section type alone.
+ * - At neutral settings continuation and a typical change arrive at
+ *   comparable totals — the contest is decided by context, seeded jitter
+ *   and the whole-path evaluation, never by a fixed rule.
+ * - The sounding sonority is still judged AS a sonority through the exact
+ *   shared destination terms (`scoreDestination`) — a held chord competes
+ *   with the same voice every fresh candidate for that harmony would use.
+ * - Tonic identity, stability gating and all Phase 4.3A semantics live in
+ *   those shared terms — this function adds no stability and no tonic
+ *   meaning of its own.
+ */
+export function foundationContinuationScoreDetailed(
+  prev: FoundationInfo,
+  ctx: StructuralContext,
+  position: ContinuationPosition,
+): { total: number; parts: ContinuationScoreParts } {
+  const parts: ContinuationScoreParts = {
+    base: 0.2, holdFit: 0, directionFit: 0, movementPrefFit: 0, positionFit: 0,
+    rhythmFit: 0, neighborFit: 0,
+    tensionFit: 0, structuralConsonance: 0, qualityStability: 0, tonicReinforcement: 0,
+    modalColor: 0, diatonicPreference: 0, roleChromaticBonus: 0, contrastBonus: 0,
+    modalProtect: 0, chromaticTonicTone: 0,
+  };
+  let score = parts.base;
+
+  // (A) Holding retains every structural tone — the same full common-tone
+  // credit a same-foundation candidate received through stabilityFit.
+  parts.holdFit = 0.16 * (0.3 + 0.7 * ctx.stability);
+  score += parts.holdFit;
+
+  // (B) Phrase direction (Phase 3): zero at equal stability/movement —
+  // neither continuation nor movement is privileged there.
+  parts.directionFit = 0.14 * (ctx.stability - ctx.movement);
+  score += parts.directionFit;
+
+  // (C) Section movement preference (Phase 2 profile).
+  parts.movementPrefFit = 0.06 * (0.5 - clamp01(position.sectionMovement));
+  score += parts.movementPrefFit;
+
+  // (D) Position within the phrase.
+  if (position.position === 'opening') {
+    // Holding the opening harmony can establish identity (stable phrases).
+    parts.positionFit = 0.05 * ctx.stability;
+  } else if (position.position === 'arrival') {
+    // Sustaining reinforces an arrival that was genuinely achieved — scaled
+    // by how well the sounding harmony realizes the planned intention.
+    parts.positionFit = position.arrivalIntention !== null && position.arrivalPrev !== null
+      ? 0.03 * Math.min(1.5, foundationArrivalFit(position.arrivalPrev, prev, position.arrivalIntention, ctx))
+      : 0;
+  } else {
+    // A mid-phrase hold creates space.
+    parts.positionFit = 0.02 * ctx.stability;
+  }
+  score += parts.positionFit;
+
+  // (F) Harmonic-rhythm preference: changesPerBar ranges 0.25..4; sparsity
+  // is its normalized inverse. Hold-shaped profiles add a small nudge.
+  const sparsity = 1 - clamp01((position.changesPerBar - 0.25) / 3.75);
+  parts.rhythmFit = 0.06 * (sparsity - 0.5) + (position.shape === 'hold' ? 0.03 : 0);
+  score += parts.rhythmFit;
+
+  // (E) A preserved anchor after the target sounds the same harmony.
+  if (position.anchorAfterMatches) {
+    parts.neighborFit = 0.08;
+    score += parts.neighborFit;
+  }
+
+  // Destination terms — shared single implementation (see scoreDestination).
+  const dest = scoreDestination(prev, ctx);
+  parts.tensionFit = dest.tensionFit;
+  score += parts.tensionFit;
+  parts.structuralConsonance = dest.structuralConsonance;
+  score += parts.structuralConsonance;
+  parts.qualityStability = dest.qualityStability;
+  score += parts.qualityStability;
+  parts.tonicReinforcement = dest.tonicReinforcement;
+  score += parts.tonicReinforcement;
+  parts.modalColor = dest.modalColor;
+  score += parts.modalColor;
+  parts.diatonicPreference = dest.diatonicPreference;
+  score += parts.diatonicPreference;
+  parts.roleChromaticBonus = dest.roleChromaticBonus;
+  score += parts.roleChromaticBonus;
+  parts.contrastBonus = dest.contrastBonus;
+  score += parts.contrastBonus;
+  parts.modalProtect = dest.modalProtect;
+  score += parts.modalProtect;
+  parts.chromaticTonicTone = dest.chromaticTonicTone;
+  score += parts.chromaticTonicTone;
+
+  return { total: Math.max(0, score), parts };
+}
+
+/** Public one-line variant (mirrors `foundationTransitionScore`). */
+export function foundationContinuationScore(
+  prev: FoundationInfo,
+  ctx: StructuralContext,
+  position: ContinuationPosition,
+): number {
+  return foundationContinuationScoreDetailed(prev, ctx, position).total;
 }
 
 export function foundationTransitionScore(

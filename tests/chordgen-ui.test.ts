@@ -10,6 +10,7 @@ import { importProjectJson } from '../src/export/json';
 import { runChordGenerate, __setChordGenerator } from '../src/lib/chordGenUi';
 import { detectGenerationScope, scopeTooltip, songCoverage, type GenerationScope } from '../src/lib/genScope';
 import { useStore } from '../src/store/store';
+import { parseChord } from '../src/shared/schema/chords';
 import {
   DEFAULT_CHORDGEN_SETTINGS, createDefaultProject, isChordLocked, projectFromFixture,
   validateProject, type Chord, type Project, type Section,
@@ -266,18 +267,47 @@ describe('settings persistence (spec §6, §7)', () => {
   });
 });
 
-describe('Generate action boundary (spec §2, §8 — no dialog, no seed advance)', () => {
-  it('with no generator connected: subtle info toast, zero project changes, seed untouched', () => {
-    const projectBefore = JSON.stringify(useStore.getState().project);
-    const seedBefore = useStore.getState().project.chordGenSettings?.seed;
+describe('Generate action boundary (spec §2, §8, §15 — no dialog, seed advance, one undo step)', () => {
+  it('the real engine is connected by default: Generate fills the gap in ONE undo step, seed advances', () => {
+    const projectBefore = useStore.getState().project;
+    const seedBefore = projectBefore.chordGenSettings?.seed ?? 1;
+    const history = useStore.getState().past.length;
     runChordGenerate();
-    expect(JSON.stringify(useStore.getState().project)).toBe(projectBefore);
-    expect(useStore.getState().project.chordGenSettings?.seed).toBe(seedBefore);
-    const toasts = useStore.getState().toasts;
-    expect(toasts.length).toBe(1);
-    expect(toasts[0].kind).toBe('info');
-    expect(toasts[0].text).toContain('not connected');
+    const st = useStore.getState();
+    // The existing chord survives untouched; the 4-bar gap is exactly filled.
+    expect(st.project.chords[0]).toBe(projectBefore.chords[0]);
+    const filled = st.project.chords.slice(1);
+    expect(filled.length).toBeGreaterThanOrEqual(1);
+    expect(filled[0].startTick).toBe(4 * BT);
+    expect(filled[filled.length - 1].startTick + filled[filled.length - 1].durationTicks).toBe(8 * BT);
+    for (const c of filled) {
+      expect(parseChord(c.symbol).ok).toBe(true);
+      expect(isChordLocked(c)).toBe(false);
+    }
+    for (let i = 1; i < filled.length; i++) {
+      expect(filled[i - 1].startTick + filled[i - 1].durationTicks).toBe(filled[i].startTick); // gapless
+    }
+    expect(st.past.length).toBe(history + 1); // exactly ONE undo step
+    expect(st.project.chordGenSettings?.seed).toBe((seedBefore + 1) >>> 0); // advanced
+    expect(st.genHighlight?.chordIds).toEqual(filled.map((c) => c.id));
+    const toasts = st.toasts;
+    expect(toasts.some((t) => t.kind === 'success')).toBe(true);
     for (const t of toasts) useStore.getState().dismissToast(t.id);
+  });
+
+  it('undo restores chords and seed together; redo restores both (spec §13)', () => {
+    const chordsBefore = useStore.getState().project.chords;
+    const seedBefore = useStore.getState().project.chordGenSettings?.seed ?? 1;
+    runChordGenerate();
+    const generated = useStore.getState().project.chords;
+    const seedAfter = useStore.getState().project.chordGenSettings?.seed;
+    expect(seedAfter).toBe((seedBefore + 1) >>> 0);
+    useStore.getState().undo();
+    expect(useStore.getState().project.chords).toEqual(chordsBefore);
+    expect(useStore.getState().project.chordGenSettings?.seed).toBe(seedBefore);
+    useStore.getState().redo();
+    expect(useStore.getState().project.chords).toEqual(generated);
+    expect(useStore.getState().project.chordGenSettings?.seed).toBe(seedAfter);
   });
 
   it('the connected path is wired: ONE undo step, seed advances, highlight triggers', () => {

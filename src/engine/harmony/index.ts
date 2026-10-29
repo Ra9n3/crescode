@@ -34,3 +34,12 @@ export * from './profiles';
 export * from './cadences';
 export * from './phrases';
 export * from './plan';
+
+// Phase 4 — chord progression generation (the engine's first stage that
+// creates chord events; everything above remains knowledge and planning).
+export * from './coverage';
+export * from './rhythm';
+export * from './candidates';
+export * from './progression';
+export * from './generation';
+export * from './generation-types';

@@ -199,16 +199,23 @@ const VALID_TIPS = ['Generate chords for entire song', 'Fill empty chord spaces'
 const tip0 = await genBtn.getAttribute('title');
 check('Generate tooltip reflects the detected scope', tip0 !== null && (VALID_TIPS.includes(tip0) || tip0.startsWith('Regenerate selected section: ')), tip0 ?? '');
 
-// Generate click: immediate, no prompt, no dialog, no chord/seed changes while disconnected
+// Generate click: immediate, no prompt, no dialog — and it actually generates (Phase 4)
 await page.evaluate(() => { window.__promptCalls = 0; window.prompt = () => { window.__promptCalls++; return ''; }; });
-const chordSeedBefore = await st(() => JSON.stringify({ c: window.crescodeTest.store.getState().project.chords, s: window.crescodeTest.store.getState().project.chordGenSettings?.seed }));
+const chordSeedBeforeGen = await st(() => window.crescodeTest.store.getState().project.chordGenSettings?.seed);
 await genBtn.click();
-await page.waitForTimeout(150);
-const chordSeedAfter = await st(() => JSON.stringify({ c: window.crescodeTest.store.getState().project.chords, s: window.crescodeTest.store.getState().project.chordGenSettings?.seed }));
-check('Generate: no prompt, no dialog, chords + seed untouched while disconnected',
-  chordSeedBefore === chordSeedAfter
+await page.waitForTimeout(300);
+const genState = await st(() => ({
+  chords: window.crescodeTest.store.getState().project.chords,
+  seed: window.crescodeTest.store.getState().project.chordGenSettings?.seed,
+}));
+const chordCountAfterGen = genState.chords.length;
+check('Generate: no prompt, no dialog, chords generated + seed advanced',
+  chordCountAfterGen > 0
+  && genState.chords.every((c) => Number.isInteger(c.startTick) && c.durationTicks >= 1)
+  && genState.seed === ((chordSeedBeforeGen + 1) >>> 0)
   && await st(() => window.__promptCalls) === 0
-  && (await page.locator('[data-testid=chordgen-panel]').count()) === 0);
+  && (await page.locator('[data-testid=chordgen-panel]').count()) === 0,
+  `count=${chordCountAfterGen} seed=${genState.seed}`);
 
 // Section selection UX: whole block clickable, tooltip switches, second click deselects
 const section0 = page.locator('[data-testid=section]').first();
@@ -246,7 +253,7 @@ await page.locator('[data-testid=chord-lock-toggle]').click();
 check('Right-click menu locks a chord with an indicator', (await page.locator('[data-testid=chord][data-locked]').count()) === 1);
 await st(() => window.crescodeTest.store.getState().undo());
 check('Chord lock participates in undo', (await page.locator('[data-testid=chord][data-locked]').count()) === 0);
-check('Locking left the chord count intact', (await page.locator('[data-testid=chord]').count()) === 18);
+check('Locking left the chord count intact', (await page.locator('[data-testid=chord]').count()) === chordCountAfterGen);
 
 // Piano roll edit -> export
 await st(() => window.crescodeTest.store.getState().edit((p) => ({ ...p, tracks: p.tracks.map((t, i) => (i === 3 ? { ...t, notes: [] } : t)) })));

@@ -1,30 +1,32 @@
 /**
  * Chord-generation UI actions (spec §2, §8) — the isolated integration boundary
- * for the future harmony engine. The scope detection (lib/genScope.ts) decides
- * WHAT Generate would do; this module decides what clicking it DOES today.
+ * between the app and the harmony engine. The scope detection (lib/genScope.ts)
+ * decides WHAT Generate does from the current state; this module invokes the
+ * Phase 4 engine and commits the result.
  *
- * UI/UX phase contract:
+ * Contract (spec §3, §13, §15):
  * - Clicking Generate never opens a prompt or configuration dialog.
- * - No placeholder chords are fabricated to fake functionality.
- * - The seed does NOT advance when generation cannot actually execute.
- * - When the engine is not connected, the click reports a subtle status
- *   message (a toast — the app's ambient status channel) and changes nothing.
- *
- * Connecting the engine later means replacing the `generateChords` stub below
- * with the real call; nothing in the UI layer needs to change.
+ * - The whole operation is ONE undoable project edit: chords + advanced seed
+ *   commit atomically, so undo/redo restores both together.
+ * - The seed advances only on a successful generation that actually produced
+ *   chords; a declined or failed run leaves the project untouched.
+ * - No placeholder chords are fabricated; locking, persistence and the
+ *   orchestral Generate (composeAll) are untouched.
  */
 import type { Chord, Project } from '../shared/schema/types';
 import { DEFAULT_CHORDGEN_SETTINGS } from '../shared/schema/types';
+import { generateChordProgression } from '../engine/harmony/generation';
+import type { GenerationScope } from '../engine/harmony/generation-types';
 import { useStore } from '../store/store';
-import { detectGenerationScope, scopeTooltip, type GenerationScope } from './genScope';
+import { detectGenerationScope, scopeTooltip, type GenerationScope as UiScope } from './genScope';
 
-/** Integration seam: set to a real generator implementation when the engine lands.
- *  It receives the project, the detected scope and the current seed, and returns
- *  the replacement chord array (or null when it declines to run). */
-export type ChordGenerator = (p: Project, scope: GenerationScope, seed: number) => Chord[] | null;
+/** Test/diagnostic override seam: when set, it replaces the real engine call.
+ *  It receives the project, the detected scope and the current seed, and
+ *  returns the replacement chord array (or null to decline the run). */
+export type ChordGenerator = (p: Project, scope: UiScope, seed: number) => Chord[] | null;
 let generateChords: ChordGenerator | null = null;
 
-/** Test/diagnostic hook: register or clear the generator implementation. */
+/** Test/diagnostic hook: register or clear the generator override. */
 export function __setChordGenerator(fn: ChordGenerator | null): void { generateChords = fn; }
 
 /** 32-bit random seed for the Advanced-panel dice button (crypto when available). */
@@ -43,23 +45,53 @@ export function runChordGenerate(): void {
   if (generateChords) {
     const chords = generateChords(s.project, scope, seed);
     if (chords) {
-      // One undoable step for the whole operation (spec §9), a fresh seed for the
-      // next variation (spec §8), and a brief highlight for what changed (spec §4).
-      const before = new Set(s.project.chords.map((c) => c.id));
-      s.edit((p) => ({ ...p, chords, chordGenSettings: { ...DEFAULT_CHORDGEN_SETTINGS, ...(p.chordGenSettings ?? {}), seed: advanceSeed(seed) } }));
-      const fresh = chords.filter((c) => !before.has(c.id)).map((c) => c.id);
-      s.set({ genHighlight: { at: Date.now(), chordIds: fresh.length ? fresh : null } });
-      s.toast('success', 'Chords generated');
+      commit(chords, seed);
       return;
     }
+    // Override declined: subtle status only — no dialog, no state change,
+    // no seed advance.
+    s.toast('info', `Chord generation declined — ${scopeTooltip(scope, s.project).toLowerCase()}.`);
+    return;
   }
-  // Not connected (or declined): subtle status only — no dialog, no state change,
-  // no seed advance (spec §2, §8).
-  s.toast('info', `Chord generator is not connected yet — ${scopeTooltip(scope, s.project).toLowerCase()}.`);
+
+  // Real engine path (Phase 4): generate, then commit atomically.
+  try {
+    const result = generateChordProgression(s.project, {
+      seed,
+      scope: scope as GenerationScope,
+      settings: s.project.chordGenSettings,
+    });
+    if (result.report.generatedChordCount === 0) {
+      // Nothing eligible in scope (fully locked, empty section selection…):
+      // report subtly, change nothing, do not advance the seed (spec §13).
+      s.toast('info', `Nothing to generate — ${scopeTooltip(scope, s.project).toLowerCase()} is already covered by preserved chords.`);
+      return;
+    }
+    commit(result.chords, seed);
+  } catch {
+    // The engine is deterministic and total, but a failed run must never
+    // corrupt the project or advance the seed (spec §13).
+    s.toast('error', 'Chord generation failed — the project is unchanged.');
+  }
 }
 
-/** Next variation seed. Deterministic +1 wrap within the 32-bit range for now;
- *  the engine may replace this with a hash-based step when it lands. */
+/** One undoable step: the full replacement chord array plus the advanced
+ *  seed, then the brief highlight and status toast (spec §4, §9, §15). */
+function commit(chords: Chord[], seed: number): void {
+  const s = useStore.getState();
+  const before = new Set(s.project.chords.map((c) => c.id));
+  s.edit((p) => ({
+    ...p,
+    chords,
+    chordGenSettings: { ...DEFAULT_CHORDGEN_SETTINGS, ...(p.chordGenSettings ?? {}), seed: advanceSeed(seed) },
+  }));
+  const fresh = chords.filter((c) => !before.has(c.id)).map((c) => c.id);
+  s.set({ genHighlight: { at: Date.now(), chordIds: fresh.length ? fresh : null } });
+  s.toast('success', 'Chords generated');
+}
+
+/** Next variation seed. Deterministic +1 wrap within the 32-bit range;
+ *  the engine derives all of its own randomness from the seed value. */
 function advanceSeed(seed: number): number {
   return (seed + 1) >>> 0;
 }

@@ -49,3 +49,9 @@ export * from './generation-types';
 // Phase 4.2 — observational diagnostics (explain decisions, change nothing).
 export * from './diagnostics';
 export * from './diagnostics-format';
+// Phase 5 — complete-progression evaluation & candidate selection:
+// whole-phrase / whole-song musical evaluation, bounded candidate
+// generation over the production generator, and seeded selection among
+// musically competitive complete outcomes.
+export * from './evaluation';
+export * from './selection';

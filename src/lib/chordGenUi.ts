@@ -15,7 +15,7 @@
  */
 import type { Chord, Project } from '../shared/schema/types';
 import { DEFAULT_CHORDGEN_SETTINGS } from '../shared/schema/types';
-import { generateChordProgression } from '../engine/harmony/generation';
+import { generateEvaluatedProgression } from '../engine/harmony/selection';
 import type { GenerationScope } from '../engine/harmony/generation-types';
 import { useStore } from '../store/store';
 import { detectGenerationScope, scopeTooltip, type GenerationScope as UiScope } from './genScope';
@@ -54,9 +54,13 @@ export function runChordGenerate(): void {
     return;
   }
 
-  // Real engine path (Phase 4): generate, then commit atomically.
+  // Real engine path (Phase 5): bounded complete candidates → whole-song
+  // evaluation → deterministic seeded selection among musically competitive
+  // outcomes — then commit atomically. Locked chords, scopes, manual
+  // material and undo/redo semantics are untouched: every candidate is a
+  // plain production run and selection only ever PICKS one.
   try {
-    const result = generateChordProgression(s.project, {
+    const result = generateEvaluatedProgression(s.project, {
       seed,
       scope: scope as GenerationScope,
       settings: s.project.chordGenSettings,

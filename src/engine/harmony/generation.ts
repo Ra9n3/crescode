@@ -70,26 +70,26 @@ import type {
 const COMPLEXITY_ANCHOR: Record<ChordGenSettings['complexity'], number> = { 1: 0.35, 2: 0.5, 3: 0.65 };
 const DENSITY_ANCHOR: Record<ChordGenSettings['density'], number> = { 0: 1, 1: 2, 2: 3 };
 
-interface PlannedPhraseInfo {
+export interface PlannedPhraseInfo {
   phrase: HarmonicPhrase;
   sectionId: string;
   isSectionLast: boolean;
   boundaryIntoNext: BoundaryIntention | null;
 }
 
-interface WindowPrefs {
+export interface WindowPrefs {
   stability: number; movement: number; complexity: number; tension: number; modal: number; contrast: number;
   changesPerBar: number; shape: RhythmShape;
 }
 
 /** Structural subset of SectionHarmonyProfile this module reads. */
-interface SectionProfilePrefs {
+export interface SectionProfilePrefs {
   stability: { preferred: number }; movement: { preferred: number }; complexity: { preferred: number };
   tension: { preferred: number }; modalEmphasis: { preferred: number }; contrast: { preferred: number };
   rhythm: { preferredChangesPerBar: number; shape: RhythmShape };
 }
 
-function prefsFromProfile(
+export function prefsFromProfile(
   profile: SectionProfilePrefs | undefined,
   settings: ChordGenSettings,
 ): WindowPrefs {
@@ -114,7 +114,7 @@ function prefsFromProfile(
 }
 
 /** Flatten the song plan into chronological phrase info with boundary context. */
-function flattenPhrases(
+export function flattenPhrases(
   plan: ReturnType<typeof planSongHarmony>,
 ): { phrases: PlannedPhraseInfo[]; byId: Map<string, PlannedPhraseInfo> } {
   const phrases: PlannedPhraseInfo[] = [];
@@ -137,11 +137,26 @@ function flattenPhrases(
 }
 
 /**
+ * The project view the planning backdrop is built from: sectionless songs get
+ * one neutral synthetic section covering the song span, so a song without
+ * sections stays a first-class planning citizen. Purely a view — the input
+ * project is never mutated. (Phase 5: exported so the evaluation layer
+ * rebuilds the EXACT backdrop a generation run used — single implementation.)
+ */
+export function planningProjectFor(project: Project): Project {
+  if (project.sections.length > 0) return project;
+  return {
+    ...project,
+    sections: [{ id: '(song)', name: 'Song', startBar: 1, lengthBars: Math.max(1, projectBars(project)) }],
+  };
+}
+
+/**
  * Clip the plan's phrase windows onto a generation target; synthesize neutral
  * windows for sub-spans the plan does not cover (song tails beyond the last
  * section, projects without sections, gaps between sections).
  */
-function windowsForTarget(
+export function windowsForTarget(
   target: { startTick: number; endTick: number },
   planned: PlannedPhraseInfo[],
   profileBySection: Map<string, SectionProfilePrefs>,
@@ -304,14 +319,7 @@ export function generateChordProgression(
   const regionEnd = plan.regionEnd;
 
   // 2) Planning backdrop (a neutral synthetic section covers sectionless songs).
-  const hasSections = project.sections.length > 0;
-  let planProject = project;
-  if (!hasSections) {
-    planProject = {
-      ...project,
-      sections: [{ id: '(song)', name: 'Song', startBar: 1, lengthBars: Math.max(1, projectBars(project)) }],
-    };
-  }
+  const planProject = planningProjectFor(project);
   const songPlan = planSongHarmony(planProject, { seed });
   const profiles = buildSongHarmonyProfiles(planProject);
   const profileBySection = new Map<string, SectionProfilePrefs>(

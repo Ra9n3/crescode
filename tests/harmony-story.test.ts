@@ -24,7 +24,7 @@ import { generateChordProgression } from '../src/engine/harmony/generation';
 import { planSongHarmony } from '../src/engine/harmony/plan';
 import {
   foundationContinuationScoreDetailed, foundationTransitionScoreDetailed,
-  buildFoundationPool, type FoundationInfo, type StructuralContext,
+  buildFoundationPool, seedTensionState, type FoundationInfo, type StructuralContext,
 } from '../src/engine/harmony/foundation';
 import {
   evaluatePathDetailed, phraseContrastPenalty, sectionGoalFit, selectWindowFoundations,
@@ -64,6 +64,10 @@ const at = (p: ReturnType<typeof buildFoundationPool>, rootPc: number, quality?:
   return f;
 };
 
+/** Zero-pressure TensionState — the scorer requires one; these unit tests
+ *  measure the context-free terms, so no resolution history is carried. */
+const noPressure = seedTensionState(null);
+
 function window(overrides: Partial<SelectionWindow> = {}): SelectionWindow {
   return {
     startTick: 0, endTick: 4 * 960, role: 'continue',
@@ -93,7 +97,7 @@ describe('story pass — directed motion classes', () => {
     // motion = movementFit / (0.28 * (0.15 + 0.85 * movement)), movement 0.5
     const div = 0.28 * (0.15 + 0.85 * 0.5);
     const motionOf = (cand: FoundationInfo) =>
-      foundationTransitionScoreDetailed(em, cand, c).parts.movementFit / div;
+      foundationTransitionScoreDetailed(em, cand, c, noPressure).parts.movementFit / div;
     // Descending fifth (E→A, interval +5) is strongest, ascending fifth
     // (+7) milder, steps next, thirds and pedal moderate, tritone weakest.
     expect(motionOf(at(p, 9))).toBeCloseTo(0.9, 5);   // Am
@@ -110,7 +114,7 @@ describe('story pass — directed motion classes', () => {
     if (pedal === undefined) return; // pool has no same-root second core — nothing to pin
     const c = ctx(p);
     const div = 0.28 * (0.15 + 0.85 * 0.5);
-    const motion = foundationTransitionScoreDetailed(em, pedal, c).parts.movementFit / div;
+    const motion = foundationTransitionScoreDetailed(em, pedal, c, noPressure).parts.movementFit / div;
     expect(motion).toBeCloseTo(0.5, 5);
   });
 
@@ -118,7 +122,7 @@ describe('story pass — directed motion classes', () => {
     const p = pool();
     const c = ctx(p);
     const em = at(p, 4, 'minor');
-    const parts = foundationTransitionScoreDetailed(em, at(p, 9), c).parts; // E→A, desc fifth
+    const parts = foundationTransitionScoreDetailed(em, at(p, 9), c, noPressure).parts; // E→A, desc fifth
     expect(parts.movementFit).toBeGreaterThan(parts.stabilityFit);
   });
 });
@@ -132,6 +136,7 @@ describe('story pass — continuation off equal footing', () => {
         position: 'middle', sectionMovement: 0.5, changesPerBar: 2, shape: 'regular',
         anchorAfterMatches: false, arrivalIntention: null, arrivalPrev: null,
       },
+      noPressure,
     );
     expect(held.parts.holdFit).toBeCloseTo(0.11, 5); // below the 0.12 change ceiling
     expect(held.parts.base).toBeCloseTo(0.15, 5);
@@ -145,8 +150,8 @@ describe('story pass — continuation off equal footing', () => {
       position: 'middle' as const, sectionMovement: 0.5, changesPerBar: 2,
       shape: 'regular' as const, anchorAfterMatches: false, arrivalIntention: null, arrivalPrev: null,
     };
-    const hold = foundationContinuationScoreDetailed(em, c, position).total;
-    const move = foundationTransitionScoreDetailed(em, at(p, 9), c).total; // desc fifth
+    const hold = foundationContinuationScoreDetailed(em, c, position, noPressure).total;
+    const move = foundationTransitionScoreDetailed(em, at(p, 9), c, noPressure).total; // desc fifth
     expect(move).toBeGreaterThan(hold);
     // Not dwarfed either: continuation stays plainly reachable.
     expect(hold).toBeGreaterThan(move * 0.5);
@@ -250,8 +255,8 @@ describe('story pass — rebalanced tonal pull', () => {
       position: 'middle' as const, sectionMovement: 0.5, changesPerBar: 2,
       shape: 'regular' as const, anchorAfterMatches: false, arrivalIntention: null, arrivalPrev: null,
     };
-    const body = foundationContinuationScoreDetailed(em, ctx(p, { role: 'continue' }), position).parts;
-    const frame = foundationContinuationScoreDetailed(em, ctx(p, { role: 'establish' }), position).parts;
+    const body = foundationContinuationScoreDetailed(em, ctx(p, { role: 'continue' }), position, noPressure).parts;
+    const frame = foundationContinuationScoreDetailed(em, ctx(p, { role: 'establish' }), position, noPressure).parts;
     const neutralMoveFactor = 0.35 + 0.65 * (1 - 0.5);
     expect(body.tonicReinforcement).toBeCloseTo(0.09 * 0.3 * neutralMoveFactor, 5);
     expect(frame.tonicReinforcement).toBeCloseTo(0.09 * 1 * neutralMoveFactor, 5);

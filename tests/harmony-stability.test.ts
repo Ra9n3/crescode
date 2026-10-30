@@ -17,7 +17,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildFoundationPool, foundationArrivalFit, foundationTransitionScoreDetailed,
-  reinforcesTonic, stabilityEvidence,
+  reinforcesTonic, seedTensionState, stabilityEvidence,
   type FoundationInfo, type FoundationPool, type StructuralContext,
 } from '../src/engine/harmony/foundation';
 import { generateChordProgression } from '../src/engine/harmony/generation';
@@ -56,6 +56,10 @@ function foundation(pool: FoundationPool, rootPc: number, quality: string): Foun
   return f!;
 }
 
+/** Zero-pressure TensionState — the scorer requires one; these unit tests
+ *  measure the context-free terms, so no resolution history is carried. */
+const noPressure = seedTensionState(null);
+
 describe('Phase 4.3A — Test 1: tonic quality collision (E Aeolian: Em vs Abm)', () => {
   it('Abm cannot inherit the tonic quality anchor; both keep sonority stability', () => {
     const pool = buildFoundationPool(4, 'Aeolian', { complexity: 2, borrowing: 'some' });
@@ -81,8 +85,8 @@ describe('Phase 4.3A — Test 1: tonic quality collision (E Aeolian: Em vs Abm)'
     // In the score (context: following G major, the seed-34 situation) the
     // mode's quality norm transfers to Em but NOT to Abm.
     const ctx = neutralCtx(pool);
-    const pEm = foundationTransitionScoreDetailed(foundation(pool, 7, 'major'), Em, ctx).parts;
-    const pAbm = foundationTransitionScoreDetailed(foundation(pool, 7, 'major'), Abm, ctx).parts;
+    const pEm = foundationTransitionScoreDetailed(foundation(pool, 7, 'major'), Em, ctx, noPressure).parts;
+    const pAbm = foundationTransitionScoreDetailed(foundation(pool, 7, 'major'), Abm, ctx, noPressure).parts;
     expect(pAbm.qualityStability).toBe(0);
     expect(pEm.qualityStability).toBeGreaterThan(0);
     // Same sonority → the same structural-consonance credit.
@@ -129,9 +133,9 @@ describe('Phase 4.3A — Test 2: major-mode equivalent (C Ionian: C vs D)', () =
     expect(evDm.tonicRootRelationship).toBe(0); // …yet never tonic-root
 
     const ctx = neutralCtx(pool, { role: 'establish' });
-    const pC = foundationTransitionScoreDetailed(null, C, ctx).parts;
-    const pD = foundationTransitionScoreDetailed(null, D, ctx).parts;
-    const pDm = foundationTransitionScoreDetailed(null, Dm, ctx).parts;
+    const pC = foundationTransitionScoreDetailed(null, C, ctx, noPressure).parts;
+    const pD = foundationTransitionScoreDetailed(null, D, ctx, noPressure).parts;
+    const pDm = foundationTransitionScoreDetailed(null, Dm, ctx, noPressure).parts;
     expect(pD.qualityStability).toBe(0);                 // the mode's norm does not describe D major
     expect(pD.structuralConsonance).toBeCloseTo(pC.structuralConsonance, 12);
     expect(pD.tonicReinforcement).toBe(0);               // …and not tonic-root status
@@ -148,7 +152,7 @@ describe('Phase 4.3A — Test 3: diatonic alternatives remain valid (E Aeolian)'
     const pool = buildFoundationPool(4, 'Aeolian', { complexity: 2, borrowing: 'some' });
     const Em = foundation(pool, 4, 'minor');
     const ctx = neutralCtx(pool);
-    const totalEm = foundationTransitionScoreDetailed(null, Em, ctx).total;
+    const totalEm = foundationTransitionScoreDetailed(null, Em, ctx, noPressure).total;
     const rivals: Array<[number, string]> = [
       [7, 'major'], [9, 'minor'], [11, 'minor'], [0, 'major'], [2, 'major'],
     ];
@@ -158,10 +162,10 @@ describe('Phase 4.3A — Test 3: diatonic alternatives remain valid (E Aeolian)'
       const ev = stabilityEvidence(f, pool);
       expect(ev.modalCompatibility).toBe(1);
       expect(ev.structuralConsonance).toBe(1);
-      const parts = foundationTransitionScoreDetailed(null, f, ctx).parts;
+      const parts = foundationTransitionScoreDetailed(null, f, ctx, noPressure).parts;
       expect(parts.qualityStability).toBeGreaterThan(0); // the mode's norm speaks for its own chords
       expect(parts.structuralConsonance).toBeGreaterThan(0);
-      const total = foundationTransitionScoreDetailed(null, f, ctx).total;
+      const total = foundationTransitionScoreDetailed(null, f, ctx, noPressure).total;
       expect(total, `${quality} on ${rootPc} stays competitive`).toBeGreaterThan(totalEm - 0.3);
     }
   });
@@ -177,7 +181,7 @@ describe('Phase 4.3A — Test 4: chromatic freedom', () => {
       // Following G major (a step away), both remain genuinely reachable.
       const prev = foundation(pool, 7, 'major');
       for (const f of [Abm, Emaj]) {
-        const { total, parts } = foundationTransitionScoreDetailed(prev, f, ctx);
+        const { total, parts } = foundationTransitionScoreDetailed(prev, f, ctx, noPressure);
         expect(f.diatonic).toBe(false);
         expect(parts.qualityStability).toBe(0);           // no tonic-quality inheritance
         expect(parts.structuralConsonance).toBeGreaterThan(0); // but full sonority credit
@@ -199,8 +203,8 @@ describe('Phase 4.3A — Test 5: transposition invariance', () => {
       const evT = stabilityEvidence(tonicMinor, pool);
       const evC = stabilityEvidence(chromaticMinor, pool);
       const ctx = neutralCtx(pool);
-      const pT = foundationTransitionScoreDetailed(null, tonicMinor, ctx).parts;
-      const pC = foundationTransitionScoreDetailed(null, chromaticMinor, ctx).parts;
+      const pT = foundationTransitionScoreDetailed(null, tonicMinor, ctx, noPressure).parts;
+      const pC = foundationTransitionScoreDetailed(null, chromaticMinor, ctx, noPressure).parts;
       // Reference values measured on E (tonic 4) — must hold everywhere.
       expect(evT.tonicRootRelationship).toBe(1);
       expect(evC.tonicRootRelationship).toBe(0);
@@ -222,7 +226,7 @@ describe('Phase 4.3A — Test 6: modal coverage (all twelve modes)', () => {
         const ctx = neutralCtx(pool);
         expect(pool.all.length).toBeGreaterThan(0);
         for (const f of pool.all) {
-          const parts = foundationTransitionScoreDetailed(null, f, ctx).parts;
+          const parts = foundationTransitionScoreDetailed(null, f, ctx, noPressure).parts;
           if (f.diatonic) {
             // Diatonic chords read the mode's own norm (never negative).
             expect(parts.qualityStability).toBeGreaterThanOrEqual(0);

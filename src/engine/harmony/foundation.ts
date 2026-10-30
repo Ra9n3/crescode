@@ -564,9 +564,9 @@ const CENTER_NEED: Record<string, number> = {
  *  `scoreDestination`, so a held harmony is judged as a sonority by exactly
  *  the same components a fresh candidate for it would be. */
 export interface DestinationParts {
-  /** Settled-vs-unstable quality against the phrase's tension target —
-   *  pulled toward resolution when the previous foundation was itself
-   *  unstable (see scoreDestination's `prevQuality`). */
+  /** Settled-vs-unstable quality against the phrase's PRESSURE-based
+   *  dynamic tension target — pulled toward the minor stability anchor by
+   *  the path's unresolved-tension pressure (see scoreDestination). */
   tensionFit: number;
   /** Intrinsic sonority consonance (Phase 4.3A) — mode-independent,
    *  applies to every foundation equally. Never implies tonic function. */
@@ -627,20 +627,25 @@ export interface TransitionScoreParts extends DestinationParts {
  * total; the total is accumulated in EXACTLY the order the historical public
  * score applied it, so `foundationTransitionScore` simply delegates here and
  * diagnostics can report the values that actually produced a decision.
+ *
+ * `tensionState` (required) — the beam path's resolution history; feeds the
+ * shared pressure-based tension target inside the destination terms.
  */
 /** Compute the destination terms of one candidate against the phrase
  *  context — the single implementation shared by the transition score and
  *  the continuation score. Pure facts about `cand` in `ctx`.
  *
- *  `prevQuality` — when the previous foundation's own quality is known, the
- *  tension target REACTS to it: the more unstable that sonority was, the
- *  further the target is pulled toward resolution, so a tense prev raises
- *  the reward for settling here and a settled prev leaves the target as-is.
- *  Omitted where no previous harmony exists (the opening slot). */
+ *  `tensionState` — the beam path's resolution history, REQUIRED: the
+ *  tension target is pressure-based. The longer the path has gone without
+ *  a resolved sonority, the further the phrase's tension target is pulled
+ *  toward the minor stability anchor (full pull after 2 unresolved slots),
+ *  so accumulated unresolved tension raises the reward for settling here.
+ *  Callers outside the beam seed with `seedTensionState` (zero pressure —
+ *  the target stays the phrase's own tension). */
 function scoreDestination(
   cand: FoundationInfo,
   ctx: StructuralContext,
-  prevQuality?: FoundationCore['quality'],
+  tensionState: TensionState,
 ): DestinationParts {
   const dest: DestinationParts = {
     tensionFit: 0, structuralConsonance: 0, qualityStability: 0, tonicReinforcement: 0,
@@ -648,13 +653,12 @@ function scoreDestination(
     modalProtect: 0, chromaticTonicTone: 0,
   };
   // Tension fit: settled vs unstable foundation quality against the phrase
-  // — judged against a REACTIVE target: a tense previous foundation pulls
-  // the target toward resolution in proportion to its own instability.
-  const rawTarget = prevQuality !== undefined
-    ? ctx.tension - 0.4 * QUALITY_TENSION[prevQuality]
-    : ctx.tension;
-  const reactiveTarget = Math.min(1, Math.max(0, rawTarget));
-  dest.tensionFit = 0.12 * (1 - Math.abs(QUALITY_TENSION[cand.quality] - reactiveTarget));
+  // — judged against a PRESSURE-based dynamic target: pressure rises with
+  // the slots passed since the path's last resolved sonority (capped at 2)
+  // and interpolates the phrase's tension toward the minor stability anchor.
+  const pressure = Math.min(1, tensionState.slotsSinceResolution / 2);
+  const dynamicTarget = ctx.tension * (1 - pressure) + QUALITY_TENSION.minor * pressure;
+  dest.tensionFit = 0.12 * (1 - Math.abs(QUALITY_TENSION[cand.quality] - dynamicTarget));
   // STABILITY, corrected in Phase 4.3A into its two genuinely different
   // halves (spec §4–§5). The pre-4.3A score keyed one 0.18-weighted term on
   // QUALITY alone, so a chromatic chord sharing the tonic triad's quality
@@ -701,7 +705,7 @@ export function foundationTransitionScoreDetailed(
   prev: FoundationInfo | null,
   cand: FoundationInfo,
   ctx: StructuralContext,
-  _tensionState?: TensionState,
+  tensionState: TensionState,
 ): { total: number; parts: TransitionScoreParts } {
   const parts: TransitionScoreParts = {
     base: 0.2, openingTonic: 0, openingTonicQuality: 0, stabilityFit: 0, movementFit: 0,
@@ -772,9 +776,9 @@ export function foundationTransitionScoreDetailed(
   // Destination terms — the shared single implementation (the continuation
   // score consumes the same values for the sonority it holds). Added in the
   // historical order so totals stay byte-identical with the inline form.
-  // The reactive tension target keys on the previous foundation's own
-  // quality; at the opening slot there is no previous harmony → undefined.
-  const dest = scoreDestination(cand, ctx, prev !== null ? prev.quality : undefined);
+  // The tension target is PRESSURE-based: the path's resolution history
+  // (`tensionState`) drives the pull toward the stability anchor.
+  const dest = scoreDestination(cand, ctx, tensionState);
   parts.tensionFit = dest.tensionFit;
   score += parts.tensionFit;
   parts.structuralConsonance = dest.structuralConsonance;
@@ -862,6 +866,42 @@ export interface TensionState {
   slotsSinceResolution: number;
 }
 
+/** The TensionState every path starts from: seeded from the opening
+ *  foundation's quality (null where no anchor exists), zero accumulated
+ *  pressure. The beam seeds its paths with the incoming anchor; callers
+ *  outside the beam (material mapping, diagnostics replay, tests) seed the
+ *  same way so every entry point starts identically. */
+export function seedTensionState(prev: FoundationInfo | null): TensionState {
+  return {
+    lastQuality: prev !== null ? prev.quality : null,
+    peakTensionSinceResolution: 0,
+    slotsSinceResolution: 0,
+  };
+}
+
+/** The beam's TensionState update, applied when `accepted` joins a path —
+ *  single shared implementation (the beam expansion advances its paths with
+ *  this; diagnostics replay a chosen path through it). A RESOLVED candidate
+ *  (tonic root + stable quality — the foundationCountsAsResolved gate of
+ *  foundationArrivalFit's 'resolved' branch) resets the peak to the
+ *  candidate's own tension (QUALITY_TENSION of its quality) and the slot
+ *  count to 0; anything else raises the running peak and counts a slot. */
+export function advanceTensionState(
+  state: TensionState,
+  accepted: FoundationInfo,
+  ctx: StructuralContext,
+): TensionState {
+  const resolved = foundationCountsAsResolved(accepted, ctx);
+  const candTension = QUALITY_TENSION[accepted.quality];
+  return {
+    lastQuality: accepted.quality,
+    peakTensionSinceResolution: resolved
+      ? candTension
+      : Math.max(state.peakTensionSinceResolution, candTension),
+    slotsSinceResolution: resolved ? 0 : state.slotsSinceResolution + 1,
+  };
+}
+
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
 
 /**
@@ -883,14 +923,14 @@ const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
  * - Tonic identity, stability gating and all Phase 4.3A semantics live in
  *   those shared terms — this function adds no stability and no tonic
  *   meaning of its own.
- * - `tensionState` (optional) rides alongside `prev` — the beam path's
- *   resolution history at this opportunity; threaded, not yet consumed here.
+ * - `tensionState` (required) rides alongside `prev` — the beam path's
+ *   resolution history; feeds the shared pressure-based tension target.
  */
 export function foundationContinuationScoreDetailed(
   prev: FoundationInfo,
   ctx: StructuralContext,
   position: ContinuationPosition,
-  _tensionState?: TensionState,
+  tensionState: TensionState,
 ): { total: number; parts: ContinuationScoreParts } {
   const parts: ContinuationScoreParts = {
     base: 0.15, holdFit: 0, directionFit: 0, movementPrefFit: 0, positionFit: 0,
@@ -948,11 +988,10 @@ export function foundationContinuationScoreDetailed(
   }
 
   // Destination terms — shared single implementation (see scoreDestination).
-  // The held harmony IS the immediately previous sonority, so its own
-  // quality pulls the tension target toward resolution: sustaining an
-  // unstable sonority is judged under resolution pressure, a settled one
-  // keeps the phrase's target as-is.
-  const dest = scoreDestination(prev, ctx, prev.quality);
+  // The held harmony is judged under the path's accumulated unresolved-
+  // tension pressure: the longer since the last resolved sonority, the
+  // stronger the target's pull toward the stability anchor.
+  const dest = scoreDestination(prev, ctx, tensionState);
   parts.tensionFit = dest.tensionFit;
   score += parts.tensionFit;
   parts.structuralConsonance = dest.structuralConsonance;
@@ -982,7 +1021,7 @@ export function foundationContinuationScore(
   prev: FoundationInfo,
   ctx: StructuralContext,
   position: ContinuationPosition,
-  tensionState?: TensionState,
+  tensionState: TensionState,
 ): number {
   return foundationContinuationScoreDetailed(prev, ctx, position, tensionState).total;
 }
@@ -991,7 +1030,7 @@ export function foundationTransitionScore(
   prev: FoundationInfo | null,
   cand: FoundationInfo,
   ctx: StructuralContext,
-  tensionState?: TensionState,
+  tensionState: TensionState,
 ): number {
   return foundationTransitionScoreDetailed(prev, cand, ctx, tensionState).total;
 }

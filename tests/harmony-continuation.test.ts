@@ -23,7 +23,7 @@ import { describe, expect, it } from 'vitest';
 import { generateChordProgression } from '../src/engine/harmony/generation';
 import type { MergeRecord } from '../src/engine/harmony/diagnostics';
 import {
-  foundationContinuationScoreDetailed, foundationTransitionScoreDetailed,
+  foundationContinuationScoreDetailed, foundationTransitionScoreDetailed, seedTensionState,
   type FoundationInfo, type FoundationPool, type StructuralContext,
 } from '../src/engine/harmony/foundation';
 import { buildFoundationPool } from '../src/engine/harmony/foundation';
@@ -58,6 +58,10 @@ function neutralCtx(pool: FoundationPool, overrides: Partial<StructuralContext> 
     ...overrides,
   };
 }
+
+/** Zero-pressure TensionState — the scorer requires one; these unit tests
+ *  measure the context-free terms, so no resolution history is carried. */
+const noPressure = seedTensionState(null);
 
 /** Events sorted by start, tiled exactly with no gaps/overlaps/zero lengths. */
 function assertTiled(chords: Chord[], startTick: number, endTick: number, label: string): void {
@@ -124,43 +128,43 @@ describe('Phase 4.3B — Test 2: context sensitivity (no fixed rules)', () => {
     // the sign flips with context, and neither extreme is banned.
     const stable = foundationContinuationScoreDetailed(em!, ctx, {
       ...base, position: 'middle',
-    }).parts;
+    }, noPressure).parts;
     expect(stable.directionFit).toBeCloseTo(0.14 * (0.5 - 0.5), 8); // neutral → 0
     const calm = foundationContinuationScoreDetailed(em!, ctx, {
       ...base, position: 'middle',
-    });
+    }, noPressure);
     const active = foundationContinuationScoreDetailed(em!, { ...ctx, stability: 0.9, movement: 0.1 }, {
       ...base, position: 'middle',
-    });
+    }, noPressure);
     expect(active.total).toBeGreaterThan(calm.total);
     expect(foundationContinuationScoreDetailed(em!, { ...ctx, stability: 0.1, movement: 0.9 }, {
       ...base, position: 'middle',
-    }).total).toBeLessThan(calm.total);
+    }, noPressure).total).toBeLessThan(calm.total);
 
     // (D) Position: an opening hold and an arrival reinforcement exist as
     // distinct positional factors.
-    const opening = foundationContinuationScoreDetailed(em!, ctx, { ...base, position: 'opening' });
+    const opening = foundationContinuationScoreDetailed(em!, ctx, { ...base, position: 'opening' }, noPressure);
     expect(opening.parts.positionFit).toBeGreaterThan(0);
 
     // (F) Harmonic rhythm: a sparse hold-shaped profile outcompetes a dense
     // one for the same harmony.
     const sparse = foundationContinuationScoreDetailed(em!, ctx, {
       ...base, changesPerBar: 0.5, shape: 'hold',
-    });
+    }, noPressure);
     const dense = foundationContinuationScoreDetailed(em!, ctx, {
       ...base, changesPerBar: 4, shape: 'regular',
-    });
+    }, noPressure);
     expect(sparse.parts.rhythmFit).toBeGreaterThan(dense.parts.rhythmFit);
 
     // (E) Neighbors: a matching preserved anchor after the target adds the
     // documented join bonus.
-    const joined = foundationContinuationScoreDetailed(em!, ctx, { ...base, anchorAfterMatches: true });
+    const joined = foundationContinuationScoreDetailed(em!, ctx, { ...base, anchorAfterMatches: true }, noPressure);
     expect(joined.parts.neighborFit).toBeCloseTo(0.08, 8);
 
     // Continuation competes: at neutral settings its total sits in the same
     // band as a typical change candidate's transition score (no fixed rule).
-    const contTotal = foundationContinuationScoreDetailed(em!, ctx, { ...base, position: 'middle' }).total;
-    const changeTotal = foundationTransitionScoreDetailed(em!, pool.all.find((f) => f.rootPc === 0 && f.quality === 'major')!, ctx).total;
+    const contTotal = foundationContinuationScoreDetailed(em!, ctx, { ...base, position: 'middle' }, noPressure).total;
+    const changeTotal = foundationTransitionScoreDetailed(em!, pool.all.find((f) => f.rootPc === 0 && f.quality === 'major')!, ctx, noPressure).total;
     expect(Math.abs(contTotal - changeTotal)).toBeLessThan(0.5);
   });
 });
@@ -532,8 +536,8 @@ describe('Phase 4.3B — Test 14: regression protection (existing invariants int
     expect(abm).toBeDefined();
     expect(em).toBeDefined();
     const base = { position: 'middle' as const, sectionMovement: 0.5, changesPerBar: 2, shape: 'regular' as const, anchorAfterMatches: false, arrivalIntention: null, arrivalPrev: null };
-    const abmParts = foundationContinuationScoreDetailed(abm!, ctx, base).parts;
-    const emParts = foundationContinuationScoreDetailed(em!, ctx, base).parts;
+    const abmParts = foundationContinuationScoreDetailed(abm!, ctx, base, noPressure).parts;
+    const emParts = foundationContinuationScoreDetailed(em!, ctx, base, noPressure).parts;
     expect(abmParts.qualityStability).toBe(0);
     expect(emParts.qualityStability).toBeGreaterThan(0);
     expect(abmParts.structuralConsonance).toBe(emParts.structuralConsonance); // same sonority class

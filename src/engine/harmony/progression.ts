@@ -43,11 +43,11 @@ import type {
 } from './types';
 import type { RhythmSlot } from './rhythm';
 import {
-  analyzeFoundationRelationship, foundationArrivalFit, foundationCountsAsResolved,
+  advanceTensionState, analyzeFoundationRelationship, foundationArrivalFit,
   foundationContinuationScoreDetailed,
   foundationTransitionScore,
   foundationLabel,
-  poolFoundationOrFallback, QUALITY_TENSION, realizedFoundationFamily,
+  poolFoundationOrFallback, realizedFoundationFamily, seedTensionState,
   reinforcesTonic, type ContinuationPosition, type ContinuationScoreParts,
   type FoundationInfo, type FoundationPool, type StructuralContext, type TensionState,
 } from './foundation';
@@ -344,7 +344,8 @@ const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
  *  candidate's potential arrival predecessor lives one slot earlier).
  *
  *  `tensionState` rides alongside `sounding` — the beam path's resolution
- *  history at this opportunity (threaded for tension-story scoring). */
+ *  history at this opportunity (required; threaded for tension-story
+ *  scoring). */
 export function continuationPositionFor(
   window: SelectionWindow,
   slotIndex: number,
@@ -353,7 +354,7 @@ export function continuationPositionFor(
   pathBefore: FoundationInfo[],
   inputPrev: FoundationInfo | null,
   after: FoundationInfo | null,
-  _tensionState?: TensionState,
+  _tensionState: TensionState,
 ): ContinuationPosition {
   const isLast = slotIndex === slotCount - 1;
   const arrival = isLast && window.arrivalPlanned;
@@ -394,7 +395,8 @@ export interface PositionScoreParts {
 /** Positional fit of one foundation at one slot (opening/arrival emphasis) —
  *  detailed variant; total is accumulated in the historical order.
  *  `tensionState` rides alongside `prev` — the beam path's resolution
- *  history at this opportunity (threaded for tension-story scoring). */
+ *  history at this opportunity (required; threaded for tension-story
+ *  scoring). */
 export function positionScoreDetailed(
   prev: FoundationInfo | null,
   cand: FoundationInfo,
@@ -402,7 +404,7 @@ export function positionScoreDetailed(
   slotCount: number,
   window: SelectionWindow,
   ctx: StructuralContext,
-  _tensionState?: TensionState,
+  _tensionState: TensionState,
 ): { total: number; parts: PositionScoreParts } {
   const parts: PositionScoreParts = { openingTonicFit: 0, arrivalFit: 0, familyCompatibility: 0 };
   let score = 0;
@@ -711,12 +713,9 @@ function beamSelect(input: SelectionInput, ctx: StructuralContext): FoundationIn
   interface Beam { path: FoundationInfo[]; score: number; tensionState: TensionState }
   // Tension story: seeded from the OPENING foundation's quality — the anchor
   // sounding before this window's first slot (null where none exists);
-  // peak tension and slot count start clean.
-  const openingTensionState: TensionState = {
-    lastQuality: input.prev !== null ? input.prev.quality : null,
-    peakTensionSinceResolution: 0,
-    slotsSinceResolution: 0,
-  };
+  // peak tension and slot count start clean (single shared seed, see
+  // seedTensionState).
+  const openingTensionState = seedTensionState(input.prev);
   let beams: Beam[] = [{ path: [], score: 0, tensionState: openingTensionState }];
   const jitterScale = 0.24 * Math.min(1, Math.max(0, input.settings.variation));
   // Sounding context before the beam's own path: the previous phrase's trail
@@ -815,24 +814,13 @@ function beamSelect(input: SelectionInput, ctx: StructuralContext): FoundationIn
       }
 
       for (const { c, s } of scored.slice(0, SUCCESSORS_PER_BEAM)) {
-        // Tension story, updated on acceptance: a RESOLVED candidate (tonic
-        // root + stable quality — the same atHome && stable gate that opens
-        // foundationArrivalFit's 'resolved' branch) resets the accumulation
-        // to the candidate's own tension (QUALITY_TENSION of its quality);
-        // anything else raises the running peak and counts a slot since
-        // resolution. lastQuality always becomes the accepted candidate's.
-        const resolved = foundationCountsAsResolved(c, ctx);
-        const candTension = QUALITY_TENSION[c.quality];
+        // Tension story, updated on acceptance — single shared rule (see
+        // advanceTensionState): a resolved candidate resets the accumulation,
+        // anything else raises the running peak and counts a slot.
         next.push({
           path: [...beam.path, c],
           score: s,
-          tensionState: {
-            lastQuality: c.quality,
-            peakTensionSinceResolution: resolved
-              ? candTension
-              : Math.max(beam.tensionState.peakTensionSinceResolution, candTension),
-            slotsSinceResolution: resolved ? 0 : beam.tensionState.slotsSinceResolution + 1,
-          },
+          tensionState: advanceTensionState(beam.tensionState, c, ctx),
         });
         successorsKept += 1;
       }
@@ -1097,6 +1085,10 @@ function materialSelect(input: SelectionInput, ctx: StructuralContext): Selectio
   const variation = Math.min(1, Math.max(0, settings.variation));
   const out: FoundationInfo[] = [];
   const actions: Array<'continue' | 'change'> = [];
+  // Tension story along the mapped path — seeded from the incoming anchor
+  // and advanced per accepted slot, so the cadential-variation scoring sees
+  // the same pressure-based target the beam paths are judged with.
+  let tensionState = seedTensionState(input.prev);
   const trace = input.trace;
   const slotTraces = trace
     ? [] as MaterialSelectTrace['slots']
@@ -1134,7 +1126,9 @@ function materialSelect(input: SelectionInput, ctx: StructuralContext): Selectio
       const scored = pool.all
         .map((c) => ({
           c,
-          s: (actualPrev === null ? 0.4 : foundationTransitionScore(actualPrev, c, ctx))
+          s: (actualPrev === null
+            ? 0.4
+            : foundationTransitionScore(actualPrev, c, ctx, tensionState))
             + foundationArrivalFit(actualPrev, c, window.cadence.intention, ctx),
         }))
         .sort((x, y) => y.s - x.s || x.c.id.localeCompare(y.c.id))
@@ -1147,6 +1141,7 @@ function materialSelect(input: SelectionInput, ctx: StructuralContext): Selectio
     }
     out.push(cand);
     actions.push(actualPrev !== null && cand.id === actualPrev.id ? 'continue' : 'change');
+    tensionState = advanceTensionState(tensionState, cand, ctx);
     if (trace) {
       slotTraces.push({
         slotIndex: si,

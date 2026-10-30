@@ -43,9 +43,10 @@ import { planSongHarmony } from './plan';
 import { cadenceEnvironment, compatibleCadenceFamilies } from './cadences';
 import { applyHarmonicColor, type PreviousColor } from './color';
 import {
-  analyzeFoundationRelationship, buildFoundationPool, foundationInfoFromSymbol, foundationLabel,
-  foundationTransitionScoreDetailed, reinforcesTonic, stabilityEvidence,
-  realizedFoundationFamily, type FoundationInfo, type FoundationPool, type StructuralContext,
+  advanceTensionState, analyzeFoundationRelationship, buildFoundationPool, foundationInfoFromSymbol,
+  foundationLabel, foundationTransitionScoreDetailed, reinforcesTonic, seedTensionState,
+  stabilityEvidence, realizedFoundationFamily,
+  type FoundationInfo, type FoundationPool, type StructuralContext,
 } from './foundation';
 import {
   positionScoreDetailed, phraseContrastPenalty, selectWindowFoundations, structuralContext,
@@ -749,6 +750,14 @@ export function generateChordProgression(
             if (chosenCand !== undefined && chosenCand !== null) {
               const beamPrev = si === 0 ? prevAtWindowStart : output.foundations[si - 1];
               const sctxFull = structuralContext(window, pool, env, settings);
+              // Tension story replay: the pressure-based tension target the
+              // beam scored this slot with is a pure function of the chosen
+              // prefix — rebuild it (same seed, same advanceTensionState rule)
+              // so the recomputed parts are the ones that produced the choice.
+              let tensionState = seedTensionState(prevAtWindowStart);
+              for (let k = 0; k < si; k++) {
+                tensionState = advanceTensionState(tensionState, output.foundations[k], sctxFull);
+              }
               // Phase 4.3B: a selected CONTINUATION reports its own recorded
               // components (transitionParts is null — the transition score
               // did not rank it); a selected change reports the recomputed
@@ -764,10 +773,10 @@ export function generateChordProgression(
                 rankInExpansion: chosenCand.rankInExpansion,
                 transitionParts: selectedIsContinuation
                   ? null
-                  : foundationTransitionScoreDetailed(beamPrev, f, sctxFull).parts,
+                  : foundationTransitionScoreDetailed(beamPrev, f, sctxFull, tensionState).parts,
                 continuationParts: selectedIsContinuation ? chosenCand.continuationParts : null,
                 positionParts: positionScoreDetailed(
-                  beamPrev, f, si, windowSlots.length, window, sctxFull,
+                  beamPrev, f, si, windowSlots.length, window, sctxFull, tensionState,
                 ).parts,
               };
             }

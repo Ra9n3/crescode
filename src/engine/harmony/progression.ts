@@ -388,12 +388,15 @@ export interface PositionScoreParts {
   openingTonicFit: number;
   /** Structural arrival fit at the phrase's final slot. */
   arrivalFit: number;
+  /** Pressure-scaled resolved-arrival pull on the other slots (mid-phrase). */
+  midResolutionFit: number;
   /** Bonus when the realized cadence family is compatible with the plan. */
   familyCompatibility: number;
 }
 
-/** Positional fit of one foundation at one slot (opening/arrival emphasis) —
- *  detailed variant; total is accumulated in the historical order.
+/** Positional fit of one foundation at one slot (opening/arrival emphasis,
+ *  plus a pressure-scaled mid-phrase resolution pull) — detailed variant;
+ *  total is accumulated in the historical order.
  *  `tensionState` rides alongside `prev` — the beam path's resolution
  *  history at this opportunity (required; threaded for tension-story
  *  scoring). */
@@ -404,9 +407,11 @@ export function positionScoreDetailed(
   slotCount: number,
   window: SelectionWindow,
   ctx: StructuralContext,
-  _tensionState: TensionState,
+  tensionState: TensionState,
 ): { total: number; parts: PositionScoreParts } {
-  const parts: PositionScoreParts = { openingTonicFit: 0, arrivalFit: 0, familyCompatibility: 0 };
+  const parts: PositionScoreParts = {
+    openingTonicFit: 0, arrivalFit: 0, familyCompatibility: 0, midResolutionFit: 0,
+  };
   let score = 0;
   if (slotIndex === 0 && window.role === 'establish' && cand.rootPc === ctx.pool.tonic) {
     parts.openingTonicFit = 0.12;
@@ -419,6 +424,17 @@ export function positionScoreDetailed(
     if (family !== null && window.cadence.compatibleFamilies.includes(family)) {
       parts.familyCompatibility = 0.25;
       score += parts.familyCompatibility;
+    }
+  } else {
+    // Mid-phrase resolution pull: pressure is how long the beam path has sat
+    // without a resolved foundation (slotsSinceResolution saturates at 2). A
+    // still-open tension story damps the resolved-arrival fit into these
+    // slots — home-bound candidates gain ground mid-phrase — while slots
+    // right after a fresh resolution (pressure 0) stay free of arrival bias.
+    const pressure = Math.min(1, tensionState.slotsSinceResolution / 2);
+    if (pressure > 0) {
+      parts.midResolutionFit = 0.35 * pressure * foundationArrivalFit(prev, cand, 'resolved', ctx);
+      score += parts.midResolutionFit;
     }
   }
   return { total: score, parts };

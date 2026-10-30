@@ -386,7 +386,13 @@ describe('Phase 4.3B — Test 9: meter correctness (4/4, 3/4, 6/8)', () => {
       const barTicks = timeSignature.denominator === 8 ? 960 * 3 : 960 * timeSignature.numerator;
       const span = bars * barTicks;
       let sustained = 0;
-      for (const seed of [3, 9, 17]) {
+      // Aggregated across a seed range (as in the story-pass report counts):
+      // WHICH seeds sustain now depends on the tension story — the
+      // mid-phrase resolution pull in positionScoreDetailed competes with
+      // non-tonic prolongation once slotsSinceResolution builds — so no
+      // specific seeds are pinned (no continuation percentage is hardcoded,
+      // per the file header).
+      for (let seed = 1; seed <= 12; seed++) {
         const { chords, diagnostics: d } = generateChordProgression(project, { seed, diagnostics: true });
         assertTiled(chords, 0, span, `${timeSignature.numerator}/${timeSignature.denominator} seed ${seed}`);
         sustained += d!.color.filter((c) => c.slotCount > 1).length;

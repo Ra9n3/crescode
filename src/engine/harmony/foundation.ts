@@ -226,7 +226,7 @@ const PEDAL_MOTION = 0.5;
  *  descriptive anchor the contextual tension fit consumes, not a goodness
  *  score. Calibrated so NEUTRAL tension contexts favor the tertian norm and
  *  genuinely tension-seeking contexts welcome the floatier qualities. */
-const QUALITY_TENSION: Record<FoundationQuality, number> = {
+export const QUALITY_TENSION: Record<FoundationQuality, number> = {
   major: 0.45, minor: 0.5, suspended: 0.7, other: 0.7, diminished: 0.85, augmented: 0.9,
 };
 
@@ -701,6 +701,7 @@ export function foundationTransitionScoreDetailed(
   prev: FoundationInfo | null,
   cand: FoundationInfo,
   ctx: StructuralContext,
+  _tensionState?: TensionState,
 ): { total: number; parts: TransitionScoreParts } {
   const parts: TransitionScoreParts = {
     base: 0.2, openingTonic: 0, openingTonicQuality: 0, stabilityFit: 0, movementFit: 0,
@@ -849,6 +850,18 @@ export interface ContinuationScoreParts extends DestinationParts {
   neighborFit: number;
 }
 
+/** Resolution-history state carried along a beam path (the tension story):
+ *  which quality last sounded, how much tension has accumulated since the
+ *  last resolved sonority, and how many slots ago that resolution was.
+ *  `lastQuality` is null only where no harmony exists yet (a window with no
+ *  incoming anchor). Threaded alongside the sounding foundation into every
+ *  beamPrev-scoped scoring entry point. */
+export interface TensionState {
+  lastQuality: FoundationCore['quality'] | null;
+  peakTensionSinceResolution: number;
+  slotsSinceResolution: number;
+}
+
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
 
 /**
@@ -870,11 +883,14 @@ const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
  * - Tonic identity, stability gating and all Phase 4.3A semantics live in
  *   those shared terms — this function adds no stability and no tonic
  *   meaning of its own.
+ * - `tensionState` (optional) rides alongside `prev` — the beam path's
+ *   resolution history at this opportunity; threaded, not yet consumed here.
  */
 export function foundationContinuationScoreDetailed(
   prev: FoundationInfo,
   ctx: StructuralContext,
   position: ContinuationPosition,
+  _tensionState?: TensionState,
 ): { total: number; parts: ContinuationScoreParts } {
   const parts: ContinuationScoreParts = {
     base: 0.15, holdFit: 0, directionFit: 0, movementPrefFit: 0, positionFit: 0,
@@ -966,16 +982,30 @@ export function foundationContinuationScore(
   prev: FoundationInfo,
   ctx: StructuralContext,
   position: ContinuationPosition,
+  tensionState?: TensionState,
 ): number {
-  return foundationContinuationScoreDetailed(prev, ctx, position).total;
+  return foundationContinuationScoreDetailed(prev, ctx, position, tensionState).total;
 }
 
 export function foundationTransitionScore(
   prev: FoundationInfo | null,
   cand: FoundationInfo,
   ctx: StructuralContext,
+  tensionState?: TensionState,
 ): number {
-  return foundationTransitionScoreDetailed(prev, cand, ctx).total;
+  return foundationTransitionScoreDetailed(prev, cand, ctx, tensionState).total;
+}
+
+/** The 'resolved' gate of foundationArrivalFit's resolved branch, extracted:
+ *  a candidate counts as resolved when it lands on the tonic root with a
+ *  structurally stable (major/minor) quality. Single shared implementation —
+ *  the beam's TensionState update consumes the same predicate. */
+export function foundationCountsAsResolved(
+  cand: FoundationInfo,
+  ctx: StructuralContext,
+): boolean {
+  return cand.rootPc === ctx.pool.tonic
+    && (cand.quality === 'major' || cand.quality === 'minor');
 }
 
 /**
@@ -997,7 +1027,7 @@ export function foundationArrivalFit(
   const atHome = cand.rootPc === tonic;
   switch (intention) {
     case 'resolved': {
-      let fit = atHome && stable
+      let fit = foundationCountsAsResolved(cand, ctx)
         ? (cand.diatonic ? 1 : 0.85) // the mode's own tonic resolves most fully
         : atHome ? (ctx.pool.symmetric ? 0.7 : 0.5) : 0.15;
       if (prev !== null) {

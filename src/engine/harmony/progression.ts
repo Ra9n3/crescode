@@ -43,12 +43,13 @@ import type {
 } from './types';
 import type { RhythmSlot } from './rhythm';
 import {
-  analyzeFoundationRelationship, foundationArrivalFit, foundationContinuationScoreDetailed,
+  analyzeFoundationRelationship, foundationArrivalFit, foundationCountsAsResolved,
+  foundationContinuationScoreDetailed,
   foundationTransitionScore,
   foundationLabel,
-  poolFoundationOrFallback, realizedFoundationFamily,
+  poolFoundationOrFallback, QUALITY_TENSION, realizedFoundationFamily,
   reinforcesTonic, type ContinuationPosition, type ContinuationScoreParts,
-  type FoundationInfo, type FoundationPool, type StructuralContext,
+  type FoundationInfo, type FoundationPool, type StructuralContext, type TensionState,
 } from './foundation';
 
 const BEAM_WIDTH = 8;
@@ -340,7 +341,10 @@ const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
  *  single-implementation rule).
  *
  *  `pathBefore` is the beam path EXCLUDING the sounding foundation (the
- *  candidate's potential arrival predecessor lives one slot earlier). */
+ *  candidate's potential arrival predecessor lives one slot earlier).
+ *
+ *  `tensionState` rides alongside `sounding` — the beam path's resolution
+ *  history at this opportunity (threaded for tension-story scoring). */
 export function continuationPositionFor(
   window: SelectionWindow,
   slotIndex: number,
@@ -349,6 +353,7 @@ export function continuationPositionFor(
   pathBefore: FoundationInfo[],
   inputPrev: FoundationInfo | null,
   after: FoundationInfo | null,
+  _tensionState?: TensionState,
 ): ContinuationPosition {
   const isLast = slotIndex === slotCount - 1;
   const arrival = isLast && window.arrivalPlanned;
@@ -387,7 +392,9 @@ export interface PositionScoreParts {
 }
 
 /** Positional fit of one foundation at one slot (opening/arrival emphasis) —
- *  detailed variant; total is accumulated in the historical order. */
+ *  detailed variant; total is accumulated in the historical order.
+ *  `tensionState` rides alongside `prev` — the beam path's resolution
+ *  history at this opportunity (threaded for tension-story scoring). */
 export function positionScoreDetailed(
   prev: FoundationInfo | null,
   cand: FoundationInfo,
@@ -395,6 +402,7 @@ export function positionScoreDetailed(
   slotCount: number,
   window: SelectionWindow,
   ctx: StructuralContext,
+  _tensionState?: TensionState,
 ): { total: number; parts: PositionScoreParts } {
   const parts: PositionScoreParts = { openingTonicFit: 0, arrivalFit: 0, familyCompatibility: 0 };
   let score = 0;
@@ -700,8 +708,16 @@ function beamSelect(input: SelectionInput, ctx: StructuralContext): FoundationIn
     return [];
   }
 
-  interface Beam { path: FoundationInfo[]; score: number }
-  let beams: Beam[] = [{ path: [], score: 0 }];
+  interface Beam { path: FoundationInfo[]; score: number; tensionState: TensionState }
+  // Tension story: seeded from the OPENING foundation's quality — the anchor
+  // sounding before this window's first slot (null where none exists);
+  // peak tension and slot count start clean.
+  const openingTensionState: TensionState = {
+    lastQuality: input.prev !== null ? input.prev.quality : null,
+    peakTensionSinceResolution: 0,
+    slotsSinceResolution: 0,
+  };
+  let beams: Beam[] = [{ path: [], score: 0, tensionState: openingTensionState }];
   const jitterScale = 0.24 * Math.min(1, Math.max(0, input.settings.variation));
   // Sounding context before the beam's own path: the previous phrase's trail
   // plus the incoming foundation — the loop-shape penalty's pattern window
@@ -747,13 +763,16 @@ function beamSelect(input: SelectionInput, ctx: StructuralContext): FoundationIn
         if (isContinuation && beamPrev !== null) {
           const d = foundationContinuationScoreDetailed(beamPrev, ctx, continuationPositionFor(
             input.window, si, slots.length, beamPrev, beam.path.slice(0, -1), input.prev, input.after,
-          ));
+            beam.tensionState,
+          ), beam.tensionState);
           transition = d.total;
           continuationParts = d.parts;
         } else {
-          transition = foundationTransitionScore(beamPrev, c, ctx);
+          transition = foundationTransitionScore(beamPrev, c, ctx, beam.tensionState);
         }
-        const position = positionScoreDetailed(beamPrev, c, si, slots.length, input.window, ctx).total;
+        const position = positionScoreDetailed(
+          beamPrev, c, si, slots.length, input.window, ctx, beam.tensionState,
+        ).total;
         // Loop-shape penalty (see above): the sounding tail — including the
         // previous phrase's trail across the boundary — ends A,B,A and this
         // candidate ping-pongs with B, or ends A,A,B and hovers back to A.
@@ -796,7 +815,25 @@ function beamSelect(input: SelectionInput, ctx: StructuralContext): FoundationIn
       }
 
       for (const { c, s } of scored.slice(0, SUCCESSORS_PER_BEAM)) {
-        next.push({ path: [...beam.path, c], score: s });
+        // Tension story, updated on acceptance: a RESOLVED candidate (tonic
+        // root + stable quality — the same atHome && stable gate that opens
+        // foundationArrivalFit's 'resolved' branch) resets the accumulation
+        // to the candidate's own tension (QUALITY_TENSION of its quality);
+        // anything else raises the running peak and counts a slot since
+        // resolution. lastQuality always becomes the accepted candidate's.
+        const resolved = foundationCountsAsResolved(c, ctx);
+        const candTension = QUALITY_TENSION[c.quality];
+        next.push({
+          path: [...beam.path, c],
+          score: s,
+          tensionState: {
+            lastQuality: c.quality,
+            peakTensionSinceResolution: resolved
+              ? candTension
+              : Math.max(beam.tensionState.peakTensionSinceResolution, candTension),
+            slotsSinceResolution: resolved ? 0 : beam.tensionState.slotsSinceResolution + 1,
+          },
+        });
         successorsKept += 1;
       }
     }
@@ -871,7 +908,7 @@ function beamSelect(input: SelectionInput, ctx: StructuralContext): FoundationIn
     for (const b of beams) {
       const last = b.path[b.path.length - 1] ?? input.prev;
       if (last !== null) {
-        const bonus = 0.5 * foundationTransitionScore(last, input.after, ctx);
+        const bonus = 0.5 * foundationTransitionScore(last, input.after, ctx, b.tensionState);
         anchorBonusByKey.set(pathKeyOf(b.path), bonus);
         b.score += bonus;
       }

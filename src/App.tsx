@@ -12,6 +12,7 @@ import { PianoRoll } from './components/PianoRoll';
 import { RoutingPanel, VstBrowser } from './components/Panels';
 import { StatusBar, fillRandomNotes } from './components/StatusBar';
 import { Dialogs, guardUnsaved } from './components/Dialogs';
+import { ChordEditor } from './components/ChordEditor';
 import { Toasts } from './components/ui';
 import { restoreFrozenBuffers } from './lib/routing';
 import { isInstrumentTrack } from './shared/schema';
@@ -107,6 +108,7 @@ export default function App() {
       {mixerOpen && <Mixer />}
       <StatusBar />
       {roll && <PianoRoll key={roll} />}
+      <ChordEditor />
       {modal === 'vst' && <VstBrowser />}
       <Dialogs />
       <Toasts />

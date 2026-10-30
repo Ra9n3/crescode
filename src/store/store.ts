@@ -19,11 +19,13 @@ export interface Settings {
   enginePort: number;
   connectEngine: boolean;
   devMode: boolean;
+  /** Content of a freshly created Smart Chord clip (chord lane double-click). */
+  smartChordPlaceholder: 'empty' | 'root-note';
 }
 
 const SETTINGS_KEY = 'crescode.settings.v1';
 const loadSettings = (): Settings => {
-  const d: Settings = { scanDirectory: 'C:\\Program Files\\Common Files\\VST3', audioDevice: 'default', bufferSize: 512, enginePort: 47800, connectEngine: false, devMode: true };
+  const d: Settings = { scanDirectory: 'C:\\Program Files\\Common Files\\VST3', audioDevice: 'default', bufferSize: 512, enginePort: 47800, connectEngine: false, devMode: true, smartChordPlaceholder: 'root-note' };
   try { return { ...d, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') }; } catch { return d; }
 };
 
@@ -40,6 +42,9 @@ interface State {
   selectedTrackIds: string[];
   selectedSectionId: string | null;
   selectedChordId: string | null;
+  /** The clip the Smart Chord editor has open (null = closed). Set by the
+   *  double-click gesture; read by the suggestion UI and MIDI injection. */
+  suggestionClipId: string | null;
   pxPerTick: number;
   mixerOpen: boolean;
   routingOpen: boolean;
@@ -104,7 +109,7 @@ const mapTrack = (p: Project, id: string, fn: (t: Track) => Track): Project => (
 export const useStore = create<State>((set, get) => ({
   project: initialProject(),
   past: [], future: [], lastCoalesce: null, dirty: false, filePath: null,
-  selectedTrackIds: [], selectedSectionId: null, selectedChordId: null,
+  selectedTrackIds: [], selectedSectionId: null, selectedChordId: null, suggestionClipId: null,
   pxPerTick: 0.06, mixerOpen: true, routingOpen: false, pianoRollTrackId: null, modal: null, vstTargetTrackId: null, importErrors: [],
   playing: false, loop: false, loopRange: null, metronome: false, startTick: 0,
   composeOptions: { seed: 1, density: 1, humanize: true },
@@ -137,7 +142,7 @@ export const useStore = create<State>((set, get) => ({
     if (!future.length) return;
     set({ project: future[0], future: future.slice(1), past: [...past, project], dirty: true, lastCoalesce: null });
   },
-  loadProject: (p, filePath = null) => set({ project: p, past: [], future: [], dirty: false, filePath, selectedTrackIds: [], selectedChordId: null, selectedSectionId: null, pianoRollTrackId: null }),
+  loadProject: (p, filePath = null) => set({ project: p, past: [], future: [], dirty: false, filePath, selectedTrackIds: [], selectedChordId: null, selectedSectionId: null, suggestionClipId: null, pianoRollTrackId: null }),
   markSaved: (filePath) => set((s) => ({ dirty: false, filePath: filePath === undefined ? s.filePath : filePath })),
 
   updateTrack: (id, patch, coalesce) => get().edit((p) => mapTrack(p, id, (t) => ({ ...t, ...patch })), coalesce),

@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../store/store';
 import { barTicks, beatTicks, parseChord, projectBars, projectEndTick, secondsToTicks, type Section, type Track, type TrackFamily } from '../shared/schema';
+import { chordTrackApi, chordTrackGesture, isFreshManualCreate, noteManualCreate, SMART_CLIP_ID_PREFIX } from '../engine/suggestion/wire';
 import { FAMILY_COLORS, tokens, velocityColor, withAlpha } from '../theme/tokens';
 import { preview } from '../audio/preview';
 import { currentTick, seek } from '../audio/transport';
@@ -145,8 +146,23 @@ const ChordLane = memo(function ChordLane({ ppt }: { ppt: number }) {
     const dur = Math.max(snap, Math.min(bt - (t % bt), next ? next.startTick - t : bt));
     const st = useStore.getState();
     const id = st.addChord({ symbol: 'C', startTick: t, durationTicks: dur });
+    noteManualCreate(id); // lets the double-click gesture recognize this as its own false start
     st.set({ selectedChordId: id, selectedSectionId: null });
     setEditing(id);
+  };
+
+  // Double-click gesture: on a clip → open the chord editor; on empty space →
+  // create a Smart Chord clip (the controller plans span + undo transaction).
+  // A double-click whose first click just created a manual chord converts that
+  // false start into a Smart clip atomically (see suggestion/interaction.ts).
+  const onLaneDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const t = tickAt(e.clientX);
+    const hit = chordTrackApi.getChordClipAt(t);
+    const fresh = hit !== null && isFreshManualCreate(hit.id);
+    if (editing && !fresh) return; // don't hijack a double-click while renaming
+    if (fresh) setEditing(null); // the false start's inline input goes away with it
+    chordTrackGesture(hit, t, { freshFromManualCreate: fresh });
   };
 
   const onChordDown = (e: React.PointerEvent, c: { id: string; startTick: number; durationTicks: number }) => {
@@ -166,20 +182,20 @@ const ChordLane = memo(function ChordLane({ ppt }: { ppt: number }) {
   };
 
   return (
-    <div ref={ref} className="relative h-full cursor-copy" onPointerDown={onLaneDown} data-testid="chord-lane">
+    <div ref={ref} className="relative h-full cursor-copy" onPointerDown={onLaneDown} onDoubleClick={onLaneDoubleClick} data-testid="chord-lane">
       {chords.map((c0) => {
         const c = temp && temp.id === c0.id ? { ...c0, ...temp } : c0;
         const valid = parseChord(c.symbol);
         const sel = c.id === selectedId;
+        const smart = c.id.startsWith(`${SMART_CLIP_ID_PREFIX}_`);
         const col = valid.ok ? FAMILY_COLORS.Structure : tokens.danger;
         return (
           <div
-            key={c.id} data-testid="chord" data-invalid={!valid.ok || undefined}
-            className={cn('group absolute top-[10px] flex cursor-grab items-center overflow-hidden rounded border px-1.5 font-mono text-[12px] font-semibold', sel && 'ring-1 ring-[var(--c-text)]')}
+            key={c.id} data-testid="chord" data-invalid={!valid.ok || undefined} data-smart={smart || undefined}
+            className={cn('group absolute top-[10px] flex cursor-grab items-center overflow-hidden rounded border px-1.5 font-mono text-[12px] font-semibold', sel && 'ring-1 ring-[var(--c-text)]', smart && 'border-dashed')}
             style={{ left: c.startTick * ppt, width: Math.max(6, c.durationTicks * ppt - 2), height: ROW_H - 20, background: withAlpha(col, valid.ok ? 0.14 : 0.25), borderColor: withAlpha(col, 0.65), color: valid.ok ? tokens.text : tokens.danger }}
             onPointerDown={(e) => onChordDown(e, c)}
-            onDoubleClick={(e) => { e.stopPropagation(); setEditing(c.id); }}
-            title={valid.ok ? `${c.symbol} = ${valid.chord.quality}${valid.chord.bassName ? ` over ${valid.chord.bassName}` : ''} · double-click to edit, drag to move, right edge to resize` : `Invalid chord: ${valid.error}`}
+            title={valid.ok ? `${c.symbol} = ${valid.chord.quality}${valid.chord.bassName ? ` over ${valid.chord.bassName}` : ''} · double-click for the chord editor, drag to move, right edge to resize` : `Invalid chord: ${valid.error}`}
           >
             <div className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize" />
             {editing === c.id ? (

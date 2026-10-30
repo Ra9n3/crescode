@@ -1,0 +1,5 @@
+node_modules/
+dist/
+docs/screenshot.png
+*.log
+diagnostics/harmony/audit/latest/

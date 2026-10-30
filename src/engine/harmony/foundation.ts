@@ -564,7 +564,9 @@ const CENTER_NEED: Record<string, number> = {
  *  `scoreDestination`, so a held harmony is judged as a sonority by exactly
  *  the same components a fresh candidate for it would be. */
 export interface DestinationParts {
-  /** Settled-vs-unstable quality against the phrase's tension. */
+  /** Settled-vs-unstable quality against the phrase's tension target —
+   *  pulled toward resolution when the previous foundation was itself
+   *  unstable (see scoreDestination's `prevQuality`). */
   tensionFit: number;
   /** Intrinsic sonority consonance (Phase 4.3A) — mode-independent,
    *  applies to every foundation equally. Never implies tonic function. */
@@ -628,15 +630,31 @@ export interface TransitionScoreParts extends DestinationParts {
  */
 /** Compute the destination terms of one candidate against the phrase
  *  context — the single implementation shared by the transition score and
- *  the continuation score. Pure facts about `cand` in `ctx`. */
-function scoreDestination(cand: FoundationInfo, ctx: StructuralContext): DestinationParts {
+ *  the continuation score. Pure facts about `cand` in `ctx`.
+ *
+ *  `prevQuality` — when the previous foundation's own quality is known, the
+ *  tension target REACTS to it: the more unstable that sonority was, the
+ *  further the target is pulled toward resolution, so a tense prev raises
+ *  the reward for settling here and a settled prev leaves the target as-is.
+ *  Omitted where no previous harmony exists (the opening slot). */
+function scoreDestination(
+  cand: FoundationInfo,
+  ctx: StructuralContext,
+  prevQuality?: FoundationCore['quality'],
+): DestinationParts {
   const dest: DestinationParts = {
     tensionFit: 0, structuralConsonance: 0, qualityStability: 0, tonicReinforcement: 0,
     modalColor: 0, diatonicPreference: 0, roleChromaticBonus: 0, contrastBonus: 0,
     modalProtect: 0, chromaticTonicTone: 0,
   };
-  // Tension fit: settled vs unstable foundation quality against the phrase.
-  dest.tensionFit = 0.12 * (1 - Math.abs(QUALITY_TENSION[cand.quality] - ctx.tension));
+  // Tension fit: settled vs unstable foundation quality against the phrase
+  // — judged against a REACTIVE target: a tense previous foundation pulls
+  // the target toward resolution in proportion to its own instability.
+  const rawTarget = prevQuality !== undefined
+    ? ctx.tension - 0.4 * QUALITY_TENSION[prevQuality]
+    : ctx.tension;
+  const reactiveTarget = Math.min(1, Math.max(0, rawTarget));
+  dest.tensionFit = 0.12 * (1 - Math.abs(QUALITY_TENSION[cand.quality] - reactiveTarget));
   // STABILITY, corrected in Phase 4.3A into its two genuinely different
   // halves (spec §4–§5). The pre-4.3A score keyed one 0.18-weighted term on
   // QUALITY alone, so a chromatic chord sharing the tonic triad's quality
@@ -753,7 +771,9 @@ export function foundationTransitionScoreDetailed(
   // Destination terms — the shared single implementation (the continuation
   // score consumes the same values for the sonority it holds). Added in the
   // historical order so totals stay byte-identical with the inline form.
-  const dest = scoreDestination(cand, ctx);
+  // The reactive tension target keys on the previous foundation's own
+  // quality; at the opening slot there is no previous harmony → undefined.
+  const dest = scoreDestination(cand, ctx, prev !== null ? prev.quality : undefined);
   parts.tensionFit = dest.tensionFit;
   score += parts.tensionFit;
   parts.structuralConsonance = dest.structuralConsonance;
@@ -912,7 +932,11 @@ export function foundationContinuationScoreDetailed(
   }
 
   // Destination terms — shared single implementation (see scoreDestination).
-  const dest = scoreDestination(prev, ctx);
+  // The held harmony IS the immediately previous sonority, so its own
+  // quality pulls the tension target toward resolution: sustaining an
+  // unstable sonority is judged under resolution pressure, a settled one
+  // keeps the phrase's target as-is.
+  const dest = scoreDestination(prev, ctx, prev.quality);
   parts.tensionFit = dest.tensionFit;
   score += parts.tensionFit;
   parts.structuralConsonance = dest.structuralConsonance;

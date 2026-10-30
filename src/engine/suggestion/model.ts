@@ -138,14 +138,14 @@ export function projectKeyOf(p: Pick<Project, 'key' | 'mode'>): ProjectKey {
 }
 
 /** Ionian scale-degree semitone offsets (mode → its parent major's root). */
-const IONIAN_STEPS = [0, 2, 4, 5, 7, 9, 11] as const;
+export const IONIAN_STEPS = [0, 2, 4, 5, 7, 9, 11] as const;
 /** Circle-of-fifths position of each major-root pitch class (sharps positive). */
 const FIFTHS_OF_MAJOR_ROOT: Record<PitchClass, number> = {
   0: 0, 7: 1, 2: 2, 9: 3, 4: 4, 11: 5, 6: 6,
   1: -5, 8: -4, 3: -3, 10: -2, 5: -1,
 };
 /** Parent-major scale degree per mode; null for non-heptatonic modes. */
-const PARENT_MAJOR_DEGREE: Partial<Record<ModeName, number>> = {
+export const PARENT_MAJOR_DEGREE: Partial<Record<ModeName, number>> = {
   Ionian: 0, Dorian: 1, Phrygian: 2, Lydian: 3, Mixolydian: 4, Aeolian: 5, Locrian: 6,
   'Harmonic Minor': 5, 'Melodic Minor': 5,
 };

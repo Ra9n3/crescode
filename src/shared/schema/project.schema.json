@@ -22,26 +22,11 @@
     "mode": { "enum": ["Ionian", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Aeolian", "Locrian", "Harmonic Minor", "Melodic Minor", "Whole Tone", "Diminished (Half-Whole)", "Diminished (Whole-Half)"] },
     "sections": {
       "type": "array",
-      "items": { "type": "object", "required": ["id", "name", "startBar", "lengthBars"], "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "startBar": { "type": "integer", "minimum": 1 }, "lengthBars": { "type": "integer", "minimum": 1 }, "energy": { "type": "number", "minimum": 0, "maximum": 1, "description": "Section energy 0..1. Optional; missing = neutral 0.5. Single canonical energy field read by the harmony planner." } } }
+      "items": { "type": "object", "required": ["id", "name", "startBar", "lengthBars"], "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "startBar": { "type": "integer", "minimum": 1 }, "lengthBars": { "type": "integer", "minimum": 1 } } }
     },
     "chords": {
       "type": "array",
-      "items": { "type": "object", "required": ["id", "symbol", "startTick", "durationTicks"], "properties": { "id": { "type": "string" }, "symbol": { "type": "string" }, "startTick": { "type": "integer", "minimum": 0 }, "durationTicks": { "type": "integer", "minimum": 1 }, "locked": { "type": "boolean", "description": "true = protected from chord generation. Missing/false = unlocked." } } }
-    },
-    "chordGenSettings": {
-      "type": "object", "additionalProperties": false,
-      "description": "Chord-generator settings. Optional; older projects use engine defaults.",
-      "properties": {
-        "complexity": { "type": "integer", "enum": [1, 2, 3] },
-        "density": { "type": "integer", "enum": [0, 1, 2] },
-        "variation": { "type": "number", "minimum": 0, "maximum": 1 },
-        "borrowing": { "enum": ["none", "some", "more"] },
-        "cadence": { "enum": ["soft", "balanced", "strong"] },
-        "modalEmphasis": { "type": "number", "minimum": 0, "maximum": 1 },
-        "preserveIdentity": { "type": "boolean" },
-        "sectionAware": { "type": "boolean" },
-        "seed": { "type": "integer", "minimum": 0, "maximum": 4294967295 }
-      }
+      "items": { "type": "object", "required": ["id", "symbol", "startTick", "durationTicks"], "properties": { "id": { "type": "string" }, "symbol": { "type": "string" }, "startTick": { "type": "integer", "minimum": 0 }, "durationTicks": { "type": "integer", "minimum": 1 } } }
     },
     "referenceAudio": {
       "type": "object", "required": ["path", "offsetMs"],

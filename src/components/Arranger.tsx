@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../store/store';
-import { barTicks, beatTicks, parseChord, projectBars, projectEndTick, secondsToTicks, isChordLocked, type Section, type Track, type TrackFamily } from '../shared/schema';
+import { barTicks, beatTicks, parseChord, projectBars, projectEndTick, secondsToTicks, type Section, type Track, type TrackFamily } from '../shared/schema';
 import { FAMILY_COLORS, tokens, velocityColor, withAlpha } from '../theme/tokens';
 import { preview } from '../audio/preview';
 import { currentTick, seek } from '../audio/transport';
@@ -63,10 +63,7 @@ const StructureLane = memo(function StructureLane({ ppt }: { ppt: number }) {
 
   const onSecDown = (e: React.PointerEvent, s: Section) => {
     if (e.button !== 0 || editing) return;
-    // Whole-block selection (spec §3): anywhere on the section selects it; a
-    // clean click on the already-selected section toggles it off.
-    const wasSelected = useStore.getState().selectedSectionId === s.id;
-    if (!wasSelected) set({ selectedSectionId: s.id, selectedChordId: null });
+    set({ selectedSectionId: s.id, selectedChordId: null });
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const mode = e.clientX - r.left < 7 ? 'l' : r.right - e.clientX < 7 ? 'r' : 'move';
     let cur = s;
@@ -78,11 +75,7 @@ const StructureLane = memo(function StructureLane({ ppt }: { ppt: number }) {
       setTemp(cur);
     }, (moved) => {
       setTemp(null);
-      if (!moved) {
-        if (wasSelected) set({ selectedSectionId: null });
-        return;
-      }
-      if (cur.startBar === s.startBar && cur.lengthBars === s.lengthBars) return;
+      if (!moved || (cur.startBar === s.startBar && cur.lengthBars === s.lengthBars)) return;
       if (overlaps(s.id, cur.startBar, cur.lengthBars)) { toast('warn', 'Sections cannot overlap'); return; }
       updateSection(s.id, { startBar: cur.startBar, lengthBars: cur.lengthBars });
     });
@@ -137,24 +130,12 @@ const ChordLane = memo(function ChordLane({ ppt }: { ppt: number }) {
   const chords = useStore((s) => s.project.chords);
   const ts = useStore((s) => s.project.timeSignature);
   const selectedId = useStore((s) => s.selectedChordId);
-  const genHighlight = useStore((s) => s.genHighlight);
   const [temp, setTemp] = useState<{ id: string; startTick: number; durationTicks: number } | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
-  const [menu, setMenu] = useState<{ x: number; y: number; chordId: string } | null>(null);
-  const [flash, setFlash] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const snap = beatTicks(ts);
   const bt = barTicks(ts);
   const tickAt = (x: number) => Math.max(0, Math.floor((x - ref.current!.getBoundingClientRect().left) / ppt / snap) * snap);
-
-  // Brief, subtle highlight after a generation result (spec §4). Triggered via
-  // the store's genHighlight stamp — no coupling to the musical algorithm.
-  useEffect(() => {
-    if (!genHighlight) return;
-    setFlash(true);
-    const t = setTimeout(() => setFlash(false), 1200);
-    return () => clearTimeout(t);
-  }, [genHighlight]);
 
   const onLaneDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
@@ -163,9 +144,7 @@ const ChordLane = memo(function ChordLane({ ppt }: { ppt: number }) {
     const next = chords.filter((c) => c.startTick > t).sort((a, b) => a.startTick - b.startTick)[0];
     const dur = Math.max(snap, Math.min(bt - (t % bt), next ? next.startTick - t : bt));
     const st = useStore.getState();
-    // Manually placed chords are locked from birth (spec §5) — Generate never
-    // overwrites what you played in yourself.
-    const id = st.addChord({ symbol: 'C', startTick: t, durationTicks: dur, locked: true });
+    const id = st.addChord({ symbol: 'C', startTick: t, durationTicks: dur });
     st.set({ selectedChordId: id, selectedSectionId: null });
     setEditing(id);
   };
@@ -182,46 +161,27 @@ const ChordLane = memo(function ChordLane({ ppt }: { ppt: number }) {
       setTemp(cur);
     }, (moved) => {
       setTemp(null);
-      // Moving or resizing a chord locks it in the same undo step (spec §5).
-      if (moved && (cur.startTick !== c.startTick || cur.durationTicks !== c.durationTicks)) useStore.getState().updateChord(c.id, { startTick: cur.startTick, durationTicks: cur.durationTicks, locked: true });
+      if (moved && (cur.startTick !== c.startTick || cur.durationTicks !== c.durationTicks)) useStore.getState().updateChord(c.id, { startTick: cur.startTick, durationTicks: cur.durationTicks });
     });
   };
 
-  // Right-click opens the chord's context menu — Lock/Unlock, whichever applies (spec §5).
-  const onContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const t = tickAt(e.clientX);
-    const hit = chords.find((c) => t >= c.startTick && t < c.startTick + c.durationTicks);
-    if (!hit) { setMenu(null); return; }
-    setMenu({ x: e.clientX, y: e.clientY, chordId: hit.id });
-  };
-
-  const toggleLock = (id: string) => {
-    const s = useStore.getState();
-    const c = s.project.chords.find((x) => x.id === id);
-    if (c) s.updateChord(id, { locked: !isChordLocked(c) });
-  };
-
   return (
-    <div ref={ref} className="relative h-full cursor-copy" onPointerDown={onLaneDown} onContextMenu={onContextMenu} data-testid="chord-lane">
+    <div ref={ref} className="relative h-full cursor-copy" onPointerDown={onLaneDown} data-testid="chord-lane">
       {chords.map((c0) => {
         const c = temp && temp.id === c0.id ? { ...c0, ...temp } : c0;
         const valid = parseChord(c.symbol);
         const sel = c.id === selectedId;
-        const locked = isChordLocked(c);
         const col = valid.ok ? FAMILY_COLORS.Structure : tokens.danger;
-        const flashed = flash && (!genHighlight?.chordIds || genHighlight.chordIds.includes(c.id));
         return (
           <div
-            key={c.id} data-testid="chord" data-invalid={!valid.ok || undefined} data-locked={locked || undefined}
-            className={cn('group absolute top-[10px] flex cursor-grab items-center gap-1 overflow-hidden rounded border px-1.5 font-mono text-[12px] font-semibold', sel && 'ring-1 ring-[var(--c-text)]', flashed && 'genflash')}
-            style={{ left: c.startTick * ppt, width: Math.max(6, c.durationTicks * ppt - 2), height: ROW_H - 20, background: withAlpha(col, valid.ok ? 0.14 : 0.25), borderColor: withAlpha(locked ? tokens.lock : col, 0.65), color: valid.ok ? tokens.text : tokens.danger }}
+            key={c.id} data-testid="chord" data-invalid={!valid.ok || undefined}
+            className={cn('group absolute top-[10px] flex cursor-grab items-center overflow-hidden rounded border px-1.5 font-mono text-[12px] font-semibold', sel && 'ring-1 ring-[var(--c-text)]')}
+            style={{ left: c.startTick * ppt, width: Math.max(6, c.durationTicks * ppt - 2), height: ROW_H - 20, background: withAlpha(col, valid.ok ? 0.14 : 0.25), borderColor: withAlpha(col, 0.65), color: valid.ok ? tokens.text : tokens.danger }}
             onPointerDown={(e) => onChordDown(e, c)}
             onDoubleClick={(e) => { e.stopPropagation(); setEditing(c.id); }}
-            title={valid.ok ? `${c.symbol} = ${valid.chord.quality}${valid.chord.bassName ? ` over ${valid.chord.bassName}` : ''}${locked ? ' · LOCKED — protected from generation' : ''} · double-click to edit, drag to move, right edge to resize, right-click to lock/unlock` : `Invalid chord: ${valid.error}`}
+            title={valid.ok ? `${c.symbol} = ${valid.chord.quality}${valid.chord.bassName ? ` over ${valid.chord.bassName}` : ''} · double-click to edit, drag to move, right edge to resize` : `Invalid chord: ${valid.error}`}
           >
             <div className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize" />
-            {locked && <Ico icon={I.lock} className="relative z-10 shrink-0 text-[9px] opacity-80" />}
             {editing === c.id ? (
               <input
                 autoFocus defaultValue={c.symbol} spellCheck={false} data-testid="chord-input"
@@ -233,7 +193,7 @@ const ChordLane = memo(function ChordLane({ ppt }: { ppt: number }) {
                 onBlur={(e) => {
                   const v = e.target.value.trim();
                   if (!v) useStore.getState().deleteChord(c.id);
-                  else if (v !== c.symbol) useStore.getState().updateChord(c.id, { symbol: v, locked: true }); // retyping locks too (spec §5)
+                  else if (v !== c.symbol) useStore.getState().updateChord(c.id, { symbol: v });
                   setEditing(null);
                 }}
               />
@@ -241,22 +201,6 @@ const ChordLane = memo(function ChordLane({ ppt }: { ppt: number }) {
           </div>
         );
       })}
-      {menu && (() => {
-        const c = useStore.getState().project.chords.find((x) => x.id === menu.chordId);
-        if (!c) return null;
-        const locked = isChordLocked(c);
-        return (
-          <>
-            <div className="fixed inset-0 z-40" onPointerDown={() => setMenu(null)} onContextMenu={(e) => { e.preventDefault(); setMenu(null); }} />
-            <div className="panel-raised fixed z-50 w-48 rounded-md border border-[#0e0e10] p-1 text-xs shadow-2xl animate-[pop_.12s_ease]" style={{ left: Math.min(menu.x, window.innerWidth - 210), top: Math.min(menu.y, window.innerHeight - 60) }} data-testid="chord-lock-menu">
-              <button className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-[var(--c-bg4)]" data-testid="chord-lock-toggle"
-                onClick={() => { toggleLock(menu.chordId); setMenu(null); }}>
-                <Ico icon={locked ? I.lockOpen : I.lock} /> {locked ? 'Unlock chord' : 'Lock chord'}
-              </button>
-            </div>
-          </>
-        );
-      })()}
     </div>
   );
 });

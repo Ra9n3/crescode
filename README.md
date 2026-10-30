@@ -23,8 +23,6 @@ Nothing goes over the network at runtime. The fonts are bundled. The engine conn
 npm test             # unit tests: parser (54 symbols), validation, factory, engine invariants, export round-trip
 npm run harness      # CLI: loads fixtures/dorian-16bars.json, prints per-track note counts + bar-by-bar summary
 npm run harness -- 42            # with seed 42
-npm run harmony:diagnose         # CLI: run the chord generator with full diagnostics (why each chord was chosen)
-npm run harmony:diagnose -- --project fixtures/example-e-aeolian.json --seed 34 --format text
 npm run e2e          # builds, then runs the headless UI smoke test (alignment, 5k notes, mixer, VST states, piano roll, undo)
 ```
 

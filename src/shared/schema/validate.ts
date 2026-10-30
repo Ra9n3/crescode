@@ -51,7 +51,6 @@ export function validateProject(input: unknown): ValidationResult {
     if (!s.name || typeof s.name !== 'string') err(`${at}.name`, 'Section needs a name');
     if (!isInt(s.startBar) || s.startBar < 1) err(`${at}.startBar`, `Section "${s.name}": startBar must be ≥ 1`);
     if (!isInt(s.lengthBars) || s.lengthBars < 1) err(`${at}.lengthBars`, `Section "${s.name}": lengthBars must be ≥ 1`);
-    if (s.energy !== undefined && (!isNum(s.energy) || s.energy < 0 || s.energy > 1)) err(`${at}.energy`, `Section "${s.name}": energy must be a number 0–1 when present`);
   });
   const sorted = [...p.sections].sort((a, b) => a.startBar - b.startBar);
   for (let i = 1; i < sorted.length; i++) {
@@ -65,29 +64,7 @@ export function validateProject(input: unknown): ValidationResult {
     if (!r.ok) err(`${at}.symbol`, `Invalid chord symbol: ${r.error}`);
     if (!isInt(c.startTick) || c.startTick < 0) err(`${at}.startTick`, 'Chord startTick must be an integer ≥ 0');
     if (!isInt(c.durationTicks) || c.durationTicks < 1) err(`${at}.durationTicks`, 'Chord durationTicks must be ≥ 1');
-    if (c.locked !== undefined && typeof c.locked !== 'boolean') err(`${at}.locked`, 'Chord locked must be a boolean when present');
   });
-
-  if (p.chordGenSettings !== undefined) {
-    const at = 'chordGenSettings';
-    const gs = p.chordGenSettings as unknown as Record<string, unknown>;
-    if (!gs || typeof gs !== 'object' || Array.isArray(gs)) {
-      err(at, 'chordGenSettings must be an object when present');
-    } else {
-      const known = ['complexity', 'density', 'variation', 'borrowing', 'cadence', 'modalEmphasis', 'preserveIdentity', 'sectionAware', 'seed'];
-      for (const k of Object.keys(gs)) if (!known.includes(k)) err(`${at}.${k}`, `Unknown chordGenSettings key "${k}"`);
-      if (gs.complexity !== undefined && ![1, 2, 3].includes(gs.complexity as number)) err(`${at}.complexity`, 'complexity must be 1, 2 or 3');
-      if (gs.density !== undefined && ![0, 1, 2].includes(gs.density as number)) err(`${at}.density`, 'density must be 0, 1 or 2');
-      for (const k of ['variation', 'modalEmphasis'] as const)
-        if (gs[k] !== undefined && (!isNum(gs[k] as number) || (gs[k] as number) < 0 || (gs[k] as number) > 1)) err(`${at}.${k}`, `${k} must be a number 0–1`);
-      if (gs.borrowing !== undefined && !['none', 'some', 'more'].includes(gs.borrowing as string)) err(`${at}.borrowing`, 'borrowing must be "none", "some" or "more"');
-      if (gs.cadence !== undefined && !['soft', 'balanced', 'strong'].includes(gs.cadence as string)) err(`${at}.cadence`, 'cadence must be "soft", "balanced" or "strong"');
-      for (const k of ['preserveIdentity', 'sectionAware'] as const)
-        if (gs[k] !== undefined && typeof gs[k] !== 'boolean') err(`${at}.${k}`, `${k} must be a boolean`);
-      if (gs.seed !== undefined && (!isInt(gs.seed as number) || (gs.seed as number) < 0 || (gs.seed as number) > 4294967295))
-        err(`${at}.seed`, 'seed must be an integer 0–4294967295');
-    }
-  }
 
   const groupIds = new Set<string>();
   p.libraryGroups.forEach((g, i) => {

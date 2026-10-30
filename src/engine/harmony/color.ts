@@ -55,6 +55,12 @@ export interface ColorContext {
    *  symbol is weighed accordingly (story pass). */
   foundationHeld: boolean;
   prev: PreviousColor | null;
+  /** The next structural foundation in the already-resolved sequence (null
+   *  at a region tail): the color pass runs after the foundation path is
+   *  fixed, so the successor foundation is always known — while the next
+   *  COLOR does not exist yet (the pass is sequential). Look-ahead facts
+   *  without look-ahead colors. */
+  next: FoundationInfo | null;
 }
 
 export interface ColorResult {

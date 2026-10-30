@@ -875,6 +875,10 @@ export function generateChordProgression(
     for (let ei = 0; ei < targetEvents.length; ei++) {
       const ev = targetEvents[ei];
       const prevEvent = ei > 0 ? targetEvents[ei - 1]! : null;
+      // Color runs after the target's foundation path is fixed: the next
+      // event's FOUNDATION is always resolvable here (null only at the region
+      // tail, where nothing follows within this pass).
+      const nextEvent = ei + 1 < targetEvents.length ? targetEvents[ei + 1]! : null;
       // Story pass: when the FOUNDATION held, color motion is the only
       // audible change left — the color stage must know (it weighs symbol
       // repetition differently for held vs changed harmony).
@@ -893,6 +897,7 @@ export function generateChordProgression(
         role: startWindow.role,
         foundationHeld,
         prev: prevColor,
+        next: nextEvent !== null ? nextEvent.foundation : null,
       }, colorRng, diag !== null ? (o) => { observations.push(o); } : undefined);
 
       // Structural cadence realization diagnostics at planned arrivals —

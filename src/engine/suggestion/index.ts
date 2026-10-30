@@ -9,4 +9,6 @@ export * from './context';
 export * from './engine';
 export * from './host';
 export * from './interaction';
+export * from './voicing';
+export * from './overlay';
 /* wire.ts is app wiring (imports the store) — imported directly by the UI. */

@@ -7,7 +7,10 @@
  * the double-click interception on the native chord lane, the false-start
  * conversion of a double-click's first manual chord, the chord editor panel
  * (open / rename / close), the too-small-gap warning toast and the undo
- * step boundaries around every write.
+ * step boundaries around every write — plus the floating overlay itself:
+ * the colored suggestion grid, search/color filters, the bass/extension
+ * dropdowns with their live preview, the "Apply Smart Chord" transaction
+ * (close/minimize preference) and the non-destructive drift guard.
  */
 import { chromium } from 'playwright';
 import path from 'node:path';
@@ -111,6 +114,146 @@ res = await st(() => {
   return { smart: s.project.chords.filter((c) => c.id.startsWith('sch_')).length, total: s.project.chords.length };
 });
 check('Failed gestures leave clean undo history', res.smart === 1 && res.total === 1, JSON.stringify(res));
+
+// H. The floating overlay: suggestion grid, colors, search, live preview.
+await page.evaluate(() => { document.getElementById('arranger-scroll').scrollLeft = 0; }); // E scrolled away
+await page.waitForTimeout(120);
+await dblclickTick(5960);
+await page.waitForTimeout(200);
+res = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  const overlay = document.querySelector('[data-testid="chord-suggestions"]');
+  return {
+    open: s.suggestionClipId !== null,
+    chords: s.project.chords.map((c) => ({ id: c.id.slice(0, 6), symbol: c.symbol, start: c.startTick })),
+    editor: !!document.querySelector('[data-testid="chord-editor"]'),
+    overlay: !!overlay,
+    overlayText: overlay ? overlay.textContent.slice(0, 120) : null,
+    cards: [...document.querySelectorAll('[data-testid^="suggestion-card-"]')].length,
+    colors: [...new Set([...document.querySelectorAll('[data-testid^="suggestion-card-"]')].map((c) => c.dataset.color))],
+  };
+});
+check('Overlay renders the suggestion grid, every card in a spec color band',
+  res.open && res.cards >= 6 && res.colors.every((c) => ['green', 'yellow', 'red'].includes(c)),
+  JSON.stringify(res));
+
+// I. Search filter narrows the grid; clearing restores it.
+const fullCount = res.cards;
+await page.fill('[data-testid="suggestion-search"]', 'm7');
+await page.waitForTimeout(120);
+const filtered = await st(() => [...document.querySelectorAll('[data-testid^="suggestion-card-"]')].map((c) => ({ s: c.dataset.spelling, q: c.dataset.quality })));
+check('Search filters the grid (m7 → only m7 shapes, fewer cards)',
+  filtered.length >= 1 && filtered.length < fullCount && filtered.every((c) => (c.s + c.q).includes('m7')),
+  JSON.stringify(filtered));
+await page.fill('[data-testid="suggestion-search"]', '');
+await page.waitForTimeout(120);
+
+// J. Color filter shows only that band (or nothing).
+await page.click('[data-testid="suggestion-filter-red"]');
+await page.waitForTimeout(120);
+res = await st(() => [...document.querySelectorAll('[data-testid^="suggestion-card-"]')].map((c) => c.dataset.color));
+check('Color filter narrows to one band', res.every((c) => c === 'red'), JSON.stringify(res));
+await page.click('[data-testid="suggestion-filter-all"]');
+await page.waitForTimeout(120);
+
+// K. Selecting a triad card re-targets the live preview; extension and bass
+//    dropdowns recalculate name + MIDI notes immediately.
+const triad = await st(() => {
+  const cards = [...document.querySelectorAll('[data-testid^="suggestion-card-"]')];
+  const c = cards.find((x) => x.dataset.quality === 'major' || x.dataset.quality === 'minor');
+  return { idx: cards.indexOf(c), spelling: c?.dataset.spelling ?? null };
+});
+await page.click(`[data-testid="suggestion-card-${triad.idx}"]`);
+await page.waitForTimeout(120);
+res = await st(() => document.querySelector('[data-testid="suggestion-preview"]')?.dataset.name ?? '');
+check('Clicking a suggestion card re-targets the preview', res === triad.spelling, `${res} vs ${triad.spelling}`);
+
+const beforeExt = await st(() => document.querySelector('[data-testid="suggestion-preview"]')?.dataset.name ?? '');
+await page.selectOption('[data-testid="suggestion-extension"]', '7');
+await page.waitForTimeout(120);
+res = await st(() => document.querySelector('[data-testid="suggestion-preview"]')?.dataset.name ?? '');
+check('Extension dropdown recalculates the chord immediately (triad + 7)', res === `${beforeExt}7`, `${beforeExt} → ${res}`);
+
+const bassVal = await st(() => {
+  const sel = document.querySelector('[data-testid="suggestion-bass"]');
+  return [...sel.options].find((o) => o.value.startsWith('pc:'))?.value ?? null;
+});
+let appliedName = res;
+if (bassVal !== null) {
+  await page.selectOption('[data-testid="suggestion-bass"]', bassVal);
+  await page.waitForTimeout(120);
+  appliedName = await st(() => document.querySelector('[data-testid="suggestion-preview"]')?.dataset.name ?? '');
+  check('Bass dropdown composes a slash chord', appliedName.includes('/'), appliedName);
+}
+
+// L. Apply: one "Apply Smart Chord" undo step writes voicing + name, preserves
+//    bounds, closes the overlay (default preference).
+const preApply = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  return { steps: s.past.length };
+});
+await page.click('[data-testid="apply-chord"]');
+await page.waitForTimeout(250);
+res = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  const c = s.project.chords.find((x) => x.id.startsWith('sch_'));
+  const lane = s.project.tracks.find((t) => t.role === 'chords');
+  return {
+    open: s.suggestionClipId !== null,
+    symbol: c?.symbol ?? null, start: c?.startTick, len: c?.durationTicks,
+    notes: lane.notes.map((n) => n.pitch),
+    steps: s.past.length,
+  };
+});
+check('Apply writes the voicing + name in one undo step, preserves bounds, closes',
+  !res.open && res.symbol === appliedName && res.start === 5760 && res.len === 3840 &&
+  res.notes.length >= 3 && res.steps === preApply.steps + 1 &&
+  res.notes.every((p) => p >= 36 && p <= 84) &&
+  new Set(res.notes.map((p) => p % 12)).size === res.notes.length,
+  JSON.stringify(res));
+
+// M. Apply-mode "minimize": the overlay collapses but stays open.
+await st(() => window.crescodeTest.store.getState().setSettings({ smartChordApply: 'minimize' }));
+await dblclickTick(5960);
+await page.click('[data-testid="suggestion-card-0"]');
+await page.waitForTimeout(120);
+await page.click('[data-testid="apply-chord"]');
+await page.waitForTimeout(250);
+res = await st(() => ({
+  open: window.crescodeTest.store.getState().suggestionClipId !== null,
+  gridVisible: !!document.querySelector('[data-testid="suggestion-grid"]'),
+}));
+check('Apply with the minimize preference collapses the overlay but keeps it open', res.open && !res.gridVisible, JSON.stringify(res));
+
+// N. Non-destructive guard: a clip moved since the overlay opened warns and
+//    is never overwritten.
+await page.click('[data-testid="chord-editor-minimize"]'); // expand again
+await page.waitForTimeout(120);
+const preDrift = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  return { steps: s.past.length, symbol: s.project.chords.find((c) => c.id.startsWith('sch_')).symbol };
+});
+await st(() => {
+  const s = window.crescodeTest.store.getState();
+  s.edit((p) => ({ ...p, chords: p.chords.map((c) => (c.id.startsWith('sch_') ? { ...c, startTick: c.startTick + 960 } : c)) }));
+});
+await page.waitForTimeout(200);
+await page.click('[data-testid="suggestion-card-0"]');
+await page.waitForTimeout(120);
+await page.click('[data-testid="apply-chord"]');
+await page.waitForTimeout(250);
+res = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  return {
+    toast: s.toasts.at(-1)?.kind ?? null,
+    steps: s.past.length,
+    symbol: s.project.chords.find((c) => c.id.startsWith('sch_')).symbol,
+  };
+});
+check('Apply on a moved clip warns non-destructively (no overwrite, no undo step)',
+  res.toast === 'warn' && res.steps === preDrift.steps + 1 && res.symbol === preDrift.symbol,
+  JSON.stringify(res));
+await page.keyboard.press('Escape');
 
 check('No uncaught page errors', errors.length === 0, errors.slice(0, 2).join(';'));
 

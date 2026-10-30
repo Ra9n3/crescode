@@ -109,10 +109,10 @@ export function Modal({ title, onClose, children, width = 560, footer, icon }: {
   );
 }
 
-export function Button({ children, onClick, primary, disabled, tip, className, danger }: { children: ReactNode; onClick?: () => void; primary?: boolean; disabled?: boolean; tip?: string; className?: string; danger?: boolean }) {
+export function Button({ children, onClick, primary, disabled, tip, className, danger, testId }: { children: ReactNode; onClick?: () => void; primary?: boolean; disabled?: boolean; tip?: string; className?: string; danger?: boolean; testId?: string }) {
   return (
     <button
-      type="button" title={tip} disabled={disabled} onClick={onClick}
+      type="button" title={tip} disabled={disabled} onClick={onClick} data-testid={testId}
       className={cn(
         'hw inline-flex h-8 items-center justify-center gap-2 px-3 text-[11px] font-semibold uppercase tracking-[0.11em] transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-40',
         primary && 'hw-primary', danger && 'border-[#5c241c]',
@@ -319,10 +319,10 @@ export function Toasts() {
 
 /* ---------------------------------------------------------------- fields */
 
-export function Select<T extends string | number>({ value, options, onChange, tip, className, mono }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; tip: string; className?: string; mono?: boolean }) {
+export function Select<T extends string | number>({ value, options, onChange, tip, className, mono, testId }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; tip: string; className?: string; mono?: boolean; testId?: string }) {
   return (
     <select
-      title={tip} aria-label={tip} value={String(value)}
+      title={tip} aria-label={tip} value={String(value)} data-testid={testId}
       onChange={(e) => { const o = options.find((x) => String(x.value) === e.target.value); if (o) onChange(o.value); }}
       className={cn('screen h-7 rounded-[3px] px-2 text-[11px] uppercase tracking-[0.08em] text-[var(--c-text)] outline-none hover:brightness-125', mono && 'font-mono tracking-normal normal-case', className)}
     >

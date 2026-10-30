@@ -15,6 +15,7 @@ import { chordTrackApi } from '../engine/suggestion/wire';
 import { loadClipEditorData } from '../engine/suggestion/interaction';
 import { spelledNoteName } from '../engine/suggestion/model';
 import type { ChordAnalysisStatus } from '../engine/suggestion/parse';
+import { ChordSuggestions } from './ChordSuggestions';
 import { tokens } from '../theme/tokens';
 import { cn } from '../utils/cn';
 import { I } from './icons';
@@ -51,6 +52,11 @@ export function ChordEditor() {
   const clipId = useStore((s) => s.suggestionClipId);
   const project = useStore((s) => s.project);
   const placeholderPref = useStore((s) => s.settings.smartChordPlaceholder);
+  // Minimized = header only; Apply closes or minimizes per the user setting.
+  const [minimized, setMinimized] = useState(false);
+  // Bumped when THIS panel renames the clip, so the overlay's drift baseline
+  // follows the overlay's own edits (external edits still warn on Apply).
+  const [renameRev, setRenameRev] = useState(0);
 
   // Reload on every project edit so the inspector always shows the live clip.
   const data = useMemo(
@@ -87,10 +93,17 @@ export function ChordEditor() {
     try {
       chordTrackApi.renameChordClip(clip.id, symbol);
       chordTrackApi.commitUndoTransaction();
+      setRenameRev((r) => r + 1);
     } catch (err) {
       chordTrackApi.cancelUndoTransaction();
       useStore.getState().toast('error', err instanceof Error ? err.message : String(err));
     }
+  };
+
+  // Apply finished: close or minimize the overlay, per the persisted setting.
+  const onApplied = () => {
+    if (useStore.getState().settings.smartChordApply === 'minimize') setMinimized(true);
+    else useStore.getState().set({ suggestionClipId: null });
   };
 
   const pos = tickToBarBeat(clip.startTime, project.timeSignature);
@@ -98,7 +111,7 @@ export function ChordEditor() {
   const confidence = analysis !== null ? analysis.confidence : Math.round(clip.chord.confidence * 100);
 
   return (
-    <div className="fixed right-3 top-[70px] z-40 flex w-[320px] flex-col overflow-hidden rounded-xl border border-[var(--c-lineStrong)] bg-[var(--c-bg1)] shadow-2xl animate-[pop_.16s_ease]" data-testid="chord-editor">
+    <div className="fixed right-3 top-[70px] z-40 flex max-h-[calc(100vh-100px)] w-[540px] flex-col overflow-y-auto rounded-xl border border-[var(--c-lineStrong)] bg-[var(--c-bg1)] shadow-2xl animate-[pop_.16s_ease]" data-testid="chord-editor">
       {/* header */}
       <div className="flex items-center gap-2 border-b border-[var(--c-line)] px-3 py-2">
         <Ico icon={I.magic} className="text-[var(--c-accent)]" />
@@ -107,14 +120,21 @@ export function ChordEditor() {
           bar {pos.bar} · beat {pos.beat} · {trim2(bars)} bar{bars === 1 ? '' : 's'}
         </span>
         <span className="ml-auto" />
+        <IconButton icon={minimized ? I.caret : I.minus} tip={minimized ? 'Expand the chord editor' : 'Minimize the chord editor'} testId="chord-editor-minimize" onClick={() => setMinimized((m) => !m)} />
         <IconButton icon={I.trash} tip="Delete this clip (Delete)" onClick={() => { useStore.getState().deleteChord(clip.id); useStore.getState().set({ suggestionClipId: null }); }} />
         <IconButton icon={I.x} tip="Close chord editor (Esc)" onClick={() => useStore.getState().set({ suggestionClipId: null })} />
       </div>
 
-      {/* symbol — renames through the API; position/length are never touched */}
-      <div className="flex items-center gap-2 px-3 pt-2.5">
-        <SymbolInput key={`${clip.id}:${clip.chord.spelling}`} ref={symRef} initial={clip.chord.spelling} onCommit={rename} />
-      </div>
+      {minimized ? (
+        <div className="px-3 py-1.5 text-[10px] text-[var(--c-textMute)]">
+          Minimized — the chord keeps playing; expand to edit or apply.
+        </div>
+      ) : (
+        <>
+          {/* symbol — renames through the API; position/length are never touched */}
+          <div className="flex items-center gap-2 px-3 pt-2.5">
+            <SymbolInput key={`${clip.id}:${clip.chord.spelling}`} ref={symRef} initial={clip.chord.spelling} onCommit={rename} />
+          </div>
 
       {/* reading */}
       <div className="flex flex-col gap-2 px-3 py-2.5">
@@ -161,6 +181,9 @@ export function ChordEditor() {
         )}
       </div>
 
+      {/* suggestions overlay — chord grid, customization, MIDI preview, Apply */}
+      <ChordSuggestions clip={clip} renameRev={renameRev} onApplied={onApplied} />
+
       {/* footer: notes + preference */}
       <div className="mt-auto flex flex-col gap-1.5 border-t border-[var(--c-line)] px-3 py-2">
         <div className="flex items-center gap-2 font-mono text-[10px] text-[var(--c-textMute)]">
@@ -183,6 +206,8 @@ export function ChordEditor() {
           Enter applies a symbol · Esc closes · Delete removes the clip · every change is one undo step.
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

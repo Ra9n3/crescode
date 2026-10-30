@@ -103,6 +103,20 @@ export function chordFromSymbol(
   };
 }
 
+/** The chord's own sounding pitch classes (root-ordered, deduped, mod 12),
+ *  derived through the SHARED parser from the chord's spelling — the
+ *  contract `Chord` stays a plain symbol-carrying record. */
+export function chordPitchClasses(chord: Chord): PitchClass[] {
+  const parsed = parseChord(chord.spelling);
+  if (!parsed.ok) return [chord.rootPc];
+  const pcs: PitchClass[] = [];
+  for (const interval of parsed.chord.intervals) {
+    const pc = ((((chord.rootPc + interval) % 12) + 12) % 12) as PitchClass;
+    if (!pcs.includes(pc)) pcs.push(pc);
+  }
+  return pcs.length > 0 ? pcs : [chord.rootPc];
+}
+
 /** Materialize a ChordClip view over a lane event. */
 export function chordClipOf(
   event: ChordEvent,

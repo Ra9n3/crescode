@@ -20,6 +20,7 @@ export { SMART_CLIP_ID_PREFIX };
 import {
   createSuggestionInteraction, type GestureOptions, type SmartClipPlaceholder, type SuggestionInteraction,
 } from './interaction';
+import { suggestChordsAt, type ChordSuggestion, type SuggestionPreferences } from './engine';
 
 /** The adapter's view of the app: project in, project out, one undo entry
  *  per committed transaction, toasts for non-destructive feedback. */
@@ -62,6 +63,28 @@ const interaction: SuggestionInteraction = createSuggestionInteraction(chordTrac
 // gesture hints (fresh manual-create conversion) reach it directly.
 export function chordTrackGesture(clip: ChordClip | null, time: number, opts?: GestureOptions): void {
   interaction.handleDoubleClick(clip, time, opts);
+}
+
+// --- the background suggestion engine, bound to the app ---------------------
+
+export interface ChordSuggestionsAtOptions {
+  /** User tuning for the engine (qualities, complexity, weights). */
+  preferences?: SuggestionPreferences;
+  /** A clip to keep out of the neighbor context. Defaults to the clip the
+   *  Smart Chord editor has open (`suggestionClipId`) — the freshly created
+   *  Smart clip must not act as its own next/previous chord. */
+  excludeClipId?: string;
+}
+
+/**
+ * The background Smart Suggestion Engine entry the overlay uses: the chord
+ * editor calls this when it opens for a double-click at `time` and renders
+ * the returned list directly. Strictly read-only — every write stays inside
+ * the interaction layer's undo transactions.
+ */
+export function chordSuggestionsAt(time: number, options: ChordSuggestionsAtOptions = {}): ChordSuggestion[] {
+  const excludeClipId = options.excludeClipId ?? useStore.getState().suggestionClipId ?? undefined;
+  return suggestChordsAt(chordTrackApi, time, { preferences: options.preferences, excludeClipId });
 }
 
 // --- manual-create freshness (the double-click conversion) -----------------

@@ -48,8 +48,8 @@ import {
   realizedFoundationFamily, type FoundationInfo, type FoundationPool, type StructuralContext,
 } from './foundation';
 import {
-  positionScoreDetailed, selectWindowFoundations, structuralContext,
-  type MaterialReference, type SelectionTrace, type SelectionWindow,
+  positionScoreDetailed, phraseContrastPenalty, selectWindowFoundations, structuralContext,
+  type MaterialReference, type PriorPhraseFeatures, type SelectionTrace, type SelectionWindow,
 } from './progression';
 import {
   classifyColorOperation, classifyTransition, createDiagnosticCollector, extractAlternatives,
@@ -59,7 +59,8 @@ import {
 import { meterFacts, planRhythmSlots, type RhythmSlot, type RhythmWindowInput } from './rhythm';
 import { resolveScopePlan, generationRegionEnd, engineSongSpanTicks } from './coverage';
 import type {
-  BoundaryIntention, CadenceEnvironment, HarmonicPhrase, PhraseRole, RhythmShape,
+  BoundaryIntention, CadenceEnvironment, CadenceFamily, HarmonicPhrase, PhraseRole, RhythmShape,
+  SectionHarmonicGoal,
 } from './types';
 import type { ColorObservation } from './color';
 import type {
@@ -74,6 +75,8 @@ export interface PlannedPhraseInfo {
   phrase: HarmonicPhrase;
   sectionId: string;
   isSectionLast: boolean;
+  /** The section's sampled harmonic goal (story pass). */
+  sectionGoal: SectionHarmonicGoal | null;
   boundaryIntoNext: BoundaryIntention | null;
 }
 
@@ -125,6 +128,7 @@ export function flattenPhrases(
         phrase,
         sectionId: section.sectionId,
         isSectionLast: i === section.phrases.length - 1,
+        sectionGoal: section.goal,
         boundaryIntoNext: i === section.phrases.length - 1 && section.boundary
           ? section.boundary.intention
           : null,
@@ -192,6 +196,10 @@ export function windowsForTarget(
       relatedPhraseIds: [],
       arrivalPlanned: true,
       phraseRef: null,
+      sectionGoal: null,
+      isSectionLast: false,
+      sectionArrivalRoots: [],
+      priorPhraseFeatures: null,
       prefs: prefsFromProfile(undefined, settings),
     });
   };
@@ -212,6 +220,10 @@ export function windowsForTarget(
       relatedPhraseIds: [...p.relatedPhraseIds],
       arrivalPlanned: w.end === p.startTick + p.durationTicks,
       phraseRef: p,
+      sectionGoal: info.sectionGoal,
+      isSectionLast: info.isSectionLast,
+      sectionArrivalRoots: [],
+      priorPhraseFeatures: null,
       prefs: prefsFromProfile(profile, settings),
     });
     cursor = w.end;
@@ -353,6 +365,13 @@ export function generateChordProgression(
   let phraseWindowCount = 0;
   let continuationSlotCount = 0;
   let sustainedEventCount = 0;
+  // Story pass: section arrival sequences + prior-phrase shapes (goal and
+  // contrast evaluation consume them), and the realized-movement counters.
+  const sectionArrivalRoots = new Map<string, number[]>();
+  const priorFeaturesBySection = new Map<string, PriorPhraseFeatures>();
+  const arrivalFamiliesBySection = new Map<string, Array<CadenceFamily | null>>();
+  let harmonicRhythmSwaps = 0;
+  let phraseContrastPenalties = 0;
   let nextId = 0;
   const nextChordId = makeIdFactory(seed, project.chords);
 
@@ -487,6 +506,12 @@ export function generateChordProgression(
       }
 
       const prevAtWindowStart = prev;
+      // Story-pass context: the section's arrival sequence so far and the
+      // previous phrase's observable shape, consumed by the whole-path
+      // evaluation (section goal + phrase-to-phrase contrast).
+      const storyKey = window.sectionId ?? '(gaps)';
+      window.sectionArrivalRoots = [...(sectionArrivalRoots.get(storyKey) ?? [])];
+      window.priorPhraseFeatures = priorFeaturesBySection.get(storyKey) ?? null;
       const selectRng = mulberry32(hashString(
         ['crescode:gen:select', String(window.startTick), String(window.endTick), window.phraseRef?.id ?? `syn${wi}`, String(seed)].join('|'),
       ));
@@ -504,6 +529,34 @@ export function generateChordProgression(
         isSongEnd: isRegionEnd,
         trace,
       });
+
+      // Audible-motion alignment (rhythm ↔ structure): the rhythm planner
+      // proposes slots without knowing where foundation changes landed. When
+      // a change sits on a WEAK slot (shorter than its successor) and the new
+      // harmony sustains adjacent, the change moves onto the strong slot and
+      // the weak slot sustains the outgoing harmony instead. Bounded to
+      // within-window; never moves a planned arrival or a forced first slot.
+      // Swapped slots report no searched scores — the search did not decide
+      // them (the same honesty rule as forcedFirst).
+      const swappedSlots = new Set<number>();
+      for (let si = 1; si + 1 < output.foundations.length && si + 1 < windowSlots.length; si++) {
+        const slot = windowSlots[si]!;
+        const nextSlot = windowSlots[si + 1]!;
+        if (slot.phraseEnd) continue;
+        if (output.actions[si] !== 'change') continue;
+        if (output.actions[si + 1] !== 'continue') continue;
+        if (slot.durationTicks >= nextSlot.durationTicks) continue;
+        const fNew = output.foundations[si]!;
+        const held = output.foundations[si - 1]!;
+        if (fNew.id === held.id) continue;
+        output.foundations[si] = held;
+        output.foundations[si + 1] = fNew;
+        output.actions[si] = 'continue';
+        output.actions[si + 1] = 'change';
+        swappedSlots.add(si);
+        swappedSlots.add(si + 1);
+        harmonicRhythmSwaps += 1;
+      }
 
       // Diagnostics: window record with the full selection trace (spec §6, §9, §10).
       if (diag !== null && trace !== undefined) {
@@ -680,7 +733,8 @@ export function generateChordProgression(
           // forced first slot or develop override replaced the searched choice
           // after the fact — reporting the searched scores would be misleading).
           if (trace !== undefined && trace.mode === 'beam' && trace.beam !== null
-            && trace.forcedFirst === null && trace.developOpeningOverride === null) {
+            && trace.forcedFirst === null && trace.developOpeningOverride === null
+            && !swappedSlots.has(si)) {
             const st = trace.beam.slots[si];
             const chosenCand = st?.candidates.find((c) => c.selected) ?? null;
             if (chosenCand !== undefined && chosenCand !== null) {
@@ -752,6 +806,32 @@ export function generateChordProgression(
         };
       }
       prev = output.last;
+
+      // Story-pass bookkeeping: record this phrase's arrival (the section's
+      // arrival sequence) and its observable shape for the NEXT window's
+      // goal/contrast evaluation; count realized flat pairs.
+      if (output.foundations.length > 0) {
+        const arrival = output.foundations[output.foundations.length - 1]!;
+        if (window.arrivalPlanned) {
+          const arrs = sectionArrivalRoots.get(storyKey) ?? [];
+          arrs.push(arrival.rootPc);
+          sectionArrivalRoots.set(storyKey, arrs);
+        }
+        const prevArrival = output.foundations.length > 1
+          ? output.foundations[output.foundations.length - 2]!
+          : null;
+        priorFeaturesBySection.set(storyKey, {
+          role: window.role,
+          rootDensity: new Set(output.foundations.map((f) => f.rootPc)).size
+            / output.foundations.length,
+          arrivalFamily: realizedFoundationFamily(prevArrival, arrival, sctx),
+          foundationIds: output.foundations.map((f) => f.id),
+        });
+        if (window.priorPhraseFeatures !== null
+          && phraseContrastPenalty(output.foundations, window, sctx) > 0) {
+          phraseContrastPenalties += 1;
+        }
+      }
     }
 
     // Phase 4.3B: fill each slot record's merged-event facts — the duration
@@ -775,6 +855,11 @@ export function generateChordProgression(
     let prevColor: PreviousColor | null = null;
     for (let ei = 0; ei < targetEvents.length; ei++) {
       const ev = targetEvents[ei];
+      const prevEvent = ei > 0 ? targetEvents[ei - 1]! : null;
+      // Story pass: when the FOUNDATION held, color motion is the only
+      // audible change left — the color stage must know (it weighs symbol
+      // repetition differently for held vs changed harmony).
+      const foundationHeld = prevEvent !== null && prevEvent.foundation.id === ev.foundation.id;
       const endWindow = windows[ev.endWindowIndex];
       const startWindow = windows[ev.startWindowIndex];
       const isArrival = endWindow.arrivalPlanned
@@ -787,6 +872,7 @@ export function generateChordProgression(
         isArrival,
         intention: isArrival ? endWindow.cadence.intention : null,
         role: startWindow.role,
+        foundationHeld,
         prev: prevColor,
       }, colorRng, diag !== null ? (o) => { observations.push(o); } : undefined);
 
@@ -807,6 +893,12 @@ export function generateChordProgression(
         const before = ei > 0 ? targetEvents[ei - 1].foundation : prev;
         const family = realizedFoundationFamily(before, ev.foundation, sctx);
         structuralCadences.push({ intention: arrivalWindow.cadence.intention, family });
+        {
+          const sKey = arrivalWindow.sectionId ?? '(gaps)';
+          const arrs = arrivalFamiliesBySection.get(sKey) ?? [];
+          arrs.push(family);
+          arrivalFamiliesBySection.set(sKey, arrs);
+        }
         if (family !== null) familiesUsed.add(family);
         if (diag !== null) {
           diag.structure.cadences.push({
@@ -821,8 +913,7 @@ export function generateChordProgression(
         }
       }
       // Same-foundation adjacency diagnostics (kept rearticulations).
-      const prevEv = targetEvents[ei - 1];
-      if (prevEv !== undefined && prevEv.foundation.id === ev.foundation.id) {
+      if (prevEvent !== undefined && prevEvent !== null && prevEvent.foundation.id === ev.foundation.id) {
         sameFoundationRepetitions += 1;
         if (prevColor !== null && prevColor.symbol !== res.symbol) colorOnlyChanges += 1;
       }
@@ -969,6 +1060,19 @@ export function generateChordProgression(
     sustainedEvents: sustainedEventCount,
     structuralCadences,
     sectionFoundationOverlap,
+    // Story pass: each section's sampled harmonic goal, with the arrival
+    // families realized against it (phrase order).
+    sectionGoals: songPlan.sections.map((s) => ({
+      sectionId: s.sectionId,
+      sectionName: s.sectionName,
+      goal: s.goal.kind,
+      description: s.goal.description,
+      realizedArrivalFamilies: arrivalFamiliesBySection.get(s.sectionId) ?? [],
+    })),
+    /** Audible-motion alignment: foundation changes moved off weak slots. */
+    harmonicRhythmSwaps,
+    /** Adjacent phrase pairs whose realized material differed in nothing. */
+    phraseContrastPenalties,
   };
 
   // Assemble: preserved events keep their exact objects; stable sort by time.

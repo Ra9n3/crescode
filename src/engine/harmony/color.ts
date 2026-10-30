@@ -50,6 +50,10 @@ export interface ColorContext {
   isArrival: boolean;
   intention: CadenceIntention | null;
   role: string;
+  /** True when the STRUCTURAL foundation held from the previous event: color
+   *  motion is then the only audible change left, and repeating the previous
+   *  symbol is weighed accordingly (story pass). */
+  foundationHeld: boolean;
   prev: PreviousColor | null;
 }
 
@@ -125,10 +129,14 @@ function colorWeight(
   if (rank === 0) w += 0.18; // plain triads always remain substantial
   if (rank === 1) w *= 0.85; // extensions need a reason
 
-  // Color continuity with the previous event.
+  // Color continuity with the previous event — coupled to STRUCTURAL motion
+  // (story pass): when the foundation changed, the harmony already moved and
+  // the same color on the new chord is mildly discouraged; when the
+  // foundation HELD, color motion is the only audible change left, so
+  // repeating the previous symbol is penalized hardest there.
   if (cctx.prev !== null) {
     if (Math.abs(rank - cctx.prev.tierRank) >= 1.5) w *= 0.45; // no triad→13th whiplash
-    if (c.symbol === cctx.prev.symbol) w *= 0.15; // the same color twice in a row is rarely intended
+    if (c.symbol === cctx.prev.symbol) w *= cctx.foundationHeld ? 0.06 : 0.15;
     const set = new Set(cctx.prev.pitchClasses);
     const common = c.pcs.filter((p) => set.has(p)).length;
     const smaller = Math.min(c.pcs.length, cctx.prev.pitchClasses.length) || 1;

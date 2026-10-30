@@ -195,12 +195,32 @@ export function analyzeFoundationRelationship(a: FoundationCore, b: FoundationCo
   };
 }
 
-/** How root motion reads structurally, by interval class — FACTS weighted
- *  later by context, never a transition table. Same root = no movement;
- *  fifths/fourths and steps read as the strongest changes, thirds as moderate
- *  ones, the tritone as unstable. Direction is deliberately NOT weighted
- *  (spec §10: descending fifths are not universally privileged). */
-const MOTION_BY_CLASS: Record<number, number> = { 0: 0.12, 1: 0.7, 2: 0.7, 3: 0.62, 4: 0.62, 5: 0.8, 6: 0.6 };
+/** How root motion reads structurally, by DIRECTED root interval — the
+ *  0..11 semitone rise from the previous root to the candidate's. Falling on
+ *  the circle of fifths (a descending fifth — the same pitch-class step as an
+ *  ascending fourth) is the strongest motion; its retrograde inversion reads
+ *  slightly milder. Steps are clearly active, thirds moderate, the tritone
+ *  unstable, and a same-root reclassification (pedal move) sits in the
+ *  moderate band — a real change of sonority, not a root change. Exact
+ *  prolongation (same foundation) is scored separately by the continuation
+ *  model and keeps the near-zero value here for direct calls.
+ *
+ *  Facts weighted later by context, never a transition table. Direction IS
+ *  now weighted: this is a calibrated musical preference (descending-fifth
+ *  root motion is the strongest progressional gesture in tonal and most
+ *  modal idioms), not a prohibition — every interval stays reachable. */
+const MOTION_BY_ROOT_INTERVAL: Record<number, number> = {
+  0: 0.12, // exact prolongation (same foundation) — no root motion
+  1: 0.65, 2: 0.65, 10: 0.65, 11: 0.65, // steps, either direction
+  3: 0.5, 4: 0.5, 8: 0.5, 9: 0.5,       // thirds
+  5: 0.9,                                // descending fifth / ascending fourth
+  6: 0.4,                                // tritone
+  7: 0.75,                               // ascending fifth / descending fourth
+};
+/** Same root, different core — a pedal reclassification: a REAL change of
+ *  sonority over a held root, distinctly weaker than any root move but no
+ *  longer near-zero (it is audible motion). */
+const PEDAL_MOTION = 0.5;
 
 /** How much a foundation quality reads as tonally settled vs unstable — a
  *  descriptive anchor the contextual tension fit consumes, not a goodness
@@ -528,9 +548,13 @@ export interface StructuralContext {
 
 /** How much each phrase role wants the tonal center communicated — a soft
  *  contextual weight (like the path evaluator's contact targets), not a
- *  requirement. Contrast/prepare phrases deliberately de-center. */
+ *  requirement. Contrast/prepare phrases deliberately de-center. BODY roles
+ *  (continue/repeat/develop) carry the progression's middle — real music
+ *  spends most of its time away from an explicit center statement, so their
+ *  need is cut well under the frame roles (establish/conclude): one tonic
+ *  statement establishes the key, the body develops away from it. */
 const CENTER_NEED: Record<string, number> = {
-  establish: 1, conclude: 0.9, repeat: 0.7, continue: 0.55, develop: 0.4, prepare: 0.3, contrast: 0.15,
+  establish: 1, conclude: 0.9, repeat: 0.4, continue: 0.3, develop: 0.25, prepare: 0.3, contrast: 0.15,
 };
 
 /** The destination terms of a candidate — every term that describes the
@@ -682,14 +706,20 @@ export function foundationTransitionScoreDetailed(
     }
   } else {
     const rel = analyzeFoundationRelationship(prev, cand);
-    // Stability: shared structural tones.
+    // Stability: shared structural tones. Weighted BELOW motion — stability
+    // is what the section profile already supplies; movement is the whole
+    // point of a progression.
     const stabilityFit = rel.coreCommonRatio * (0.3 + 0.7 * ctx.stability);
     // Movement: root-change facts — NOT "1 − smoothness". A color-only move
-    // (same foundation) reads as almost no structural motion here.
-    const motion = rel.sameRoot ? MOTION_BY_CLASS[0] : MOTION_BY_CLASS[rel.intervalClass] ?? 0.6;
+    // (same foundation) reads as almost no structural motion here; a pedal
+    // reclassification reads as moderate; directed fifth/fourth classes read
+    // strongest.
+    const motion = rel.rootInterval === 0
+      ? (rel.sameRootDifferentCore ? PEDAL_MOTION : MOTION_BY_ROOT_INTERVAL[0])
+      : MOTION_BY_ROOT_INTERVAL[rel.rootInterval] ?? 0.6;
     const movementFit = motion * (0.15 + 0.85 * ctx.movement);
-    parts.stabilityFit = 0.16 * stabilityFit;
-    parts.movementFit = 0.22 * movementFit;
+    parts.stabilityFit = 0.12 * stabilityFit;
+    parts.movementFit = 0.28 * movementFit;
     score += parts.stabilityFit + parts.movementFit;
 
     // Same-foundation prolongation: welcomed by stability, discouraged by
@@ -824,7 +854,7 @@ export function foundationContinuationScoreDetailed(
   position: ContinuationPosition,
 ): { total: number; parts: ContinuationScoreParts } {
   const parts: ContinuationScoreParts = {
-    base: 0.2, holdFit: 0, directionFit: 0, movementPrefFit: 0, positionFit: 0,
+    base: 0.15, holdFit: 0, directionFit: 0, movementPrefFit: 0, positionFit: 0,
     rhythmFit: 0, neighborFit: 0,
     tensionFit: 0, structuralConsonance: 0, qualityStability: 0, tonicReinforcement: 0,
     modalColor: 0, diatonicPreference: 0, roleChromaticBonus: 0, contrastBonus: 0,
@@ -832,9 +862,13 @@ export function foundationContinuationScoreDetailed(
   };
   let score = parts.base;
 
-  // (A) Holding retains every structural tone — the same full common-tone
-  // credit a same-foundation candidate received through stabilityFit.
-  parts.holdFit = 0.16 * (0.3 + 0.7 * ctx.stability);
+  // (A) Holding retains every structural tone — but deliberately BELOW the
+  // full common-tone credit a change can earn: continuation must stay
+  // reachable everywhere, yet never on equal footing with purposeful motion
+  // at neutral settings. The weight is capped under the change path's
+  // stability term and its ceiling no longer matches a real movement's
+  // potential.
+  parts.holdFit = 0.11 * (0.3 + 0.7 * ctx.stability);
   score += parts.holdFit;
 
   // (B) Phrase direction (Phase 3): zero at equal stability/movement —

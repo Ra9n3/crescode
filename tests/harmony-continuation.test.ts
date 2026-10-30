@@ -173,6 +173,9 @@ describe('Phase 4.3B — Test 3: sustained durations', () => {
       const { chords, report, diagnostics: d } = generateChordProgression(project, { seed, diagnostics: true });
       assertTiled(chords, 0, 16 * BT, `seed ${seed}`);
       // At least one sustained event per run (observed: every seed holds).
+      // NOTE: since the story-pass retune moved continuation off equal
+      // footing with motion, most-but-not-all seeds sustain; the mechanics
+      // assertions below are what this test pins.
       if (report.sustainedEvents > 0) runsWithSustain += 1;
       // Every multi-slot event has integer slot-sum duration and one color.
       for (const ev of d!.color.filter((c) => c.slotCount > 1)) {
@@ -191,14 +194,17 @@ describe('Phase 4.3B — Test 3: sustained durations', () => {
         expect(ev!.slotCount).toBe(m.slotCount);
       }
     }
-    expect(runsWithSustain).toBe(20);
+    expect(runsWithSustain).toBeGreaterThanOrEqual(10);
   });
 });
 
 describe('Phase 4.3B — Test 4: no accidental color changes during continuation', () => {
   it('gives each sustained event exactly one color decision and one symbol', () => {
     const project = verseChorus();
-    for (const seed of [1, 7, 16, 34]) {
+    // Seeds observed to sustain under the story-pass continuation economy
+    // (continuation is reachable but no longer on equal footing with motion,
+    // so not every seed holds — seed 16 of the original set no longer does).
+    for (const seed of [1, 7, 34]) {
       const { diagnostics: d } = generateChordProgression(project, { seed, diagnostics: true });
       const sustained = d!.color.filter((c) => c.slotCount > 1);
       expect(sustained.length, `seed ${seed} sustains something`).toBeGreaterThan(0);

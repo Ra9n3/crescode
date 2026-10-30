@@ -31,7 +31,7 @@ import { evaluateContour } from './contours';
 import { applyVariation, clamp01, lerp, pickWeighted, roundTo } from './planning';
 import type {
   ExistingHarmonyContext, HarmonicPhrase, PhrasePlanOptions, PhraseRole,
-  SectionHarmonyProfile, SectionPhrases,
+  SectionGoalKind, SectionHarmonicGoal, SectionHarmonyProfile, SectionPhrases,
 } from './types';
 
 /**
@@ -323,6 +323,50 @@ function relatedWithin(index: number, count: number, role: PhraseRole, sectionId
 }
 
 /* --------------------------------------------------------------------------
+ * Section harmonic goal (story pass) — what the section's arrival sequence
+ * is trying to say, sampled from its profile before any chord exists.
+ * ----------------------------------------------------------------------- */
+
+const GOAL_DESCRIPTIONS: Record<SectionGoalKind, string> = {
+  'home-arrival': 'Return home — the section lands back on the tonic by its last phrase',
+  'subdominant-arrival': 'Rest away from home — the last arrival sits on the subdominant',
+  'dominant-arrival': 'Hold tension over the seam — the last arrival sits on the dominant',
+  'mid-departure': 'Leave the tonic in the middle and come back only by the end',
+  'static-home': 'Stay near home throughout — an intentional static section',
+  'journey': 'Keep moving — the arrivals visit distinct roots, development through motion',
+};
+
+/** Sample the section's harmonic goal from its profile — deterministic per
+ *  (sectionId, seed). Profile preferences shape the weights: stable sections
+ *  lean home/static, active sections lean journeys and departures, and the
+ *  song's final section strongly leans home. A story beat, never an
+ *  instruction: every chord decision stays with the contextual generators. */
+export function sampleSectionGoal(
+  profile: SectionHarmonyProfile, seed: number,
+): SectionHarmonicGoal {
+  const rng = mulberry32(hashString(
+    ['crescode:section-goal', profile.context.sectionId, String(seed)].join('|'),
+  ));
+  const stab = profile.preferences.stability.preferred;
+  const move = profile.preferences.movement.preferred;
+  const contrast = profile.preferences.contrast.preferred;
+  const w: Record<SectionGoalKind, number> = {
+    'home-arrival': 2, 'subdominant-arrival': 1.2, 'dominant-arrival': 0.8,
+    'mid-departure': 0.8, 'static-home': 0.7, 'journey': 0.8,
+  };
+  if (stab >= 0.65) { w['home-arrival'] += 1.5; w['static-home'] += 1.2; w['journey'] = Math.max(0.05, w['journey'] - 0.4); w['mid-departure'] = Math.max(0.05, w['mid-departure'] - 0.3); }
+  if (stab <= 0.35) { w['mid-departure'] += 0.8; w['journey'] += 0.6; w['static-home'] = Math.max(0.05, w['static-home'] - 0.3); }
+  if (move >= 0.6) { w['journey'] += 1.5; w['mid-departure'] += 1; w['dominant-arrival'] += 0.5; w['static-home'] = Math.max(0.05, w['static-home'] - 0.4); }
+  if (move <= 0.35) { w['static-home'] += 0.8; w['home-arrival'] += 0.4; w['journey'] = Math.max(0.05, w['journey'] - 0.4); }
+  if (contrast >= 0.6) { w['mid-departure'] += 0.6; w['subdominant-arrival'] += 0.4; }
+  if (profile.context.isLast) { w['home-arrival'] += 2.5; w['journey'] *= 0.3; w['mid-departure'] *= 0.4; }
+  const entries = (Object.keys(w) as SectionGoalKind[])
+    .map((k) => [k, Math.max(0.05, w[k])] as const);
+  const kind = pickWeighted(entries, rng);
+  return { kind, description: GOAL_DESCRIPTIONS[kind] };
+}
+
+/* --------------------------------------------------------------------------
  * Entry point
  * ----------------------------------------------------------------------- */
 
@@ -342,7 +386,13 @@ export function planSectionPhrases(
   const bt = barTicks(project.timeSignature);
   const startTick = barToTick(ctx.startBar, project.timeSignature);
   const N = Math.max(0, ctx.lengthBars);
-  if (N < 1) return { sectionId: ctx.sectionId, phrases: [] };
+  if (N < 1) {
+    return {
+      sectionId: ctx.sectionId,
+      phrases: [],
+      goal: sampleSectionGoal(sectionProfile, options.seed ?? settings.seed),
+    };
+  }
 
   // Existing chords as planning context (read-only, spec §11).
   const existing = collectExistingHarmony(project, { startTick, endTick: startTick + N * bt });
@@ -372,6 +422,7 @@ export function planSectionPhrases(
     bars = planComposition(N, lengthWindow(sectionActivity(sectionProfile), sectionProfile), sectionProfile, anchors, rng, settings.variation);
   }
   const count = bars.length;
+  const goal = sampleSectionGoal(sectionProfile, seed);
 
   const phrases: HarmonicPhrase[] = [];
   let acc = 0;
@@ -397,5 +448,5 @@ export function planSectionPhrases(
     });
     acc += lengthBars;
   }
-  return { sectionId: ctx.sectionId, phrases };
+  return { sectionId: ctx.sectionId, phrases, goal };
 }

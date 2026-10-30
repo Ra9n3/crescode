@@ -169,7 +169,7 @@ export function planSongHarmony(project: Project, options: SongPlanOptions = {})
     const reuse = first !== undefined
       && settings.preserveIdentity
       && first.lengthBars === ctx.lengthBars;
-    const { phrases } = planSectionPhrases(project, profile, {
+    const { phrases, goal } = planSectionPhrases(project, profile, {
       seed,
       structureOverride: reuse ? first!.bars.map((b) => b) : undefined,
     });
@@ -208,6 +208,7 @@ export function planSongHarmony(project: Project, options: SongPlanOptions = {})
       startTick: sectionStartTick,
       durationTicks: sectionDurationTicks,
       phrases,
+      goal,
       boundary: null,
     });
   }

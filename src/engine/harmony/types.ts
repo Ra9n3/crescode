@@ -410,6 +410,43 @@ export interface ExistingHarmonyContext {
 export interface SectionPhrases {
   sectionId: string;
   phrases: HarmonicPhrase[];
+  /** The section's sampled harmonic goal (see SectionHarmonicGoal). */
+  goal: SectionHarmonicGoal;
+}
+
+/* --------------------------------------------------------------------------
+ * Section harmonic goal — the section-level story beat
+ * ----------------------------------------------------------------------- */
+
+/** What the section's SEQUENCE of phrase arrivals is trying to say. One goal
+ *  is sampled per section from its Phase 2 profile (deterministic per
+ *  seed): arrivals are then scored as a SEQUENCE against it — not each
+ *  phrase's arrival in isolation. These are story beats, never progressions:
+ *  a goal names a harmonic DESTINATION or TRAJECTORY for the section and
+ *  leaves every chord decision to the contextual generators. */
+export type SectionGoalKind =
+  /** Return home — the tonic reinforces the section's final arrival. */
+  | 'home-arrival'
+  /** The section's last arrival sits on the subdominant family — a resting
+   *  point away from home (the classic pre-chorus lift, a bridge's open end). */
+  | 'subdominant-arrival'
+  /** The section's last arrival sits on the dominant family — tension held
+   *  over the seam. */
+  | 'dominant-arrival'
+  /** Leave the tonic in the middle: middle phrases de-center, and the
+   *  section comes back only by its end. */
+  | 'mid-departure'
+  /** Stay near home throughout — an intentional static section (pedal song,
+   *  drone verse). The absence of journey IS the statement. */
+  | 'static-home'
+  /** A journey: visit distinct roots across the section's arrivals, home or
+   *  not — development through motion itself. */
+  | 'journey';
+
+export interface SectionHarmonicGoal {
+  kind: SectionGoalKind;
+  /** Human-readable statement of the goal, for diagnostics and review. */
+  description: string;
 }
 
 /** How the seam into the NEXT section is intended to feel (spec §8).
@@ -434,6 +471,9 @@ export interface PlannedSection {
   startTick: number;
   durationTicks: number;
   phrases: HarmonicPhrase[];
+  /** The section's sampled harmonic goal — what its arrival sequence is
+   *  trying to say. Sampled deterministically from the section profile. */
+  goal: SectionHarmonicGoal;
   /** null for the last section — there is no seam to plan. */
   boundary: SectionBoundaryPlan | null;
 }

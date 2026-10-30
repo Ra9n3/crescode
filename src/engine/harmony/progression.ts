@@ -37,7 +37,10 @@
  */
 import { pickWeighted } from './planning';
 import type { ChordGenSettings } from '../../shared/schema/types';
-import type { BoundaryIntention, CadenceIntention, HarmonicPhrase, PhraseRole, RhythmShape } from './types';
+import type {
+  BoundaryIntention, CadenceIntention, HarmonicPhrase, PhraseRole, RhythmShape,
+  SectionHarmonicGoal,
+} from './types';
 import type { RhythmSlot } from './rhythm';
 import {
   analyzeFoundationRelationship, foundationArrivalFit, foundationContinuationScoreDetailed,
@@ -66,6 +69,21 @@ export const BEAM_SEARCH_PARAMS = {
   strongCutoff: STRONG_CUTOFF,
 } as const;
 
+/** Observable shape of the phrase that came BEFORE this one in the same
+ *  section — the facts the phrase-to-phrase contrast evaluation compares
+ *  against. Built by the orchestrator from the previous window's selection;
+ *  null for a section's first phrase or the first window of a target. */
+export interface PriorPhraseFeatures {
+  role: PhraseRole;
+  /** Distinct roots per slot in the previous phrase's path. */
+  rootDensity: number;
+  /** Realized cadence family of the previous phrase's arrival (null when it
+   *  had no planned arrival or no classifiable approach). */
+  arrivalFamily: string | null;
+  /** Foundation ids the previous phrase used. */
+  foundationIds: string[];
+}
+
 /** Everything the selector knows about one phrase window. Built by the
  *  orchestrator from the Phase 3 plan, section profiles and target clipping. */
 export interface SelectionWindow {
@@ -83,6 +101,19 @@ export interface SelectionWindow {
    *  was not clipped away by the generation target). */
   arrivalPlanned: boolean;
   phraseRef: HarmonicPhrase | null;
+  /** The section's sampled harmonic goal — what this section's arrival
+   *  sequence is trying to say (Phase: section story). Null for synthetic
+   *  windows (no section). */
+  sectionGoal: SectionHarmonicGoal | null;
+  /** True when this window is the last phrase of its section — the goal's
+   *  payoff moment. */
+  isSectionLast: boolean;
+  /** Roots of the section's phrase arrivals BEFORE this window (the arrival
+   *  sequence so far — goals are scored as a sequence, not per phrase). */
+  sectionArrivalRoots: number[];
+  /** Features of the previous phrase in this section (phrase-to-phrase
+   *  contrast), null when there is no comparable predecessor. */
+  priorPhraseFeatures: PriorPhraseFeatures | null;
   prefs: {
     stability: number; movement: number; complexity: number; tension: number; modal: number; contrast: number;
     /** Phase 2 harmonic-rhythm preference carried for the rhythm planner. */
@@ -114,6 +145,12 @@ export interface PathEvaluationTrace {
     tonalIdentity: number;
     prolongationPurposefulness: number;
     development: number;
+    /** Fit of this phrase's arrival (in sequence) against the section's
+     *  sampled harmonic goal. 0 when no goal applies. */
+    goalFit: number;
+    /** Phrase-to-phrase contrast — penalties for adjacent phrases that
+     *  differ in nothing (the "nothing happens" pattern). 0 or negative. */
+    contrastFit: number;
   };
 }
 
@@ -197,6 +234,9 @@ export interface MaterialSelectTrace {
   sourceLabels: string[];
   /** Proportionally mapped onto this window's slots. */
   mappedLabels: string[];
+  /** Develop phrases DEVELOP their source: the bounded transformation applied
+   *  before slot variation (null for plain repetition). */
+  developTransformation: string | null;
   slots: Array<{
     slotIndex: number;
     mapped: string;
@@ -370,9 +410,12 @@ export function positionScoreDetailed(
 }
 
 /** Soft tonal-contact target per phrase role (fraction of slots whose
- *  foundation reinforces the tonic). Contextual preference, not a quota. */
+ *  foundation reinforces the tonic). Contextual preference, not a quota.
+ *  Real progressions establish the key with ONE tonic statement, not half
+ *  the phrase: the targets are calibrated low — the frame roles keep a
+ *  modest pull home, the body barely any. */
 const TONAL_CONTACT_TARGET: Record<PhraseRole, number> = {
-  establish: 0.5, continue: 0.35, repeat: 0.45, develop: 0.3, contrast: 0.15, conclude: 0.45, prepare: 0.2,
+  establish: 0.25, continue: 0.2, repeat: 0.25, develop: 0.15, contrast: 0.08, conclude: 0.25, prepare: 0.1,
 };
 
 /** Longest run of identical consecutive foundations. */
@@ -384,6 +427,108 @@ function longestRun(path: FoundationInfo[]): number {
     if (run > best) best = run;
   }
   return best;
+}
+
+/** Tonal flavor of the section goal's target roots — objective root-position
+ *  facts, not function claims: the subdominant root is a fifth above home,
+ *  the dominant root a fifth below (ascending). */
+
+/**
+ * Phrase-to-phrase contrast (the story pass) — penalties for adjacent
+ * phrases that DIFFER IN NOTHING. One shared implementation, consumed by the
+ * whole-path evaluator (which can then steer the search) and by the
+ * orchestrator (which counts how often the realized program still fell flat).
+ *
+ * Three scored dimensions: root density, arrival family, foundation set.
+ * Adjacent phrases matching on ALL of them read as "nothing happens" and are
+ * penalized; two consecutive CONTINUE phrases that also arrive in the same
+ * family are the strongest version of that flatness and draw the larger
+ * penalty. Differing in ANY dimension is unpenalized — contrast is required,
+ * but only its total absence.
+ */
+export function phraseContrastPenalty(
+  path: FoundationInfo[],
+  window: SelectionWindow,
+  ctx: StructuralContext,
+): number {
+  const prior = window.priorPhraseFeatures;
+  if (prior === null || path.length === 0) return 0;
+  const distinctRoots = new Set(path.map((f) => f.rootPc)).size;
+  const rootDensity = distinctRoots / Math.max(1, path.length);
+  const arrival = path[path.length - 1];
+  const arrivalPrev = path.length > 1 ? path[path.length - 2] : null;
+  const arrivalFamily = realizedFoundationFamily(arrivalPrev, arrival, ctx);
+  const pathIds = new Set(path.map((f) => f.id));
+  const priorIds = new Set(prior.foundationIds);
+  const sameMaterial = pathIds.size === priorIds.size
+    && [...pathIds].every((id) => priorIds.has(id));
+  const sameDensity = Math.abs(rootDensity - prior.rootDensity) <= 0.15;
+  const sameFamily = (arrivalFamily ?? null) === prior.arrivalFamily;
+  const dimsDiffer = [!sameDensity, !sameFamily, !sameMaterial].filter(Boolean).length;
+  let penalty = 0;
+  if (dimsDiffer === 0) penalty += 0.2;
+  if (window.role === 'continue' && prior.role === 'continue' && sameFamily) penalty += 0.25;
+  return penalty;
+}
+
+/**
+ * The section-goal fit of one phrase path — how the phrase's arrival (as the
+ * NEXT STEP of the section's arrival sequence) serves the section's sampled
+ * harmonic goal. This is sequence-aware: goals about journeys read the roots
+ * of the section's EARLIER arrivals (window.sectionArrivalRoots), and the
+ * section's last phrase is where payoff goals (arrive home / on the
+ * subdominant / on the dominant) concentrate their weight.
+ */
+export function sectionGoalFit(
+  path: FoundationInfo[],
+  window: SelectionWindow,
+  ctx: StructuralContext,
+): number {
+  const goal = window.sectionGoal;
+  if (goal === null || path.length === 0) return 0;
+  const tonic = ctx.pool.tonic;
+  const tonicPcs = ctx.pool.tonicTriadPcs;
+  const arrival = path[path.length - 1];
+  const arrHome = reinforcesTonic(arrival, tonic, tonicPcs);
+  const arrRootHome = arrival.rootPc === tonic;
+  const arrSub = arrival.rootPc === (tonic + 5) % 12;
+  const arrDom = arrival.rootPc === (tonic + 7) % 12;
+  const secondHalf = path.slice(Math.floor(path.length / 2));
+  const secondHalfHome = secondHalf.length > 0
+    ? secondHalf.filter((f) => reinforcesTonic(f, tonic, tonicPcs)).length / secondHalf.length
+    : 0;
+  const pathHomeContact = path.filter((f) => reinforcesTonic(f, tonic, tonicPcs)).length / path.length;
+  const arrivalRoots = [...window.sectionArrivalRoots, arrival.rootPc];
+  const distinctArrivalRoots = new Set(arrivalRoots).size;
+  const pathDistinctRoots = new Set(path.map((f) => f.rootPc)).size;
+
+  switch (goal.kind) {
+    case 'home-arrival':
+      // The last phrase is where the section comes home; earlier phrases
+      // only lean that way (a touch of home contact in their second half).
+      return window.isSectionLast
+        ? (arrHome ? 1 : arrRootHome ? 0.7 : 0.15)
+        : 0.1 + 0.3 * secondHalfHome;
+    case 'static-home':
+      // Intentional stasis: the more the path (and its arrival) stays home,
+      // the better the section says what it means to say.
+      return Math.min(1, 0.3 + pathHomeContact + (arrHome ? 0.2 : 0));
+    case 'mid-departure':
+      // Leave home in the middle, return by the end: middle phrases are
+      // rewarded for being AWAY, the last phrase for the return.
+      if (window.isSectionLast) return arrHome ? 1 : 0.2;
+      if (window.isSectionStart) return 0.5;
+      return arrHome ? 0.1 : 0.8;
+    case 'subdominant-arrival':
+      return window.isSectionLast ? (arrSub ? 1 : arrDom ? 0.3 : 0.1) : (arrSub ? 0.4 : 0.2);
+    case 'dominant-arrival':
+      return window.isSectionLast ? (arrDom ? 1 : arrSub ? 0.3 : 0.1) : (arrDom ? 0.4 : 0.2);
+    case 'journey':
+      // Development through motion itself: the arrival sequence (this phrase
+      // included) should keep visiting distinct roots.
+      return 0.5 * (distinctArrivalRoots / arrivalRoots.length)
+        + 0.5 * Math.min(1, pathDistinctRoots / Math.max(1, path.length));
+  }
 }
 
 /**
@@ -406,6 +551,7 @@ export function evaluatePathDetailed(
 ): PathEvaluationTrace {
   const components = {
     movementDiversity: 0, tonalIdentity: 0, prolongationPurposefulness: 0, development: 0,
+    goalFit: 0, contrastFit: 0,
   };
   if (path.length === 0) return { total: 0, components };
   let score = 0;
@@ -470,6 +616,23 @@ export function evaluatePathDetailed(
       score += components.development;
     }
   }
+
+  // Section story: the phrase's arrival as the next step of the section's
+  // goal sequence. Weight concentrates on the section's LAST phrase — the
+  // payoff moment of arrival goals — while earlier phrases feel a light
+  // directional pull.
+  if (window.sectionGoal !== null) {
+    const goalWeight = window.isSectionLast && window.arrivalPlanned ? 0.3 : 0.12;
+    components.goalFit = goalWeight * sectionGoalFit(path, window, ctx);
+    score += components.goalFit;
+  }
+
+  // Phrase-to-phrase contrast: adjacent phrases that differ in nothing are
+  // penalized (penalty-only component — shared single implementation). The
+  // zero case is normalized to +0 so JSON round-trips stay stable.
+  const contrast = phraseContrastPenalty(path, window, ctx);
+  components.contrastFit = contrast > 0 ? -contrast : 0;
+  score += components.contrastFit;
   return { total: score, components };
 }
 
@@ -479,6 +642,27 @@ export function evaluatePath(
   ctx: StructuralContext,
 ): number {
   return evaluatePathDetailed(path, window, ctx).total;
+}
+
+/** Strict-alternation penalty (the story pass, A-B-A correction): a plain
+ *  A→B→A return is legitimate musical structure — depart, come back — and is
+ *  NOT penalized (the outer A's of an id-based A-B-A share every pitch class
+ *  by construction, so a return reads as a return, not a loop). Only the
+ *  same two foundations ping-ponging (…A→B→A→B…) still reads as an
+ *  accidental alternation and keeps the 0.3 tax. Continuation (the sounding
+ *  foundation) is always exempt — prolongation is judged by the whole-path
+ *  evaluation, never here. Exported for tests/diagnostics: single
+ *  implementation of the exact condition the beam applies. */
+export function strictAlternationPenalty(
+  path: FoundationInfo[],
+  cand: FoundationInfo,
+  isContinuation: boolean,
+): number {
+  if (isContinuation || path.length < 3) return 0;
+  const p1 = path[path.length - 1];
+  const p2 = path[path.length - 2];
+  const p3 = path[path.length - 3];
+  return p1.id === p3.id && cand.id === p2.id && p1.id !== p2.id ? 0.3 : 0;
 }
 
 /** Bounded, diversity-aware beam search over the window's slots. */
@@ -512,12 +696,11 @@ function beamSelect(input: SelectionInput, ctx: StructuralContext): FoundationIn
       const beamPrev: FoundationInfo | null = beam.path.length
         ? beam.path[beam.path.length - 1]
         : input.prev;
-      // Foundation-identity loop detection: returning to a foundation visited
-      // just before the current one reads as an accidental A→B→A loop. The
-      // IMMEDIATE previous foundation is prolongation, not a loop, and is
-      // scored contextually by the transition function instead.
-      const recent = beam.path.slice(Math.max(0, beam.path.length - 4), beam.path.length - 1);
-      const recentIds = new Set(recent.map((f) => f.id));
+      // Foundation-identity loop detection, RESTRICTED to strict alternation
+      // (see strictAlternationPenalty — single shared implementation). The
+      // SOUNDING foundation is exempt — continuing it is prolongation at any
+      // run length (Phase 4.3B); run-length judgment belongs to the whole-path
+      // evaluation (activity fit + prolongation purposefulness).
 
       const scored = pool.all.map((c, ci) => {
         // Phase 4.3B: a pool entry that IS the sounding foundation is the
@@ -540,13 +723,11 @@ function beamSelect(input: SelectionInput, ctx: StructuralContext): FoundationIn
           transition = foundationTransitionScore(beamPrev, c, ctx);
         }
         const position = positionScoreDetailed(beamPrev, c, si, slots.length, input.window, ctx).total;
-        // Foundation-identity loop detection: returning to a foundation visited
-        // just before the current one reads as an accidental A→B→A loop. The
-        // SOUNDING foundation is exempt — continuing it is prolongation at any
-        // run length (Phase 4.3B): run-length judgment belongs to the
-        // whole-path evaluation (activity fit + prolongation purposefulness),
-        // not to a flat tax that silently capped holds at two slots.
-        const loopPenalty = recentIds.has(c.id) && !isContinuation ? 0.3 : 0;
+        // Strict-alternation penalty (see above): the last three events are
+        // A,B,A and this candidate continues the ping-pong with B.
+        const loopPenalty = beamPrev !== null
+          ? strictAlternationPenalty(beam.path, c, isContinuation)
+          : 0;
         // Seeded jitter inside the STRUCTURAL search: seeds move where the
         // harmony goes, not merely how it is decorated (spec §11).
         const jitter = (input.rng() - 0.5) * jitterScale;
@@ -685,7 +866,7 @@ function beamSelect(input: SelectionInput, ctx: StructuralContext): FoundationIn
       return {
         path: b.path.map((f) => foundationLabel(f)),
         cumulative: cumulativeByPathKey.get(key) ?? 0,
-        pathEvaluation: evaluations.get(key) ?? { total: 0, components: { movementDiversity: 0, tonalIdentity: 0, prolongationPurposefulness: 0, development: 0 } },
+        pathEvaluation: evaluations.get(key) ?? { total: 0, components: { movementDiversity: 0, tonalIdentity: 0, prolongationPurposefulness: 0, development: 0, goalFit: 0, contrastFit: 0 } },
         anchorBonus: anchorBonusByKey.get(key) ?? null,
         total: b.score,
         rank,
@@ -718,12 +899,132 @@ function mapMaterial(material: FoundationInfo[], slotCount: number, pool: Founda
   return mapped.map((f) => poolFoundationOrFallback(pool, f));
 }
 
+/* --------------------------------------------------------------------------
+ * Develop transformations — bounded development of reused material (story
+ * pass). A develop phrase does not COPY its source; it develops it. Three
+ * bounded, seeded transformations, each falling back to the plain mapping
+ * when it cannot resolve inside the pool — never a redesign of the idea.
+ * ----------------------------------------------------------------------- */
+
+/** Resolve a root pitch class to a pooled foundation: same quality first,
+ *  then any diatonic entry, then any entry. Null when the root is not pooled. */
+function resolveRootInPool(
+  pool: FoundationPool, rootPc: number, preferQuality: FoundationInfo['quality'],
+): FoundationInfo | null {
+  const at = pool.all.filter((f) => f.rootPc === rootPc);
+  if (at.length === 0) return null;
+  return at.find((f) => f.quality === preferQuality)
+    ?? at.find((f) => f.diatonic)
+    ?? at[0];
+}
+
+/** (a) Degree transpose: every DIATONIC root moves `step` scale degrees; a
+ *  chromatic root in the source stays put (bounded development, not a key
+ *  change). Null when nothing actually changed. */
+function transposeMaterial(
+  material: FoundationInfo[], pool: FoundationPool, scale: number[], step: number,
+): FoundationInfo[] | null {
+  const L = Math.max(1, scale.length);
+  const out: FoundationInfo[] = [];
+  let changed = false;
+  for (const f of material) {
+    const d = scale.indexOf(f.rootPc);
+    if (d === -1) { out.push(f); continue; }
+    const newRoot = scale[((d + step) % L + L) % L];
+    const resolved = resolveRootInPool(pool, newRoot, f.quality);
+    if (resolved === null || resolved.id === f.id) { out.push(f); continue; }
+    changed = true;
+    out.push(resolved);
+  }
+  return changed ? out : null;
+}
+
+/** (b) Chromatic swap: ONE mid-phrase foundation is replaced by a chromatic
+ *  neighbor (root a semitone away) that keeps a foothold in its neighbors —
+ *  a coloristic darkening/brightening of the idea, not a new idea. */
+function chromaticSwapMaterial(
+  material: FoundationInfo[], pool: FoundationPool, rng: () => number,
+): FoundationInfo[] | null {
+  if (material.length < 3) return null;
+  const midCount = material.length - 2;
+  const start = pickIndex(rng, midCount);
+  for (let k = 0; k < midCount; k++) {
+    const i = 1 + (start + k) % midCount;
+    const orig = material[i];
+    const prevF = material[i - 1];
+    const nextF = material[i + 1];
+    const neighbors = pool.all.filter((c) =>
+      c.id !== orig.id
+      && (c.rootPc === (orig.rootPc + 1) % 12 || c.rootPc === (orig.rootPc + 11) % 12)
+      && analyzeFoundationRelationship(orig, c).sharedCoreTones >= 1
+      && analyzeFoundationRelationship(prevF, c).sharedCoreTones >= 1
+      && analyzeFoundationRelationship(c, nextF).sharedCoreTones >= 1);
+    if (neighbors.length > 0) {
+      const pick = neighbors[pickIndex(rng, neighbors.length)];
+      const out = [...material];
+      out[i] = pick;
+      return out;
+    }
+  }
+  return null;
+}
+
+/** (c) Contour inversion: the root-motion SEQUENCE reverses, re-anchored on
+ *  the first foundation so the phrase still connects to its context. Null
+ *  when any root cannot resolve in the pool or nothing actually changed. */
+function invertContourMaterial(
+  material: FoundationInfo[], pool: FoundationPool,
+): FoundationInfo[] | null {
+  if (material.length < 3) return null;
+  const deltas: number[] = [];
+  for (let i = 1; i < material.length; i++) {
+    deltas.push(((material[i].rootPc - material[i - 1].rootPc) % 12 + 12) % 12);
+  }
+  deltas.reverse();
+  const roots = [material[0].rootPc];
+  for (const d of deltas) roots.push((roots[roots.length - 1] + d) % 12);
+  const out: FoundationInfo[] = [];
+  for (let i = 0; i < material.length; i++) {
+    const resolved = resolveRootInPool(pool, roots[i], material[i].quality);
+    if (resolved === null) return null;
+    out.push(resolved);
+  }
+  if (out.every((f, i) => f.id === material[i].id)) return null;
+  return out;
+}
+
 /** Reuse path: structural repetition with bounded, variation-scaled
- *  foundation-level development (spec §10, §15). */
+ *  foundation-level development (spec §10, §15). REPEAT phrases copy their
+ *  source with small variation; DEVELOP phrases transform it first — one
+ *  bounded, seeded transformation (degree transpose, chromatic swap or
+ *  contour inversion) reshapes the mapped material before the per-slot
+ *  variation loop. */
 function materialSelect(input: SelectionInput, ctx: StructuralContext): SelectionOutput {
   const { slots, pool, settings, window } = input;
   const material = input.material!;
-  const mapped = mapMaterial(material.foundations, slots.length, pool);
+  const mappedBase = mapMaterial(material.foundations, slots.length, pool);
+  let mapped = mappedBase;
+  let developTransformation: string | null = null;
+  if (window.role === 'develop') {
+    const scale = ctx.env.scalePitchClasses;
+    const attempts: Array<readonly [string, () => FoundationInfo[] | null]> = [
+      ['degree transpose', () => transposeMaterial(
+        mappedBase, pool, scale, [1, -1, 2, -2][pickIndex(input.rng, 4)],
+      )],
+      ['chromatic neighbor swap', () => chromaticSwapMaterial(mappedBase, pool, input.rng)],
+      ['contour inversion', () => invertContourMaterial(mappedBase, pool)],
+    ];
+    const start = pickIndex(input.rng, attempts.length);
+    for (let k = 0; k < attempts.length; k++) {
+      const [label, attempt] = attempts[(start + k) % attempts.length];
+      const transformed = attempt();
+      if (transformed !== null) {
+        mapped = transformed;
+        developTransformation = label;
+        break;
+      }
+    }
+  }
   const variation = Math.min(1, Math.max(0, settings.variation));
   const out: FoundationInfo[] = [];
   const actions: Array<'continue' | 'change'> = [];
@@ -794,6 +1095,7 @@ function materialSelect(input: SelectionInput, ctx: StructuralContext): Selectio
       mode: 'full',
       sourceLabels: material.foundations.map((f) => foundationLabel(f)),
       mappedLabels: mapped.map((f) => foundationLabel(f)),
+      developTransformation,
       slots: slotTraces,
     };
   }

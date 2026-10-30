@@ -81,7 +81,9 @@ function finalizeTrack(events: AbsEvent[], endTick: number): MidiData['tracks'][
   const out: MidiData['tracks'][number] = sorted.map((e) => {
     const { abs, order, ...rest } = e;
     void order;
-    return { ...rest, deltaTime: (abs as number) - last } as MidiData['tracks'][number][number];
+    const deltaTime = (abs as number) - last;
+    last = abs as number; // advance the delta cursor — deltas are DIFFERENCES
+    return { ...rest, deltaTime } as MidiData['tracks'][number][number];
   });
   out.push({ deltaTime: Math.max(0, endTick - last), meta: true, type: 'endOfTrack' });
   return out;

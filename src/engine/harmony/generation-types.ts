@@ -6,7 +6,7 @@
  * types are plain data: no React, no store, no async.
  */
 import type { Chord, ChordGenSettings } from '../../shared/schema/types';
-import type { CadenceFamily, CadenceIntention } from './types';
+import type { CadenceFamily, CadenceIntention, SectionGoalKind } from './types';
 import type { HarmonyDiagnosticReport } from './diagnostics';
 
 /** What the generator was asked to do (mirrors lib/genScope.ts). */
@@ -71,6 +71,24 @@ export interface ChordGenerationReport {
   structuralCadences: Array<{ intention: CadenceIntention; family: CadenceFamily | null }>;
   /** Foundation-set overlap between related (repeated) sections, 0..1. */
   sectionFoundationOverlap: Array<{ a: string; b: string; overlap: number }>;
+  /* ------------------------------------------------------------------
+   * Story pass — section-level harmonic goals and audible motion.
+   * ------------------------------------------------------------------ */
+  /** Each section's sampled harmonic goal, with the arrival families the
+   *  run realized against it (phrase order). */
+  sectionGoals: Array<{
+    sectionId: string;
+    sectionName: string;
+    goal: SectionGoalKind;
+    description: string;
+    realizedArrivalFamilies: Array<CadenceFamily | null>;
+  }>;
+  /** Foundation changes moved off weak slots onto the adjacent strong slot
+   *  (rhythm ↔ structure alignment post-process). */
+  harmonicRhythmSwaps: number;
+  /** Adjacent phrase pairs whose realized material differed in no scored
+   *  dimension (the "nothing happens" pattern). */
+  phraseContrastPenalties: number;
 }
 
 export interface ChordGenerationResult {

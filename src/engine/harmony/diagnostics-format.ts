@@ -190,7 +190,7 @@ export function formatHarmonyDiagnostics(report: HarmonyDiagnosticReport): strin
     }
     if (sel?.pathEvaluation) {
       const c = sel.pathEvaluation.components;
-      L.push(`    path evaluation: ${num(sel.pathEvaluation.total)} (movement-diversity ${num(c.movementDiversity)}, tonal-identity ${num(c.tonalIdentity)}, prolongation ${num(c.prolongationPurposefulness)}, development ${num(c.development)})`);
+      L.push(`    path evaluation: ${num(sel.pathEvaluation.total)} (movement-diversity ${num(c.movementDiversity)}, tonal-identity ${num(c.tonalIdentity)}, prolongation ${num(c.prolongationPurposefulness)}, development ${num(c.development)}, goal-fit ${num(c.goalFit)}, contrast ${num(c.contrastFit)})`);
     } else if (sel && sel.mode === 'beam') {
       L.push('    path evaluation: Not available');
     }

@@ -175,6 +175,26 @@ describe('story pass — the A-B-A correction', () => {
     expect(strictAlternationPenalty([A, B, A], A, true)).toBe(0);
   });
 
+  it('penalizes the doubled lead-in return mildly (A,A,B + A reads as hovering)', () => {
+    expect(strictAlternationPenalty([A, A, B], A, false)).toBe(0.15);
+    expect(strictAlternationPenalty([A, A, A, B], A, false)).toBe(0.15); // longer held run, same hover
+    expect(strictAlternationPenalty([A, A, B], C, false)).toBe(0); // a different move is free
+    expect(strictAlternationPenalty([A, B], A, false)).toBe(0); // single lead-in return stays legitimate
+  });
+
+  it('sees across the phrase boundary via the previous phrase tail', () => {
+    // Alternation riding the boundary: previous phrase ended …A,B, this one
+    // opened with A, candidate ping-pongs back to B.
+    expect(strictAlternationPenalty([A], B, false, [A, B])).toBe(0.3);
+    // Doubled lead-in across the boundary: previous phrase ended …A,A (a
+    // boundary sustain), this phrase moved to B, candidate hovers back to A.
+    expect(strictAlternationPenalty([B], A, false, [A, A])).toBe(0.15);
+    // A plain cross-boundary return (…A | B, A) stays legitimate.
+    expect(strictAlternationPenalty([B], A, false, [A])).toBe(0);
+    // Continuation remains exempt with context present.
+    expect(strictAlternationPenalty([A], A, true, [A, B])).toBe(0);
+  });
+
   it('keeps the beam honest: no explored 2-back return carries a penalty', () => {
     const p2 = pool();
     const env = cadenceEnvironment(KEY, MODE);

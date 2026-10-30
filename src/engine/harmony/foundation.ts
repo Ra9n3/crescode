@@ -735,8 +735,11 @@ export function foundationTransitionScoreDetailed(
     }
 
     // Leading-tone pull into the candidate, when the phrase wants tension.
+    // Scaled by the PREVIOUS foundation's own instability: an unstable
+    // sonority (dim/aug/sus) leaning semitonally into b pulls harder than a
+    // settled major/minor triad doing the same.
     if (rel.leadingToneIntoB) {
-      parts.leadingTone = 0.06 * (0.3 + 0.7 * ctx.tension);
+      parts.leadingTone = (0.06 + 0.10 * QUALITY_TENSION[prev.quality]) * (0.3 + 0.7 * ctx.tension);
       score += parts.leadingTone;
     }
 

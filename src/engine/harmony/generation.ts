@@ -470,6 +470,10 @@ export function generateChordProgression(
     if (target.before && prev === null) {
       warnings.push(`Anchor symbol "${target.before.symbol}" could not be parsed — continuity context reduced.`);
     }
+    // The sounding trail: foundations realized so far in this target, in
+    // order. The next window's loop detection sees the tail (≤2 before the
+    // incoming foundation) so oscillation shapes cannot hide at a boundary.
+    const soundingTrail: FoundationInfo[] = [];
     const after: FoundationInfo | null = target.after
       ? foundationInfoFromSymbol(target.after.symbol, project.key, project.mode)
       : null;
@@ -527,6 +531,11 @@ export function generateChordProgression(
         material, settings, rng: selectRng,
         forcedFirst: mergeFirst[wi] && prev !== null ? prev : null,
         isSongEnd: isRegionEnd,
+        // ≤2 realized foundations before the incoming one — the trail's tail
+        // minus `prev` itself (the incoming foundation is passed as prev).
+        history: soundingTrail.length >= 1
+          ? soundingTrail.slice(Math.max(0, soundingTrail.length - 3), soundingTrail.length - 1)
+          : [],
         trace,
       });
 
@@ -806,6 +815,7 @@ export function generateChordProgression(
         };
       }
       prev = output.last;
+      if (output.foundations.length > 0) soundingTrail.push(...output.foundations);
 
       // Story-pass bookkeeping: record this phrase's arrival (the section's
       // arrival sequence) and its observable shape for the NEXT window's

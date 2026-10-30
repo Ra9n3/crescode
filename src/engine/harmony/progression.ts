@@ -285,6 +285,11 @@ export interface SelectionInput {
    *  the window's first slot must continue this foundation. */
   forcedFirst: FoundationInfo | null;
   isSongEnd: boolean;
+  /** Foundations sounding BEFORE `prev`, most recent last (≤2) — the previous
+   *  phrase's tail. Loop detection spans the boundary: alternations and
+   *  hovers ride across phrases exactly where a path-local view is blind.
+   *  Absent (empty) at the region's opening. */
+  history?: FoundationInfo[];
   /** Optional observational trace (Phase 4.2). Absent in normal runs. */
   trace?: SelectionTrace;
 }
@@ -644,25 +649,44 @@ export function evaluatePath(
   return evaluatePathDetailed(path, window, ctx).total;
 }
 
-/** Strict-alternation penalty (the story pass, A-B-A correction): a plain
- *  A→B→A return is legitimate musical structure — depart, come back — and is
- *  NOT penalized (the outer A's of an id-based A-B-A share every pitch class
- *  by construction, so a return reads as a return, not a loop). Only the
- *  same two foundations ping-ponging (…A→B→A→B…) still reads as an
- *  accidental alternation and keeps the 0.3 tax. Continuation (the sounding
- *  foundation) is always exempt — prolongation is judged by the whole-path
- *  evaluation, never here. Exported for tests/diagnostics: single
- *  implementation of the exact condition the beam applies. */
+/** Loop-shape penalty (the story pass, A-B-A correction). Two shapes read as
+ *  accidental oscillation; everything else is legitimate structure:
+ *
+ *  1. STRICT ALTERNATION (0.3): the sounding tail is A,B,A and the candidate
+ *     continues the ping-pong with B. A plain A→B→A return — depart, come
+ *     back — stays free (the outer A's of an id-based A-B-A share every pitch
+ *     class by construction, so a return reads as a return, not a loop).
+ *  2. DOUBLED-LEAD-IN RETURN (0.15): the tail is A,A,B (A already re-sounded —
+ *     a boundary sustain or held run) and the candidate returns to A after a
+ *     single intervening event. The re-articulated A plus the immediate
+ *     return reads as hovering on one harmony. Milder than alternation: the
+ *     return itself is still a legitimate gesture, only the doubled lead-in
+ *     makes it hover.
+ *
+ *  `before` carries the foundations sounding BEFORE path[0] (most recent
+ *  last — the previous phrase's tail). Alternations and hovers ride across
+ *  phrase boundaries precisely where a path-local view is blind, so the
+ *  pattern window spans the boundary. Continuation (the sounding foundation)
+ *  is always exempt — prolongation is judged by the whole-path evaluation,
+ *  never here. Exported for tests/diagnostics: single implementation of the
+ *  exact condition the beam applies. */
 export function strictAlternationPenalty(
   path: FoundationInfo[],
   cand: FoundationInfo,
   isContinuation: boolean,
+  before: FoundationInfo[] = [],
 ): number {
-  if (isContinuation || path.length < 3) return 0;
-  const p1 = path[path.length - 1];
-  const p2 = path[path.length - 2];
-  const p3 = path[path.length - 3];
-  return p1.id === p3.id && cand.id === p2.id && p1.id !== p2.id ? 0.3 : 0;
+  if (isContinuation) return 0;
+  const full = before.length > 0 ? [...before, ...path] : path;
+  if (full.length < 3) return 0;
+  const p1 = full[full.length - 1];
+  const p2 = full[full.length - 2];
+  const p3 = full[full.length - 3];
+  // 1. strict alternation: …A,B,A + B.
+  if (p1.id === p3.id && cand.id === p2.id && p1.id !== p2.id) return 0.3;
+  // 2. doubled lead-in: …A,A,B + A.
+  if (p2.id === p3.id && p1.id !== p2.id && cand.id === p2.id) return 0.15;
+  return 0;
 }
 
 /** Bounded, diversity-aware beam search over the window's slots. */
@@ -679,6 +703,13 @@ function beamSelect(input: SelectionInput, ctx: StructuralContext): FoundationIn
   interface Beam { path: FoundationInfo[]; score: number }
   let beams: Beam[] = [{ path: [], score: 0 }];
   const jitterScale = 0.24 * Math.min(1, Math.max(0, input.settings.variation));
+  // Sounding context before the beam's own path: the previous phrase's trail
+  // plus the incoming foundation — the loop-shape penalty's pattern window
+  // spans the phrase boundary (see strictAlternationPenalty).
+  const loopContextPrefix: FoundationInfo[] = [
+    ...(input.history ?? []),
+    ...(input.prev !== null ? [input.prev] : []),
+  ];
 
   const slotTraces: BeamSlotTrace[] = [];
   const pathKeyOf = (path: FoundationInfo[]): string => path.map((f) => f.id).join('>');
@@ -723,10 +754,11 @@ function beamSelect(input: SelectionInput, ctx: StructuralContext): FoundationIn
           transition = foundationTransitionScore(beamPrev, c, ctx);
         }
         const position = positionScoreDetailed(beamPrev, c, si, slots.length, input.window, ctx).total;
-        // Strict-alternation penalty (see above): the last three events are
-        // A,B,A and this candidate continues the ping-pong with B.
+        // Loop-shape penalty (see above): the sounding tail — including the
+        // previous phrase's trail across the boundary — ends A,B,A and this
+        // candidate ping-pongs with B, or ends A,A,B and hovers back to A.
         const loopPenalty = beamPrev !== null
-          ? strictAlternationPenalty(beam.path, c, isContinuation)
+          ? strictAlternationPenalty(beam.path, c, isContinuation, loopContextPrefix)
           : 0;
         // Seeded jitter inside the STRUCTURAL search: seeds move where the
         // harmony goes, not merely how it is decorated (spec §11).

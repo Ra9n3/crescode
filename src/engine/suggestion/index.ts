@@ -11,4 +11,5 @@ export * from './host';
 export * from './interaction';
 export * from './voicing';
 export * from './overlay';
+export * from './textentry';
 /* wire.ts is app wiring (imports the store) — imported directly by the UI. */

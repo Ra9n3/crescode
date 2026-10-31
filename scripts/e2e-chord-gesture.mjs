@@ -10,7 +10,10 @@
  * step boundaries around every write — plus the floating overlay itself:
  * the colored suggestion grid, search/color filters, the bass/extension
  * dropdowns with their live preview, the "Apply Smart Chord" transaction
- * (close/minimize preference) and the non-destructive drift guard.
+ * (close/minimize preference) and the non-destructive drift guard — plus
+ * text-based chord entry & renaming: the inline input at the clip, the
+ * triad-only autocomplete, the ambiguous-sus choice, key normalization
+ * (Dbm7 → C#m7 in D major) and the unrecognized-user-MIDI confirm.
  */
 import { chromium } from 'playwright';
 import path from 'node:path';
@@ -253,6 +256,130 @@ res = await st(() => {
 check('Apply on a moved clip warns non-destructively (no overwrite, no undo step)',
   res.toast === 'warn' && res.steps === preDrift.steps + 1 && res.symbol === preDrift.symbol,
   JSON.stringify(res));
+await page.keyboard.press('Escape');
+
+// O. Text entry & renaming: double-click an existing chord name → the inline
+//    input opens AT the clip, preloaded with the current chord name, alongside
+//    the Smart Chord panel; no clip is created.
+const schStart = await st(() => window.crescodeTest.store.getState().project.chords.find((c) => c.id.startsWith('sch_'))?.startTick ?? 0);
+await dblclickTick(schStart + 240);
+let renameInfo = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  return {
+    inline: !!document.querySelector('[data-testid="chord-rename-input"]'),
+    value: document.querySelector('[data-testid="chord-rename-input"]')?.value ?? null,
+    editorOpen: s.suggestionClipId !== null,
+    clips: s.project.chords.length,
+    sym: s.project.chords.find((x) => x.id.startsWith('sch_'))?.symbol ?? null,
+  };
+});
+check('Double-click a chord name opens the inline text input, preloaded, no new clip',
+  renameInfo.inline && renameInfo.value === renameInfo.sym && renameInfo.editorOpen && renameInfo.clips === 1,
+  JSON.stringify(renameInfo));
+
+// P. Triad-only autocomplete: a bare root suggests only triads — no 7ths/9ths/sus.
+await page.fill('[data-testid="chord-rename-input"]', 'C');
+let opts = await st(() => [...document.querySelectorAll('[data-testid^="chord-rename-option-"]')].map((o) => o.dataset.symbol));
+check('Autocomplete for a bare root is triad-only (C, Cm, Cdim, Caug)',
+  opts.includes('C') && opts.includes('Cm') && opts.includes('Cdim') && opts.includes('Caug') &&
+  opts.every((s) => !/[796]|sus|add|maj7/.test(s)) && opts[0] === 'C',
+  JSON.stringify(opts));
+await page.fill('[data-testid="chord-rename-input"]', 'Cm7');
+opts = await st(() => [...document.querySelectorAll('[data-testid^="chord-rename-option-"]')].map((o) => o.dataset.symbol));
+check('Typing an extension marker opens the relevant extensions (Cm7 → Cm7, Cm7b5)',
+  opts.join(',') === 'Cm7,Cm7b5', JSON.stringify(opts));
+
+// Q. Invalid text: inline validation message, Enter never modifies the clip.
+const preInvalid = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  return { sym: s.project.chords.find((x) => x.id.startsWith('sch_'))?.symbol ?? null, steps: s.past.length };
+});
+await page.fill('[data-testid="chord-rename-input"]', 'Xq');
+await page.press('[data-testid="chord-rename-input"]', 'Enter');
+await page.waitForTimeout(150);
+let inv = await st(() => ({
+  err: !!document.querySelector('[data-testid="chord-rename-error"]'),
+  open: !!document.querySelector('[data-testid="chord-rename-input"]'),
+  sym: window.crescodeTest.store.getState().project.chords.find((x) => x.id.startsWith('sch_'))?.symbol ?? null,
+  steps: window.crescodeTest.store.getState().past.length,
+}));
+check('Invalid text shows an inline message and never modifies the clip',
+  inv.err && inv.open && inv.sym === preInvalid.sym && inv.steps === preInvalid.steps, JSON.stringify(inv));
+
+// R. Ambiguous text ("Csus"): both readings offered; choosing one renames +
+//    rewrites the MIDI in exactly one undo step, bounds preserved.
+await page.fill('[data-testid="chord-rename-input"]', 'Csus');
+opts = await st(() => [...document.querySelectorAll('[data-testid^="chord-rename-option-"]')].map((o) => o.dataset.symbol));
+check('Ambiguous "Csus" offers both readings (sus4 grammar default first)',
+  opts.join(',') === 'Csus4,Csus2', JSON.stringify(opts));
+const preChoose = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  const c = s.project.chords.find((x) => x.id.startsWith('sch_'));
+  return { steps: s.past.length, start: c.startTick, len: c.durationTicks };
+});
+await page.click('[data-testid="chord-rename-option-1"]'); // Csus2
+await page.waitForTimeout(200);
+let chosen = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  const c = s.project.chords.find((x) => x.id.startsWith('sch_'));
+  const lane = s.project.tracks.find((t) => t.role === 'chords');
+  return {
+    sym: c.symbol, start: c.startTick, len: c.durationTicks,
+    // notes of THIS clip's window only (the drift-test move left older notes outside it)
+    pcs: lane.notes.filter((n) => n.startTick >= c.startTick && n.startTick < c.startTick + c.durationTicks).map((n) => n.pitch % 12).sort((a, b) => a - b),
+    steps: s.past.length,
+    inlineClosed: !document.querySelector('[data-testid="chord-rename-input"]'),
+  };
+});
+check('Choosing a reading renames + rewrites MIDI in one undo step, bounds preserved',
+  chosen.sym === 'Csus2' && chosen.pcs.join(',') === '0,2,7' &&
+  chosen.start === preChoose.start && chosen.len === preChoose.len &&
+  chosen.steps === preChoose.steps + 1 && chosen.inlineClosed,
+  JSON.stringify(chosen));
+
+// S. Enharmonic normalization on commit: "Dbm7" in D major lands as C#m7.
+await dblclickTick(schStart + 240);
+await page.fill('[data-testid="chord-rename-input"]', 'Dbm7');
+await page.press('[data-testid="chord-rename-input"]', 'Enter');
+await page.waitForTimeout(200);
+const norm = await st(() => window.crescodeTest.store.getState().project.chords.find((x) => x.id.startsWith('sch_'))?.symbol ?? null);
+check('Typed "Dbm7" is normalized to C#m7 in D major (pitch class unchanged)', norm === 'C#m7', String(norm));
+
+// T. Substantial user MIDI the analyzer cannot read → warn, never auto-replace.
+await st(() => {
+  const s = window.crescodeTest.store.getState();
+  const c = s.project.chords.find((x) => x.id.startsWith('sch_'));
+  s.edit((p) => ({
+    ...p,
+    tracks: p.tracks.map((t) => (t.role === 'chords'
+      ? { ...t, notes: [60, 61, 62, 63].map((pitch) => ({ pitch, startTick: c.startTick, durationTicks: c.durationTicks, velocity: 100 })) }
+      : t)),
+  }));
+});
+await page.waitForTimeout(150);
+await dblclickTick(schStart + 240);
+await page.fill('[data-testid="chord-rename-input"]', 'C');
+await page.press('[data-testid="chord-rename-input"]', 'Enter');
+await page.waitForTimeout(150);
+const preConfirm = await st(() => ({
+  warn: !!document.querySelector('[data-testid="chord-rename-warn"]'),
+  sym: window.crescodeTest.store.getState().project.chords.find((x) => x.id.startsWith('sch_'))?.symbol ?? null,
+  steps: window.crescodeTest.store.getState().past.length,
+}));
+check('Unrecognized user MIDI warns before replacing (nothing modified yet)',
+  preConfirm.warn && preConfirm.sym === 'C#m7', JSON.stringify(preConfirm));
+await page.click('[data-testid="chord-rename-confirm"]');
+await page.waitForTimeout(200);
+const confirmed = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  const c = s.project.chords.find((x) => x.id.startsWith('sch_'));
+  const lane = s.project.tracks.find((t) => t.role === 'chords');
+  return { sym: c.symbol, notes: lane.notes.filter((n) => n.startTick >= c.startTick && n.startTick < c.startTick + c.durationTicks).map((n) => n.pitch), steps: s.past.length };
+});
+check('Confirming replaces user MIDI with the typed chord in one undo step',
+  confirmed.sym === 'C' && confirmed.notes.join(',') === '60,64,67' &&
+  confirmed.steps === preConfirm.steps + 1,
+  JSON.stringify(confirmed));
 await page.keyboard.press('Escape');
 
 check('No uncaught page errors', errors.length === 0, errors.slice(0, 2).join(';'));

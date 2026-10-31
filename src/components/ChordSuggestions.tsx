@@ -62,14 +62,11 @@ function cardTitle(s: ChordSuggestion): string {
 
 export interface ChordSuggestionsProps {
   clip: ChordClip;
-  /** Bumped by the parent whenever IT renamed the clip — refreshes the
-   *  drift baseline so the overlay's own edits never warn on Apply. */
-  renameRev: number;
   /** Called after a successful Apply (parent closes or minimizes per pref). */
   onApplied: () => void;
 }
 
-export function ChordSuggestions({ clip, renameRev, onApplied }: ChordSuggestionsProps) {
+export function ChordSuggestions({ clip, onApplied }: ChordSuggestionsProps) {
   const project = useStore((s) => s.project);
   const toast = useStore((s) => s.toast);
   const applyMode = useStore((s) => s.settings.smartChordApply);
@@ -142,8 +139,11 @@ export function ChordSuggestions({ clip, renameRev, onApplied }: ChordSuggestion
   const [snapshot, setSnapshot] = useState<ClipSnapshot | null>(null);
   useEffect(() => {
     setSnapshot(takeClipSnapshot(clip));
-    // clip.id: open/reopen · renameRev: the parent's own rename (baseline refresh)
-  }, [clip.id, renameRev]); // eslint-disable-line react-hooks/exhaustive-deps -- `clip` is intentionally read fresh on those two events only
+    // clip.id: open/reopen · clip.chord.spelling: any committed rename (the
+    // panel's symbol field, the lane's inline text entry, or Apply itself)
+    // refreshes the baseline — the drift guard still catches moves, note
+    // edits and deletions.
+  }, [clip.id, clip.chord.spelling]); // eslint-disable-line react-hooks/exhaustive-deps -- `clip` is intentionally read fresh on those two events only
 
   const canApply = composed !== null && composed.ok && voicing !== null && voicing.ok;
 

@@ -268,12 +268,12 @@ export function clipDrift(snapshot: ClipSnapshot | null, clip: ChordClip | null)
   return null;
 }
 
-/** The adapter surface Apply drives — the portable contract's write half plus
- *  the crescode extra that re-locates the clip (structural, so tests can
- *  pass any conforming object). */
+/** The adapter surface Apply (and the text-entry rename) drive — the portable
+ *  contract's write half plus the crescode extra that re-locates the clip
+ *  (structural, so tests can pass any conforming object). */
 export type ApplyApi = Pick<
   ChordTrackAPI,
-  'beginUndoTransaction' | 'commitUndoTransaction' | 'cancelUndoTransaction' | 'replaceMidiNotes' | 'renameChordClip'
+  'beginUndoTransaction' | 'commitUndoTransaction' | 'cancelUndoTransaction' | 'clearMidiNotes' | 'replaceMidiNotes' | 'renameChordClip'
 > & {
   getChordClipById(clipId: string): ChordClip | null;
   isTransactionActive(): boolean;

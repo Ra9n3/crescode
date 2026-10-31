@@ -50,13 +50,11 @@ function PcChips({ title, pcs, className }: { title: string; pcs: number[]; clas
 
 export function ChordEditor() {
   const clipId = useStore((s) => s.suggestionClipId);
+  const chordRenameId = useStore((s) => s.chordRenameId);
   const project = useStore((s) => s.project);
   const placeholderPref = useStore((s) => s.settings.smartChordPlaceholder);
   // Minimized = header only; Apply closes or minimizes per the user setting.
   const [minimized, setMinimized] = useState(false);
-  // Bumped when THIS panel renames the clip, so the overlay's drift baseline
-  // follows the overlay's own edits (external edits still warn on Apply).
-  const [renameRev, setRenameRev] = useState(0);
 
   // Reload on every project edit so the inspector always shows the live clip.
   const data = useMemo(
@@ -93,7 +91,6 @@ export function ChordEditor() {
     try {
       chordTrackApi.renameChordClip(clip.id, symbol);
       chordTrackApi.commitUndoTransaction();
-      setRenameRev((r) => r + 1);
     } catch (err) {
       chordTrackApi.cancelUndoTransaction();
       useStore.getState().toast('error', err instanceof Error ? err.message : String(err));
@@ -131,9 +128,10 @@ export function ChordEditor() {
         </div>
       ) : (
         <>
-          {/* symbol — renames through the API; position/length are never touched */}
+          {/* symbol — renames through the API; position/length are never touched.
+              No autofocus while the lane's inline rename editor owns the keyboard. */}
           <div className="flex items-center gap-2 px-3 pt-2.5">
-            <SymbolInput key={`${clip.id}:${clip.chord.spelling}`} ref={symRef} initial={clip.chord.spelling} onCommit={rename} />
+            <SymbolInput key={`${clip.id}:${clip.chord.spelling}`} ref={symRef} initial={clip.chord.spelling} autoFocus={chordRenameId !== clip.id} onCommit={rename} />
           </div>
 
       {/* reading */}
@@ -182,7 +180,7 @@ export function ChordEditor() {
       </div>
 
       {/* suggestions overlay — chord grid, customization, MIDI preview, Apply */}
-      <ChordSuggestions clip={clip} renameRev={renameRev} onApplied={onApplied} />
+      <ChordSuggestions clip={clip} onApplied={onApplied} />
 
       {/* footer: notes + preference */}
       <div className="mt-auto flex flex-col gap-1.5 border-t border-[var(--c-line)] px-3 py-2">
@@ -213,9 +211,11 @@ export function ChordEditor() {
 }
 
 /** Symbol field with live validation through the shared parser — one chord
- *  grammar in crescode, so the editor cannot store an unparseable name. */
-const SymbolInput = forwardRef<HTMLInputElement, { initial: string; onCommit: (symbol: string) => void }>(
-  function SymbolInput({ initial, onCommit }, ref) {
+ *  grammar in crescode, so the editor cannot store an unparseable name.
+ *  `autoFocus` yields the keyboard to the lane's inline rename editor while
+ *  that is open on the same clip. */
+const SymbolInput = forwardRef<HTMLInputElement, { initial: string; autoFocus?: boolean; onCommit: (symbol: string) => void }>(
+  function SymbolInput({ initial, autoFocus = true, onCommit }, ref) {
     const [value, setValue] = useState(initial);
     const valid = parseChord(value).ok;
     const commit = () => {
@@ -226,7 +226,7 @@ const SymbolInput = forwardRef<HTMLInputElement, { initial: string; onCommit: (s
     };
     return (
       <input
-        ref={ref} autoFocus value={value} spellCheck={false} data-testid="chord-editor-symbol"
+        ref={ref} autoFocus={autoFocus} value={value} spellCheck={false} data-testid="chord-editor-symbol"
         className={cn('w-full rounded border bg-[var(--c-bg0)] px-2 py-1.5 font-mono text-[14px] font-semibold outline-none',
           valid ? 'border-[var(--c-lineStrong)]' : 'border-[var(--c-danger)]')}
         style={{ color: valid ? tokens.text : tokens.danger }}

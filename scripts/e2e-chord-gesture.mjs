@@ -5,17 +5,20 @@
  *
  * Covers the Smart Chord Suggestion interaction that vitest cannot reach:
  * the double-click interception on the native chord lane, the false-start
- * conversion of a double-click's first manual chord, the chord editor panel
- * (open / rename / close), the too-small-gap warning toast and the undo
- * step boundaries around every write — plus the floating overlay itself:
- * the colored suggestion grid, search/color filters, the bass/extension
- * dropdowns with their live preview, the "Apply Smart Chord" transaction
- * (close/minimize preference) and the non-destructive drift guard — plus
- * text-based chord entry & renaming: the inline input at the clip, the
- * triad-only autocomplete, the ambiguous-sus choice, key normalization
- * (Dbm7 → C#m7 in D major) and the unrecognized-user-MIDI confirm.
+ * conversion of a double-click's first manual chord, the compact chord
+ * picker panel (open / rename / close), the too-small-gap warning toast and
+ * the undo step boundaries around every write — plus the floating picker
+ * itself in its redesigned compact form: the 8-tile suggestion grid with
+ * short functional labels and full hover explanations, the "+more" paging,
+ * IMMEDIATE selection (a tile click applies in one undo step and the popup
+ * stays open), the Advanced popover (extension/bass/octave applied to the
+ * current chord at once), the non-destructive drift guard — plus text-based
+ * chord entry & renaming: the inline input at the clip, the triad-only
+ * autocomplete, the ambiguous-sus choice, key normalization (Dbm7 → C#m7 in
+ * D major) and the unrecognized-user-MIDI confirm.
  */
 import { chromium } from 'playwright';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -118,132 +121,142 @@ res = await st(() => {
 });
 check('Failed gestures leave clean undo history', res.smart === 1 && res.total === 1, JSON.stringify(res));
 
-// H. The floating overlay: suggestion grid, colors, search, live preview.
+// H. The floating picker: compact 8-tile grid, function labels, tooltips, no scroll.
 await page.evaluate(() => { document.getElementById('arranger-scroll').scrollLeft = 0; }); // E scrolled away
 await page.waitForTimeout(120);
 await dblclickTick(5960);
-await page.waitForTimeout(200);
+await page.waitForTimeout(250);
+const editorBox = async () => await page.locator('[data-testid="chord-editor"]').boundingBox();
 res = await st(() => {
   const s = window.crescodeTest.store.getState();
   const overlay = document.querySelector('[data-testid="chord-suggestions"]');
+  const cards = [...document.querySelectorAll('[data-testid^="suggestion-card-"]')];
+  const ed = document.querySelector('[data-testid="chord-editor"]');
   return {
     open: s.suggestionClipId !== null,
-    chords: s.project.chords.map((c) => ({ id: c.id.slice(0, 6), symbol: c.symbol, start: c.startTick })),
     editor: !!document.querySelector('[data-testid="chord-editor"]'),
     overlay: !!overlay,
-    overlayText: overlay ? overlay.textContent.slice(0, 120) : null,
-    cards: [...document.querySelectorAll('[data-testid^="suggestion-card-"]')].length,
-    colors: [...new Set([...document.querySelectorAll('[data-testid^="suggestion-card-"]')].map((c) => c.dataset.color))],
+    cards: cards.length,
+    colors: [...new Set(cards.map((c) => c.dataset.color))],
+    labeled: cards.every((c) => c.textContent.trim().length > c.dataset.spelling.length),
+    tooltip: cards[0]?.getAttribute('title') ?? '',
+    noScroll: ed !== null && ed.scrollHeight <= ed.clientHeight + 1,
   };
 });
-check('Overlay renders the suggestion grid, every card in a spec color band',
-  res.open && res.cards >= 6 && res.colors.every((c) => ['green', 'yellow', 'red'].includes(c)),
-  JSON.stringify(res));
+check('Picker opens with 8 compact tiles: colored, function-labeled, explained on hover, no scrollbar',
+  res.open && res.cards === 8 && res.colors.every((c) => ['green', 'yellow', 'red'].includes(c)) &&
+  res.labeled && res.tooltip.includes('/100') && res.tooltip.length > 20 && res.noScroll,
+  JSON.stringify({ cards: res.cards, colors: res.colors, labeled: res.labeled, tooltip: res.tooltip.slice(0, 40), noScroll: res.noScroll }));
+await page.screenshot({ path: path.join(os.tmpdir(), 'chord-picker-1-open.png'), clip: await editorBox() });
 
-// I. Search filter narrows the grid; clearing restores it.
-const fullCount = res.cards;
-await page.fill('[data-testid="suggestion-search"]', 'm7');
+// I. "+more" reveals the next ranked row — never a scrolling panel.
+const total = await st(() => {
+  const btn = document.querySelector('[data-testid="suggestion-more"]');
+  return btn === null ? 8 : Number(btn.textContent.match(/\/(\d+)\s*$/)?.[1] ?? 8);
+});
+await page.click('[data-testid="suggestion-more"]');
 await page.waitForTimeout(120);
-const filtered = await st(() => [...document.querySelectorAll('[data-testid^="suggestion-card-"]')].map((c) => ({ s: c.dataset.spelling, q: c.dataset.quality })));
-check('Search filters the grid (m7 → only m7 shapes, fewer cards)',
-  filtered.length >= 1 && filtered.length < fullCount && filtered.every((c) => (c.s + c.q).includes('m7')),
-  JSON.stringify(filtered));
-await page.fill('[data-testid="suggestion-search"]', '');
-await page.waitForTimeout(120);
-
-// J. Color filter shows only that band (or nothing).
-await page.click('[data-testid="suggestion-filter-red"]');
-await page.waitForTimeout(120);
-res = await st(() => [...document.querySelectorAll('[data-testid^="suggestion-card-"]')].map((c) => c.dataset.color));
-check('Color filter narrows to one band', res.every((c) => c === 'red'), JSON.stringify(res));
-await page.click('[data-testid="suggestion-filter-all"]');
-await page.waitForTimeout(120);
-
-// K. Selecting a triad card re-targets the live preview; extension and bass
-//    dropdowns recalculate name + MIDI notes immediately.
-const triad = await st(() => {
+const afterMore = await st(() => {
   const cards = [...document.querySelectorAll('[data-testid^="suggestion-card-"]')];
-  const c = cards.find((x) => x.dataset.quality === 'major' || x.dataset.quality === 'minor');
-  return { idx: cards.indexOf(c), spelling: c?.dataset.spelling ?? null };
+  return { count: cards.length, first8: cards.slice(0, 8).every((c) => c.dataset.spelling.length > 0) };
 });
-await page.click(`[data-testid="suggestion-card-${triad.idx}"]`);
-await page.waitForTimeout(120);
-res = await st(() => document.querySelector('[data-testid="suggestion-preview"]')?.dataset.name ?? '');
-check('Clicking a suggestion card re-targets the preview', res === triad.spelling, `${res} vs ${triad.spelling}`);
+check('"+more" reveals the next ranked row (8 → 12) and preserves the engine order',
+  total >= 12 && afterMore.count === 12 && afterMore.first8, `total ${total}, visible ${afterMore.count}`);
 
-const beforeExt = await st(() => document.querySelector('[data-testid="suggestion-preview"]')?.dataset.name ?? '');
-await page.selectOption('[data-testid="suggestion-extension"]', '7');
-await page.waitForTimeout(120);
-res = await st(() => document.querySelector('[data-testid="suggestion-preview"]')?.dataset.name ?? '');
-check('Extension dropdown recalculates the chord immediately (triad + 7)', res === `${beforeExt}7`, `${beforeExt} → ${res}`);
-
-const bassVal = await st(() => {
-  const sel = document.querySelector('[data-testid="suggestion-bass"]');
-  return [...sel.options].find((o) => o.value.startsWith('pc:'))?.value ?? null;
-});
-let appliedName = res;
-if (bassVal !== null) {
-  await page.selectOption('[data-testid="suggestion-bass"]', bassVal);
-  await page.waitForTimeout(120);
-  appliedName = await st(() => document.querySelector('[data-testid="suggestion-preview"]')?.dataset.name ?? '');
-  check('Bass dropdown composes a slash chord', appliedName.includes('/'), appliedName);
-}
-
-// L. Apply: one "Apply Smart Chord" undo step writes voicing + name, preserves
-//    bounds, closes the overlay (default preference).
-const preApply = await st(() => {
-  const s = window.crescodeTest.store.getState();
-  return { steps: s.past.length };
-});
-await page.click('[data-testid="apply-chord"]');
+// J. IMMEDIATE selection: clicking a tile applies it at once — one undo step,
+//    voicing written, bounds preserved, popup STAYS open, ring marks the chord.
+const prePick = await st(() => window.crescodeTest.store.getState().past.length);
+const pick0 = await st(() => document.querySelector('[data-testid="suggestion-card-0"]')?.dataset.spelling ?? null);
+await page.click('[data-testid="suggestion-card-0"]');
 await page.waitForTimeout(250);
 res = await st(() => {
   const s = window.crescodeTest.store.getState();
   const c = s.project.chords.find((x) => x.id.startsWith('sch_'));
   const lane = s.project.tracks.find((t) => t.role === 'chords');
+  const applied = [...document.querySelectorAll('[data-testid^="suggestion-card-"]')].find((el) => el.dataset.spelling === c.symbol);
   return {
     open: s.suggestionClipId !== null,
     symbol: c?.symbol ?? null, start: c?.startTick, len: c?.durationTicks,
     notes: lane.notes.map((n) => n.pitch),
     steps: s.past.length,
+    ringed: applied !== undefined && applied.className.includes('ring-1'),
+    applyBtnGone: document.querySelector('[data-testid="apply-chord"]') === null,
   };
 });
-check('Apply writes the voicing + name in one undo step, preserves bounds, closes',
-  !res.open && res.symbol === appliedName && res.start === 5760 && res.len === 3840 &&
-  res.notes.length >= 3 && res.steps === preApply.steps + 1 &&
+check('Clicking a tile applies it immediately (no Apply button): one undo step, MIDI written, popup stays open',
+  res.open && res.symbol === pick0 && res.start === 5760 && res.len === 3840 &&
+  res.notes.length >= 3 && res.steps === prePick + 1 && res.ringed && res.applyBtnGone &&
   res.notes.every((p) => p >= 36 && p <= 84) &&
   new Set(res.notes.map((p) => p % 12)).size === res.notes.length,
   JSON.stringify(res));
 
-// M. Apply-mode "minimize": the overlay collapses but stays open.
-await st(() => window.crescodeTest.store.getState().setSettings({ smartChordApply: 'minimize' }));
-await dblclickTick(5960);
-await page.click('[data-testid="suggestion-card-0"]');
-await page.waitForTimeout(120);
-await page.click('[data-testid="apply-chord"]');
+// J2. Repeated selection: a second tile applies too — progression building.
+const pick1 = await st(() => document.querySelector('[data-testid="suggestion-card-1"]')?.dataset.spelling ?? null);
+await page.click('[data-testid="suggestion-card-1"]');
 await page.waitForTimeout(250);
-res = await st(() => ({
-  open: window.crescodeTest.store.getState().suggestionClipId !== null,
-  gridVisible: !!document.querySelector('[data-testid="suggestion-grid"]'),
-}));
-check('Apply with the minimize preference collapses the overlay but keeps it open', res.open && !res.gridVisible, JSON.stringify(res));
-
-// N. Non-destructive guard: a clip moved since the overlay opened warns and
-//    is never overwritten.
-await page.click('[data-testid="chord-editor-minimize"]'); // expand again
-await page.waitForTimeout(120);
-const preDrift = await st(() => {
+res = await st(() => {
   const s = window.crescodeTest.store.getState();
-  return { steps: s.past.length, symbol: s.project.chords.find((c) => c.id.startsWith('sch_')).symbol };
+  return {
+    symbol: s.project.chords.find((x) => x.id.startsWith('sch_'))?.symbol ?? null,
+    steps: s.past.length,
+    open: s.suggestionClipId !== null,
+  };
 });
+check('A second tile applies immediately too (one more undo step, popup open)',
+  res.symbol === pick1 && res.steps === prePick + 2 && res.open, JSON.stringify(res));
+
+// J3. Ctrl+Z reverts exactly one pick; redo replays it.
+await page.keyboard.press('Control+z');
+await page.waitForTimeout(150);
+const undone = await st(() => window.crescodeTest.store.getState().project.chords.find((x) => x.id.startsWith('sch_'))?.symbol ?? null);
+await page.keyboard.press('Control+y');
+await page.waitForTimeout(150);
+const redone = await st(() => window.crescodeTest.store.getState().project.chords.find((x) => x.id.startsWith('sch_'))?.symbol ?? null);
+check('Ctrl+Z reverts one pick; Ctrl+Y replays it', undone === pick0 && redone === pick1, `undo → ${undone}, redo → ${redone}`);
+
+// K. Advanced: closed by default; an extension change re-applies the CURRENT
+//    chord immediately through the same composition path.
+const triad = await st(() => {
+  const cards = [...document.querySelectorAll('[data-testid^="suggestion-card-"]')];
+  const i = cards.findIndex((x) => x.dataset.quality === 'major' || x.dataset.quality === 'minor');
+  return { idx: i, spelling: i >= 0 ? cards[i].dataset.spelling : null };
+});
+if (triad.idx >= 0) {
+  await page.click(`[data-testid="suggestion-card-${triad.idx}"]`);
+  await page.waitForTimeout(250);
+}
+const advClosedBefore = await st(() => document.querySelector('[data-testid="suggestion-advanced-panel"]') === null);
+await page.click('[data-testid="suggestion-advanced"]');
+await page.waitForTimeout(120);
+const preAdv = await st(() => window.crescodeTest.store.getState().past.length);
+await page.selectOption('[data-testid="suggestion-extension"]', '7');
+await page.waitForTimeout(250);
+res = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  return {
+    symbol: s.project.chords.find((x) => x.id.startsWith('sch_'))?.symbol ?? null,
+    steps: s.past.length,
+    panel: !!document.querySelector('[data-testid="suggestion-advanced-panel"]'),
+    preview: document.querySelector('[data-testid="suggestion-preview"]')?.dataset.name ?? null,
+  };
+});
+check('Advanced extension change applies immediately to the current chord (one undo step)',
+  advClosedBefore && res.panel && res.symbol === `${triad.spelling}7` &&
+  res.steps === preAdv + 1 && res.preview === `${triad.spelling}7`,
+  JSON.stringify(res));
+await page.screenshot({ path: path.join(os.tmpdir(), 'chord-picker-2-advanced.png'), clip: await editorBox() });
+
+// L. Drift guard: a clip moved since the picker opened warns, never overwrites.
 await st(() => {
   const s = window.crescodeTest.store.getState();
   s.edit((p) => ({ ...p, chords: p.chords.map((c) => (c.id.startsWith('sch_') ? { ...c, startTick: c.startTick + 960 } : c)) }));
 });
 await page.waitForTimeout(200);
+const preDrift = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  return { steps: s.past.length, symbol: s.project.chords.find((c) => c.id.startsWith('sch_')).symbol };
+});
 await page.click('[data-testid="suggestion-card-0"]');
-await page.waitForTimeout(120);
-await page.click('[data-testid="apply-chord"]');
 await page.waitForTimeout(250);
 res = await st(() => {
   const s = window.crescodeTest.store.getState();
@@ -253,10 +266,27 @@ res = await st(() => {
     symbol: s.project.chords.find((c) => c.id.startsWith('sch_')).symbol,
   };
 });
-check('Apply on a moved clip warns non-destructively (no overwrite, no undo step)',
-  res.toast === 'warn' && res.steps === preDrift.steps + 1 && res.symbol === preDrift.symbol,
+check('Pick on a moved clip warns non-destructively (no overwrite, no undo step)',
+  res.toast === 'warn' && res.steps === preDrift.steps && res.symbol === preDrift.symbol,
   JSON.stringify(res));
 await page.keyboard.press('Escape');
+
+// M. Minimize/expand still collapses the picker to its header strip. The
+//    dblclick also opens the inline rename input at the clip (its dropdown
+//    overlays the picker while typing) — Esc dismisses it, the picker stays.
+const schStartM = await st(() => window.crescodeTest.store.getState().project.chords.find((c) => c.id.startsWith('sch_'))?.startTick ?? 0);
+await dblclickTick(schStartM + 240);
+await page.waitForTimeout(150);
+await page.keyboard.press('Escape'); // dismiss the inline rename, picker remains
+await page.waitForTimeout(120);
+await page.click('[data-testid="chord-editor-minimize"]');
+await page.waitForTimeout(120);
+res = await st(() => ({ open: window.crescodeTest.store.getState().suggestionClipId !== null, grid: !!document.querySelector('[data-testid="suggestion-grid"]') }));
+const minimizedOk = res.open && !res.grid;
+await page.click('[data-testid="chord-editor-minimize"]');
+await page.waitForTimeout(120);
+res = await st(() => ({ grid: !!document.querySelector('[data-testid="suggestion-grid"]') }));
+check('Minimize collapses to the header strip and expands again', minimizedOk && res.grid, JSON.stringify(res));
 
 // O. Text entry & renaming: double-click an existing chord name → the inline
 //    input opens AT the clip, preloaded with the current chord name, alongside

@@ -133,7 +133,7 @@ export function ChordRenameInput({ clip, ppt, onDone }: ChordRenameInputProps) {
 
   return (
     <div
-      className="absolute z-30"
+      className="absolute z-[45]"
       style={{ left: clip.startTick * ppt, top: 10 }}
       data-testid="chord-rename"
       onPointerDown={(e) => e.stopPropagation()}
@@ -154,14 +154,21 @@ export function ChordRenameInput({ clip, ppt, onDone }: ChordRenameInputProps) {
           if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)); }
         }}
         onBlur={() => {
-          if (warn !== null) { close(); return; } // the warning needs an explicit choice
-          if (valid && changed && interp.status === 'ok') commit(value);
-          else close();
+          // Deferred by a tick: the blur fires from whatever mousedown moved
+          // focus (often a button elsewhere). Closing synchronously would
+          // unmount this editor mid-gesture and swallow that click. `value`
+          // and `interp` are the same tick's values, so the deferred commit
+          // sees exactly what the user left in the field.
+          setTimeout(() => {
+            if (warn !== null) { close(); return; } // the warning needs an explicit choice
+            if (valid && changed && interp.status === 'ok') commit(value);
+            else close();
+          }, 0);
         }}
       />
 
       {showRows && (
-        <div className="absolute left-0 top-full z-40 mt-1 w-[280px] overflow-hidden rounded-md border border-[var(--c-lineStrong)] bg-[var(--c-bg1)] shadow-2xl" data-testid="chord-rename-dropdown">
+        <div className="absolute left-0 top-full z-[45] mt-1 w-[280px] overflow-hidden rounded-md border border-[var(--c-lineStrong)] bg-[var(--c-bg1)] shadow-2xl" data-testid="chord-rename-dropdown">
           {interp.status === 'ambiguous' && (
             <div className="border-b border-[var(--c-line)] px-2.5 pb-1 pt-1.5 text-[9px] font-bold uppercase tracking-[0.12em]" style={{ color: tokens.warn }}>
               Ambiguous — choose a reading
@@ -194,7 +201,7 @@ export function ChordRenameInput({ clip, ppt, onDone }: ChordRenameInputProps) {
       )}
 
       {!valid && value.trim().length > 0 && (
-        <div className="absolute left-0 top-full z-40 mt-1 w-[280px] rounded-md border px-2.5 py-1.5 text-[11px]"
+        <div className="absolute left-0 top-full z-[45] mt-1 w-[280px] rounded-md border px-2.5 py-1.5 text-[11px]"
           data-testid="chord-rename-error"
           style={{ borderColor: tokens.danger, color: tokens.danger, background: 'var(--c-bg1)' }}>
           {interp.error}
@@ -202,7 +209,7 @@ export function ChordRenameInput({ clip, ppt, onDone }: ChordRenameInputProps) {
       )}
 
       {warn !== null && (
-        <div className="absolute left-0 top-full z-40 mt-1 w-[300px] rounded-md border px-2.5 py-2"
+        <div className="absolute left-0 top-full z-[45] mt-1 w-[300px] rounded-md border px-2.5 py-2"
           data-testid="chord-rename-warn"
           style={{ borderColor: tokens.warn, background: 'var(--c-bg1)' }}>
           <div className="text-[11px] leading-snug" style={{ color: tokens.warn }}>{warn}</div>

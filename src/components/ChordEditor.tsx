@@ -1,12 +1,27 @@
 /**
- * The chord editing UI the double-click gesture opens (feature spec §4).
+ * The chord editing UI the double-click gesture opens (feature spec §4,
+ * redesigned into the compact Smart Chord popup).
  *
- * Floating inspector for one chord-lane clip — never creates or moves
- * clips: it loads the clip's chord, raw MIDI notes, confidence and
- * alternative interpretations (via loadClipEditorData), and applies edits
- * through ChordTrackAPI transactions that preserve id, position, length
- * and metadata. The user preference for new-clip content (empty vs
- * root-note placeholder) lives here as a persisted setting.
+ * A small floating picker anchored near the clip being edited — never
+ * creates or moves clips: it loads the clip's chord, raw MIDI notes,
+ * confidence and alternative interpretations (via loadClipEditorData), and
+ * applies edits through ChordTrackAPI transactions that preserve id,
+ * position, length and metadata.
+ *
+ * Redesign notes (compact picker):
+ *  - The shell is a narrow column (344px): header strip, thin chord-name
+ *    field, one compact reading line (status + reads-as chips), the
+ *    immediate-selection suggestion grid, and a single micro footer. The
+ *    confidence bar, pitch-class chip rows and hint paragraphs are gone —
+ *    the confidence and the analysis details live on tooltips.
+ *  - The popup anchors just below the edited clip when the arranger
+ *    geometry is reachable (lane rect + px-per-tick, clamped to the
+ *    viewport); it falls back to the docked top-right spot otherwise.
+ *  - Picking a suggestion applies immediately and the popup STAYS open —
+ *    the user keeps building the progression (see ChordSuggestions).
+ *
+ * The user preference for new-clip content (empty vs root-note placeholder)
+ * lives here as a persisted setting.
  */
 import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../store/store';
@@ -22,7 +37,7 @@ import { I } from './icons';
 import { Ico, IconButton } from './ui';
 
 const STATUS_LABEL: Record<ChordAnalysisStatus, string> = {
-  clear: 'clear read',
+  clear: 'clear',
   ambiguous: 'ambiguous',
   incomplete: 'incomplete',
   unknown: 'unknown',
@@ -35,25 +50,43 @@ const STATUS_CLASS: Record<ChordAnalysisStatus, string> = {
   unknown: 'border-[var(--c-danger)] text-[var(--c-danger)]',
 };
 
-const trim2 = (v: number): string => (Number.isInteger(v) ? String(v) : v.toFixed(2).replace(/\.?0+$/, ''));
-
-function PcChips({ title, pcs, className }: { title: string; pcs: number[]; className: string }) {
-  if (pcs.length === 0) return null;
-  return (
-    <div className="flex min-w-0 items-center gap-1" title={title}>
-      {pcs.map((pc) => (
-        <span key={pc} className={cn('rounded border px-1 font-mono text-[10px] leading-4', className)}>{spelledNoteName(pc)}</span>
-      ))}
-    </div>
-  );
+/** Viewport anchor for the popup: just below the edited clip inside the
+ *  chord lane, clamped so the popup never leaves the window. Null = the
+ *  arranger geometry is not reachable (docked fallback). */
+function useAnchor(clipId: string | null, startTime: number, pxPerTick: number, project: unknown): { left: number; top: number } | null {
+  const [tick, setTick] = useState(0); // arranger scroll re-anchors the popup
+  useEffect(() => {
+    const scroller = document.getElementById('arranger-scroll');
+    if (scroller === null) return;
+    const fn = () => setTick((t) => t + 1);
+    scroller.addEventListener('scroll', fn, { passive: true });
+    return () => scroller.removeEventListener('scroll', fn);
+  }, []);
+  return useMemo(() => {
+    void tick;
+    if (clipId === null) return null;
+    try {
+      const lane = document.querySelector('[data-testid="chord-lane"]');
+      if (lane === null) return null;
+      const r = lane.getBoundingClientRect(); // live viewport box — scroll already baked in
+      const x = r.left + startTime * pxPerTick;
+      const W = 344;
+      return { left: Math.max(8, Math.min(x, window.innerWidth - W - 8)), top: Math.min(r.bottom + 6, window.innerHeight - 160) };
+    } catch {
+      return null;
+    }
+    // `project` re-anchors on every project edit (lane length/zoom changes)
+  }, [clipId, startTime, pxPerTick, project, tick]);
 }
 
 export function ChordEditor() {
   const clipId = useStore((s) => s.suggestionClipId);
   const chordRenameId = useStore((s) => s.chordRenameId);
   const project = useStore((s) => s.project);
+  const pxPerTick = useStore((s) => s.pxPerTick);
   const placeholderPref = useStore((s) => s.settings.smartChordPlaceholder);
-  // Minimized = header only; Apply closes or minimizes per the user setting.
+  // Minimized = header only; the picker itself never closes on apply —
+  // the user closes it (Esc / X) when done building the progression.
   const [minimized, setMinimized] = useState(false);
 
   // Reload on every project edit so the inspector always shows the live clip.
@@ -82,6 +115,8 @@ export function ChordEditor() {
     return () => window.removeEventListener('keydown', k);
   }, [clipId]);
 
+  const anchor = useAnchor(clipId, data?.clip.startTime ?? 0, pxPerTick, project);
+
   if (clipId === null || data === null) return null;
   const { clip, analysis } = data;
   const notes = clip.rawMidiNotes ?? [];
@@ -97,113 +132,93 @@ export function ChordEditor() {
     }
   };
 
-  // Apply finished: close or minimize the overlay, per the persisted setting.
-  const onApplied = () => {
-    if (useStore.getState().settings.smartChordApply === 'minimize') setMinimized(true);
-    else useStore.getState().set({ suggestionClipId: null });
-  };
-
   const pos = tickToBarBeat(clip.startTime, project.timeSignature);
-  const bars = clip.lengthTicks / data.grid.ticksPerBar;
   const confidence = analysis !== null ? analysis.confidence : Math.round(clip.chord.confidence * 100);
 
   return (
-    <div className="fixed right-3 top-[70px] z-40 flex max-h-[calc(100vh-100px)] w-[540px] flex-col overflow-y-auto rounded-xl border border-[var(--c-lineStrong)] bg-[var(--c-bg1)] shadow-2xl animate-[pop_.16s_ease]" data-testid="chord-editor">
-      {/* header */}
-      <div className="flex items-center gap-2 border-b border-[var(--c-line)] px-3 py-2">
-        <Ico icon={I.magic} className="text-[var(--c-accent)]" />
-        <span className="text-sm font-bold">Smart Chords</span>
-        <span className="font-mono text-[10px] text-[var(--c-textMute)]" title={`clip ${clip.id} · ticks [${clip.startTime}, ${clip.startTime + clip.lengthTicks})`}>
-          bar {pos.bar} · beat {pos.beat} · {trim2(bars)} bar{bars === 1 ? '' : 's'}
+    <div
+      className={cn('fixed z-40 flex max-h-[calc(100vh-100px)] w-[344px] flex-col overflow-y-auto rounded-lg border border-[var(--c-lineStrong)] bg-[var(--c-bg1)] shadow-2xl animate-[pop_.16s_ease]',
+        anchor === null && 'right-3 top-[70px]')}
+      style={anchor !== null ? { left: anchor.left, top: anchor.top } : undefined}
+      data-testid="chord-editor"
+    >
+      {/* header — one thin strip: identity, position, window controls */}
+      <div className="flex items-center gap-1.5 border-b border-[var(--c-line)] px-2 py-1">
+        <Ico icon={I.magic} className="text-[11px] text-[var(--c-accent)]" />
+        <span className="font-mono text-[9px] text-[var(--c-textMute)]" title={`clip ${clip.id} · ticks [${clip.startTime}, ${clip.startTime + clip.lengthTicks})`}>
+          bar {pos.bar} · beat {pos.beat}
         </span>
         <span className="ml-auto" />
-        <IconButton icon={minimized ? I.caret : I.minus} tip={minimized ? 'Expand the chord editor' : 'Minimize the chord editor'} testId="chord-editor-minimize" onClick={() => setMinimized((m) => !m)} />
-        <IconButton icon={I.trash} tip="Delete this clip (Delete)" onClick={() => { useStore.getState().deleteChord(clip.id); useStore.getState().set({ suggestionClipId: null }); }} />
-        <IconButton icon={I.x} tip="Close chord editor (Esc)" onClick={() => useStore.getState().set({ suggestionClipId: null })} />
+        <IconButton icon={minimized ? I.caret : I.minus} size="sm" tip={minimized ? 'Expand the chord picker' : 'Minimize the chord picker'} testId="chord-editor-minimize" onClick={() => setMinimized((m) => !m)} />
+        <IconButton icon={I.trash} size="sm" tip="Delete this clip (Delete)" onClick={() => { useStore.getState().deleteChord(clip.id); useStore.getState().set({ suggestionClipId: null }); }} />
+        <IconButton icon={I.x} size="sm" tip="Close chord picker (Esc)" onClick={() => useStore.getState().set({ suggestionClipId: null })} />
       </div>
 
       {minimized ? (
-        <div className="px-3 py-1.5 text-[10px] text-[var(--c-textMute)]">
-          Minimized — the chord keeps playing; expand to edit or apply.
+        <div className="px-2 py-1 text-[9px] text-[var(--c-textMute)]">
+          Minimized — expand to keep building the progression.
         </div>
       ) : (
         <>
-          {/* symbol — renames through the API; position/length are never touched.
-              No autofocus while the lane's inline rename editor owns the keyboard. */}
-          <div className="flex items-center gap-2 px-3 pt-2.5">
-            <SymbolInput key={`${clip.id}:${clip.chord.spelling}`} ref={symRef} initial={clip.chord.spelling} autoFocus={chordRenameId !== clip.id} onCommit={rename} />
+          {/* chord name — thin field, renames through the API; position/length
+              are never touched. No autofocus while the lane's inline rename
+              editor owns the keyboard; external renames (the picker's own
+              picks, undo, the lane input) sync into the field WITHOUT
+              remounting, so keyboard focus is never stolen mid-workflow. */}
+          <div className="px-1.5 pt-1.5">
+            <SymbolInput ref={symRef} initial={clip.chord.spelling} autoFocus={chordRenameId !== clip.id} onCommit={rename} />
           </div>
 
-      {/* reading */}
-      <div className="flex flex-col gap-2 px-3 py-2.5">
-        {analysis === null ? (
-          <div className="rounded-md border border-[var(--c-line)] bg-[var(--c-bg2)] px-2.5 py-2 text-[11px] leading-relaxed text-[var(--c-textDim)]">
-            {notes.length === 0
-              ? 'Typed chord — no MIDI backing in this clip. Confidence 100 (user-authored). Double-click empty lane space to add a Smart clip with MIDI.'
-              : 'Typed chord.'}
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[15px] font-bold">{analysis.chord?.spelling ?? '—'}</span>
-              {analysis.chord !== null && <span className="text-[10px] uppercase tracking-wider text-[var(--c-textMute)]">{analysis.chord.quality}</span>}
-              <span className={cn('ml-auto rounded border px-1.5 text-[10px] font-semibold uppercase tracking-wider', STATUS_CLASS[analysis.status])}>{STATUS_LABEL[analysis.status]}</span>
-            </div>
-            <div className="flex items-center gap-2" title={`analysis confidence ${analysis.confidence}/100`}>
-              <span className="text-[10px] uppercase tracking-wider text-[var(--c-textMute)]">confidence</span>
-              <div className="h-1.5 flex-1 overflow-hidden rounded bg-[var(--c-bg4)]">
-                <div className="h-full rounded" style={{ width: `${Math.max(0, Math.min(100, confidence))}%`, background: confidence >= 60 ? tokens.accent : confidence >= 35 ? tokens.warn : tokens.danger }} />
-              </div>
-              <span className="w-7 text-right font-mono text-[10px] text-[var(--c-textDim)]">{confidence}</span>
-            </div>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <PcChips title="Chord tones present in the clip" pcs={analysis.matchedPitchClasses} className="border-[var(--c-info)] text-[var(--c-info)]" />
-              <PcChips title="Chord tones missing from the clip" pcs={analysis.missingPitchClasses} className="border-dashed border-[var(--c-textMute)] text-[var(--c-textMute)]" />
-              <PcChips title="Notes the chord does not explain" pcs={analysis.extraPitchClasses} className="border-[var(--c-warn)] text-[var(--c-warn)]" />
-            </div>
-            {analysis.alternatives.length > 0 && (
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] uppercase tracking-wider text-[var(--c-textMute)]">Also reads as — click to name the clip</span>
-                {analysis.alternatives.slice(0, 4).map((alt, i) => (
-                  <button key={`${alt.chord.spelling}-${i}`} onClick={() => rename(alt.chord.spelling)}
-                    className="flex items-center gap-2 rounded border border-[var(--c-line)] bg-[var(--c-bg2)] px-2 py-1 text-left hover:border-[var(--c-accent)]"
-                    title={`Apply ${alt.chord.spelling} (one undo step)`}>
-                    <span className="font-mono text-[12px] font-semibold">{alt.chord.spelling}</span>
-                    <span className="text-[10px] text-[var(--c-textMute)]">{alt.chord.quality}</span>
-                    <span className="ml-auto font-mono text-[10px] text-[var(--c-textDim)]">{Math.round(alt.confidence * 100)}%</span>
-                  </button>
-                ))}
-              </div>
+          {/* reading — one compact line: current chord · status; confidence
+              and analysis details on the chip's tooltip (redesign §6) */}
+          <div className="flex items-center gap-1.5 px-1.5 pt-1 text-[10px] leading-tight">
+            {analysis === null ? (
+              <span className="text-[var(--c-textMute)]" title="Typed chord — no MIDI backing in this clip. Confidence 100 (user-authored).">
+                {notes.length === 0 ? 'typed · empty clip' : 'typed chord'}
+              </span>
+            ) : (
+              <>
+                <span className="font-mono text-[11px] font-bold">{analysis.chord?.spelling ?? '—'}</span>
+                {analysis.chord !== null && <span className="uppercase tracking-wider text-[var(--c-textMute)]">{analysis.chord.quality}</span>}
+                <span className={cn('rounded border px-1 text-[8px] font-semibold uppercase tracking-wider', STATUS_CLASS[analysis.status])}
+                  title={`read confidence ${confidence}/100${analysis.matchedPitchClasses.length ? ` · tones: ${analysis.matchedPitchClasses.map(spelledNoteName).join(' ')}` : ''}${analysis.missingPitchClasses.length ? ` · missing: ${analysis.missingPitchClasses.map(spelledNoteName).join(' ')}` : ''}${analysis.extraPitchClasses.length ? ` · unexplained: ${analysis.extraPitchClasses.map(spelledNoteName).join(' ')}` : ''}`}>
+                  {STATUS_LABEL[analysis.status]}
+                </span>
+                {analysis.alternatives.length > 0 && (
+                  <span className="ml-auto flex min-w-0 items-center gap-1" title="Also reads as — click to name the clip">
+                    {analysis.alternatives.slice(0, 3).map((alt, i) => (
+                      <button key={`${alt.chord.spelling}-${i}`} type="button" onClick={() => rename(alt.chord.spelling)}
+                        className="rounded border border-[var(--c-line)] px-1 font-mono text-[9px] leading-4 text-[var(--c-textDim)] hover:border-[var(--c-accent)] hover:text-[var(--c-text)]"
+                        title={`Apply ${alt.chord.spelling} (one undo step)`}>
+                        {alt.chord.spelling}
+                      </button>
+                    ))}
+                  </span>
+                )}
+              </>
             )}
-          </>
-        )}
-      </div>
+          </div>
 
-      {/* suggestions overlay — chord grid, customization, MIDI preview, Apply */}
-      <ChordSuggestions clip={clip} onApplied={onApplied} />
+          {/* suggestions — the compact immediate-selection grid */}
+          <ChordSuggestions clip={clip} />
 
-      {/* footer: notes + preference */}
-      <div className="mt-auto flex flex-col gap-1.5 border-t border-[var(--c-line)] px-3 py-2">
-        <div className="flex items-center gap-2 font-mono text-[10px] text-[var(--c-textMute)]">
-          <Ico icon={I.notes} />
-          {notes.length === 0
-            ? 'clip is empty'
-            : `${notes.length} note${notes.length === 1 ? '' : 's'}${analysis?.bassPitchClass !== null && analysis?.bassPitchClass !== undefined ? ` · bass ${spelledNoteName(analysis.bassPitchClass)}` : ''}`}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] uppercase tracking-wider text-[var(--c-textMute)]">New clips start</span>
-          {(['empty', 'root-note'] as const).map((v) => (
-            <button key={v} data-testid={`placeholder-${v}`}
-              onClick={() => useStore.getState().setSettings({ smartChordPlaceholder: v })}
-              className={cn('rounded px-1.5 py-0.5 text-[10px] font-semibold', placeholderPref === v ? 'bg-[var(--c-accent)] text-[var(--c-accentText)]' : 'text-[var(--c-textDim)] hover:bg-[var(--c-bg4)]')}>
-              {v === 'empty' ? 'Empty' : 'Root note'}
-            </button>
-          ))}
-        </div>
-        <div className="text-[10px] leading-relaxed text-[var(--c-textMute)]">
-          Enter applies a symbol · Esc closes · Delete removes the clip · every change is one undo step.
-        </div>
-      </div>
+          {/* footer — one micro line: clip content · new-clip preference */}
+          <div className="mt-auto flex items-center gap-1.5 border-t border-[var(--c-line)] px-1.5 py-1 font-mono text-[9px] text-[var(--c-textMute)]">
+            <Ico icon={I.notes} className="text-[10px]" />
+            <span title="MIDI notes on the Chords track inside this clip">
+              {notes.length === 0 ? 'empty' : `${notes.length} note${notes.length === 1 ? '' : 's'}`}
+            </span>
+            <span className="ml-auto flex items-center gap-1" title="Content of a freshly created Smart Chord clip (double-click on empty lane)">
+              <span className="font-sans uppercase tracking-wider">new clip</span>
+              {(['empty', 'root-note'] as const).map((v) => (
+                <button key={v} type="button" data-testid={`placeholder-${v}`}
+                  onClick={() => useStore.getState().setSettings({ smartChordPlaceholder: v })}
+                  className={cn('rounded px-1 py-px font-semibold', placeholderPref === v ? 'bg-[var(--c-bg4)] text-[var(--c-text)]' : 'text-[var(--c-textDim)] hover:bg-[var(--c-bg4)]')}>
+                  {v === 'empty' ? 'Empty' : 'Root'}
+                </button>
+              ))}
+            </span>
+          </div>
         </>
       )}
     </div>
@@ -213,10 +228,16 @@ export function ChordEditor() {
 /** Symbol field with live validation through the shared parser — one chord
  *  grammar in crescode, so the editor cannot store an unparseable name.
  *  `autoFocus` yields the keyboard to the lane's inline rename editor while
- *  that is open on the same clip. */
+ *  that is open on the same clip. Thin, compact (redesign §2). An `initial`
+ *  change syncs into the field only while the user is NOT typing in it —
+ *  the picker's immediate applies and undo never grab the keyboard. */
 const SymbolInput = forwardRef<HTMLInputElement, { initial: string; autoFocus?: boolean; onCommit: (symbol: string) => void }>(
   function SymbolInput({ initial, autoFocus = true, onCommit }, ref) {
     const [value, setValue] = useState(initial);
+    const editingRef = useRef(false);
+    useEffect(() => {
+      if (!editingRef.current) setValue(initial);
+    }, [initial]);
     const valid = parseChord(value).ok;
     const commit = () => {
       const v = value.trim();
@@ -227,13 +248,14 @@ const SymbolInput = forwardRef<HTMLInputElement, { initial: string; autoFocus?: 
     return (
       <input
         ref={ref} autoFocus={autoFocus} value={value} spellCheck={false} data-testid="chord-editor-symbol"
-        className={cn('w-full rounded border bg-[var(--c-bg0)] px-2 py-1.5 font-mono text-[14px] font-semibold outline-none',
+        className={cn('w-full rounded border bg-[var(--c-bg0)] px-1.5 py-1 font-mono text-[13px] font-semibold outline-none',
           valid ? 'border-[var(--c-lineStrong)]' : 'border-[var(--c-danger)]')}
         style={{ color: valid ? tokens.text : tokens.danger }}
         aria-label="Chord symbol"
+        onFocus={() => { editingRef.current = true; }}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-        onBlur={commit}
+        onBlur={() => { editingRef.current = false; commit(); }}
       />
     );
   },

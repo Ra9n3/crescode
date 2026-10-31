@@ -21,13 +21,11 @@ export interface Settings {
   devMode: boolean;
   /** Content of a freshly created Smart Chord clip (chord lane double-click). */
   smartChordPlaceholder: 'empty' | 'root-note';
-  /** What the Smart Chord overlay does after a successful Apply. */
-  smartChordApply: 'close' | 'minimize';
 }
 
 const SETTINGS_KEY = 'crescode.settings.v1';
 const loadSettings = (): Settings => {
-  const d: Settings = { scanDirectory: 'C:\\Program Files\\Common Files\\VST3', audioDevice: 'default', bufferSize: 512, enginePort: 47800, connectEngine: false, devMode: true, smartChordPlaceholder: 'root-note', smartChordApply: 'close' };
+  const d: Settings = { scanDirectory: 'C:\\Program Files\\Common Files\\VST3', audioDevice: 'default', bufferSize: 512, enginePort: 47800, connectEngine: false, devMode: true, smartChordPlaceholder: 'root-note' };
   try { return { ...d, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') }; } catch { return d; }
 };
 

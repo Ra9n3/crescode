@@ -342,11 +342,12 @@ await page.press(symbolField, 'Enter');
 await page.waitForTimeout(250);
 res = await st(() => ({
   sym: window.crescodeTest.store.getState().project.chords.find((x) => x.id.startsWith('sch_'))?.symbol ?? null,
+  field: document.querySelector('[data-testid="chord-editor-symbol"]')?.value ?? null,
   cards: document.querySelectorAll('[data-testid^="suggestion-card-"]').length,
   open: window.crescodeTest.store.getState().suggestionClipId !== null,
 }));
-check('Quick entry "dm7" commits as the canonical Dm7 and clears the search',
-  res.sym === 'Dm7' && res.cards === 8 && res.open, JSON.stringify(res));
+check('Quick entry "dm7" commits as the canonical Dm7, clears the search, and the field shows the canonical spelling',
+  res.sym === 'Dm7' && res.field === 'Dm7' && res.cards === 8 && res.open, JSON.stringify(res));
 
 // Q. Color-coded views: the small toggle switches between the base-scale
 //    chords (green in this context) and the borrowed yellow/red material.

@@ -203,8 +203,10 @@ export function ChordEditor() {
    *  crescode (the lane's inline editor was removed by request). The typed
    *  symbol is case-folded by the shared parser and normalized to the
    *  project key (Dbm7 → C#m7 in D major; pitch class verified unchanged)
-   *  before the single "Rename Chord" transaction. */
-  const rename = (symbol: string) => {
+   *  before the single "Rename Chord" transaction. Returns the canonical
+   *  symbol that was stored, so the field can display it even when the
+   *  rename lands on the spelling the clip already had ("dm7" → "Dm7"). */
+  const rename = (symbol: string): string => {
     setDraft(''); // a commit ends the search — the grid returns to the full view
     const normalized = normalizeChordText(symbol, key);
     const name = normalized.ok ? normalized.symbol : symbol;
@@ -216,6 +218,7 @@ export function ChordEditor() {
       chordTrackApi.cancelUndoTransaction();
       useStore.getState().toast('error', err instanceof Error ? err.message : String(err));
     }
+    return name;
   };
 
   const barBeat = tickToBarBeat(clip.startTime, project.timeSignature);
@@ -268,7 +271,9 @@ export function ChordEditor() {
             ) : (
               <>
                 <span className="font-mono text-[11px] font-bold">{analysis.chord?.spelling ?? '—'}</span>
-                {analysis.chord !== null && <span className="uppercase tracking-wider text-[var(--c-textMute)]">{analysis.chord.quality}</span>}
+                {/* the quality reads EXACTLY as the grammar names it — "m7" must
+                    never render as "M7" (major seventh) through text-transform */}
+                {analysis.chord !== null && <span className="tracking-wide text-[var(--c-textMute)]">{analysis.chord.quality}</span>}
                 <span className={cn('rounded border px-1 text-[8px] font-semibold uppercase tracking-wider', STATUS_CLASS[analysis.status])}
                   title={`read confidence ${confidence}/100${analysis.matchedPitchClasses.length ? ` · tones: ${analysis.matchedPitchClasses.map(spelledNoteName).join(' ')}` : ''}${analysis.missingPitchClasses.length ? ` · missing: ${analysis.missingPitchClasses.map(spelledNoteName).join(' ')}` : ''}${analysis.extraPitchClasses.length ? ` · unexplained: ${analysis.extraPitchClasses.map(spelledNoteName).join(' ')}` : ''}`}>
                   {STATUS_LABEL[analysis.status]}
@@ -330,7 +335,7 @@ export function ChordEditor() {
  *  the WRONG clip (the "changed the D, not the C" bug class). The initial
  *  symbol is captured at focus; if it moved while editing, the re-target
  *  owns the field — the draft is discarded, nothing is written. */
-const SymbolInput = forwardRef<HTMLInputElement, { initial: string; autoFocus?: boolean; onCommit: (symbol: string) => void; onDraftChange?: (draft: string) => void }>(
+const SymbolInput = forwardRef<HTMLInputElement, { initial: string; autoFocus?: boolean; onCommit: (symbol: string) => string | void; onDraftChange?: (draft: string) => void }>(
   function SymbolInput({ initial, autoFocus = true, onCommit, onDraftChange }, ref) {
     const [value, setValue] = useState(initial);
     const editingRef = useRef(false);
@@ -339,11 +344,14 @@ const SymbolInput = forwardRef<HTMLInputElement, { initial: string; autoFocus?: 
       if (!editingRef.current) setValue(initial);
     }, [initial]);
     const valid = parseChord(value).ok;
-    const commit = () => {
+    /** Returns the canonical symbol the commit stored (or null when nothing
+     *  was written) so blur can show it — a quick entry that renames the clip
+     *  to the spelling it already had must still fold "dm7" → "Dm7" here. */
+    const commit = (): string | null => {
       const v = value.trim();
-      if (!valid && v.length > 0) return; // keep the draft; the color says why
-      if (v.length === 0 || v === initial) return;
-      onCommit(v);
+      if (!valid && v.length > 0) return null; // keep the draft; the color says why
+      if (v.length === 0 || v === initial) return null;
+      return onCommit(v) ?? null;
     };
     return (
       <input
@@ -363,7 +371,11 @@ const SymbolInput = forwardRef<HTMLInputElement, { initial: string; autoFocus?: 
             setValue(initial);
             return;
           }
-          commit();
+          // Only a STORED rename rewrites the field (canonically spelled);
+          // an invalid or empty draft stays — it may be a live search that
+          // still filters the grid, so field and query must not diverge.
+          const stored = valid && value.trim().length > 0 && value.trim() !== initial ? commit() : null;
+          if (stored !== null) setValue(stored);
         }}
       />
     );

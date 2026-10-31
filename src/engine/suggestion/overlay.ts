@@ -270,18 +270,21 @@ export function clipDrift(snapshot: ClipSnapshot | null, clip: ChordClip | null)
 
 /** The adapter surface Apply (and the text-entry rename) drive — the portable
  *  contract's write half plus the crescode extra that re-locates the clip
- *  (structural, so tests can pass any conforming object). */
+ *  (structural, so tests can pass any conforming object). Optionally the
+ *  host's lane-editability check: when present and false, Apply refuses to
+ *  write (locked or missing chord lane) instead of failing mid-transaction. */
 export type ApplyApi = Pick<
   ChordTrackAPI,
   'beginUndoTransaction' | 'commitUndoTransaction' | 'cancelUndoTransaction' | 'clearMidiNotes' | 'replaceMidiNotes' | 'renameChordClip'
 > & {
   getChordClipById(clipId: string): ChordClip | null;
   isTransactionActive(): boolean;
+  isLaneEditable?(): boolean;
 };
 
 export type ApplyOutcome =
   | { ok: true; snapshot: ClipSnapshot | null }
-  | { ok: false; drift: ClipDrift | 'error'; error?: string };
+  | { ok: false; drift: ClipDrift | 'locked' | 'error'; error?: string };
 
 /**
  * The Apply button's whole write path (feature spec §4), as one testable
@@ -298,6 +301,9 @@ export function applyChordToClip(
   voicing: VoicingResult & { ok: true },
   snapshot: ClipSnapshot | null,
 ): ApplyOutcome {
+  // Structural guard: a locked or missing chord lane accepts no writes —
+  // refused before any transaction, nothing to roll back.
+  if (api.isLaneEditable?.() === false) return { ok: false, drift: 'locked' };
   const live = api.getChordClipById(clipId);
   if (live === null) return { ok: false, drift: 'missing' };
   const drift = clipDrift(snapshot, live);

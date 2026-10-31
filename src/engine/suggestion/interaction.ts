@@ -155,6 +155,18 @@ export interface InteractionHooks {
   /** The selected new-clip content preference (a persisted user setting). */
   placeholder(): SmartClipPlaceholder;
   now?(): number;
+  /** True while the transport is running. Policy: gestures that WRITE
+   *  (empty-space creation, false-start conversion) are refused with a
+   *  non-blocking warning during playback; read-only opens of existing
+   *  clips stay allowed — they never touch the timeline. Omit to disable
+   *  the guard (pure test harnesses). */
+  isPlaying?(): boolean;
+  /** True when the chord lane accepts writes — the lane's track exists and
+   *  is not locked (a missing/hidden lane is not editable either). When
+   *  false, nothing is created and no false start is converted; the user
+   *  gets a non-blocking warning instead of a silent failure. Omit to
+   *  disable the guard (pure test harnesses). */
+  laneEditable?(): boolean;
 }
 
 export interface GestureOptions {
@@ -172,6 +184,19 @@ export function createSuggestionInteraction(api: InteractionApi, hooks: Interact
   const gate = new DoubleClickGate({ now: hooks.now });
 
   const createSmartClip = (time: number, freshClip: ChordClip | null): void => {
+    // Structural guard first: a missing, hidden or locked chord lane accepts
+    // no writes at all (warn, change nothing — never a silent failure).
+    if (hooks.laneEditable?.() === false) {
+      hooks.warn('The chord lane is locked (or missing) — nothing was created. Unlock the Chords track to add Smart Chord clips.');
+      return;
+    }
+    // Transport guard: clip creation mid-playback is refused non-blockingly;
+    // the user keeps full read access. Nothing to roll back — no transaction
+    // was opened, so the running playback state is untouched.
+    if (hooks.isPlaying?.() === true) {
+      hooks.warn('Playback is running — chord clip creation is paused. Stop the transport to add a Smart Chord clip here.');
+      return;
+    }
     let tx: UndoTransaction | null = null;
     try {
       tx = api.beginUndoTransaction(CREATE_CLIP_TRANSACTION_LABEL);
@@ -208,16 +233,15 @@ export function createSuggestionInteraction(api: InteractionApi, hooks: Interact
       if (api.isTransactionActive()) return;
       if (!gate.admit(time, hooks.now?.())) return; // debounced duplicate
       if (Number.isInteger(time) === false || time < 0) return;
-      if (clip !== null) {
-        if (opts.freshFromManualCreate) {
-          createSmartClip(time, clip);
-          return;
-        }
+      if (clip !== null && opts.freshFromManualCreate !== true) {
         // Existing clip: open the chord editing UI — never create, never move.
+        // Read-only, so it is safe during playback and on a locked lane.
         hooks.openEditor(clip.id);
         return;
       }
-      createSmartClip(time, null);
+      // clip !== null here means a fresh manual false start (the plain
+      // read-only open above already returned): convert it atomically.
+      createSmartClip(time, clip);
     },
   };
 }

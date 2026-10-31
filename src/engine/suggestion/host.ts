@@ -74,6 +74,11 @@ export type CrescodeChordTrackApi = ChordTrackAPI & {
   /** Host-side entry point of the "open suggestions here" gesture — the
    *  chord lane calls this; consumers receive it via subscribeToDoubleClick. */
   emitDoubleClick(clip: ChordClip | null, time: number): void;
+  /** Write-eligibility of the chord lane: the lane's Structure track exists
+   *  and is not locked (a missing track means the lane is gone — not
+   *  editable). The gesture layer and both apply paths consult this before
+   *  opening any transaction. */
+  isLaneEditable(): boolean;
 };
 
 interface RegisteredWindow { startTime: number; lengthTicks: number; trackId: string }
@@ -361,6 +366,11 @@ export function createCrescodeChordTrackApi(io: ChordLaneHostIo): CrescodeChordT
 
     isTransactionActive(): boolean {
       return tx !== null;
+    },
+
+    isLaneEditable(): boolean {
+      const lane = chordsTrackOf(p());
+      return lane !== null && !lane.locked;
     },
 
     removeChordClip(clipId: string): void {

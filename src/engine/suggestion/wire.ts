@@ -56,6 +56,10 @@ const interaction: SuggestionInteraction = createSuggestionInteraction(chordTrac
   error: (text) => useStore.getState().toast('error', text),
   placeholder: (): SmartClipPlaceholder => useStore.getState().settings.smartChordPlaceholder ?? 'root-note',
   now: () => Date.now(),
+  // Transport guard: creating clips mid-playback is refused non-blockingly.
+  isPlaying: () => useStore.getState().playing,
+  // Structural guard: a locked or missing chord lane accepts no writes.
+  laneEditable: () => chordTrackApi.isLaneEditable(),
 });
 
 // The adapter's emitter stays available for other consumers of the gesture

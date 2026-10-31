@@ -390,6 +390,7 @@ export type ChordTextApplyOutcome =
   | { ok: false; reason: 'ambiguous'; interpretations: Chord[] }
   | { ok: false; reason: 'unrecognized-midi'; analysis: ChordAnalysis; message: string }
   | { ok: false; reason: 'drift'; drift: ClipDrift }
+  | { ok: false; reason: 'locked'; message: string }
   | { ok: false; reason: 'error'; error: string };
 
 export interface ChordTextApplyOptions {
@@ -430,6 +431,11 @@ export function applyChordTextToClip(
   key: ProjectKey,
   opts: ChordTextApplyOptions = {},
 ): ChordTextApplyOutcome {
+  // Structural guard first: a locked or missing chord lane accepts no writes
+  // at all — refused before any transaction, nothing to roll back.
+  if (api.isLaneEditable?.() === false) {
+    return { ok: false, reason: 'locked', message: 'The chord lane is locked (or missing) — the chord was not renamed. Unlock the Chords track to edit chords.' };
+  }
   // 1+2. Grammar and ambiguity first — unusable text never opens a transaction.
   const interp = interpretChordText(raw);
   if (interp.status === 'invalid') return { ok: false, reason: 'invalid', error: interp.error };

@@ -108,6 +108,9 @@ export function ChordRenameInput({ clip, ppt, onDone }: ChordRenameInputProps) {
       case 'unrecognized-midi':
         setWarn(outcome.message);
         break;
+      case 'locked':
+        toast('warn', outcome.message);
+        break;
       case 'drift':
         toast('warn', `Chord not renamed — the clip ${DRIFT_TEXT[outcome.drift]} since the editor opened. Nothing was overwritten.`);
         break;

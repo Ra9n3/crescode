@@ -15,9 +15,10 @@
  * fully interactive while the overlay floats; Esc (handled by the parent
  * ChordEditor) or the header X closes it.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../store/store';
 import { chordSuggestionsAt, chordTrackApi } from '../engine/suggestion/wire';
+import { createSuggestionRecalculator } from '../engine/suggestion/recalc';
 import { voiceChordSymbol, voicingLabel } from '../engine/suggestion/voicing';
 import {
   applyChordToClip, bassChoicesFor, buildChordSymbol,
@@ -48,6 +49,15 @@ const DRIFT_TEXT: Record<ClipDrift, string> = {
   edited: 'had its notes edited',
 };
 
+/** Read-only engine re-run for the current clip — never throws. */
+function computeSuggestions(clip: ChordClip): ChordSuggestion[] {
+  try {
+    return chordSuggestionsAt(clip.startTime, { excludeClipId: clip.id });
+  } catch {
+    return [] as ChordSuggestion[];
+  }
+}
+
 function cardTitle(s: ChordSuggestion): string {
   const lines = [
     `${s.score100}/100 · ${s.reasonCodes.join(' · ') || 'no rules matched'}`,
@@ -73,13 +83,20 @@ export function ChordSuggestions({ clip, onApplied }: ChordSuggestionsProps) {
 
   const key = useMemo(() => projectKeyOf(project), [project]);
   // The background engine, re-run read-only whenever the project moves; the
-  // clip itself never acts as its own harmonic context.
-  const suggestions = useMemo(() => {
-    try {
-      return chordSuggestionsAt(clip.startTime, { excludeClipId: clip.id });
-    } catch {
-      return [] as ChordSuggestion[];
-    }
+  // clip itself never acts as its own harmonic context. RAPID EDITS ARE
+  // DEBOUNCED: a burst of project swaps (slider drags, neighbor typing)
+  // coalesces into ONE engine run 120ms after the last change — the overlay
+  // stays live without putting the engine on the edit hot path.
+  const [suggestions, setSuggestions] = useState<ChordSuggestion[]>(() => computeSuggestions(clip));
+  const clipRef = useRef(clip);
+  clipRef.current = clip;
+  const recalcRef = useRef<ReturnType<typeof createSuggestionRecalculator> | null>(null);
+  if (recalcRef.current === null) {
+    recalcRef.current = createSuggestionRecalculator(() => setSuggestions(computeSuggestions(clipRef.current)));
+  }
+  useEffect(() => {
+    recalcRef.current?.request();
+    return () => recalcRef.current?.cancel(); // a newer request replaces this one
   }, [clip.startTime, clip.id, project]);
 
   // --- grid controls (spec §1: sort by score, filter/search allowed) -------
@@ -153,6 +170,8 @@ export function ChordSuggestions({ clip, onApplied }: ChordSuggestionsProps) {
     if (!outcome.ok) {
       if (outcome.drift === 'error') {
         toast('error', `Apply failed — the timeline was restored. (${outcome.error ?? 'unknown error'})`);
+      } else if (outcome.drift === 'locked') {
+        toast('warn', 'Smart Chord not applied — the chord lane is locked (or missing). Unlock the Chords track to write chords.');
       } else {
         toast('warn', `Smart Chord not applied — the clip ${DRIFT_TEXT[outcome.drift]} since the overlay opened. Nothing was overwritten; re-open the clip and apply again.`);
       }

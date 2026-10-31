@@ -151,6 +151,7 @@ const ChordLane = memo(function ChordLane({ ppt }: { ppt: number }) {
     const st = useStore.getState();
     const id = st.addChord({ symbol: 'C', startTick: t, durationTicks: dur });
     noteManualCreate(id); // lets the double-click gesture recognize this as its own false start
+    syncPickerToChordCard(id); // the open Smart Chord picker follows the freshly created chord too
     st.set({ selectedChordId: id, selectedSectionId: null });
     setRenaming(false);
     setEditing(id);
@@ -365,7 +366,7 @@ function AddTrack() {
   const [open, setOpen] = useState(false);
   const fams: TrackFamily[] = ['Strings', 'Brass', 'Woodwinds', 'Percussion', 'Keys'];
   return (
-    <div className="panel sticky left-0 z-20 flex items-center border-r border-[#0f0f11] px-3" style={{ width: HEADER_W }}>
+    <div className="panel sticky left-0 z-[42] flex items-center border-r border-[#0f0f11] px-3" style={{ width: HEADER_W }}>
       <div className="relative">
         <button title="Add an instrument track" data-testid="add-track" onClick={() => setOpen(!open)} className="hw flex h-8 items-center gap-2 px-3 text-[11px] font-semibold uppercase tracking-[0.11em]">
           <Ico icon={I.plus} /> Add Track
@@ -438,7 +439,7 @@ export function Arranger() {
       style={{ backgroundImage: 'radial-gradient(130% 55% at 50% -12%, rgba(233,184,76,0.055), transparent 62%)' }}
     >
       <div className="relative grid" style={{ gridTemplateColumns: `${HEADER_W}px ${width}px`, gridTemplateRows: `${RULER_H}px repeat(${tracks.length}, ${ROW_H}px) 56px`, width: HEADER_W + width }}>
-        <div className="panel sticky left-0 top-0 z-30 flex items-center justify-between border-b border-r border-[#0f0f11] px-3" style={{ width: HEADER_W }}>
+        <div className="panel sticky left-0 top-0 z-[42] flex items-center justify-between border-b border-r border-[#0f0f11] px-3" style={{ width: HEADER_W }}>
           <span className="printed">tracks · {tracks.length}</span>
           <span className="text-[10px] tracking-[0.06em] text-[var(--c-textMute)]" title="Project length">{bars} bars · {ts.numerator}/{ts.denominator}</span>
         </div>

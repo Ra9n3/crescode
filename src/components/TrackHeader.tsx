@@ -69,7 +69,7 @@ export const TrackHeader = memo(function TrackHeader({ track, index, selected }:
     s.set({ selectedTrackIds: ids });
   };
   const base = cn(
-    'panel sticky left-0 z-20 flex h-full items-stretch border-b border-r border-[#0f0f11] pl-[10px] pr-2 transition-[filter]',
+    'panel sticky left-0 z-[42] flex h-full items-stretch border-b border-r border-[#0f0f11] pl-[10px] pr-2 transition-[filter]',
     selected && 'brightness-[1.35]',
   );
   const style = { width: HEADER_W, height: ROW_H };

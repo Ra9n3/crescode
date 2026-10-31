@@ -444,8 +444,15 @@ const beforeSync = await st(() => ({
   value: document.querySelector('[data-testid="chord-editor-symbol"]')?.value ?? null,
   head: document.querySelector('[data-testid="chord-editor"]')?.textContent.match(/bar \d+ · beat \d+/)?.[0] ?? null,
 }));
+const syncBoxBefore = await editorBox();
 await page.locator('[data-testid="chord"]').filter({ hasText: /^G$/ }).click();
-await page.waitForTimeout(200);
+await page.waitForTimeout(60);
+const glideStyle = await st(() => {
+  const ed = document.querySelector('[data-testid="chord-editor"]');
+  return { prop: getComputedStyle(ed).transitionProperty, left: ed.getBoundingClientRect().left };
+});
+await page.waitForTimeout(400);
+const glideLeft = await st(() => document.querySelector('[data-testid="chord-editor"]')?.getBoundingClientRect().left ?? 0);
 const afterSync = await st(() => {
   const s = window.crescodeTest.store.getState();
   return {
@@ -459,8 +466,11 @@ const afterSync = await st(() => {
 check('Clicking a different chord card re-targets the open picker (name + position reload)',
   beforeSync.open !== null && beforeSync.open !== 'sync_card' && afterSync.open === 'sync_card' &&
   afterSync.selected === 'sync_card' && afterSync.value === 'G' && afterSync.head === 'bar 4 · beat 1' &&
-  afterSync.grid && afterSync.head !== beforeSync.head,
-  JSON.stringify({ beforeSync, afterSync }));
+  afterSync.grid && afterSync.head !== beforeSync.head, JSON.stringify({ beforeSync, afterSync }));
+check('The popup GLIDES to the re-targeted chord: transition active mid-move, anchor shifted',
+  glideStyle.prop.includes('left') && glideStyle.prop.includes('top') &&
+  glideLeft > syncBoxBefore.x + 4,
+  JSON.stringify({ prop: glideStyle.prop, from: syncBoxBefore.x, to: glideLeft }));
 await page.screenshot({ path: path.join(os.tmpdir(), 'chord-picker-3-synced.png'), clip: await editorBox() });
 const syncPick = await st(() => document.querySelector('[data-testid="suggestion-card-0"]')?.dataset.spelling ?? null);
 const preSyncPick = await st(() => window.crescodeTest.store.getState().past.length);
@@ -481,6 +491,59 @@ await page.keyboard.press('Control+z');
 await page.waitForTimeout(150);
 const undoneSync = await st(() => window.crescodeTest.store.getState().project.chords.find((c) => c.id === 'sync_card')?.symbol ?? null);
 check('Ctrl+Z reverts the pick on the re-targeted card', undoneSync === 'G', String(undoneSync));
+
+// V. EMPTY-SPACE follow: single click on empty lane space creates a manual
+//    chord — the open picker must re-target onto it (settings + writes).
+await page.keyboard.press('Escape'); // close the picker from U
+await page.waitForTimeout(120);
+await dblclickTick(schStart + 240); // reopen the picker on the Smart clip
+await page.waitForTimeout(150);
+await page.keyboard.press('Escape'); // dismiss the inline rename, picker remains
+await page.waitForTimeout(120);
+const laneB = await laneBox();
+await page.mouse.click(xFor(laneB, 16320), laneB.y + laneB.height / 2); // empty space → new manual chord
+await page.waitForTimeout(300);
+res = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  const c = s.project.chords.find((x) => x.startTick === 16320);
+  return {
+    created: c?.id ?? null,
+    open: s.suggestionClipId,
+    value: document.querySelector('[data-testid="chord-editor-symbol"]')?.value ?? null,
+    head: document.querySelector('[data-testid="chord-editor"]')?.textContent.match(/bar \d+ · beat \d+/)?.[0] ?? null,
+    grid: !!document.querySelector('[data-testid="suggestion-grid"]'),
+  };
+});
+check('Clicking empty lane space re-targets the picker onto the freshly created chord',
+  res.created !== null && res.open === res.created && res.value === 'C' &&
+  res.head === 'bar 5 · beat 2' && res.grid, JSON.stringify(res));
+const vPick = await st(() => document.querySelector('[data-testid="suggestion-card-0"]')?.dataset.spelling ?? null);
+const preVPick = await st(() => window.crescodeTest.store.getState().past.length);
+await page.click('[data-testid="suggestion-card-0"]');
+await page.waitForTimeout(250);
+res = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  return { sym: s.project.chords.find((x) => x.startTick === 16320)?.symbol ?? null, steps: s.past.length };
+});
+check('A pick applies to the freshly created chord (the previous chord is untouched)',
+  res.sym === vPick && res.steps === preVPick + 1, JSON.stringify({ vPick, res }));
+await page.keyboard.press('Control+z');
+await page.waitForTimeout(150);
+
+// W. Click outside the popup closes it; the track headers stack ABOVE it.
+const zOrder = await st(() => ({
+  header: getComputedStyle(document.querySelector('[data-track-header]')).zIndex,
+  editor: getComputedStyle(document.querySelector('[data-testid="chord-editor"]')).zIndex,
+}));
+await page.locator('[data-testid="track-header"]').nth(3).click(); // outside popup and lane
+await page.waitForTimeout(150);
+res = await st(() => ({
+  open: window.crescodeTest.store.getState().suggestionClipId,
+  editor: !!document.querySelector('[data-testid="chord-editor"]'),
+}));
+check('Clicking outside the popup (a track header) closes it; headers sit above the popup',
+  res.open === null && !res.editor && Number(zOrder.header) > Number(zOrder.editor),
+  JSON.stringify({ zOrder, res }));
 await page.keyboard.press('Escape');
 
 check('No uncaught page errors', errors.length === 0, errors.slice(0, 2).join(';'));

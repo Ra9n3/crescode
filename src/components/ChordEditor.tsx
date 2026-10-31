@@ -19,6 +19,13 @@
  *    viewport); it falls back to the docked top-right spot otherwise.
  *  - Picking a suggestion applies immediately and the popup STAYS open —
  *    the user keeps building the progression (see ChordSuggestions).
+ *  - Clicking OUTSIDE the popup closes it (capture-phase pointerdown;
+ *    chord-lane clicks are excluded — they manage the target themselves:
+ *    a card re-targets it, empty space re-targets it to the created chord).
+ *  - When the target clip changes, the popup GLIDES to the new anchor with
+ *    a subtle ease; scroll/zoom re-anchors stay instant (no clip change →
+ *    no transition). It stacks BELOW the track headers (header cells sit at
+ *    a higher z), so scrolling never covers them.
  *
  * The user preference for new-clip content (empty vs root-note placeholder)
  * lives here as a persisted setting.
@@ -101,6 +108,62 @@ export function ChordEditor() {
   }, [clipId, data]);
 
   const symRef = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  // Click outside closes the picker — capture phase, so inner
+  // stopPropagation (drag starts, lane gestures) can never swallow it.
+  // Clicks inside the popup never close it; clicks on the chord lane are
+  // excluded too because they manage the popup's target themselves (a card
+  // re-targets it, empty space re-targets it onto the created chord).
+  useEffect(() => {
+    if (clipId === null) return;
+    const fn = (e: PointerEvent) => {
+      const t = e.target;
+      if (!(t instanceof Node)) return;
+      const ed = editorRef.current;
+      if (ed !== null && ed.contains(t)) return;
+      const lane = document.querySelector('[data-testid="chord-lane"]');
+      if (lane !== null && lane.contains(t)) return;
+      useStore.getState().set({ suggestionClipId: null });
+    };
+    window.addEventListener('pointerdown', fn, true);
+    return () => window.removeEventListener('pointerdown', fn, true);
+  }, [clipId]);
+
+  // Re-target glide: when the popup follows another chord (card click or a
+  // freshly created one), it moves to the new anchor with a subtle ease.
+  // The position is STAGED: a clip change turns the transition on first and
+  // applies the new anchor a frame later, so the browser actually animates;
+  // scroll and zoom re-anchors change position WITHOUT a clip change — they
+  // apply instantly, so the popup never chases the scrollbar.
+  const anchor = useAnchor(clipId, data?.clip.startTime ?? 0, pxPerTick, project);
+  const [pos, setPos] = useState(anchor);
+  const [glide, setGlide] = useState(false);
+  const glideRef = useRef(false);
+  const latestAnchorRef = useRef(anchor);
+  const prevClipRef = useRef<string | null>(null);
+  useEffect(() => {
+    latestAnchorRef.current = anchor;
+    if (glideRef.current) return; // a glide owns the position this frame
+    setPos(anchor);
+  }, [anchor]);
+  useEffect(() => {
+    const prev = prevClipRef.current;
+    prevClipRef.current = clipId;
+    if (clipId === null || prev === null || prev === clipId) {
+      glideRef.current = false;
+      setGlide(false);
+      setPos(latestAnchorRef.current);
+      return;
+    }
+    glideRef.current = true;
+    setGlide(true);
+    const move = setTimeout(() => setPos(latestAnchorRef.current), 20); // one frame later: transition runs
+    const stop = setTimeout(() => { glideRef.current = false; setGlide(false); }, 300);
+    return () => { clearTimeout(move); clearTimeout(stop); };
+  }, [clipId]);
+
+  // Esc: first press leaves the symbol draft, second press closes the picker.
   useEffect(() => {
     if (clipId === null) return;
     const k = (e: KeyboardEvent) => {
@@ -114,8 +177,6 @@ export function ChordEditor() {
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
   }, [clipId]);
-
-  const anchor = useAnchor(clipId, data?.clip.startTime ?? 0, pxPerTick, project);
 
   if (clipId === null || data === null) return null;
   const { clip, analysis } = data;
@@ -132,21 +193,23 @@ export function ChordEditor() {
     }
   };
 
-  const pos = tickToBarBeat(clip.startTime, project.timeSignature);
+  const barBeat = tickToBarBeat(clip.startTime, project.timeSignature);
   const confidence = analysis !== null ? analysis.confidence : Math.round(clip.chord.confidence * 100);
 
   return (
     <div
+      ref={editorRef}
       className={cn('fixed z-40 flex max-h-[calc(100vh-100px)] w-[344px] flex-col overflow-y-auto rounded-lg border border-[var(--c-lineStrong)] bg-[var(--c-bg1)] shadow-2xl animate-[pop_.16s_ease]',
-        anchor === null && 'right-3 top-[70px]')}
-      style={anchor !== null ? { left: anchor.left, top: anchor.top } : undefined}
+        pos === null && 'right-3 top-[70px]',
+        glide && pos !== null && 'transition-[left,top] duration-200 ease-out')}
+      style={pos !== null ? { left: pos.left, top: pos.top } : undefined}
       data-testid="chord-editor"
     >
       {/* header — one thin strip: identity, position, window controls */}
       <div className="flex items-center gap-1.5 border-b border-[var(--c-line)] px-2 py-1">
         <Ico icon={I.magic} className="text-[11px] text-[var(--c-accent)]" />
         <span className="font-mono text-[9px] text-[var(--c-textMute)]" title={`clip ${clip.id} · ticks [${clip.startTime}, ${clip.startTime + clip.lengthTicks})`}>
-          bar {pos.bar} · beat {pos.beat}
+          bar {barBeat.bar} · beat {barBeat.beat}
         </span>
         <span className="ml-auto" />
         <IconButton icon={minimized ? I.caret : I.minus} size="sm" tip={minimized ? 'Expand the chord picker' : 'Minimize the chord picker'} testId="chord-editor-minimize" onClick={() => setMinimized((m) => !m)} />

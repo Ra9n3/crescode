@@ -521,6 +521,52 @@ check('Clicking outside the popup (a track header) closes it',
   res.open === null && !res.editor, JSON.stringify({ zOrder, res }));
 await page.keyboard.press('Escape');
 
+// X. KEY CHANGE TRANSPOSES THE CHORD TRACK: setting the project's tonic
+//    re-spells every chord for the new key (same degrees, same qualities),
+//    shifts the Chords track's MIDI notes by the same interval, and lands
+//    as ONE undoable edit (Ctrl+Z restores key + chords + notes together).
+await st(() => {
+  const s = window.crescodeTest.store.getState();
+  s.edit((p) => ({
+    ...p, key: 0,
+    chords: [
+      { id: 'k1', symbol: 'C', startTick: 0, durationTicks: 3840 },
+      { id: 'k2', symbol: 'Dm', startTick: 3840, durationTicks: 3840 },
+      { id: 'k3', symbol: 'G7', startTick: 7680, durationTicks: 3840 },
+    ],
+    tracks: p.tracks.map((t) => (t.role === 'chords' ? { ...t, notes: [{ pitch: 60, startTick: 0, durationTicks: 960, velocity: 100 }] } : t)),
+  }));
+});
+await page.waitForTimeout(150);
+const stepsBeforeKey = await st(() => window.crescodeTest.store.getState().past.length);
+await page.selectOption('[data-testid="key-select"]', '4'); // C → E major
+await page.waitForTimeout(250);
+res = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  return {
+    key: s.project.key,
+    symbols: ['k1', 'k2', 'k3'].map((id) => s.project.chords.find((c) => c.id === id)?.symbol),
+    lanePitch: s.project.tracks.find((t) => t.role === 'chords')?.notes[0]?.pitch ?? null,
+    steps: s.past.length,
+    toast: s.toasts.at(-1)?.text ?? null,
+  };
+});
+check('Changing the key transposes the whole chord track (C major → E major: C→E, Dm→F#m, G7→B7, notes +4)',
+  res.key === 4 && res.symbols.join() === 'E,F#m,B7' && res.lanePitch === 64 &&
+  res.steps === stepsBeforeKey + 1 && (res.toast ?? '').includes('Key → E'), JSON.stringify(res));
+await page.keyboard.press('Control+z');
+await page.waitForTimeout(200);
+res = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  return {
+    key: s.project.key,
+    symbols: ['k1', 'k2', 'k3'].map((id) => s.project.chords.find((c) => c.id === id)?.symbol),
+    lanePitch: s.project.tracks.find((t) => t.role === 'chords')?.notes[0]?.pitch ?? null,
+  };
+});
+check('One undo restores the key, the chord symbols and the transposed notes together',
+  res.key === 0 && res.symbols.join() === 'C,Dm,G7' && res.lanePitch === 60, JSON.stringify(res));
+
 check('No uncaught page errors', errors.length === 0, errors.slice(0, 2).join(';'));
 
 await browser.close();

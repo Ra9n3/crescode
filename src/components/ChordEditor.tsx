@@ -326,8 +326,10 @@ export function ChordEditor() {
  *  since the parser folds case, quick entry "g7"/"am" validates too). Every
  *  keystroke reports the draft upward so the grid can filter dynamically;
  *  the draft itself clears on commit (rename) or a target change. An
- *  `initial` change syncs into the field only while the user is NOT typing
- *  in it — the picker's immediate applies and undo never grab the keyboard.
+ *  `initial` change syncs into the field whenever the user has not TYPED a
+ *  draft of their own — external renames (the picker's picks, undo, a global
+ *  key transposition) keep the field truthful even though it holds focus;
+ *  only a user-typed draft is protected from being overwritten.
  *
  *  RE-TARGET GUARD: the field is autofocused, so clicking another chord card
  *  re-renders the picker onto the new clip BEFORE the browser delivers the
@@ -339,9 +341,14 @@ const SymbolInput = forwardRef<HTMLInputElement, { initial: string; autoFocus?: 
   function SymbolInput({ initial, autoFocus = true, onCommit, onDraftChange }, ref) {
     const [value, setValue] = useState(initial);
     const editingRef = useRef(false);
+    // Focus alone must not freeze the field: the popup autofocusing means
+    // editingRef is always true, and a global key transposition (or undo,
+    // or a tile pick) would leave the stale symbol on screen. Only a draft
+    // the user actually TYPED wins over external `initial` changes.
+    const touchedRef = useRef(false);
     const focusInitialRef = useRef(initial);
     useEffect(() => {
-      if (!editingRef.current) setValue(initial);
+      if (!touchedRef.current) setValue(initial);
     }, [initial]);
     const valid = parseChord(value).ok;
     /** Returns the canonical symbol the commit stored (or null when nothing
@@ -361,10 +368,11 @@ const SymbolInput = forwardRef<HTMLInputElement, { initial: string; autoFocus?: 
         style={{ color: valid ? tokens.text : tokens.danger }}
         aria-label="Chord symbol"
         onFocus={() => { editingRef.current = true; focusInitialRef.current = initial; }}
-        onChange={(e) => { setValue(e.target.value); onDraftChange?.(e.target.value); }}
+        onChange={(e) => { touchedRef.current = true; setValue(e.target.value); onDraftChange?.(e.target.value); }}
         onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
         onBlur={() => {
           editingRef.current = false;
+          touchedRef.current = false;
           if (focusInitialRef.current !== initial) {
             // The picker re-targeted (card click / empty-space create) between
             // focus and blur — the stale draft must never rename the NEW clip.

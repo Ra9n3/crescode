@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import fixture from '../../fixtures/dorian-16bars.json';
 import {
-  createAddedTrack, projectFromFixture, uid, MAX_TRACKS_PER_GROUP,
-  type Chord, type LibraryGroup, type Note, type Project, type Section, type Track, type TrackFamily,
+  createAddedTrack, projectFromFixture, uid, MAX_TRACKS_PER_GROUP, NOTE_NAMES,
+  type Chord, type LibraryGroup, type Note, type Project, type Section, type Track, type TrackFamily, type PitchClass,
 } from '../shared/schema';
 import { generate } from '../engine/generate';
+import { transposeProjectKey } from '../engine/suggestion/transpose';
 
 export const HISTORY_LIMIT = 200;
 
@@ -91,6 +92,11 @@ interface State {
   addChord: (c: Omit<Chord, 'id'>) => string;
   updateChord: (id: string, patch: Partial<Chord>, coalesce?: string) => void;
   deleteChord: (id: string) => void;
+  /** Set the project's tonic; the whole chord track transposes with it
+   *  (same degrees, same qualities, re-spelled for the new key) as ONE
+   *  undoable edit. A pure tonic change with interval 0 (mode-only moves)
+   *  rewrites nothing. */
+  setProjectKey: (tonic: PitchClass) => void;
   createGroup: (name: string, pluginId: string | null) => string;
   updateGroup: (id: string, patch: Partial<LibraryGroup>) => void;
   deleteGroup: (id: string) => void;
@@ -157,6 +163,21 @@ export const useStore = create<State>((set, get) => ({
   addChord: (c) => { const id = uid('chd'); get().edit((p) => ({ ...p, chords: [...p.chords, { ...c, id }] })); return id; },
   updateChord: (id, patch, c) => get().edit((p) => ({ ...p, chords: p.chords.map((x) => (x.id === id ? { ...x, ...patch } : x)) }), c),
   deleteChord: (id) => get().edit((p) => ({ ...p, chords: p.chords.filter((c) => c.id !== id) })),
+
+  // Key change → the whole chord track follows (transpose.ts owns the
+  // theory): chord symbols re-spell for the new tonic, the Chords track's
+  // MIDI notes shift by the same interval, and everything lands as ONE
+  // undoable edit so Ctrl+Z restores key + chords together.
+  setProjectKey: (tonic) => {
+    const p = get().project;
+    if (tonic === p.key) return;
+    const res = transposeProjectKey(p, tonic);
+    get().edit(() => res.project);
+    if (res.interval !== 0) {
+      const n = res.changed;
+      get().toast('success', `Key → ${NOTE_NAMES[tonic]} ${p.mode}${n ? ` · ${n} chord${n === 1 ? '' : 's'} transposed ${res.interval >= 0 ? '+' : ''}${res.interval} st` : ' · no chords to transpose'}`);
+    }
+  },
 
   createGroup: (name, pluginId) => {
     const id = uid('grp');

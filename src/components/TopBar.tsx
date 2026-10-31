@@ -149,7 +149,7 @@ export function TopBar() {
       {/* Project Settings */}
       <div className="panel-raised flex shrink-0 items-end gap-1 rounded-md border border-[#0e0e10] px-1.5 py-0.5" title="Project settings — stored in the project">
         <Field label="tempo" tip="Tempo (BPM)"><NumberField value={p.bpm} min={20} max={400} tip="Tempo (BPM)" width={34} suffix="bpm" onCommit={(v) => edit((q) => ({ ...q, bpm: v, tempoMap: [{ tick: 0, bpm: v }] }))} /></Field>
-        <Field label="key" tip="Key (12 pitch classes)"><Select<number> mono tip="Key" value={p.key} options={NOTE_NAMES.map((n, i) => ({ value: i, label: n }))} onChange={(v) => edit((q) => ({ ...q, key: v as PitchClass }))} className="w-[38px] px-0.5 text-[10px]" /></Field>
+        <Field label="key" tip="Key (12 pitch classes) — changing the tonic transposes the whole chord track"><Select<number> mono testId="key-select" tip="Key" value={p.key} options={NOTE_NAMES.map((n, i) => ({ value: i, label: n }))} onChange={(v) => useStore.getState().setProjectKey(v as PitchClass)} className="w-[38px] px-0.5 text-[10px]" /></Field>
         <Field label="mode" tip="Mode (full table)"><Select<string> tip="Mode" value={p.mode} options={MODE_NAMES.map((m) => ({ value: m, label: m }))} onChange={(v) => edit((q) => ({ ...q, mode: v as ModeName }))} className="w-[78px] px-0.5 text-[10px]" /></Field>
         <Field label="meter" tip="Time signature">
           <div className="flex items-center gap-0.5">

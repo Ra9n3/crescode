@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../store/store';
 import { barTicks, beatTicks, parseChord, projectBars, projectEndTick, secondsToTicks, type Section, type Track, type TrackFamily } from '../shared/schema';
-import { chordTrackApi, chordTrackGesture, isFreshManualCreate, noteManualCreate, SMART_CLIP_ID_PREFIX } from '../engine/suggestion/wire';
+import { chordTrackApi, chordTrackGesture, isFreshManualCreate, noteManualCreate, SMART_CLIP_ID_PREFIX, syncPickerToChordCard } from '../engine/suggestion/wire';
 import { FAMILY_COLORS, tokens, velocityColor, withAlpha } from '../theme/tokens';
 import { preview } from '../audio/preview';
 import { currentTick, seek } from '../audio/transport';
@@ -189,6 +189,7 @@ const ChordLane = memo(function ChordLane({ ppt }: { ppt: number }) {
 
   const onChordDown = (e: React.PointerEvent, c: { id: string; startTick: number; durationTicks: number }) => {
     if (e.button !== 0 || editing === c.id) return;
+    syncPickerToChordCard(c.id); // the open Smart Chord picker follows the clicked card instantly
     useStore.getState().set({ selectedChordId: c.id, selectedSectionId: null });
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const mode = r.right - e.clientX < 7 ? 'r' : 'move';

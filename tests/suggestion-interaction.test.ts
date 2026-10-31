@@ -22,6 +22,7 @@ import {
 } from '../src/engine/suggestion';
 import {
   chordTrackApi, chordTrackGesture, isFreshManualCreate, noteManualCreate,
+  syncPickerToChordCard,
 } from '../src/engine/suggestion/wire';
 import { useStore } from '../src/store/store';
 
@@ -473,5 +474,47 @@ describe('chord lane gesture (end-to-end through wire.ts)', () => {
     noteManualCreate('fresh_1');
     expect(isFreshManualCreate('fresh_1')).toBe(true);
     expect(isFreshManualCreate('unknown')).toBe(false);
+  });
+});
+
+// --- popup ↔ chord-card selection sync ---------------------------------------
+
+describe('popup sync (clicking a chord card re-targets the open picker)', () => {
+  beforeEach(() => {
+    useStore.getState().loadProject(makeProject([ev('c1', 'G7', 0, 3840), ev('c2', 'C', 5760, 3840)]));
+  });
+
+  it('the open picker follows the clicked card: settings reload from that clip', () => {
+    // picker open on c1 (as the double-click gesture leaves it)
+    useStore.getState().set({ suggestionClipId: 'c1', selectedChordId: 'c1', selectedSectionId: null });
+    syncPickerToChordCard('c2'); // pointer-down on the c2 card
+    const s = useStore.getState();
+    expect(s.suggestionClipId).toBe('c2');
+    // what the popup renders now comes from c2 — name and position included
+    const data = loadClipEditorData(chordTrackApi, s.suggestionClipId!);
+    expect(data).not.toBeNull();
+    expect(data!.clip.chord.spelling).toBe('C');
+    expect(data!.clip.startTime).toBe(5760);
+  });
+
+  it('is a no-op when the clicked card is the one already open', () => {
+    useStore.getState().set({ suggestionClipId: 'c1' });
+    syncPickerToChordCard('c1');
+    expect(useStore.getState().suggestionClipId).toBe('c1');
+  });
+
+  it('never OPENS the picker from a closed state (single click only selects)', () => {
+    useStore.getState().set({ suggestionClipId: null, selectedChordId: null });
+    syncPickerToChordCard('c2');
+    expect(useStore.getState().suggestionClipId).toBeNull();
+    syncPickerToChordCard('c1');
+    expect(useStore.getState().suggestionClipId).toBeNull();
+  });
+
+  it('keeps following across consecutive card clicks (back and forth)', () => {
+    useStore.getState().set({ suggestionClipId: 'c1' });
+    syncPickerToChordCard('c2');
+    syncPickerToChordCard('c1');
+    expect(useStore.getState().suggestionClipId).toBe('c1');
   });
 });

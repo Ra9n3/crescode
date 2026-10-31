@@ -49,11 +49,13 @@ import { cn } from '../utils/cn';
 import { I } from './icons';
 import { Ico, Select } from './ui';
 
-/** Spec §5 colors — the engine's green/yellow/red bands over graphite. */
+/** Spec §5 colors — the compatibility band lives on the BORDER only: cards
+ *  use the software's default graphite background with white text (user
+ *  styling request), so a band is read from its green/yellow/red edge. */
 const CARD_COLOR = {
-  green: { bg: 'rgba(143,194,106,0.15)', border: 'rgba(143,194,106,0.55)', text: tokens.success },
-  yellow: { bg: 'rgba(232,200,106,0.13)', border: 'rgba(232,200,106,0.5)', text: tokens.warn },
-  red: { bg: 'rgba(224,75,52,0.12)', border: 'rgba(224,75,52,0.5)', text: tokens.danger },
+  green: { border: 'rgba(143,194,106,0.55)' },
+  yellow: { border: 'rgba(232,200,106,0.5)' },
+  red: { border: 'rgba(224,75,52,0.5)' },
 } as const;
 
 const DRIFT_TEXT: Record<ClipDrift, string> = {
@@ -195,11 +197,11 @@ export function ChordSuggestions({ clip }: ChordSuggestionsProps) {
                   data-testid={`suggestion-card-${i}`} data-color={s.color} data-spelling={s.chord.spelling} data-quality={s.chord.quality}
                   title={cardTitle(s)}
                   onClick={() => onPick(s)}
-                  className={cn('relative flex flex-col gap-px rounded border px-1.5 py-1 text-left transition-all hover:brightness-125',
+                  className={cn('relative flex flex-col gap-px rounded border bg-[var(--c-bg0)] px-1.5 py-1 text-left transition-all hover:brightness-125',
                     applied && 'ring-1 ring-[var(--c-accent)]')}
-                  style={{ background: col.bg, borderColor: applied ? tokens.accent : col.border }}>
-                  <span className="w-full truncate font-mono text-[13px] font-bold leading-tight" style={{ color: col.text }}>{s.chord.spelling}</span>
-                  <span className="w-full truncate text-[8px] uppercase leading-tight tracking-[0.06em]" style={{ color: col.text, opacity: 0.72 }}>
+                  style={{ borderColor: applied ? tokens.accent : col.border }}>
+                  <span className="w-full truncate font-mono text-[13px] font-bold leading-tight" style={{ color: tokens.textBright }}>{s.chord.spelling}</span>
+                  <span className="w-full truncate text-[8px] uppercase leading-tight tracking-[0.06em]" style={{ color: tokens.textBright, opacity: 0.66 }}>
                     {categoryLabelOf(s.colorCategory)}
                   </span>
                   {amb !== undefined && (

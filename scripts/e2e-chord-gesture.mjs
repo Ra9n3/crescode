@@ -149,6 +149,22 @@ check('Picker opens with 8 compact tiles: colored, function-labeled, explained o
   JSON.stringify({ cards: res.cards, colors: res.colors, labeled: res.labeled, tooltip: res.tooltip.slice(0, 40), noScroll: res.noScroll }));
 await page.screenshot({ path: path.join(os.tmpdir(), 'chord-picker-1-open.png'), clip: await editorBox() });
 
+// H2. Card styling: the software's default graphite fill (no green wash),
+//     white text, the compatibility band kept on the border.
+const cardStyle = await st(() => {
+  const EXP = { green: 'rgba(143, 194, 106, 0.55)', yellow: 'rgba(232, 200, 106, 0.5)', red: 'rgba(224, 75, 52, 0.5)' };
+  const cards = [...document.querySelectorAll('[data-testid^="suggestion-card-"]')];
+  const el = cards.find((c) => c.dataset.color === 'green' && !c.className.includes('ring-1')) ?? cards[0];
+  const cs = getComputedStyle(el);
+  const ss = getComputedStyle(el.querySelector('span'));
+  return {
+    band: el.dataset.color, bg: cs.backgroundColor, border: cs.borderTopColor, text: ss.color,
+    ok: cs.backgroundColor === 'rgb(23, 23, 25)' && ss.color === 'rgb(255, 255, 255)' && cs.borderTopColor === EXP[el.dataset.color],
+  };
+});
+check('Cards: default background (no green fill), white text, band border kept (green)',
+  cardStyle.ok && cardStyle.band === 'green', JSON.stringify(cardStyle));
+
 // I. "+more" reveals the next ranked row — never a scrolling panel.
 const total = await st(() => {
   const btn = document.querySelector('[data-testid="suggestion-more"]');
@@ -410,6 +426,61 @@ check('Confirming replaces user MIDI with the typed chord in one undo step',
   confirmed.sym === 'C' && confirmed.notes.join(',') === '60,64,67' &&
   confirmed.steps === preConfirm.steps + 1,
   JSON.stringify(confirmed));
+await page.keyboard.press('Escape');
+
+// U. POPUP SYNC: clicking a different chord card while the picker is open
+//    re-targets the popup — settings reload from the clicked card instantly,
+//    and a tile pick then applies to THAT card (one undo step, popup open).
+await st(() => {
+  const s = window.crescodeTest.store.getState();
+  s.edit((p) => ({ ...p, chords: [...p.chords, { id: 'sync_card', symbol: 'G', startTick: 11520, durationTicks: 3840 }] }));
+});
+await dblclickTick(schStart + 240); // reopen the picker on the Smart clip
+await page.waitForTimeout(150);
+await page.keyboard.press('Escape'); // dismiss the inline rename, picker remains
+await page.waitForTimeout(120);
+const beforeSync = await st(() => ({
+  open: window.crescodeTest.store.getState().suggestionClipId,
+  value: document.querySelector('[data-testid="chord-editor-symbol"]')?.value ?? null,
+  head: document.querySelector('[data-testid="chord-editor"]')?.textContent.match(/bar \d+ · beat \d+/)?.[0] ?? null,
+}));
+await page.locator('[data-testid="chord"]').filter({ hasText: /^G$/ }).click();
+await page.waitForTimeout(200);
+const afterSync = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  return {
+    open: s.suggestionClipId,
+    selected: s.selectedChordId,
+    value: document.querySelector('[data-testid="chord-editor-symbol"]')?.value ?? null,
+    head: document.querySelector('[data-testid="chord-editor"]')?.textContent.match(/bar \d+ · beat \d+/)?.[0] ?? null,
+    grid: !!document.querySelector('[data-testid="suggestion-grid"]'),
+  };
+});
+check('Clicking a different chord card re-targets the open picker (name + position reload)',
+  beforeSync.open !== null && beforeSync.open !== 'sync_card' && afterSync.open === 'sync_card' &&
+  afterSync.selected === 'sync_card' && afterSync.value === 'G' && afterSync.head === 'bar 4 · beat 1' &&
+  afterSync.grid && afterSync.head !== beforeSync.head,
+  JSON.stringify({ beforeSync, afterSync }));
+await page.screenshot({ path: path.join(os.tmpdir(), 'chord-picker-3-synced.png'), clip: await editorBox() });
+const syncPick = await st(() => document.querySelector('[data-testid="suggestion-card-0"]')?.dataset.spelling ?? null);
+const preSyncPick = await st(() => window.crescodeTest.store.getState().past.length);
+await page.click('[data-testid="suggestion-card-0"]');
+await page.waitForTimeout(250);
+const appliedSync = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  return {
+    sym: s.project.chords.find((c) => c.id === 'sync_card')?.symbol ?? null,
+    steps: s.past.length,
+    open: s.suggestionClipId,
+  };
+});
+check('After the re-target, a tile pick applies to the newly selected card',
+  appliedSync.sym === syncPick && appliedSync.steps === preSyncPick + 1 && appliedSync.open === 'sync_card',
+  JSON.stringify({ syncPick, appliedSync }));
+await page.keyboard.press('Control+z');
+await page.waitForTimeout(150);
+const undoneSync = await st(() => window.crescodeTest.store.getState().project.chords.find((c) => c.id === 'sync_card')?.symbol ?? null);
+check('Ctrl+Z reverts the pick on the re-targeted card', undoneSync === 'G', String(undoneSync));
 await page.keyboard.press('Escape');
 
 check('No uncaught page errors', errors.length === 0, errors.slice(0, 2).join(';'));

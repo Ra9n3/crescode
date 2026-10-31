@@ -33,6 +33,7 @@ export const tokens = {
   lineStrong: '#55555c',
   /* cream print */
   text: '#e9e6e0',
+  textBright: '#ffffff',
   textDim: '#b3b0aa',
   textMute: '#7c7a76',
   /* lamp accents */

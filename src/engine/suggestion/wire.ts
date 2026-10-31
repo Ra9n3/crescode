@@ -69,6 +69,20 @@ export function chordTrackGesture(clip: ChordClip | null, time: number, opts?: G
   interaction.handleDoubleClick(clip, time, opts);
 }
 
+// --- popup ↔ chord-card selection sync --------------------------------------
+
+/** Clicking a different chord card on the lane while the Smart Chord picker
+ *  is open re-targets the picker to that card: the popup instantly reloads
+ *  its settings (name, position, analysis, suggestions, Advanced state) from
+ *  the clicked clip. A closed picker is never opened from here — a single
+ *  click keeps plain-selecting; the double-click remains the open gesture. */
+export function syncPickerToChordCard(clipId: string): void {
+  const s = useStore.getState();
+  if (s.suggestionClipId !== null && s.suggestionClipId !== clipId) {
+    s.set({ suggestionClipId: clipId });
+  }
+}
+
 // --- the background suggestion engine, bound to the app ---------------------
 
 export interface ChordSuggestionsAtOptions {

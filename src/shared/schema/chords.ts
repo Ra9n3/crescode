@@ -2,6 +2,12 @@
  * Chord symbol parser. Never throws — invalid input returns { ok: false, error }.
  * Returns pitch classes in order: slash bass first (if any), then the chord
  * tones stacked from the root.
+ *
+ * Flexible quick entry: the grammar itself is case-sensitive (m = minor vs
+ * M = major is a real distinction), but parseChord folds input case before
+ * giving up — "g7", "am", "gmaJ7", "G/B" all parse, and the stored symbol is
+ * the canonical folded form ("g7" → "G7"). The fold is a fixed cascade of
+ * candidates over the SAME grammar, so one chord grammar stays in crescode.
  */
 export interface ParsedChord {
   symbol: string;
@@ -97,9 +103,9 @@ function parseNote(s: string): { pc: number; name: string; len: number } | null 
   return { pc: (pc + 12) % 12, name: m[0], len: m[0].length };
 }
 
-export function parseChord(input: string): ChordParseResult {
-  if (typeof input !== 'string') return { ok: false, error: 'Chord symbol must be text' };
-  const symbol = input.trim();
+/** The strict grammar core — case-sensitive, ASCII accidentals only. The
+ *  returned symbol is the string exactly as passed. */
+function tryParseChord(symbol: string): ChordParseResult {
   if (!symbol) return { ok: false, error: 'Empty chord symbol' };
   const root = parseNote(symbol);
   if (!root) return { ok: false, error: `"${symbol}": must start with a note letter A–G` };
@@ -171,4 +177,44 @@ export function parseChord(input: string): ChordParseResult {
       intervals: sorted, pitchClasses: pcs,
     },
   };
+}
+
+/** Unicode accidentals fold to the grammar's ASCII canon; everything else in
+ *  the exact attempt stays the user's own case. */
+const foldAccidentals = (t: string): string => t.replace(/♯/g, '#').replace(/♭/g, 'b');
+
+/** Root letter (and a trailing slash bass letter) folded to uppercase — the
+ *  quick-entry candidate: "g7" → "G7", "am" → "Am", "g/b" → "G/B". */
+const foldRootCase = (t: string): string =>
+  t.replace(/^([a-g])/, (m) => m.toUpperCase())
+    .replace(/\/([a-g])(?=[#b]?$)/, (m) => m.toUpperCase());
+
+/** Sloppy-caps candidate: root preserved (accidental included), the whole
+ *  quality/extension region lowercased — "GMAJ7/E" → "Gmaj7/E",
+ *  "CADD9" → "Cadd9". Run after foldRootCase, which already resolved the
+ *  meaningful m/M distinction ("CM" major vs "Cm" minor never reaches this). */
+const foldLowerRest = (t: string): string => {
+  const m = /^([A-Ga-g][#b]?)([\s\S]*)$/.exec(t);
+  if (!m) return t;
+  return m[1].replace(/^([a-g])/, (c) => c.toUpperCase()) + m[2].toLowerCase();
+};
+
+/**
+ * The one chord grammar: exact case first, then a fixed cascade of folded
+ * candidates through the SAME strict grammar. Case never changes a chord's
+ * meaning where the grammar distinguishes one (m/M), and the returned symbol
+ * is the canonical folded form so stored names stay consistent.
+ */
+export function parseChord(input: string): ChordParseResult {
+  if (typeof input !== 'string') return { ok: false, error: 'Chord symbol must be text' };
+  const symbol = foldAccidentals(input.trim());
+  if (!symbol) return { ok: false, error: 'Empty chord symbol' };
+  const exact = tryParseChord(symbol);
+  if (exact.ok) return exact;
+  for (const candidate of [foldRootCase(symbol), foldRootCase(foldLowerRest(symbol))]) {
+    if (candidate === symbol) continue;
+    const folded = tryParseChord(candidate);
+    if (folded.ok) return folded;
+  }
+  return exact; // the exact-case diagnosis is the most faithful error
 }

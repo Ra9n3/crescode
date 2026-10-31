@@ -19,13 +19,19 @@
  *    viewport); it falls back to the docked top-right spot otherwise.
  *  - Picking a suggestion applies immediately and the popup STAYS open —
  *    the user keeps building the progression (see ChordSuggestions).
+ *  - The symbol field doubles as the search bar: its live draft drives the
+ *    grid's flexible, case-insensitive dynamic filtering, and a commit goes
+ *    through the key-aware normalizer (Dbm7 → C#m7 in D major) before the
+ *    one "Rename Chord" transaction — the popup is the ONLY chord editor
+ *    (the lane's inline text entry was removed by request).
  *  - Clicking OUTSIDE the popup closes it (capture-phase pointerdown;
  *    chord-lane clicks are excluded — they manage the target themselves:
  *    a card re-targets it, empty space re-targets it to the created chord).
  *  - When the target clip changes, the popup GLIDES to the new anchor with
  *    a subtle ease; scroll/zoom re-anchors stay instant (no clip change →
- *    no transition). It stacks BELOW the track headers (header cells sit at
- *    a higher z), so scrolling never covers them.
+ *    no transition). It floats ABOVE the track headers (higher z) and its
+ *    anchor is recomputed from the live lane rect on every scroll — so it
+ *    stays attached to its chord and is never clipped by the header column.
  *
  * The user preference for new-clip content (empty vs root-note placeholder)
  * lives here as a persisted setting.
@@ -35,7 +41,8 @@ import { useStore } from '../store/store';
 import { parseChord, tickToBarBeat } from '../shared/schema';
 import { chordTrackApi } from '../engine/suggestion/wire';
 import { loadClipEditorData } from '../engine/suggestion/interaction';
-import { spelledNoteName } from '../engine/suggestion/model';
+import { spelledNoteName, projectKeyOf } from '../engine/suggestion/model';
+import { normalizeChordText } from '../engine/suggestion/textentry';
 import type { ChordAnalysisStatus } from '../engine/suggestion/parse';
 import { ChordSuggestions } from './ChordSuggestions';
 import { tokens } from '../theme/tokens';
@@ -78,7 +85,11 @@ function useAnchor(clipId: string | null, startTime: number, pxPerTick: number, 
       const r = lane.getBoundingClientRect(); // live viewport box — scroll already baked in
       const x = r.left + startTime * pxPerTick;
       const W = 344;
-      return { left: Math.max(8, Math.min(x, window.innerWidth - W - 8)), top: Math.min(r.bottom + 6, window.innerHeight - 160) };
+      // ROUNDED: the popup must land on whole device pixels — a fractional
+      // left/top renders every glyph on a subpixel boundary and the small
+      // mono text goes blurry (user-reported). The chord card itself may sit
+      // on a half pixel; ±0.5px of anchor is invisible, blur is not.
+      return { left: Math.round(Math.max(8, Math.min(x, window.innerWidth - W - 8))), top: Math.round(Math.min(r.bottom + 6, window.innerHeight - 160)) };
     } catch {
       return null;
     }
@@ -88,13 +99,17 @@ function useAnchor(clipId: string | null, startTime: number, pxPerTick: number, 
 
 export function ChordEditor() {
   const clipId = useStore((s) => s.suggestionClipId);
-  const chordRenameId = useStore((s) => s.chordRenameId);
   const project = useStore((s) => s.project);
   const pxPerTick = useStore((s) => s.pxPerTick);
   const placeholderPref = useStore((s) => s.settings.smartChordPlaceholder);
   // Minimized = header only; the picker itself never closes on apply —
   // the user closes it (Esc / X) when done building the progression.
   const [minimized, setMinimized] = useState(false);
+  // The symbol field's live draft — drives the suggestion grid's dynamic
+  // search filtering (ChordSuggestions). Cleared when the target changes or
+  // a rename commits, so the grid always returns to the full view.
+  const [draft, setDraft] = useState('');
+  useEffect(() => { setDraft(''); }, [clipId]);
 
   // Reload on every project edit so the inspector always shows the live clip.
   const data = useMemo(
@@ -182,10 +197,20 @@ export function ChordEditor() {
   const { clip, analysis } = data;
   const notes = clip.rawMidiNotes ?? [];
 
+  const key = projectKeyOf(project);
+
+  /** The popup's ONE rename path — also the only chord-renaming UI left in
+   *  crescode (the lane's inline editor was removed by request). The typed
+   *  symbol is case-folded by the shared parser and normalized to the
+   *  project key (Dbm7 → C#m7 in D major; pitch class verified unchanged)
+   *  before the single "Rename Chord" transaction. */
   const rename = (symbol: string) => {
+    setDraft(''); // a commit ends the search — the grid returns to the full view
+    const normalized = normalizeChordText(symbol, key);
+    const name = normalized.ok ? normalized.symbol : symbol;
     chordTrackApi.beginUndoTransaction('Rename Chord');
     try {
-      chordTrackApi.renameChordClip(clip.id, symbol);
+      chordTrackApi.renameChordClip(clip.id, name);
       chordTrackApi.commitUndoTransaction();
     } catch (err) {
       chordTrackApi.cancelUndoTransaction();
@@ -199,7 +224,7 @@ export function ChordEditor() {
   return (
     <div
       ref={editorRef}
-      className={cn('fixed z-40 flex max-h-[calc(100vh-100px)] w-[344px] flex-col overflow-y-auto rounded-lg border border-[var(--c-lineStrong)] bg-[var(--c-bg1)] shadow-2xl animate-[pop_.16s_ease]',
+      className={cn('fixed z-[43] flex max-h-[calc(100vh-100px)] w-[344px] flex-col overflow-y-auto rounded-lg border border-[var(--c-lineStrong)] bg-[var(--c-bg1)] shadow-2xl animate-[pop_.16s_ease]',
         pos === null && 'right-3 top-[70px]',
         glide && pos !== null && 'transition-[left,top] duration-200 ease-out')}
       style={pos !== null ? { left: pos.left, top: pos.top } : undefined}
@@ -223,13 +248,14 @@ export function ChordEditor() {
         </div>
       ) : (
         <>
-          {/* chord name — thin field, renames through the API; position/length
-              are never touched. No autofocus while the lane's inline rename
-              editor owns the keyboard; external renames (the picker's own
-              picks, undo, the lane input) sync into the field WITHOUT
-              remounting, so keyboard focus is never stolen mid-workflow. */}
+          {/* chord name / search — thin field; typing filters the suggestion
+              grid live (flexible, case-insensitive), committing renames
+              through the key-aware normalizer. Position/length are never
+              touched. External renames (the picker's own picks, undo) sync
+              into the field WITHOUT remounting, so keyboard focus is never
+              stolen mid-workflow. */}
           <div className="px-1.5 pt-1.5">
-            <SymbolInput ref={symRef} initial={clip.chord.spelling} autoFocus={chordRenameId !== clip.id} onCommit={rename} />
+            <SymbolInput ref={symRef} initial={clip.chord.spelling} onCommit={rename} onDraftChange={setDraft} />
           </div>
 
           {/* reading — one compact line: current chord · status; confidence
@@ -262,21 +288,23 @@ export function ChordEditor() {
             )}
           </div>
 
-          {/* suggestions — the compact immediate-selection grid */}
-          <ChordSuggestions clip={clip} />
+          {/* suggestions — the compact immediate-selection grid, filtered by
+              the live draft (dynamic search) and the scale/other toggle */}
+          <ChordSuggestions clip={clip} query={draft} />
 
-          {/* footer — one micro line: clip content · new-clip preference */}
-          <div className="mt-auto flex items-center gap-1.5 border-t border-[var(--c-line)] px-1.5 py-1 font-mono text-[9px] text-[var(--c-textMute)]">
+          {/* footer — one micro line: clip content · new-clip preference.
+              10px/unbolded: the old 9px bold mono went blurry (user report). */}
+          <div className="mt-auto flex items-center gap-1.5 border-t border-[var(--c-line)] px-1.5 py-1 text-[10px] text-[var(--c-textDim)]">
             <Ico icon={I.notes} className="text-[10px]" />
             <span title="MIDI notes on the Chords track inside this clip">
               {notes.length === 0 ? 'empty' : `${notes.length} note${notes.length === 1 ? '' : 's'}`}
             </span>
             <span className="ml-auto flex items-center gap-1" title="Content of a freshly created Smart Chord clip (double-click on empty lane)">
-              <span className="font-sans uppercase tracking-wider">new clip</span>
+              <span className="font-sans text-[9px] uppercase tracking-wider text-[var(--c-textMute)]">new clip</span>
               {(['empty', 'root-note'] as const).map((v) => (
                 <button key={v} type="button" data-testid={`placeholder-${v}`}
                   onClick={() => useStore.getState().setSettings({ smartChordPlaceholder: v })}
-                  className={cn('rounded px-1 py-px font-semibold', placeholderPref === v ? 'bg-[var(--c-bg4)] text-[var(--c-text)]' : 'text-[var(--c-textDim)] hover:bg-[var(--c-bg4)]')}>
+                  className={cn('rounded px-1 py-px font-medium', placeholderPref === v ? 'bg-[var(--c-bg4)] text-[var(--c-text)]' : 'text-[var(--c-textDim)] hover:bg-[var(--c-bg4)] hover:text-[var(--c-text)]')}>
                   {v === 'empty' ? 'Empty' : 'Root'}
                 </button>
               ))}
@@ -289,15 +317,24 @@ export function ChordEditor() {
 }
 
 /** Symbol field with live validation through the shared parser — one chord
- *  grammar in crescode, so the editor cannot store an unparseable name.
- *  `autoFocus` yields the keyboard to the lane's inline rename editor while
- *  that is open on the same clip. Thin, compact (redesign §2). An `initial`
- *  change syncs into the field only while the user is NOT typing in it —
- *  the picker's immediate applies and undo never grab the keyboard. */
-const SymbolInput = forwardRef<HTMLInputElement, { initial: string; autoFocus?: boolean; onCommit: (symbol: string) => void }>(
-  function SymbolInput({ initial, autoFocus = true, onCommit }, ref) {
+ *  grammar in crescode, so the editor cannot store an unparseable name (and
+ *  since the parser folds case, quick entry "g7"/"am" validates too). Every
+ *  keystroke reports the draft upward so the grid can filter dynamically;
+ *  the draft itself clears on commit (rename) or a target change. An
+ *  `initial` change syncs into the field only while the user is NOT typing
+ *  in it — the picker's immediate applies and undo never grab the keyboard.
+ *
+ *  RE-TARGET GUARD: the field is autofocused, so clicking another chord card
+ *  re-renders the picker onto the new clip BEFORE the browser delivers the
+ *  input's blur. A naive blur-commit would then write the stale draft into
+ *  the WRONG clip (the "changed the D, not the C" bug class). The initial
+ *  symbol is captured at focus; if it moved while editing, the re-target
+ *  owns the field — the draft is discarded, nothing is written. */
+const SymbolInput = forwardRef<HTMLInputElement, { initial: string; autoFocus?: boolean; onCommit: (symbol: string) => void; onDraftChange?: (draft: string) => void }>(
+  function SymbolInput({ initial, autoFocus = true, onCommit, onDraftChange }, ref) {
     const [value, setValue] = useState(initial);
     const editingRef = useRef(false);
+    const focusInitialRef = useRef(initial);
     useEffect(() => {
       if (!editingRef.current) setValue(initial);
     }, [initial]);
@@ -315,10 +352,19 @@ const SymbolInput = forwardRef<HTMLInputElement, { initial: string; autoFocus?: 
           valid ? 'border-[var(--c-lineStrong)]' : 'border-[var(--c-danger)]')}
         style={{ color: valid ? tokens.text : tokens.danger }}
         aria-label="Chord symbol"
-        onFocus={() => { editingRef.current = true; }}
-        onChange={(e) => setValue(e.target.value)}
+        onFocus={() => { editingRef.current = true; focusInitialRef.current = initial; }}
+        onChange={(e) => { setValue(e.target.value); onDraftChange?.(e.target.value); }}
         onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-        onBlur={() => { editingRef.current = false; commit(); }}
+        onBlur={() => {
+          editingRef.current = false;
+          if (focusInitialRef.current !== initial) {
+            // The picker re-targeted (card click / empty-space create) between
+            // focus and blur — the stale draft must never rename the NEW clip.
+            setValue(initial);
+            return;
+          }
+          commit();
+        }}
       />
     );
   },

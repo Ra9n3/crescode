@@ -18,7 +18,15 @@
  *  - COMPACT GRID: 8 tight tiles (symbol + short functional label) with a
  *    small "+N" reveal instead of a scrolling panel. The engine's ranking,
  *    colors, scores and explanations are untouched — the full explanation
- *    lives on the tile's hover tooltip.
+ *    lives on the tile's hover tooltip. All three compatibility bands are
+ *    reachable again: a small toggle above the grid switches between the
+ *    base-scale vocabulary ("Scale Chords") and everything else the engine
+ *    ranks ("Other Chords" — the yellow/red borrowed material).
+ *  - DYNAMIC SEARCH: the symbol field doubles as the search bar — while the
+ *    user types, the grid re-filters live through flexible, case-insensitive
+ *    rules (root pitch class matches enharmonically; a parseable quality
+ *    must agree exactly, otherwise the typed rest prefix-matches the
+ *    quality). The rules live in the pure picker module — no second scoring.
  *  - ADVANCED: extension / bass / octave live in a small expandable panel
  *    that is closed by default; a change composes through the same path as a
  *    tile pick and applies to the clip's CURRENT chord immediately.
@@ -34,8 +42,9 @@ import { createSuggestionRecalculator } from '../engine/suggestion/recalc';
 import { voicingLabel } from '../engine/suggestion/voicing';
 import {
   applyChordComposition, categoryLabelOf, composeForSuggestion, currentChordOf,
-  nextVisibleCount, NO_OVERRIDES, PICKER_INITIAL_COUNT,
-  type PickerOverrides,
+  filterSuggestionsByQuery, nextVisibleCount, NO_OVERRIDES, parseSuggestionQuery,
+  partitionSuggestionsByView, PICKER_INITIAL_COUNT, PICKER_MAX_SUGGESTIONS,
+  scalePitchClassesFor, type PickerOverrides, type SuggestionView,
 } from '../engine/suggestion/picker';
 import {
   bassChoicesFor, extensionChoicesFor, extensionIdOf, takeClipSnapshot,
@@ -65,10 +74,15 @@ const DRIFT_TEXT: Record<ClipDrift, string> = {
   edited: 'had its notes edited',
 };
 
-/** Read-only engine re-run for the current clip — never throws. */
+/** Read-only engine re-run for the current clip — never throws. The picker
+ *  browses the engine's full breadth (contract max 24) so the yellow/red
+ *  tail exists for the "Other Chords" view in every context. */
 function computeSuggestions(clip: ChordClip): ChordSuggestion[] {
   try {
-    return chordSuggestionsAt(clip.startTime, { excludeClipId: clip.id });
+    return chordSuggestionsAt(clip.startTime, {
+      excludeClipId: clip.id,
+      preferences: { maxSuggestions: PICKER_MAX_SUGGESTIONS },
+    });
   } catch {
     return [] as ChordSuggestion[];
   }
@@ -89,13 +103,17 @@ function cardTitle(s: ChordSuggestion): string {
 
 export interface ChordSuggestionsProps {
   clip: ChordClip;
+  /** Live draft of the popup's symbol field — the dynamic search rules
+   *  re-filter the grid on every keystroke ('' = browse the full view). */
+  query: string;
 }
 
-export function ChordSuggestions({ clip }: ChordSuggestionsProps) {
+export function ChordSuggestions({ clip, query }: ChordSuggestionsProps) {
   const project = useStore((s) => s.project);
   const toast = useStore((s) => s.toast);
 
   const key = useMemo(() => projectKeyOf(project), [project]);
+  const scalePcs = useMemo(() => scalePitchClassesFor(key), [key]);
   // The background engine, re-run read-only whenever the project moves; the
   // clip itself never acts as its own harmonic context. RAPID EDITS ARE
   // DEBOUNCED: a burst of project swaps (slider drags, neighbor typing)
@@ -113,12 +131,28 @@ export function ChordSuggestions({ clip }: ChordSuggestionsProps) {
     return () => recalcRef.current?.cancel(); // a newer request replaces this one
   }, [clip.startTime, clip.id, project]);
 
+  // --- views: Scale Chords (base scale) vs Other Chords (yellow/red) ------
+  const [view, setView] = useState<SuggestionView>('scale');
+  useEffect(() => { setView('scale'); }, [clip.id]); // a new target browses from the scale again
+
   // --- paging: 8 tiles first, "+N" reveals the next row (never a scrollbar)
   const [visibleCount, setVisibleCount] = useState(PICKER_INITIAL_COUNT);
-  useEffect(() => { setVisibleCount(PICKER_INITIAL_COUNT); }, [clip.id]);
+  useEffect(() => { setVisibleCount(PICKER_INITIAL_COUNT); }, [clip.id, view]);
+
+  // The view partitions the engine's ranking; the typed search then narrows
+  // the ACTIVE view live (flexible rules from the pure picker module).
+  const inView = useMemo(
+    () => partitionSuggestionsByView(suggestions, view, scalePcs),
+    [suggestions, view, scalePcs],
+  );
+  const activeQuery = useMemo(() => parseSuggestionQuery(query), [query]);
+  const filtered = useMemo(
+    () => (activeQuery !== null ? filterSuggestionsByQuery(inView, activeQuery) : inView),
+    [inView, activeQuery],
+  );
   const visible = useMemo(
-    () => suggestions.slice(0, Math.min(visibleCount, suggestions.length)),
-    [suggestions, visibleCount],
+    () => filtered.slice(0, Math.min(visibleCount, filtered.length)),
+    [filtered, visibleCount],
   );
 
   // --- the tile that matches the clip's LIVE chord carries the ring --------
@@ -180,11 +214,36 @@ export function ChordSuggestions({ clip }: ChordSuggestionsProps) {
 
   return (
     <div className="flex flex-col" data-testid="chord-suggestions">
+      {/* ---- view toggle: base scale vs the borrowed yellow/red material -- */}
+      <div className="flex items-center gap-1 px-1.5 pt-1.5" data-testid="suggestion-filter" data-view={view}
+        title={activeQuery !== null
+          ? 'Search is active — clear the chord-name field to browse by scale'
+          : view === 'scale'
+            ? `Base-scale chords, engine-ranked (${inView.length} of ${suggestions.length})`
+            : `Borrowed and modal-color chords, engine-ranked (${inView.length} of ${suggestions.length})`}>
+        <button type="button" data-testid="suggestion-filter-scale" aria-pressed={view === 'scale'}
+          onClick={() => setView('scale')}
+          className={cn('rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.05em] transition-colors',
+            view === 'scale' ? 'bg-[var(--c-bg4)] text-[var(--c-text)]' : 'text-[var(--c-textDim)] hover:bg-[var(--c-bg4)] hover:text-[var(--c-text)]')}>
+          Scale Chords
+        </button>
+        <button type="button" data-testid="suggestion-filter-other" aria-pressed={view === 'other'}
+          onClick={() => setView('other')}
+          className={cn('rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.05em] transition-colors',
+            view === 'other' ? 'bg-[var(--c-bg4)] text-[var(--c-text)]' : 'text-[var(--c-textDim)] hover:bg-[var(--c-bg4)] hover:text-[var(--c-text)]')}>
+          Other Chords
+        </button>
+      </div>
+
       {/* ---- compact tile grid (redesign §3) ---- */}
-      <div className="px-1.5 pt-1.5">
+      <div className="px-1.5 pt-1">
         {visible.length === 0 ? (
           <div className="rounded-md border border-dashed border-[var(--c-line)] px-2 py-1.5 text-[10px] text-[var(--c-textDim)]">
-            No suggestions for this context.
+            {activeQuery !== null
+              ? `No ${view === 'scale' ? 'scale' : 'other'} suggestions match “${query.trim()}” — try the other view.`
+              : view === 'scale'
+                ? 'No base-scale suggestions for this context — try Other Chords.'
+                : 'No further suggestions for this context.'}
           </div>
         ) : (
           <div className="grid grid-cols-4 gap-1" data-testid="suggestion-grid">
@@ -201,7 +260,7 @@ export function ChordSuggestions({ clip }: ChordSuggestionsProps) {
                     applied && 'ring-1 ring-[var(--c-accent)]')}
                   style={{ borderColor: applied ? tokens.accent : col.border }}>
                   <span className="w-full truncate font-mono text-[13px] font-bold leading-tight" style={{ color: tokens.textBright }}>{s.chord.spelling}</span>
-                  <span className="w-full truncate text-[8px] uppercase leading-tight tracking-[0.06em]" style={{ color: tokens.textBright, opacity: 0.66 }}>
+                  <span className="w-full truncate text-[9px] uppercase leading-tight tracking-[0.05em]" style={{ color: tokens.textBright, opacity: 0.74 }}>
                     {categoryLabelOf(s.colorCategory)}
                   </span>
                   {amb !== undefined && (
@@ -219,12 +278,12 @@ export function ChordSuggestions({ clip }: ChordSuggestionsProps) {
 
       {/* ---- one tiny row: reveal more · advanced ---- */}
       <div className="flex items-center gap-1 px-1.5 py-1">
-        {visible.length < suggestions.length && (
+        {visible.length < filtered.length && (
           <button type="button" data-testid="suggestion-more"
-            title={`Reveal ${Math.min(4, suggestions.length - visible.length)} more ranked suggestions (${visible.length} of ${suggestions.length} shown)`}
-            onClick={() => setVisibleCount((c) => nextVisibleCount(c, suggestions.length))}
+            title={`Reveal ${Math.min(4, filtered.length - visible.length)} more ranked suggestions (${visible.length} of ${filtered.length} shown)`}
+            onClick={() => setVisibleCount((c) => nextVisibleCount(c, filtered.length))}
             className="rounded px-1.5 py-0.5 text-[9px] font-semibold text-[var(--c-textDim)] transition-colors hover:bg-[var(--c-bg4)] hover:text-[var(--c-text)]">
-            +{Math.min(4, suggestions.length - visible.length)} more · {visible.length}/{suggestions.length}
+            +{Math.min(4, filtered.length - visible.length)} more · {visible.length}/{filtered.length}
           </button>
         )}
         <button type="button" data-testid="suggestion-advanced" aria-pressed={advancedOpen}
@@ -262,18 +321,18 @@ export function ChordSuggestions({ clip }: ChordSuggestionsProps) {
           </div>
           {preview !== null && preview.ok && (
             <div data-testid="suggestion-preview" data-name={preview.symbol}
-              className="flex items-center gap-1.5 font-mono text-[9px] text-[var(--c-textDim)]"
+              className="flex items-center gap-1.5 font-mono text-[10px] text-[var(--c-textDim)]"
               title={preview.voicing !== null && preview.voicing.ok ? `MIDI [${preview.voicing.notes.map((n) => n.midi).join(', ')}] — close voicing, bass ${preview.voicing.bassNote}` : undefined}>
-              <span className="font-bold text-[var(--c-text)]">{preview.symbol}</span>
+              <span className="font-semibold text-[11px] text-[var(--c-text)]">{preview.symbol}</span>
               <span className="truncate">{voicingLabel(preview.voicing.notes)}</span>
               <span className="ml-auto shrink-0">{preview.voicing.notes.length} notes</span>
             </div>
           )}
           {preview !== null && !preview.ok && (
-            <div className="text-[9px]" style={{ color: tokens.danger }}>{preview.error}</div>
+            <div className="text-[10px]" style={{ color: tokens.danger }}>{preview.error}</div>
           )}
           {current === null && (
-            <div className="text-[9px]" style={{ color: tokens.danger }}>Current clip name is not a readable chord.</div>
+            <div className="text-[10px]" style={{ color: tokens.danger }}>Current clip name is not a readable chord.</div>
           )}
         </div>
       )}

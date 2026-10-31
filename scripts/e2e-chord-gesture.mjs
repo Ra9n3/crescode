@@ -12,10 +12,12 @@
  * short functional labels and full hover explanations, the "+more" paging,
  * IMMEDIATE selection (a tile click applies in one undo step and the popup
  * stays open), the Advanced popover (extension/bass/octave applied to the
- * current chord at once), the non-destructive drift guard — plus text-based
- * chord entry & renaming: the inline input at the clip, the triad-only
- * autocomplete, the ambiguous-sus choice, key normalization (Dbm7 → C#m7 in
- * D major) and the unrecognized-user-MIDI confirm.
+ * current chord at once), the non-destructive drift guard — plus the
+ * popup-only editing model: the case-insensitive dynamic search in the
+ * symbol field, the Scale Chords / Other Chords color views, key
+ * normalization (Dbm7 → C#m7), the popup stacking ABOVE the track headers
+ * and following its chord while scrolling, and the removal of every inline
+ * lane editor (no floating rename input, no dropdown, no card text field).
  */
 import { chromium } from 'playwright';
 import os from 'node:os';
@@ -288,13 +290,11 @@ check('Pick on a moved clip warns non-destructively (no overwrite, no undo step)
 await page.keyboard.press('Escape');
 
 // M. Minimize/expand still collapses the picker to its header strip. The
-//    dblclick also opens the inline rename input at the clip (its dropdown
-//    overlays the picker while typing) — Esc dismisses it, the picker stays.
+//    double-click opens ONLY the Smart Chord popup — the inline rename input
+//    that used to float above it was removed by request.
 const schStartM = await st(() => window.crescodeTest.store.getState().project.chords.find((c) => c.id.startsWith('sch_'))?.startTick ?? 0);
 await dblclickTick(schStartM + 240);
 await page.waitForTimeout(150);
-await page.keyboard.press('Escape'); // dismiss the inline rename, picker remains
-await page.waitForTimeout(120);
 await page.click('[data-testid="chord-editor-minimize"]');
 await page.waitForTimeout(120);
 res = await st(() => ({ open: window.crescodeTest.store.getState().suggestionClipId !== null, grid: !!document.querySelector('[data-testid="suggestion-grid"]') }));
@@ -304,129 +304,78 @@ await page.waitForTimeout(120);
 res = await st(() => ({ grid: !!document.querySelector('[data-testid="suggestion-grid"]') }));
 check('Minimize collapses to the header strip and expands again', minimizedOk && res.grid, JSON.stringify(res));
 
-// O. Text entry & renaming: double-click an existing chord name → the inline
-//    input opens AT the clip, preloaded with the current chord name, alongside
-//    the Smart Chord panel; no clip is created.
+// O. Popup-only editing: double-click opens the Smart Chord popup and NOTHING
+//    else — no floating rename input above it, no dropdown, no text field on
+//    the chord card itself. All chord modifications go through the popup.
 const schStart = await st(() => window.crescodeTest.store.getState().project.chords.find((c) => c.id.startsWith('sch_'))?.startTick ?? 0);
 await dblclickTick(schStart + 240);
-let renameInfo = await st(() => {
-  const s = window.crescodeTest.store.getState();
-  return {
-    inline: !!document.querySelector('[data-testid="chord-rename-input"]'),
-    value: document.querySelector('[data-testid="chord-rename-input"]')?.value ?? null,
-    editorOpen: s.suggestionClipId !== null,
-    clips: s.project.chords.length,
-    sym: s.project.chords.find((x) => x.id.startsWith('sch_'))?.symbol ?? null,
-  };
-});
-check('Double-click a chord name opens the inline text input, preloaded, no new clip',
-  renameInfo.inline && renameInfo.value === renameInfo.sym && renameInfo.editorOpen && renameInfo.clips === 1,
-  JSON.stringify(renameInfo));
-
-// P. Triad-only autocomplete: a bare root suggests only triads — no 7ths/9ths/sus.
-await page.fill('[data-testid="chord-rename-input"]', 'C');
-let opts = await st(() => [...document.querySelectorAll('[data-testid^="chord-rename-option-"]')].map((o) => o.dataset.symbol));
-check('Autocomplete for a bare root is triad-only (C, Cm, Cdim, Caug)',
-  opts.includes('C') && opts.includes('Cm') && opts.includes('Cdim') && opts.includes('Caug') &&
-  opts.every((s) => !/[796]|sus|add|maj7/.test(s)) && opts[0] === 'C',
-  JSON.stringify(opts));
-await page.fill('[data-testid="chord-rename-input"]', 'Cm7');
-opts = await st(() => [...document.querySelectorAll('[data-testid^="chord-rename-option-"]')].map((o) => o.dataset.symbol));
-check('Typing an extension marker opens the relevant extensions (Cm7 → Cm7, Cm7b5)',
-  opts.join(',') === 'Cm7,Cm7b5', JSON.stringify(opts));
-
-// Q. Invalid text: inline validation message, Enter never modifies the clip.
-const preInvalid = await st(() => {
-  const s = window.crescodeTest.store.getState();
-  return { sym: s.project.chords.find((x) => x.id.startsWith('sch_'))?.symbol ?? null, steps: s.past.length };
-});
-await page.fill('[data-testid="chord-rename-input"]', 'Xq');
-await page.press('[data-testid="chord-rename-input"]', 'Enter');
 await page.waitForTimeout(150);
-let inv = await st(() => ({
-  err: !!document.querySelector('[data-testid="chord-rename-error"]'),
-  open: !!document.querySelector('[data-testid="chord-rename-input"]'),
-  sym: window.crescodeTest.store.getState().project.chords.find((x) => x.id.startsWith('sch_'))?.symbol ?? null,
-  steps: window.crescodeTest.store.getState().past.length,
+let editSurfaces = await st(() => ({
+  inlineInput: !!document.querySelector('[data-testid="chord-rename-input"]'),
+  laneInput: !!document.querySelector('[data-testid="chord-input"]'),
+  dropdownOptions: document.querySelectorAll('[data-testid^="chord-rename-option-"]').length,
+  editorOpen: window.crescodeTest.store.getState().suggestionClipId !== null,
+  clips: window.crescodeTest.store.getState().project.chords.length,
 }));
-check('Invalid text shows an inline message and never modifies the clip',
-  inv.err && inv.open && inv.sym === preInvalid.sym && inv.steps === preInvalid.steps, JSON.stringify(inv));
+check('Double-click opens ONLY the Smart Chord popup — inline editing is gone',
+  !editSurfaces.inlineInput && !editSurfaces.laneInput && editSurfaces.dropdownOptions === 0 &&
+  editSurfaces.editorOpen && editSurfaces.clips === 1, JSON.stringify(editSurfaces));
 
-// R. Ambiguous text ("Csus"): both readings offered; choosing one renames +
-//    rewrites the MIDI in exactly one undo step, bounds preserved.
-await page.fill('[data-testid="chord-rename-input"]', 'Csus');
-opts = await st(() => [...document.querySelectorAll('[data-testid^="chord-rename-option-"]')].map((o) => o.dataset.symbol));
-check('Ambiguous "Csus" offers both readings (sus4 grammar default first)',
-  opts.join(',') === 'Csus4,Csus2', JSON.stringify(opts));
-const preChoose = await st(() => {
-  const s = window.crescodeTest.store.getState();
-  const c = s.project.chords.find((x) => x.id.startsWith('sch_'));
-  return { steps: s.past.length, start: c.startTick, len: c.durationTicks };
-});
-await page.click('[data-testid="chord-rename-option-1"]'); // Csus2
-await page.waitForTimeout(200);
-let chosen = await st(() => {
-  const s = window.crescodeTest.store.getState();
-  const c = s.project.chords.find((x) => x.id.startsWith('sch_'));
-  const lane = s.project.tracks.find((t) => t.role === 'chords');
-  return {
-    sym: c.symbol, start: c.startTick, len: c.durationTicks,
-    // notes of THIS clip's window only (the drift-test move left older notes outside it)
-    pcs: lane.notes.filter((n) => n.startTick >= c.startTick && n.startTick < c.startTick + c.durationTicks).map((n) => n.pitch % 12).sort((a, b) => a - b),
-    steps: s.past.length,
-    inlineClosed: !document.querySelector('[data-testid="chord-rename-input"]'),
-  };
-});
-check('Choosing a reading renames + rewrites MIDI in one undo step, bounds preserved',
-  chosen.sym === 'Csus2' && chosen.pcs.join(',') === '0,2,7' &&
-  chosen.start === preChoose.start && chosen.len === preChoose.len &&
-  chosen.steps === preChoose.steps + 1 && chosen.inlineClosed,
-  JSON.stringify(chosen));
+// P. Dynamic search: the symbol field is the case-insensitive search bar —
+//    typing filters the grid live through flexible rules (root matches
+//    enharmonically; a parseable quality must agree exactly).
+const symbolField = '[data-testid="chord-editor-symbol"]';
+await page.fill(symbolField, 'd');
+await page.waitForTimeout(120);
+let q = await st(() => [...document.querySelectorAll('[data-testid^="suggestion-card-"]')].map((c) => c.dataset.spelling));
+check('Typing "d" filters the grid to D-rooted chords (live, flexible)',
+  q.length > 0 && q.length < 8 && q.every((s) => s.startsWith('D')), JSON.stringify(q));
+await page.fill(symbolField, 'D');
+await page.waitForTimeout(120);
+const qUpper = await st(() => [...document.querySelectorAll('[data-testid^="suggestion-card-"]')].map((c) => c.dataset.spelling));
+check('The search is case-insensitive ("D" ≡ "d")', JSON.stringify(qUpper) === JSON.stringify(q), JSON.stringify(qUpper));
+await page.fill(symbolField, 'dm7');
+await page.waitForTimeout(120);
+q = await st(() => [...document.querySelectorAll('[data-testid^="suggestion-card-"]')].map((c) => c.dataset.spelling));
+check('A parseable quality narrows exactly ("dm7" → Dm7)', q.join(',') === 'Dm7', JSON.stringify(q));
+await page.press(symbolField, 'Enter');
+await page.waitForTimeout(250);
+res = await st(() => ({
+  sym: window.crescodeTest.store.getState().project.chords.find((x) => x.id.startsWith('sch_'))?.symbol ?? null,
+  cards: document.querySelectorAll('[data-testid^="suggestion-card-"]').length,
+  open: window.crescodeTest.store.getState().suggestionClipId !== null,
+}));
+check('Quick entry "dm7" commits as the canonical Dm7 and clears the search',
+  res.sym === 'Dm7' && res.cards === 8 && res.open, JSON.stringify(res));
 
-// S. Enharmonic normalization on commit: "Dbm7" in D major lands as C#m7.
-await dblclickTick(schStart + 240);
-await page.fill('[data-testid="chord-rename-input"]', 'Dbm7');
-await page.press('[data-testid="chord-rename-input"]', 'Enter');
-await page.waitForTimeout(200);
+// Q. Color-coded views: the small toggle switches between the base-scale
+//    chords (green in this context) and the borrowed yellow/red material.
+const viewInfo = () => st(() => ({
+  view: document.querySelector('[data-testid="suggestion-filter"]')?.dataset.view ?? null,
+  colors: [...document.querySelectorAll('[data-testid^="suggestion-card-"]')].map((c) => c.dataset.color),
+}));
+let v = await viewInfo();
+check('Default view is Scale Chords — the base-scale vocabulary, engine-ranked',
+  v.view === 'scale' && v.colors.length === 8 && v.colors.every((c) => c === 'green'), JSON.stringify(v));
+await page.click('[data-testid="suggestion-filter-other"]');
+await page.waitForTimeout(120);
+v = await viewInfo();
+check('Other Chords view restores the yellow/red borrowed suggestions',
+  v.view === 'other' && v.colors.length > 0 && v.colors.every((c) => c === 'yellow' || c === 'red'), JSON.stringify(v));
+await page.screenshot({ path: path.join(os.tmpdir(), 'chord-picker-4-other-view.png'), clip: await editorBox() });
+await page.click('[data-testid="suggestion-filter-scale"]');
+await page.waitForTimeout(120);
+v = await viewInfo();
+check('Switching back restores the scale view', v.view === 'scale' && v.colors.every((c) => c === 'green'), JSON.stringify(v));
+
+// R. Key normalization lives in the popup now: "Dbm7" lands as C#m7
+//    (pitch class unchanged) through the same "Rename Chord" transaction.
+await page.fill(symbolField, 'Dbm7');
+await page.press(symbolField, 'Enter');
+await page.waitForTimeout(250);
 const norm = await st(() => window.crescodeTest.store.getState().project.chords.find((x) => x.id.startsWith('sch_'))?.symbol ?? null);
-check('Typed "Dbm7" is normalized to C#m7 in D major (pitch class unchanged)', norm === 'C#m7', String(norm));
-
-// T. Substantial user MIDI the analyzer cannot read → warn, never auto-replace.
-await st(() => {
-  const s = window.crescodeTest.store.getState();
-  const c = s.project.chords.find((x) => x.id.startsWith('sch_'));
-  s.edit((p) => ({
-    ...p,
-    tracks: p.tracks.map((t) => (t.role === 'chords'
-      ? { ...t, notes: [60, 61, 62, 63].map((pitch) => ({ pitch, startTick: c.startTick, durationTicks: c.durationTicks, velocity: 100 })) }
-      : t)),
-  }));
-});
-await page.waitForTimeout(150);
-await dblclickTick(schStart + 240);
-await page.fill('[data-testid="chord-rename-input"]', 'C');
-await page.press('[data-testid="chord-rename-input"]', 'Enter');
-await page.waitForTimeout(150);
-const preConfirm = await st(() => ({
-  warn: !!document.querySelector('[data-testid="chord-rename-warn"]'),
-  sym: window.crescodeTest.store.getState().project.chords.find((x) => x.id.startsWith('sch_'))?.symbol ?? null,
-  steps: window.crescodeTest.store.getState().past.length,
-}));
-check('Unrecognized user MIDI warns before replacing (nothing modified yet)',
-  preConfirm.warn && preConfirm.sym === 'C#m7', JSON.stringify(preConfirm));
-await page.click('[data-testid="chord-rename-confirm"]');
-await page.waitForTimeout(200);
-const confirmed = await st(() => {
-  const s = window.crescodeTest.store.getState();
-  const c = s.project.chords.find((x) => x.id.startsWith('sch_'));
-  const lane = s.project.tracks.find((t) => t.role === 'chords');
-  return { sym: c.symbol, notes: lane.notes.filter((n) => n.startTick >= c.startTick && n.startTick < c.startTick + c.durationTicks).map((n) => n.pitch), steps: s.past.length };
-});
-check('Confirming replaces user MIDI with the typed chord in one undo step',
-  confirmed.sym === 'C' && confirmed.notes.join(',') === '60,64,67' &&
-  confirmed.steps === preConfirm.steps + 1,
-  JSON.stringify(confirmed));
-await page.keyboard.press('Escape');
+check('Typed "Dbm7" is normalized to C#m7 (pitch class unchanged) through the popup', norm === 'C#m7', String(norm));
+await page.keyboard.press('Escape'); // close the picker; U reopens it
 
 // U. POPUP SYNC: clicking a different chord card while the picker is open
 //    re-targets the popup — settings reload from the clicked card instantly,
@@ -437,8 +386,6 @@ await st(() => {
 });
 await dblclickTick(schStart + 240); // reopen the picker on the Smart clip
 await page.waitForTimeout(150);
-await page.keyboard.press('Escape'); // dismiss the inline rename, picker remains
-await page.waitForTimeout(120);
 const beforeSync = await st(() => ({
   open: window.crescodeTest.store.getState().suggestionClipId,
   value: document.querySelector('[data-testid="chord-editor-symbol"]')?.value ?? null,
@@ -498,8 +445,6 @@ await page.keyboard.press('Escape'); // close the picker from U
 await page.waitForTimeout(120);
 await dblclickTick(schStart + 240); // reopen the picker on the Smart clip
 await page.waitForTimeout(150);
-await page.keyboard.press('Escape'); // dismiss the inline rename, picker remains
-await page.waitForTimeout(120);
 const laneB = await laneBox();
 await page.mouse.click(xFor(laneB, 16320), laneB.y + laneB.height / 2); // empty space → new manual chord
 await page.waitForTimeout(300);
@@ -530,20 +475,49 @@ check('A pick applies to the freshly created chord (the previous chord is untouc
 await page.keyboard.press('Control+z');
 await page.waitForTimeout(150);
 
-// W. Click outside the popup closes it; the track headers stack ABOVE it.
+// W. The popup floats ABOVE the track headers (never clipped by them) and
+//    stays ATTACHED to its chord while scrolling; clicking outside — a
+//    header, anywhere else — still closes it.
 const zOrder = await st(() => ({
   header: getComputedStyle(document.querySelector('[data-track-header]')).zIndex,
   editor: getComputedStyle(document.querySelector('[data-testid="chord-editor"]')).zIndex,
 }));
+check('The popup stacks ABOVE the track headers (never clipped by them)',
+  Number(zOrder.editor) > Number(zOrder.header), JSON.stringify(zOrder));
+
+// Scroll-follow: move the arranger — the popup must re-anchor EXACTLY on its
+// chord (lane rect + startTick·ppt, viewport-clamped) at every scroll offset.
+const anchorProbe = () => st(() => {
+  const s = window.crescodeTest.store.getState();
+  const clip = s.project.chords.find((c) => c.id === s.suggestionClipId);
+  const lane = document.querySelector('[data-testid="chord-lane"]').getBoundingClientRect();
+  const raw = lane.left + clip.startTick * s.pxPerTick;
+  return {
+    expected: Math.max(8, Math.min(raw, window.innerWidth - 344 - 8)),
+    editor: document.querySelector('[data-testid="chord-editor"]')?.getBoundingClientRect().left ?? null,
+    open: s.suggestionClipId !== null,
+  };
+});
+const beforeScroll = await anchorProbe();
+await page.evaluate(() => { document.getElementById('arranger-scroll').scrollLeft += 300; });
+await page.waitForTimeout(250);
+const afterScroll = await anchorProbe();
+check('Scrolling keeps the popup attached to its chord (it re-anchors exactly)',
+  beforeScroll.open && afterScroll.open && beforeScroll.editor !== null && afterScroll.editor !== null &&
+  Math.abs(beforeScroll.editor - beforeScroll.expected) <= 2 && Math.abs(afterScroll.editor - afterScroll.expected) <= 2 &&
+  Math.abs(beforeScroll.editor - afterScroll.editor) > 100,
+  JSON.stringify({ beforeScroll, afterScroll }));
+await page.evaluate(() => { document.getElementById('arranger-scroll').scrollLeft -= 300; });
+await page.waitForTimeout(200);
+
 await page.locator('[data-testid="track-header"]').nth(3).click(); // outside popup and lane
 await page.waitForTimeout(150);
 res = await st(() => ({
   open: window.crescodeTest.store.getState().suggestionClipId,
   editor: !!document.querySelector('[data-testid="chord-editor"]'),
 }));
-check('Clicking outside the popup (a track header) closes it; headers sit above the popup',
-  res.open === null && !res.editor && Number(zOrder.header) > Number(zOrder.editor),
-  JSON.stringify({ zOrder, res }));
+check('Clicking outside the popup (a track header) closes it',
+  res.open === null && !res.editor, JSON.stringify({ zOrder, res }));
 await page.keyboard.press('Escape');
 
 check('No uncaught page errors', errors.length === 0, errors.slice(0, 2).join(';'));

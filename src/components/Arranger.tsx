@@ -6,7 +6,6 @@ import { FAMILY_COLORS, tokens, velocityColor, withAlpha } from '../theme/tokens
 import { preview } from '../audio/preview';
 import { currentTick, seek } from '../audio/transport';
 import { TrackHeader } from './TrackHeader';
-import { ChordRenameInput } from './ChordRenameInput';
 import { HEADER_W, Ico, ROW_H, RULER_H } from './ui';
 import { I } from './icons';
 import { cn } from '../utils/cn';
@@ -133,15 +132,17 @@ const ChordLane = memo(function ChordLane({ ppt }: { ppt: number }) {
   const ts = useStore((s) => s.project.timeSignature);
   const selectedId = useStore((s) => s.selectedChordId);
   const [temp, setTemp] = useState<{ id: string; startTick: number; durationTicks: number } | null>(null);
-  const [editing, setEditing] = useState<string | null>(null);
-  // Text-entry rename (double-click on an existing chord name) vs the manual
-  // chord input (single click on empty space — the protected workflow).
-  const [renaming, setRenaming] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const snap = beatTicks(ts);
   const bt = barTicks(ts);
   const tickAt = (x: number) => Math.max(0, Math.floor((x - ref.current!.getBoundingClientRect().left) / ppt / snap) * snap);
 
+  // Single click on empty space — the protected workflow's manual chord
+  // input: creates and selects a plain chord. NO inline editor opens here
+  // (inline lane editing was removed by request — the Smart Chord popup is
+  // the only chord editor); with the popup open it re-targets onto the
+  // fresh chord, and the double-click gesture still converts the false
+  // start into a Smart clip.
   const onLaneDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
     const t = tickAt(e.clientX);
@@ -153,43 +154,23 @@ const ChordLane = memo(function ChordLane({ ppt }: { ppt: number }) {
     noteManualCreate(id); // lets the double-click gesture recognize this as its own false start
     syncPickerToChordCard(id); // the open Smart Chord picker follows the freshly created chord too
     st.set({ selectedChordId: id, selectedSectionId: null });
-    setRenaming(false);
-    setEditing(id);
   };
 
-  // Double-click gesture: on a clip → open the chord editor AND the inline
-  // text-entry rename input at the clip (text-based chord entry & renaming);
-  // on empty space → create a Smart Chord clip (the controller plans span +
-  // undo transaction). A double-click whose first click just created a manual
-  // chord converts that false start into a Smart clip atomically (see
-  // suggestion/interaction.ts).
+  // Double-click gesture: on a clip → open (or re-target) the Smart Chord
+  // popup — the ONLY chord editor; on empty space → create a Smart clip
+  // (the controller plans span + undo transaction). A double-click whose
+  // first click just created a manual chord converts that false start into
+  // a Smart clip atomically (see suggestion/interaction.ts).
   const onLaneDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     const t = tickAt(e.clientX);
     const hit = chordTrackApi.getChordClipAt(t);
     const fresh = hit !== null && isFreshManualCreate(hit.id);
-    if (editing && !fresh) return; // don't hijack a double-click while renaming
-    if (fresh) closeEdit(); // the false start's inline input goes away with it
     chordTrackGesture(hit, t, { freshFromManualCreate: fresh });
-    // Existing clip: open the inline rename editor at the clip. It loads the
-    // current chord name, and its commit preserves start/length/lane — never
-    // creates a clip. The Smart Chord panel stays available alongside it.
-    if (hit !== null && !fresh) {
-      setRenaming(true);
-      setEditing(hit.id);
-      useStore.getState().set({ chordRenameId: hit.id });
-    }
   };
-
-  const closeEdit = () => {
-    setEditing(null);
-    setRenaming(false);
-    useStore.getState().set({ chordRenameId: null });
-  };
-  const closeRename = closeEdit;
 
   const onChordDown = (e: React.PointerEvent, c: { id: string; startTick: number; durationTicks: number }) => {
-    if (e.button !== 0 || editing === c.id) return;
+    if (e.button !== 0) return;
     syncPickerToChordCard(c.id); // the open Smart Chord picker follows the clicked card instantly
     useStore.getState().set({ selectedChordId: c.id, selectedSectionId: null });
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -219,33 +200,13 @@ const ChordLane = memo(function ChordLane({ ppt }: { ppt: number }) {
             className={cn('group absolute top-[10px] flex cursor-grab items-center overflow-hidden rounded border px-1.5 font-mono text-[12px] font-semibold', sel && 'ring-1 ring-[var(--c-text)]', smart && 'border-dashed')}
             style={{ left: c.startTick * ppt, width: Math.max(6, c.durationTicks * ppt - 2), height: ROW_H - 20, background: withAlpha(col, valid.ok ? 0.14 : 0.25), borderColor: withAlpha(col, 0.65), color: valid.ok ? tokens.text : tokens.danger }}
             onPointerDown={(e) => onChordDown(e, c)}
-            title={valid.ok ? `${c.symbol} = ${valid.chord.quality}${valid.chord.bassName ? ` over ${valid.chord.bassName}` : ''} · double-click to rename by text, drag to move, right edge to resize` : `Invalid chord: ${valid.error}`}
+            title={valid.ok ? `${c.symbol} = ${valid.chord.quality}${valid.chord.bassName ? ` over ${valid.chord.bassName}` : ''} · double-click to edit in the Smart Chord popup, drag to move, right edge to resize` : `Invalid chord: ${valid.error}`}
           >
             <div className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize" />
-            {editing === c.id && !renaming ? (
-              <input
-                autoFocus defaultValue={c.symbol} spellCheck={false} data-testid="chord-input"
-                className="w-full min-w-[40px] rounded bg-[var(--c-bg0)] px-1 text-[12px] outline-none"
-                onFocus={(e) => e.target.select()}
-                onChange={(e) => { e.target.style.color = parseChord(e.target.value).ok ? tokens.text : tokens.danger; }}
-                onPointerDown={(e) => e.stopPropagation()}
-                onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter' || e.key === 'Tab') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') closeEdit(); }}
-                onBlur={(e) => {
-                  const v = e.target.value.trim();
-                  if (!v) useStore.getState().deleteChord(c.id);
-                  else if (v !== c.symbol) useStore.getState().updateChord(c.id, { symbol: v });
-                  closeEdit();
-                }}
-              />
-            ) : <span className="truncate">{c.symbol}</span>}
+            <span className="truncate">{c.symbol}</span>
           </div>
         );
       })}
-      {/* Inline text-entry rename editor — floats AT the renamed clip. */}
-      {editing !== null && renaming && (() => {
-        const c = chords.find((x) => x.id === editing);
-        return c !== undefined ? <ChordRenameInput key={c.id} clip={c} ppt={ppt} onDone={closeRename} /> : null;
-      })()}
     </div>
   );
 });

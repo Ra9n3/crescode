@@ -85,7 +85,7 @@ export const TrackHeader = memo(function TrackHeader({ track, index, selected }:
           </div>
           <div className="truncate text-[10px] text-[var(--c-textMute)]">
             {track.role === 'structure' && 'Drag to create · double-click to rename'}
-            {track.role === 'chords' && 'Click to place · type a symbol'}
+            {track.role === 'chords' && 'Click to place · double-click to edit'}
             {track.family === 'Audio' && (refPath ? refPath : 'No audio loaded (wav / mp3 / flac)')}
           </div>
         </div>

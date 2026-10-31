@@ -47,6 +47,49 @@ describe('chord parser', () => {
     }
     expect(() => parseChord(undefined as unknown as string)).not.toThrow();
   });
+
+  // Flexible quick entry — the case-fold cascade over the SAME grammar.
+  // m vs M stays meaningful: lowercase folds never turn "cm" into C major.
+  it('folds input case (quick entry) and stores the canonical symbol', () => {
+    for (const [typed, canon, root, quality] of [
+      ['g7', 'G7', 7, '7'],
+      ['am', 'Am', 9, 'minor'],
+      ['em', 'Em', 4, 'minor'],
+      ['cmaj7', 'Cmaj7', 0, 'maj7'],
+      ['gmaJ7', 'Gmaj7', 7, 'maj7'],
+      ['GMIN7', 'Gmin7', 7, 'm7'],
+      ['Csus4', 'Csus4', 0, 'sus4'],
+      ['cadd9', 'Cadd9', 0, 'add9'],
+      ['g/b', 'G/B', 7, 'major'],
+      ['dM7', 'DM7', 2, 'maj7'],
+      ['f#m7b5', 'F#m7b5', 6, 'm7b5'],
+      ['eb7', 'Eb7', 3, '7'],
+    ] as const) {
+      const r = parseChord(typed);
+      if (!r.ok) throw new Error(`${typed}: ${r.error}`);
+      expect(r.chord.symbol, typed).toBe(canon);
+      expect(r.chord.root, typed).toBe(root);
+      expect(r.chord.quality, typed).toBe(quality);
+    }
+  });
+  it('case never flips the m/M distinction and unicode accidentals fold', () => {
+    expect(parseChord('cm').ok && parseChord('cm').chord.quality).toBe('minor');
+    expect(parseChord('cM').ok && parseChord('cM').chord.quality).toBe('major');
+    expect(parseChord('CM').ok && parseChord('CM').chord.quality).toBe('major');
+    const sharp = parseChord('F♯7');
+    expect(sharp.ok && sharp.chord.symbol).toBe('F#7');
+    expect(sharp.ok && sharp.chord.root).toBe(6);
+    const flat = parseChord('B♭7');
+    expect(flat.ok && flat.chord.root).toBe(10);
+  });
+  it('enharmonic case-fold candidates keep the pitch class exactly', () => {
+    for (const typed of ['g7', 'gb', 'gmaJ7', 'GMIN', 'eb7', 'f#m7b5']) {
+      const folded = parseChord(typed);
+      const upper = parseChord(typed.toUpperCase());
+      expect(folded.ok && upper.ok, typed).toBe(true);
+      if (folded.ok && upper.ok) expect(folded.chord.root, typed).toBe(upper.chord.root);
+    }
+  });
 });
 
 describe('modes & meter', () => {

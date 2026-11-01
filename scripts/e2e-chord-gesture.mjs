@@ -567,6 +567,60 @@ res = await st(() => {
 check('One undo restores the key, the chord symbols and the transposed notes together',
   res.key === 0 && res.symbols.join() === 'C,Dm,G7' && res.lanePitch === 60, JSON.stringify(res));
 
+// X+. MODE CHANGE RE-RENDERS THE CHORD TRACK: with the tonic fixed, every
+//     chord whose root is diatonic in the old mode keeps its scale degree and
+//     is re-derived diatonically in the new mode (C Ionian → C Aeolian:
+//     C→Cm, Em→Eb, Am→Ab, G7→Gm7); the Chords track's notes shift by each
+//     chord's own root delta (Em/Am −1, C/G 0) and it lands as ONE undoable
+//     edit (Ctrl+Z restores mode + chords + notes together).
+await st(() => {
+  const s = window.crescodeTest.store.getState();
+  s.edit((p) => ({
+    ...p, key: 0, mode: 'Ionian',
+    chords: [
+      { id: 'm1', symbol: 'C', startTick: 0, durationTicks: 3840 },
+      { id: 'm2', symbol: 'Em', startTick: 3840, durationTicks: 3840 },
+      { id: 'm3', symbol: 'Am', startTick: 7680, durationTicks: 3840 },
+      { id: 'm4', symbol: 'G7', startTick: 11520, durationTicks: 3840 },
+    ],
+    tracks: p.tracks.map((t) => (t.role === 'chords' ? { ...t, notes: [
+      { pitch: 60, startTick: 0, durationTicks: 960, velocity: 100 },
+      { pitch: 64, startTick: 3840, durationTicks: 960, velocity: 100 },
+      { pitch: 69, startTick: 7680, durationTicks: 960, velocity: 100 },
+      { pitch: 67, startTick: 11520, durationTicks: 960, velocity: 100 },
+    ] } : t)),
+  }));
+});
+await page.waitForTimeout(150);
+const stepsBeforeMode = await st(() => window.crescodeTest.store.getState().past.length);
+await page.selectOption('[data-testid="mode-select"]', 'Aeolian'); // C Ionian → C Aeolian
+await page.waitForTimeout(250);
+res = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  return {
+    mode: s.project.mode,
+    symbols: ['m1', 'm2', 'm3', 'm4'].map((id) => s.project.chords.find((c) => c.id === id)?.symbol),
+    pitches: s.project.tracks.find((t) => t.role === 'chords')?.notes.map((n) => n.pitch) ?? [],
+    steps: s.past.length,
+    toast: s.toasts.at(-1)?.text ?? null,
+  };
+});
+check('Changing the mode re-renders the chord track (C Ionian → C Aeolian: C→Cm, Em→Eb, Am→Ab, G7→Gm7; Em/Am notes −1)',
+  res.mode === 'Aeolian' && res.symbols.join() === 'Cm,Eb,Ab,Gm7' && res.pitches.join() === '60,63,68,67' &&
+  res.steps === stepsBeforeMode + 1 && (res.toast ?? '').includes('Mode → C Aeolian'), JSON.stringify(res));
+await page.keyboard.press('Control+z');
+await page.waitForTimeout(200);
+res = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  return {
+    mode: s.project.mode,
+    symbols: ['m1', 'm2', 'm3', 'm4'].map((id) => s.project.chords.find((c) => c.id === id)?.symbol),
+    pitches: s.project.tracks.find((t) => t.role === 'chords')?.notes.map((n) => n.pitch) ?? [],
+  };
+});
+check('One undo restores the mode, the chord symbols and the re-derived notes together',
+  res.mode === 'Ionian' && res.symbols.join() === 'C,Em,Am,G7' && res.pitches.join() === '60,64,69,67', JSON.stringify(res));
+
 check('No uncaught page errors', errors.length === 0, errors.slice(0, 2).join(';'));
 
 await browser.close();

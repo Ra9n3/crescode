@@ -2,10 +2,10 @@ import { create } from 'zustand';
 import fixture from '../../fixtures/dorian-16bars.json';
 import {
   createAddedTrack, projectFromFixture, uid, MAX_TRACKS_PER_GROUP, NOTE_NAMES,
-  type Chord, type LibraryGroup, type Note, type Project, type Section, type Track, type TrackFamily, type PitchClass,
+  type Chord, type LibraryGroup, type ModeName, type Note, type Project, type Section, type Track, type TrackFamily, type PitchClass,
 } from '../shared/schema';
 import { generate } from '../engine/generate';
-import { transposeProjectKey } from '../engine/suggestion/transpose';
+import { transformProjectMode, transposeProjectKey } from '../engine/suggestion/transpose';
 
 export const HISTORY_LIMIT = 200;
 
@@ -97,6 +97,11 @@ interface State {
    *  undoable edit. A pure tonic change with interval 0 (mode-only moves)
    *  rewrites nothing. */
   setProjectKey: (tonic: PitchClass) => void;
+  /** Set the project's mode; every chord whose root is diatonic in the old
+   *  mode keeps its scale degree and is re-rendered diatonically in the new
+   *  one (C Ionian → C Aeolian: C→Cm, Em→Eb, G7→Gm7) as ONE undoable edit.
+   *  Chromatic (borrowed) roots and unparseable symbols are left alone. */
+  setProjectMode: (mode: ModeName) => void;
   createGroup: (name: string, pluginId: string | null) => string;
   updateGroup: (id: string, patch: Partial<LibraryGroup>) => void;
   deleteGroup: (id: string) => void;
@@ -177,6 +182,18 @@ export const useStore = create<State>((set, get) => ({
       const n = res.changed;
       get().toast('success', `Key → ${NOTE_NAMES[tonic]} ${p.mode}${n ? ` · ${n} chord${n === 1 ? '' : 's'} transposed ${res.interval >= 0 ? '+' : ''}${res.interval} st` : ' · no chords to transpose'}`);
     }
+  },
+
+  // Mode change → the chord track re-renders diatonically (transpose.ts owns
+  // the theory): same scale degrees, new mode's chords, per-chord note
+  // shifts, ONE undoable edit so Ctrl+Z restores mode + chords together.
+  setProjectMode: (mode) => {
+    const p = get().project;
+    if (mode === p.mode) return;
+    const res = transformProjectMode(p, mode);
+    get().edit(() => res.project);
+    const n = res.changed;
+    get().toast('success', `Mode → ${NOTE_NAMES[p.key]} ${mode}${n ? ` · ${n} chord${n === 1 ? '' : 's'} transformed` : ' · no diatonic chords to transform'}`);
   },
 
   createGroup: (name, pluginId) => {

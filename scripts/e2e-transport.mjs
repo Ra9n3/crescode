@@ -5,15 +5,16 @@
  * Covers the spec's acceptance criteria end-to-end in the real app:
  * ruler click parking, play from the clicked bar, smooth follow pinning at
  * the trigger point, manual-scroll suspension + Re-follow badge + shortcut,
- * resume-after-scroll (following re-engages once scrolling stops — gliding
- * back to the playhead, or holding still until it re-crosses the trigger,
- * with the preference-off escape hatch), scrub and edit-drag suspension,
+ * manual-scroll parking (a scroll breaks the rule — no timer, no glide;
+ * following re-engages on its own only when the playhead re-crosses the
+ * trigger line, and stays parked with the preference off), scrub and
+ * edit-drag suspension,
  * click-during-playback relocation (+ its off preference), Stop parking
  * (+ return-to-start and second-stop preferences), Pause exact resume,
  * Ctrl+wheel zoom keeping the playhead's musical position, tempo change
  * during playback staying continuous, loop-fit (no page jumps),
  * end-of-project parking, per-editor follow independence (arranger off /
- * piano roll on, including the roll's own resume-after-scroll), and
+ * piano roll on, including the roll's own park + re-cross re-engagement), and
  * preference persistence across a reload.
  */
 import { chromium } from 'playwright';
@@ -110,7 +111,7 @@ res = await st(() => {
   return { suspended: s.followSuspended, reason: s.followSuspensionReason, badge: !!document.querySelector('[data-testid="follow-suspended"]'), playing: s.playing };
 });
 check('Manual scrolling immediately suspends auto-scroll with the badge shown', res.suspended && res.reason === 'manual-scroll' && res.badge, JSON.stringify(res));
-// Keep the gesture alive (each scroll re-arms the resume timer), then verify
+// Keep scrolling (each scroll re-arms the release watch), then verify
 // the view stays put and the playhead keeps moving at its true position.
 await st(() => { document.getElementById('arranger-scroll').scrollLeft -= 40; });
 await page.waitForTimeout(150);
@@ -127,57 +128,60 @@ res = await st((parked) => {
 check('While suspended the view stays put and the playhead keeps moving at its true position',
   res.scrollKept && res.x > pxBefore + 20, JSON.stringify({ scrollAfterSuspend, ...res }));
 
-/* 5b. Once scrolling stops, following resumes on its own and the 75% rule re-engages. */
-await page.waitForTimeout(700); // the idle window (500ms after the last scroll event) elapses
-res = await st(() => {
-  const s = window.crescodeTest.store.getState();
-  return { suspended: s.followSuspended, badge: !!document.querySelector('[data-testid="follow-suspended"]'), playing: s.playing };
-});
-check('Follow resumes on its own once the user stops scrolling', res.playing && !res.suspended && !res.badge, JSON.stringify(res));
-await page.waitForTimeout(700); // the catch-up glide brings the view back onto the playhead
-res = await st(() => {
-  const sc = document.getElementById('arranger-scroll');
-  const el = document.querySelector('[data-testid="playhead"]');
-  const x = parseFloat((el.style.transform || '').replace(/[^0-9.\-]/g, '')) || 0;
-  const anchor = sc.scrollLeft + 300 + (sc.clientWidth - 300) * 0.75;
-  return { x: Math.round(x), anchor: Math.round(anchor) };
-});
-check('After the auto-resume the view glides back and the playhead is pinned at 75% again',
-  Math.abs(res.x - res.anchor) < 45, JSON.stringify(res));
-
-/* 5c. Scrolling AHEAD of the playhead: the view holds (no backward yank) until the playhead re-crosses the trigger. */
-await st(() => { document.getElementById('arranger-scroll').scrollLeft += 400; });
-await page.waitForTimeout(120);
-await page.waitForTimeout(600); // idle window elapses → resume with the playhead still left of the trigger
-const parked2 = await st(() => Math.round(document.getElementById('arranger-scroll').scrollLeft));
-await page.waitForTimeout(120);
+/* 5b. Scrolling BEHIND the playhead breaks the rule with no way back on its own:
+   the park has no timer and no glide — the view stays put until Re-follow. */
+const parked1 = scrollAfterSuspend;
+await page.waitForTimeout(700); // far past any idle window — nothing may move on a timer
 res = await st((parked) => {
   const s = window.crescodeTest.store.getState();
-  return { kept: Math.round(document.getElementById('arranger-scroll').scrollLeft) === parked, suspended: s.followSuspended };
-}, parked2);
-check('Resuming with the playhead still left of the trigger holds the view — no backward jump',
-  res.kept && !res.suspended, JSON.stringify({ parked2, ...res }));
-await page.waitForTimeout(1600); // the playhead crosses the trigger → following re-engages
-res = await st((parked) => {
-  const sc = document.getElementById('arranger-scroll');
   const el = document.querySelector('[data-testid="playhead"]');
   const x = parseFloat((el.style.transform || '').replace(/[^0-9.\-]/g, '')) || 0;
-  const anchor = sc.scrollLeft + 300 + (sc.clientWidth - 300) * 0.75;
-  return { x: Math.round(x), anchor: Math.round(anchor), advanced: Math.round(sc.scrollLeft) > parked };
-}, parked2);
-check('The playhead re-crosses the trigger and following re-engages exactly at 75%',
-  res.advanced && Math.abs(res.x - res.anchor) < 45, JSON.stringify(res));
+  return { kept: Math.round(document.getElementById('arranger-scroll').scrollLeft) === parked, suspended: s.followSuspended, reason: s.followSuspensionReason, badge: !!document.querySelector('[data-testid="follow-suspended"]'), x: Math.round(x), playing: s.playing };
+}, parked1);
+check('Scrolling behind the playhead parks the view for good — no timer, no glide, no forward chase',
+  res.playing && res.kept && res.suspended && res.reason === 'manual-scroll' && res.badge, JSON.stringify({ parked1, ...res }));
 
-/* 5d. Preference off: following stays suspended after scrolling stops (the escape hatch). */
-await st(() => { window.crescodeTest.store.getState().setSettings({ followResumeAfterScroll: false }); });
-await st(() => { document.getElementById('arranger-scroll').scrollLeft -= 400; });
+/* 5c. Scrolling AHEAD of the playhead until it disappears: the view stays parked;
+   when the playhead, still playing, walks back and reaches the trigger line, the
+   rule re-engages exactly there — no glide, no jump. */
+await st(() => { document.getElementById('arranger-scroll').scrollLeft += 2000; });
 await page.waitForTimeout(150);
-await page.waitForTimeout(800); // far past the idle window
+const parked2 = await st(() => Math.round(document.getElementById('arranger-scroll').scrollLeft));
+res = await st((parked) => {
+  const s = window.crescodeTest.store.getState();
+  const el = document.querySelector('[data-testid="playhead"]');
+  const x = parseFloat((el.style.transform || '').replace(/[^0-9.\-]/g, '')) || 0;
+  return { kept: Math.round(document.getElementById('arranger-scroll').scrollLeft) === parked, suspended: s.followSuspended, badge: !!document.querySelector('[data-testid="follow-suspended"]'), x: Math.round(x), playing: s.playing };
+}, parked2);
+check('Scrolled ahead until the playhead left the view: parked, badge shown, playback keeps running',
+  res.playing && res.kept && res.suspended && res.badge && res.x < parked2 + HEADER, JSON.stringify({ parked2, ...res }));
+let reengaged = null;
+for (let i = 0; i < 120; i++) {
+  await page.waitForTimeout(100);
+  reengaged = await st(() => {
+    const s = window.crescodeTest.store.getState();
+    const sc = document.getElementById('arranger-scroll');
+    const el = document.querySelector('[data-testid="playhead"]');
+    const x = parseFloat((el.style.transform || '').replace(/[^0-9.\-]/g, '')) || 0;
+    return { suspended: s.followSuspended, scrollLeft: Math.round(sc.scrollLeft), x: Math.round(x), anchor: Math.round(sc.scrollLeft + 300 + (sc.clientWidth - 300) * 0.75) };
+  });
+  if (!reengaged.suspended) break;
+}
+check('The playhead re-crosses the trigger line on its own and following re-engages',
+  !!reengaged && !reengaged.suspended, JSON.stringify(reengaged));
+check('Re-engagement is seamless — the view never glided or jumped, it just resumes the 75% rule',
+  !!reengaged && reengaged.scrollLeft - parked2 < 120 && Math.abs(reengaged.x - reengaged.anchor) < 45, JSON.stringify({ parked2, ...reengaged }));
+
+/* 5d. Preference off: even a re-crossable park stays parked (the escape hatch). */
+await st(() => { window.crescodeTest.store.getState().setSettings({ followResumeAfterScroll: false }); });
+await st(() => { document.getElementById('arranger-scroll').scrollLeft += 400; }); // playhead left of the trigger line — re-crossable, but the pref says no
+await page.waitForTimeout(150);
+await page.waitForTimeout(1500); // the playhead re-crosses meanwhile — the pref must keep the park
 res = await st(() => {
   const s = window.crescodeTest.store.getState();
   return { suspended: s.followSuspended, reason: s.followSuspensionReason, badge: !!document.querySelector('[data-testid="follow-suspended"]'), playing: s.playing };
 });
-check('With resume-after-scroll off, following stays suspended until Re-follow',
+check('With re-engage off, following stays parked until Re-follow even when the playhead re-crosses',
   res.playing && res.suspended && res.reason === 'manual-scroll' && res.badge, JSON.stringify(res));
 await refollow();
 await st(() => { window.crescodeTest.store.getState().setSettings({ followResumeAfterScroll: true }); });
@@ -410,23 +414,36 @@ res = await st(() => {
 check('Per-editor follow: arranger Off never scrolls while the piano roll follows on its own',
   res.playing && res.arranger === arrS0 && res.roll > 0 && res.rx > 600, JSON.stringify({ arrS0, ...res }));
 
-/* 20b. The roll's own follow suspends on manual scroll and resumes after scrolling stops. */
-await st(() => { document.querySelector('[data-testid="roll-scroll"]').scrollLeft -= 400; });
+/* 20b. The roll's own follow parks on manual scroll and re-engages when the
+   playhead re-crosses the 75% anchor — never gliding. */
+await st(() => { document.querySelector('[data-testid="roll-scroll"]').scrollLeft -= 400; }); // scroll BEHIND the playhead
 await page.waitForTimeout(150);
 res = await st(() => { const s = window.crescodeTest.store.getState(); return { susp: s.rollFollowSuspended, badge: !!document.querySelector('[data-testid="roll-follow-suspended"]'), playing: s.playing }; });
-check('Scrolling the piano roll suspends ITS follow (badge shown, arranger untouched)',
+check('Scrolling the piano roll parks ITS follow (badge shown, arranger untouched)',
   res.playing && res.susp && res.badge, JSON.stringify(res));
-await page.waitForTimeout(900); // idle window elapses → the roll re-follows on its own
+await page.waitForTimeout(900); // far past the gesture guard — nothing may move on a timer
 res = await st(() => {
   const s = window.crescodeTest.store.getState();
+  return { susp: s.rollFollowSuspended, scrollLeft: Math.round(document.querySelector('[data-testid="roll-scroll"]').scrollLeft) };
+});
+const rollParked = res.scrollLeft;
+check('A behind-the-playhead roll park stays parked — no timer, no glide', res.susp, JSON.stringify(res));
+await st(() => { document.querySelector('[data-testid="roll-scroll"]').scrollLeft += 2400; }); // scroll well AHEAD so the playhead is far left of the anchor — re-crossable with a wide margin
+let rollRe = null;
+for (let i = 0; i < 80; i++) {
+  await page.waitForTimeout(100);
+  rollRe = await st(() => window.crescodeTest.store.getState().rollFollowSuspended);
+  if (!rollRe) break;
+}
+res = await st(() => {
   const roll = document.querySelector('[data-testid="roll-scroll"]');
   const ph = document.querySelector('[data-testid="roll-playhead"]');
   const rx = parseFloat((ph.style.transform || '').replace(/[^0-9.\-]/g, '')) || 0;
   const anchor = roll.scrollLeft + (roll.clientWidth - 66) * 0.75; // rx is content-x inside the keys column
-  return { susp: s.rollFollowSuspended, rx: Math.round(rx), anchor: Math.round(anchor) };
+  return { rx: Math.round(rx), anchor: Math.round(anchor) };
 });
-check('Once roll scrolling stops, the roll re-follows on its own and re-pins at 75%',
-  !res.susp && Math.abs(res.rx - res.anchor) < 90, JSON.stringify(res));
+check('The roll re-engages on its own when the playhead re-crosses the 75% anchor — no glide',
+  rollRe === false && Math.abs(res.rx - res.anchor) < 90, JSON.stringify({ rollParked, ...res }));
 await stopAll();
 await page.click('[data-testid="piano-roll"] button[title*="Close piano roll"]');
 await st(() => { window.crescodeTest.store.getState().setSettings({ autoScrollMode: 'smooth' }); });

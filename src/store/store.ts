@@ -39,9 +39,7 @@ export interface Settings {
   suspendFollowOnManualScroll: boolean;
   /** Edit drags during playback suspend following and keep it suspended after (default on). */
   suspendFollowDuringEdit: boolean;
-  /** Resume following automatically once the playhead re-enters the view (default off — even mid-gesture). */
-  followResumeOnVisible: boolean;
-  /** After a manual scroll stops, following resumes on its own and glides back to the playhead (default on). */
+  /** A manual scroll parks the view; following re-engages when the playhead re-crosses the trigger (default on). Off: parked until Re-follow. */
   followResumeAfterScroll: boolean;
   /** Stationary playhead while recording (recording is not available in v1; reserved). */
   stationaryPlayheadDuringRecording: boolean;
@@ -57,7 +55,7 @@ const loadSettings = (): Settings => {
     scanDirectory: 'C:\\Program Files\\Common Files\\VST3', audioDevice: 'default', bufferSize: 512, enginePort: 47800, connectEngine: false, devMode: true, smartChordPlaceholder: 'root-note',
     stopReturnsToStart: false, secondStopReturnsToStart: false, clickDuringPlaybackMovesPlayhead: true,
     autoScrollMode: 'smooth', autoScrollTriggerPoint: 0.75,
-    suspendFollowOnManualScroll: true, suspendFollowDuringEdit: true, followResumeOnVisible: false, followResumeAfterScroll: true,
+    suspendFollowOnManualScroll: true, suspendFollowDuringEdit: true, followResumeAfterScroll: true,
     stationaryPlayheadDuringRecording: false, pianoRollFollow: true, refollowKey: 'f',
   };
   try { return { ...d, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') }; } catch { return d; }

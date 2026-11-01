@@ -4,7 +4,7 @@ import { barTicks, beatTicks, noteName, projectEndTick, PPQ, type Note } from '.
 import { sanitizeNotes } from '../engine/generate';
 import { tokens, velocityColor, withAlpha } from '../theme/tokens';
 import { currentTick, registerFollowController, refollowPlayhead, suspendFollow } from '../audio/transport';
-import { catchUpScrollLeft, chaseStep, FOLLOW_RESUME_IDLE_MS } from '../engine/transport/follow';
+import { FOLLOW_GESTURE_IDLE_MS, releaseStep, type FollowReleaseState } from '../engine/transport/follow';
 import { cn } from '../utils/cn';
 import { I } from './icons';
 import { Ico, IconButton, Select } from './ui';
@@ -46,10 +46,10 @@ export function PianoRoll() {
   const gridRef = useRef<HTMLDivElement>(null);
   const playRef = useRef<HTMLDivElement>(null);
   const rollSuspended = useStore((s) => s.rollFollowSuspended);
-  // Post-scroll resume state for the roll's own follow — same model as the
-  // arranger: 'await' holds the view until the playhead re-crosses the
-  // trigger, 'chase' glides it back onto the playhead.
-  const resumeRef = useRef<'await' | 'chase' | null>(null);
+  // Parked-view release watch for the roll's own follow — same model as the
+  // arranger: the rAF loop releases the park when the playhead re-crosses
+  // the 75% anchor under its own motion (spec §5, revised).
+  const releaseRef = useRef<FollowReleaseState | null>(null);
 
   useEffect(() => { if (track) setNotes(track.notes.map((n) => ({ ...n }))); }, [track?.notes]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -82,46 +82,42 @@ export function PianoRoll() {
       if (x < sc.scrollLeft + KEYS_W || x > sc.scrollLeft + sc.clientWidth) writeScroll(Math.max(0, x - KEYS_W - (sc.clientWidth - KEYS_W) * 0.75));
     }
     let raf = 0;
-    let prevT = performance.now();
-    const rollView = (tick: number): Parameters<typeof catchUpScrollLeft>[0] => ({
-      mode: 'smooth', trigger: 0.75, playheadTick: tick, pxPerTick: ppt,
-      headerPx: KEYS_W, scrollLeft: sc.scrollLeft, clientWidth: sc.clientWidth, loop: null,
-    });
     const loop = () => {
       const now = performance.now();
-      const dt = Math.min(0.05, (now - prevT) / 1000);
-      prevT = now;
       const t = currentTick();
       if (playRef.current) playRef.current.style.transform = `translateX(${t * ppt}px)`;
       // The roll has its OWN follow setting (spec §13): smooth-follow with a
       // 0.75 anchor, independently suspendable of the arranger.
       const s = useStore.getState();
-      if (s.playing && s.settings.pianoRollFollow && !s.rollFollowSuspended && !s.interactionActive) {
-        // A scrollLeft nobody of ours wrote = manual scroll between frames.
-        if (lastWritten.current !== null && Math.abs(sc.scrollLeft - lastWritten.current) > 0.5) {
-          lastWritten.current = null;
-          resumeRef.current = null;
-          s.set({ rollFollowSuspended: true });
-        } else if (resumeRef.current === 'await') {
-          // Resumed after a manual scroll with the playhead left of the
-          // trigger: hold the view until the playhead re-crosses it (spec §5).
-          if (catchUpScrollLeft(rollView(t)) !== null) resumeRef.current = 'chase';
-        } else if (resumeRef.current === 'chase') {
-          // Glide back onto the playhead — exponential chase, no hard jump.
-          const target = catchUpScrollLeft(rollView(t));
-          if (target === null) resumeRef.current = null;
-          else {
-            const stp = chaseStep(sc.scrollLeft, target, dt);
-            writeScroll(stp.next);
-            if (stp.done) resumeRef.current = null;
-          }
+      if (s.playing && s.settings.pianoRollFollow && !s.interactionActive) {
+        if (s.rollFollowSuspended) {
+          // Parked by a manual scroll (spec §5, revised): the view does not
+          // move — no timer, no glide. The roll re-follows only when the
+          // playhead, still playing, re-crosses the 75% anchor; at that
+          // moment the view is exactly where the rule wants it, so the
+          // handover costs zero jump.
+          if (s.settings.followResumeAfterScroll) {
+            const line = sc.scrollLeft + KEYS_W + (sc.clientWidth - KEYS_W) * 0.75;
+            const rel = releaseRef.current ?? { leftOfLine: null, crossed: false, lastScrollAt: now };
+            if (releaseStep(rel, line, KEYS_W + t * ppt, now, FOLLOW_GESTURE_IDLE_MS, false) === 'release') {
+              releaseRef.current = null;
+              s.set({ rollFollowSuspended: false }); // the rule takes over next frame, exactly at the anchor
+            } else releaseRef.current = rel;
+          } else releaseRef.current = null;
         } else {
-          const x = KEYS_W + t * ppt;
-          const anchor = sc.scrollLeft + KEYS_W + (sc.clientWidth - KEYS_W) * 0.75;
-          if (x > anchor || x < sc.scrollLeft + KEYS_W) writeScroll(Math.max(0, x - KEYS_W - (sc.clientWidth - KEYS_W) * 0.75));
+          releaseRef.current = null;
+          // A scrollLeft nobody of ours wrote = manual scroll between frames.
+          if (lastWritten.current !== null && Math.abs(sc.scrollLeft - lastWritten.current) > 0.5) {
+            lastWritten.current = null;
+            s.set({ rollFollowSuspended: true });
+          } else {
+            const x = KEYS_W + t * ppt;
+            const anchor = sc.scrollLeft + KEYS_W + (sc.clientWidth - KEYS_W) * 0.75;
+            if (x > anchor || x < sc.scrollLeft + KEYS_W) writeScroll(Math.max(0, x - KEYS_W - (sc.clientWidth - KEYS_W) * 0.75));
+          }
         }
       } else {
-        resumeRef.current = null;
+        releaseRef.current = null;
       }
       raf = requestAnimationFrame(loop);
     };
@@ -129,39 +125,31 @@ export function PianoRoll() {
     return () => cancelAnimationFrame(raf);
   }, [trackId, ppt]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Manual scrolling in the roll suspends ITS follow only — the arranger's
+  // Manual scrolling in the roll PARKS ITS follow only — the arranger's
   // follow state is untouched (spec §13: editors never force each other).
-  // The suspension lasts while the gesture lasts: once scrolling stops the
-  // roll re-follows on its own and glides back onto the playhead (preference
-  // followResumeAfterScroll, default on — shared with the arranger).
+  // No timer, no glide: the view stays where the user scrolled it, and the
+  // roll re-follows on its own once the playhead, still playing, re-crosses
+  // the 75% anchor (preference followResumeAfterScroll, default on — shared
+  // with the arranger).
   useEffect(() => {
     const el = scroller.current;
     if (!el) return;
-    let idle: number | undefined;
-    const arm = () => {
-      if (idle !== undefined) window.clearTimeout(idle);
-      idle = undefined;
-      if (!useStore.getState().settings.followResumeAfterScroll) return;
-      idle = window.setTimeout(() => {
-        idle = undefined;
-        const s = useStore.getState();
-        if (s.playing && s.rollFollowSuspended && s.settings.pianoRollFollow) {
-          resumeRef.current = 'await';
-          s.set({ rollFollowSuspended: false });
-        }
-      }, FOLLOW_RESUME_IDLE_MS);
-    };
     const onScroll = () => {
       if (isOwnWrite(el)) return;
       lastWritten.current = null;
       const s = useStore.getState();
       if (s.playing && s.settings.pianoRollFollow && !s.interactionActive) {
         if (!s.rollFollowSuspended) s.set({ rollFollowSuspended: true });
-        arm(); // still scrolling — postpone the auto-resume until the gesture ends
+        // (Re)arm the release watch — a fresh scroll cancels a pending crossing.
+        const rel = releaseRef.current ?? { leftOfLine: null, crossed: false, lastScrollAt: 0 };
+        rel.lastScrollAt = performance.now();
+        rel.crossed = false;
+        rel.leftOfLine = null; // re-seed from the post-scroll position next frame
+        releaseRef.current = rel;
       }
     };
     el.addEventListener('scroll', onScroll, { passive: true });
-    return () => { el.removeEventListener('scroll', onScroll); if (idle !== undefined) window.clearTimeout(idle); };
+    return () => el.removeEventListener('scroll', onScroll);
   }, []);
 
   // Re-follow controller for the focused-editor shortcut (F).

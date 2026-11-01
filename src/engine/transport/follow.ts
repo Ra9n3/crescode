@@ -22,13 +22,19 @@
  *  stationary — the playhead is pinned at the configured fraction and the
  *               timeline moves beneath it (labelled: disorienting).
  *
- * A manual scroll suspends following only while the gesture lasts (spec §5):
- * once the user stops scrolling the suspension ends on its own and the view
- * re-engages the selected mode. If the playhead is past the trigger point at
- * that moment, catchUpScrollLeft + chaseStep glide the view back onto it
- * instead of hard-jumping; if the playhead is left of the trigger (the user
- * scrolled ahead), the view holds still — never yanking backwards — until
- * the playhead re-crosses the trigger on its own.
+ * A manual scroll during playback PARKS the view (spec §5, revised): the
+ * suspension does not end on a timer and the view never glides back — the
+ * scroll simply breaks the rule. While parked the playhead keeps playing,
+ * possibly off-screen, and when it — under its own motion — re-crosses the
+ * mode's re-engage line (reengageLineX: the anchor/pin position for
+ * smooth/centered/stationary, the view's left edge for page) the rule
+ * re-engages with zero jump, because at that moment the view is exactly
+ * where the rule wants it. If the user scrolled behind the playhead the
+ * line can never be re-crossed: the view stays parked until Re-follow, a
+ * transport restart, or the playhead wrapping back left of the line (loop
+ * wrap, seek back). releaseStep is the per-frame watch; a crossing observed
+ * while the gesture is still active releases once the wheel has rested
+ * FOLLOW_GESTURE_IDLE_MS, and a fresh scroll event re-arms the watch.
  */
 
 export type FollowMode = 'off' | 'smooth' | 'page' | 'centered' | 'stationary';
@@ -63,8 +69,68 @@ export interface FollowView {
   loop: { startTick: number; endTick: number } | [number, number] | null;
 }
 
-/** Idle time after the last manual scroll event before following resumes (spec §5). */
-export const FOLLOW_RESUME_IDLE_MS = 500;
+/**
+ * Gesture-rest guard (spec §5, revised): a trigger crossing observed while
+ * the user is still scrolling releases the suspension only once the wheel
+ * has rested this long — following must never fight an active gesture.
+ */
+export const FOLLOW_GESTURE_IDLE_MS = 250;
+
+/** Per-park watch state for releaseStep (one per timeline editor). */
+export interface FollowReleaseState {
+  /** Playhead left of the re-engage line on the last observed frame; null
+   *  until the first frame after the park (no crossing check before that). */
+  leftOfLine: boolean | null;
+  /** A left→right crossing was observed; release once the gesture rests. */
+  crossed: boolean;
+  /** performance.now() of the last manual scroll event (gesture guard). */
+  lastScrollAt: number;
+}
+
+/**
+ * One frame of the parked-view release check (spec §5, revised). `line` is
+ * the content x the playhead must re-cross under its own motion before
+ * following re-engages (see reengageLineX); `x` is the playhead's content x
+ * this frame. Returns 'release' when following should re-engage — the view
+ * has not moved, so the rule takes over exactly at the line with zero jump
+ * — or 'hold' to keep the view parked. A crossing observed while the user
+ * is still scrolling (`now` within the gesture guard) or interacting
+ * (`busy`) waits; a fresh scroll event (the caller resets `crossed` and
+ * `leftOfLine`) cancels it and re-arms the watch.
+ */
+export function releaseStep(
+  st: FollowReleaseState,
+  line: number,
+  x: number,
+  now: number,
+  idleMs: number,
+  busy: boolean,
+): 'release' | 'hold' {
+  if (st.leftOfLine === null) { st.leftOfLine = x < line; return 'hold'; } // seed frame
+  if (x < line) {
+    st.leftOfLine = true; // behind the line — (re)arm; a loop wrap / seek back lands here too
+  } else {
+    if (st.leftOfLine && !st.crossed) st.crossed = true; // the crossing
+    if (!st.crossed) st.leftOfLine = false; // playhead right of the line, no crossing seen — stay parked
+  }
+  if (st.crossed && now - st.lastScrollAt >= idleMs && !busy) return 'release';
+  return 'hold';
+}
+
+/**
+ * Content x of the line the playhead must re-cross — under its own motion —
+ * before a manual-scroll park ends (spec §5, revised). For the pinned modes
+ * this is their anchor/pin position, so re-engagement costs zero jump; for
+ * page mode it is the view's left edge (the page rule owns the view again
+ * as soon as the playhead walks back into range). Null when there is
+ * nothing to re-engage (mode off).
+ */
+export function reengageLineX(v: FollowView): number | null {
+  if (v.mode === 'off') return null;
+  const viewL = v.scrollLeft + v.headerPx;
+  if (v.mode === 'page') return viewL;
+  return viewL + anchorFraction(v.mode, v.trigger) * timelineWidth(v);
+}
 
 export interface FollowResult {
   /** New scrollLeft, or null when the view should stay put this frame. */
@@ -145,36 +211,6 @@ export function followScroll(v: FollowView): FollowResult {
   if (x > viewL + anchor * tw) return { scrollLeft: targetFor(x) };
   if (x < viewL) return { scrollLeft: targetFor(x), wrapBack: true };
   return { scrollLeft: null };
-}
-
-/**
- * Catch-up target right after a manual-scroll suspension ends (spec §5):
- * the view glides back onto the playhead instead of hard-jumping. Returns
- * the scrollLeft to chase — re-evaluated every frame, the target moves with
- * the playhead — or null when the view should hold still: the playhead is
- * left of the trigger point and will re-cross it on its own, and yanking
- * the view backwards would fight the scroll the user just made.
- */
-export function catchUpScrollLeft(v: FollowView): number | null {
-  if (v.mode === 'off') return null;
-  const viewL = v.scrollLeft + v.headerPx;
-  const viewR = v.scrollLeft + v.clientWidth;
-  if (v.loop && loopPinsView(v.loop, v, viewL, viewR)) return null; // a fitting loop never scrolls (spec §7)
-  if (v.mode === 'centered' || v.mode === 'stationary') return refollowScrollLeft(v); // always pinned, either direction
-  const x = playheadX(v);
-  if (v.mode === 'page') return x > viewR ? refollowScrollLeft(v) : null;
-  return x > viewL + anchorFraction(v.mode, v.trigger) * timelineWidth(v) ? refollowScrollLeft(v) : null;
-}
-
-/**
- * One frame of the post-scroll catch-up glide: an exponential chase (~12/s)
- * of the moving pin position — smooth for any distance, no hard jump. Done
- * once the view is within a pixel of the target.
- */
-export function chaseStep(current: number, target: number, dt: number): { next: number; done: boolean } {
-  const d = target - current;
-  if (Math.abs(d) <= 1) return { next: target, done: true };
-  return { next: current + d * (1 - Math.exp(-dt * 12)), done: false };
 }
 
 /**

@@ -21,6 +21,14 @@
  *               area (equivalent to a 0.5 trigger, but pinned from t=0).
  *  stationary — the playhead is pinned at the configured fraction and the
  *               timeline moves beneath it (labelled: disorienting).
+ *
+ * A manual scroll suspends following only while the gesture lasts (spec §5):
+ * once the user stops scrolling the suspension ends on its own and the view
+ * re-engages the selected mode. If the playhead is past the trigger point at
+ * that moment, catchUpScrollLeft + chaseStep glide the view back onto it
+ * instead of hard-jumping; if the playhead is left of the trigger (the user
+ * scrolled ahead), the view holds still — never yanking backwards — until
+ * the playhead re-crosses the trigger on its own.
  */
 
 export type FollowMode = 'off' | 'smooth' | 'page' | 'centered' | 'stationary';
@@ -55,6 +63,9 @@ export interface FollowView {
   loop: { startTick: number; endTick: number } | [number, number] | null;
 }
 
+/** Idle time after the last manual scroll event before following resumes (spec §5). */
+export const FOLLOW_RESUME_IDLE_MS = 500;
+
 export interface FollowResult {
   /** New scrollLeft, or null when the view should stay put this frame. */
   scrollLeft: number | null;
@@ -87,6 +98,12 @@ export function loopFitsInView(loop: { startTick: number; endTick: number } | [n
   return (b - a) * v.pxPerTick <= timelineWidth(v);
 }
 
+/** Loop-fit rule (spec §7): a fitting loop that is actually on screen pins the view. */
+function loopPinsView(loop: NonNullable<FollowView['loop']>, v: FollowView, viewL: number, viewR: number): boolean {
+  const [ls, le] = Array.isArray(loop) ? loop : [loop.startTick, loop.endTick];
+  return loopFitsInView(loop, v) && le * v.pxPerTick + v.headerPx >= viewL && ls * v.pxPerTick + v.headerPx <= viewR;
+}
+
 /** Is the playhead inside the currently visible timeline range? */
 export function playheadVisible(v: Pick<FollowView, 'playheadTick' | 'pxPerTick' | 'headerPx' | 'scrollLeft' | 'clientWidth'>): boolean {
   const x = playheadX(v);
@@ -108,12 +125,7 @@ export function followScroll(v: FollowView): FollowResult {
   // all — no page jumps on every cycle. Only opt out when the loop is not
   // actually on screen (e.g. the view was left elsewhere without follow
   // having re-anchored yet).
-  if (v.loop) {
-    const [ls, le] = Array.isArray(v.loop) ? v.loop : [v.loop.startTick, v.loop.endTick];
-    if (loopFitsInView(v.loop, v) && le * v.pxPerTick + v.headerPx >= viewL && ls * v.pxPerTick + v.headerPx <= viewR) {
-      return { scrollLeft: null };
-    }
-  }
+  if (v.loop && loopPinsView(v.loop, v, viewL, viewR)) return { scrollLeft: null };
 
   if (v.mode === 'page') {
     if (x > viewR) return { scrollLeft: clampScroll(v.scrollLeft + tw) }; // one full view forward
@@ -133,6 +145,36 @@ export function followScroll(v: FollowView): FollowResult {
   if (x > viewL + anchor * tw) return { scrollLeft: targetFor(x) };
   if (x < viewL) return { scrollLeft: targetFor(x), wrapBack: true };
   return { scrollLeft: null };
+}
+
+/**
+ * Catch-up target right after a manual-scroll suspension ends (spec §5):
+ * the view glides back onto the playhead instead of hard-jumping. Returns
+ * the scrollLeft to chase — re-evaluated every frame, the target moves with
+ * the playhead — or null when the view should hold still: the playhead is
+ * left of the trigger point and will re-cross it on its own, and yanking
+ * the view backwards would fight the scroll the user just made.
+ */
+export function catchUpScrollLeft(v: FollowView): number | null {
+  if (v.mode === 'off') return null;
+  const viewL = v.scrollLeft + v.headerPx;
+  const viewR = v.scrollLeft + v.clientWidth;
+  if (v.loop && loopPinsView(v.loop, v, viewL, viewR)) return null; // a fitting loop never scrolls (spec §7)
+  if (v.mode === 'centered' || v.mode === 'stationary') return refollowScrollLeft(v); // always pinned, either direction
+  const x = playheadX(v);
+  if (v.mode === 'page') return x > viewR ? refollowScrollLeft(v) : null;
+  return x > viewL + anchorFraction(v.mode, v.trigger) * timelineWidth(v) ? refollowScrollLeft(v) : null;
+}
+
+/**
+ * One frame of the post-scroll catch-up glide: an exponential chase (~12/s)
+ * of the moving pin position — smooth for any distance, no hard jump. Done
+ * once the view is within a pixel of the target.
+ */
+export function chaseStep(current: number, target: number, dt: number): { next: number; done: boolean } {
+  const d = target - current;
+  if (Math.abs(d) <= 1) return { next: target, done: true };
+  return { next: current + d * (1 - Math.exp(-dt * 12)), done: false };
 }
 
 /**

@@ -5,7 +5,7 @@ import { chordTrackApi, chordTrackGesture, isFreshManualCreate, noteManualCreate
 import { FAMILY_COLORS, tokens, velocityColor, withAlpha } from '../theme/tokens';
 import { preview } from '../audio/preview';
 import { currentTick, loopRange, play, refollowPlayhead, registerFollowController, resumeFollow, seek, suspendFollow } from '../audio/transport';
-import { followScroll, playheadVisible, refollowScrollLeft } from '../engine/transport/follow';
+import { catchUpScrollLeft, chaseStep, FOLLOW_RESUME_IDLE_MS, followScroll, playheadVisible, refollowScrollLeft } from '../engine/transport/follow';
 import { TrackHeader } from './TrackHeader';
 import { HEADER_W, Ico, ROW_H, RULER_H } from './ui';
 import { I } from './icons';
@@ -364,30 +364,61 @@ const Ruler = memo(function Ruler({ ppt, bars, width }: { ppt: number; bars: num
  */
 function Playhead({ ppt, scroller }: { ppt: number; scroller: React.RefObject<HTMLDivElement | null> }) {
   const ref = useRef<HTMLDivElement>(null);
+  // Post-scroll resume state, shared by the scroll listener (which sets it
+  // when the suspension ends) and the rAF loop (which acts on it):
+  // 'await' — the playhead is left of the trigger, hold the view until it
+  // re-crosses; 'chase' — glide the view back onto the playhead.
+  const resumeRef = useRef<'await' | 'chase' | null>(null);
 
   // Manual scrolling during playback suspends auto-scroll (spec §5): the
   // scroll event fires for wheel, scrollbar, keyboard, minimap — any scroll
-  // that is not one of our own writes suspends. With the optional
-  // "resume when the playhead re-enters the view" preference (default off),
-  // scrolling back onto the playhead resumes following.
+  // that is not one of our own writes suspends. The suspension lasts while
+  // the gesture lasts: once the user stops scrolling it ends on its own
+  // (default; preference-off keeps the old park-until-Re-follow behavior)
+  // and the view re-engages the trigger rule — gliding back to the playhead
+  // if it is past the trigger point. The optional "resume when the playhead
+  // re-enters the view" preference resumes even mid-gesture.
   useEffect(() => {
     const el = scroller.current;
     if (!el) return;
+    let idle: number | undefined;
+    const arm = () => {
+      if (idle !== undefined) window.clearTimeout(idle);
+      idle = undefined;
+      if (!useStore.getState().settings.followResumeAfterScroll) return;
+      idle = window.setTimeout(() => {
+        idle = undefined;
+        const s = useStore.getState();
+        // Only a still-standing manual-scroll suspension auto-resumes —
+        // edit and scrub suspensions persist (spec §9, §12.4).
+        if (s.playing && s.followSuspended && s.followSuspensionReason === 'manual-scroll') {
+          resumeRef.current = 'await'; // the rAF loop glides / waits from here
+          resumeFollow();
+        }
+      }, FOLLOW_RESUME_IDLE_MS);
+    };
     const onScroll = () => {
       const s = useStore.getState();
       if (!s.playing) return;
       if (isOwnWrite(el)) return; // the follow policy's own write
       programmaticX = null;
       if (s.followSuspended) {
-        if (s.followSuspensionReason === 'manual-scroll' && s.settings.followResumeOnVisible) {
-          if (playheadVisible({ playheadTick: currentTick(), pxPerTick: s.pxPerTick, headerPx: HEADER_W, scrollLeft: el.scrollLeft, clientWidth: el.clientWidth })) resumeFollow();
+        if (s.followSuspensionReason !== 'manual-scroll') return; // edit/scrub persist (spec §9, §12)
+        if (s.settings.followResumeOnVisible && playheadVisible({ playheadTick: currentTick(), pxPerTick: s.pxPerTick, headerPx: HEADER_W, scrollLeft: el.scrollLeft, clientWidth: el.clientWidth })) {
+          resumeRef.current = 'await';
+          resumeFollow();
+          return;
         }
+        arm(); // still scrolling — postpone the auto-resume until the gesture ends
         return;
       }
-      if (s.settings.suspendFollowOnManualScroll && s.settings.autoScrollMode !== 'off') suspendFollow('manual-scroll');
+      if (s.settings.suspendFollowOnManualScroll && s.settings.autoScrollMode !== 'off') {
+        suspendFollow('manual-scroll');
+        arm();
+      }
     };
     el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el.removeEventListener('scroll', onScroll);
+    return () => { el.removeEventListener('scroll', onScroll); if (idle !== undefined) window.clearTimeout(idle); };
   }, [scroller]);
 
   // Re-follow control (badge button / keyboard shortcut) — the transport
@@ -411,7 +442,11 @@ function Playhead({ ppt, scroller }: { ppt: number; scroller: React.RefObject<HT
     let raf = 0;
     let glide: { from: number; to: number; t0: number } | null = null;
     let prevPlaying = false;
+    let prevT = performance.now();
     const loop = () => {
+      const now = performance.now();
+      const dt = Math.min(0.05, (now - prevT) / 1000);
+      prevT = now;
       const s = useStore.getState();
       const t = currentTick();
       const x = HEADER_W + t * ppt;
@@ -426,6 +461,7 @@ function Playhead({ ppt, scroller }: { ppt: number; scroller: React.RefObject<HT
         }
         const justStarted = s.playing && !prevPlaying;
         prevPlaying = s.playing;
+        if (!s.playing || s.followSuspended) { resumeRef.current = null; glide = null; }
         if (s.playing && !s.followSuspended && !s.interactionActive) {
           const mode = s.settings.autoScrollMode;
           if (mode !== 'off') {
@@ -433,11 +469,26 @@ function Playhead({ ppt, scroller }: { ppt: number; scroller: React.RefObject<HT
               mode, trigger: s.settings.autoScrollTriggerPoint, playheadTick: t, pxPerTick: ppt,
               headerPx: HEADER_W, scrollLeft: sc.scrollLeft, clientWidth: sc.clientWidth, loop: s.loop ? loopRange() : null,
             };
+            if (justStarted) { resumeRef.current = null; glide = null; }
             if (justStarted && !playheadVisible(v)) {
               // Playback starting with the playhead off-screen: jump once so
               // the user sees where playback begins.
-              glide = null;
               writeScroll(sc, refollowScrollLeft(v));
+            } else if (resumeRef.current === 'await') {
+              // Resumed after a manual scroll with the playhead left of the
+              // trigger: hold the view — never yank it backwards — until the
+              // playhead re-crosses the trigger on its own (spec §5).
+              if (catchUpScrollLeft(v) !== null) resumeRef.current = 'chase';
+            } else if (resumeRef.current === 'chase') {
+              // Glide back onto the playhead: an exponential chase of the
+              // moving pin position — smooth for any distance, no hard jump.
+              const target = catchUpScrollLeft(v);
+              if (target === null) resumeRef.current = null;
+              else {
+                const stp = chaseStep(sc.scrollLeft, target, dt);
+                writeScroll(sc, stp.next);
+                if (stp.done) resumeRef.current = null;
+              }
             } else {
               const res = followScroll(v);
               if (res.scrollLeft !== null && res.scrollLeft !== sc.scrollLeft) {
@@ -451,6 +502,8 @@ function Playhead({ ppt, scroller }: { ppt: number; scroller: React.RefObject<HT
                 }
               }
             }
+          } else {
+            resumeRef.current = null;
           }
         }
         if (glide) {

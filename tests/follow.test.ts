@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { followScroll, loopFitsInView, playheadVisible, refollowScrollLeft, timelineWidth, type FollowView } from '../src/engine/transport/follow';
+import { catchUpScrollLeft, chaseStep, FOLLOW_RESUME_IDLE_MS, followScroll, loopFitsInView, playheadVisible, refollowScrollLeft, timelineWidth, type FollowView } from '../src/engine/transport/follow';
 
 // Mirrors the arranger geometry: 300px sticky header, 1300px viewport.
 const HEADER = 300;
@@ -151,5 +151,104 @@ describe('clamping and re-follow anchoring', () => {
   it('refollow: page puts the playhead at the left edge; off leaves the view alone', () => {
     expect(refollowScrollLeft(view({ mode: 'page', playheadTick: 1000 }))).toBe(1000);
     expect(refollowScrollLeft(view({ mode: 'off', playheadTick: 1000, scrollLeft: 321 }))).toBe(321);
+  });
+});
+
+describe('catch-up after a manual scroll ends (spec §5 resume-after-scroll)', () => {
+  it('smooth: playhead past the trigger → chase the pin position', () => {
+    // The user scrolled backwards; the playhead is 250px past the anchor.
+    const v = view({ playheadTick: 1300 }); // x = 1600 > anchor 300 + 750 + 0 = 1050
+    const target = catchUpScrollLeft(v);
+    expect(target).not.toBeNull();
+    expect(300 + 1300 - (target as number) - HEADER).toBeCloseTo(750, 5);
+  });
+  it('smooth: playhead left of the trigger → hold the view, no backward yank', () => {
+    expect(catchUpScrollLeft(view({ playheadTick: 400 }))).toBeNull();
+  });
+  it('smooth: playhead scrolled off the LEFT edge → hold; the view waits for it to re-cross', () => {
+    // The user scrolled ahead of the playhead — chasing would drag the view backwards.
+    expect(catchUpScrollLeft(view({ playheadTick: 100, scrollLeft: 3000 }))).toBeNull();
+  });
+  it('smooth: playhead off the RIGHT edge → chase it back into view', () => {
+    expect(catchUpScrollLeft(view({ playheadTick: 5000 }))).not.toBeNull();
+  });
+  it('centered/stationary always chase their pin — the mode promises the pin, any direction', () => {
+    expect(catchUpScrollLeft(view({ mode: 'centered', playheadTick: 200, scrollLeft: 3000 }))).not.toBeNull();
+    expect(catchUpScrollLeft(view({ mode: 'stationary', playheadTick: 5000 }))).not.toBeNull();
+  });
+  it('page: playhead visible → hold; off the right edge → chase to the left-edge pin', () => {
+    expect(catchUpScrollLeft(view({ mode: 'page', playheadTick: 900 }))).toBeNull();
+    const target = catchUpScrollLeft(view({ mode: 'page', playheadTick: 2500, scrollLeft: 500 })); // x = 2800 > viewR 1800
+    expect(target).toBe(refollowScrollLeft(view({ mode: 'page', playheadTick: 2500, scrollLeft: 500 })));
+  });
+  it('a fitting loop that is on screen never chases (loop-fit rule §7)', () => {
+    const loop = { startTick: 100, endTick: 700 };
+    expect(catchUpScrollLeft(view({ playheadTick: 1000, loop }))).toBeNull();
+  });
+  it('a fitting loop scrolled out of view still re-acquires the playhead', () => {
+    const loop = { startTick: 5000, endTick: 5500 };
+    expect(catchUpScrollLeft(view({ playheadTick: 5100, loop, scrollLeft: 0 }))).not.toBeNull();
+  });
+  it('off never chases', () => {
+    expect(catchUpScrollLeft(view({ mode: 'off', playheadTick: 90000 }))).toBeNull();
+  });
+  it('chasing a moving playhead tracks it with a small bounded lag (damped follow, no jump)', () => {
+    // While the playhead keeps advancing the exponential chase never fully
+    // "done"s — it settles into tracking the moving pin with a small
+    // constant lag, which is visually indistinguishable from pinning.
+    const advance = 6; // px per simulated frame (≈ 384 px/s at 60fps)
+    let cur = catchUpScrollLeft(view({ playheadTick: 1300 })) as number;
+    let tick = 1300;
+    let worst = 0;
+    for (let i = 0; i < 120; i++) {
+      tick += advance;
+      const target = catchUpScrollLeft(view({ playheadTick: tick, scrollLeft: cur }));
+      if (target === null) break;
+      const stp = chaseStep(cur, target, 1 / 60);
+      cur = stp.next;
+      worst = Math.max(worst, Math.abs(target - cur));
+    }
+    expect(worst).toBeLessThan(40); // steady-state lag stays small…
+    const res = followScroll(view({ playheadTick: tick, scrollLeft: cur }));
+    // …and the handover to the policy costs at most a couple of frames.
+    if (res.scrollLeft !== null) expect(Math.abs(res.scrollLeft - cur)).toBeLessThanOrEqual(advance * 6);
+  });
+});
+
+describe('catch-up glide step', () => {
+  it('converges exponentially and finishes exactly on the target', () => {
+    let cur = 0;
+    let frames = 0;
+    while (frames < 600) {
+      const stp = chaseStep(cur, 800, 1 / 60);
+      cur = stp.next;
+      frames++;
+      if (stp.done) break;
+    }
+    expect(cur).toBe(800);
+    expect(frames).toBeLessThan(120); // 800px in well under two seconds
+  });
+  it('chases a moving target monotonically, never overshooting', () => {
+    let cur = 0;
+    for (let i = 0; i < 120; i++) {
+      const target = 500 + i * 10; // the pin moves forward with the playhead
+      const stp = chaseStep(cur, target, 1 / 60);
+      expect(stp.next).toBeGreaterThanOrEqual(cur);
+      expect(stp.next).toBeLessThanOrEqual(target);
+      cur = stp.next;
+    }
+  });
+  it('a sub-pixel distance snaps exactly onto the target', () => {
+    expect(chaseStep(799.7, 800, 1 / 60)).toEqual({ next: 800, done: true });
+    expect(chaseStep(800.4, 800, 1 / 60)).toEqual({ next: 800, done: true });
+  });
+  it('a large gap glides smoothly — the first step is a small fraction, not a jump', () => {
+    const stp = chaseStep(0, 5000, 1 / 60);
+    expect(stp.done).toBe(false);
+    expect(stp.next).toBeGreaterThan(0);
+    expect(stp.next).toBeLessThan(5000 * 0.35); // ~18% per frame at 60fps
+  });
+  it('the resume idle window is half a second', () => {
+    expect(FOLLOW_RESUME_IDLE_MS).toBe(500);
   });
 });

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../store/store';
 import { preview } from '../audio/preview';
+import { FOLLOW_MODES, TRIGGER_POINTS, type FollowMode } from '../engine/transport/follow';
 import { loadedInstanceCount } from '../lib/routing';
 import { barTicks, createAddedTrack, isInstrumentTrack, projectEndTick, type Note, type TrackFamily } from '../shared/schema';
 import { mulberry32 } from '../engine/generate';
 import { runAlignmentTest } from './Arranger';
 import { I } from './icons';
-import { Ico } from './ui';
+import { Ico, Select } from './ui';
 import { cn } from '../utils/cn';
 
 function fmtBytes(b: number) { return b > 1e9 ? `${(b / 1e9).toFixed(2)} GB` : `${(b / 1e6).toFixed(0)} MB`; }
@@ -80,6 +81,9 @@ export function StatusBar() {
   const engineConnected = useStore((s) => s.engineConnected);
   const devMode = useStore((s) => s.settings.devMode);
   const playing = useStore((s) => s.playing);
+  const followMode = useStore((s) => s.settings.autoScrollMode);
+  const followTrigger = useStore((s) => s.settings.autoScrollTriggerPoint);
+  const setSettings = useStore((s) => s.setSettings);
   const [mem, setMem] = useState<string>('—');
   useEffect(() => {
     const t = setInterval(() => {
@@ -105,6 +109,14 @@ export function StatusBar() {
       <span className="printed">{p.sections.length} sections · {p.chords.length} chords · {Math.round(projectEndTick(p) / barTicks(p.timeSignature))} bars</span>
       {playing && <span className="text-[var(--c-success)]">● playing</span>}
       <div className="flex-1" />
+      {/* Auto-scroll control (spec §15.3): compact, lives beside the other session utilities. */}
+      <div className="flex items-center gap-1.5" title="Auto-scroll — how the arranger follows the playhead. Trigger = fraction of the visible width where following engages (or the stationary playhead pins).">
+        <span className="printed">follow</span>
+        <Select<FollowMode> mono testId="autoscroll-mode" tip="Auto-scroll mode: Off / Smooth / Page / Centered / Stationary" value={followMode} options={FOLLOW_MODES.map((m) => ({ value: m.value, label: m.label }))} onChange={(v) => setSettings({ autoScrollMode: v })} className="h-[20px] w-[74px] px-1 text-[9px]" />
+        {(followMode === 'smooth' || followMode === 'stationary') && (
+          <Select<number> mono testId="autoscroll-trigger" tip="Trigger point — fraction of the visible timeline width" value={followTrigger} options={TRIGGER_POINTS} onChange={(v) => setSettings({ autoScrollTriggerPoint: v })} className="h-[20px] w-[46px] px-1 text-[9px]" />
+        )}
+      </div>
       {devMode && <DevMenu />}
       <span>960 PPQ · local only</span>
     </footer>

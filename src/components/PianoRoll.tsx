@@ -3,7 +3,7 @@ import { useStore } from '../store/store';
 import { barTicks, beatTicks, noteName, projectEndTick, PPQ, type Note } from '../shared/schema';
 import { sanitizeNotes } from '../engine/generate';
 import { tokens, velocityColor, withAlpha } from '../theme/tokens';
-import { currentTick } from '../audio/transport';
+import { currentTick, registerFollowController, refollowPlayhead, suspendFollow } from '../audio/transport';
 import { cn } from '../utils/cn';
 import { I } from './icons';
 import { Ico, IconButton, Select } from './ui';
@@ -26,11 +26,25 @@ export function PianoRoll() {
   const [tool, setTool] = useState<'select' | 'draw'>('draw');
   const [snap, setSnap] = useState(PPQ / 4);
   const [ppt, setPpt] = useState(0.12);
+  const pptRef = useRef(ppt); // for closures that outlive a render (zoom re-anchor)
+  pptRef.current = ppt;
   const lastLen = useRef(PPQ);
   const scroller = useRef<HTMLDivElement>(null);
+  // Same value-comparison scheme as the arranger: the last value we wrote
+  // identifies our own scroll events; anything else is a manual scroll.
+  const lastWritten = useRef<number | null>(null);
+  const writeScroll = (x: number) => {
+    const el = scroller.current; if (!el) return;
+    const maxX = el.scrollWidth - el.clientWidth;
+    const v = Math.max(0, Math.min(x, maxX));
+    lastWritten.current = v;
+    el.scrollLeft = v;
+  };
+  const isOwnWrite = (el: HTMLDivElement) => lastWritten.current !== null && Math.abs(el.scrollLeft - lastWritten.current) <= 0.5;
   const velRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const playRef = useRef<HTMLDivElement>(null);
+  const rollSuspended = useStore((s) => s.rollFollowSuspended);
 
   useEffect(() => { if (track) setNotes(track.notes.map((n) => ({ ...n }))); }, [track?.notes]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -55,11 +69,60 @@ export function PianoRoll() {
     const sc = scroller.current!;
     const avg = notes.length ? notes.reduce((a, n) => a + n.pitch, 0) / notes.length : (lo + hi) / 2;
     sc.scrollTop = Math.max(0, (hi - avg) * KEY_H - sc.clientHeight / 2);
+    // Zooming (ppt change) re-anchors around the playhead while following;
+    // otherwise the current position is preserved.
+    const s0 = useStore.getState();
+    if (s0.playing && s0.settings.pianoRollFollow && !s0.rollFollowSuspended && !s0.interactionActive) {
+      const x = KEYS_W + currentTick() * ppt;
+      if (x < sc.scrollLeft + KEYS_W || x > sc.scrollLeft + sc.clientWidth) writeScroll(Math.max(0, x - KEYS_W - (sc.clientWidth - KEYS_W) * 0.75));
+    }
     let raf = 0;
-    const loop = () => { if (playRef.current) playRef.current.style.transform = `translateX(${currentTick() * ppt}px)`; raf = requestAnimationFrame(loop); };
+    const loop = () => {
+      const t = currentTick();
+      if (playRef.current) playRef.current.style.transform = `translateX(${t * ppt}px)`;
+      // The roll has its OWN follow setting (spec §13): smooth-follow with a
+      // 0.75 anchor, independently suspendable of the arranger.
+      const s = useStore.getState();
+      if (s.playing && s.settings.pianoRollFollow && !s.rollFollowSuspended && !s.interactionActive) {
+        // A scrollLeft nobody of ours wrote = manual scroll between frames.
+        if (lastWritten.current !== null && Math.abs(sc.scrollLeft - lastWritten.current) > 0.5) {
+          lastWritten.current = null;
+          s.set({ rollFollowSuspended: true });
+        } else {
+          const x = KEYS_W + t * ppt;
+          const anchor = sc.scrollLeft + KEYS_W + (sc.clientWidth - KEYS_W) * 0.75;
+          if (x > anchor || x < sc.scrollLeft + KEYS_W) writeScroll(Math.max(0, x - KEYS_W - (sc.clientWidth - KEYS_W) * 0.75));
+        }
+      }
+      raf = requestAnimationFrame(loop);
+    };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, [trackId, ppt]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Manual scrolling in the roll suspends ITS follow only — the arranger's
+  // follow state is untouched (spec §13: editors never force each other).
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const onScroll = () => {
+      if (isOwnWrite(el)) return;
+      lastWritten.current = null;
+      const s = useStore.getState();
+      if (s.playing && s.settings.pianoRollFollow && !s.rollFollowSuspended && !s.interactionActive) s.set({ rollFollowSuspended: true });
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Re-follow controller for the focused-editor shortcut (F).
+  useEffect(() => {
+    registerFollowController('pianoRoll', () => {
+      const sc = scroller.current; if (!sc) return;
+      writeScroll(Math.max(0, KEYS_W + currentTick() * pptRef.current - KEYS_W - (sc.clientWidth - KEYS_W) * 0.75));
+    });
+    return () => registerFollowController('pianoRoll', null);
+  }, []);
 
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
@@ -79,7 +142,16 @@ export function PianoRoll() {
 
   const dragLoop = (move: (ev: PointerEvent) => void, up: () => void) => {
     const mv = (ev: PointerEvent) => move(ev);
-    const u = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', u); up(); };
+    const u = () => {
+      window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', u);
+      // Editing MIDI notes during playback suspends the arranger's follow and
+      // keeps it suspended after the edit (spec §9) — same rule as lane drags.
+      const s = useStore.getState();
+      s.set({ interactionActive: false });
+      if (s.playing && s.settings.suspendFollowDuringEdit) suspendFollow('edit');
+      up();
+    };
+    useStore.getState().set({ interactionActive: true });
     window.addEventListener('pointermove', mv); window.addEventListener('pointerup', u);
   };
 
@@ -146,7 +218,7 @@ export function PianoRoll() {
 
   if (!track) return null;
   return (
-    <div className="fixed inset-x-3 top-[70px] bottom-[340px] z-40 flex flex-col overflow-hidden rounded-xl border border-[var(--c-lineStrong)] bg-[var(--c-bg1)] shadow-2xl animate-[pop_.18s_ease]" data-testid="piano-roll">
+    <div className="fixed inset-x-3 top-[70px] bottom-[340px] z-[45] flex flex-col overflow-hidden rounded-xl border border-[var(--c-lineStrong)] bg-[var(--c-bg1)] shadow-2xl animate-[pop_.18s_ease]" data-testid="piano-roll" onPointerDownCapture={() => { const s = useStore.getState(); if (s.activeEditor !== 'pianoRoll') s.set({ activeEditor: 'pianoRoll' }); }}>
       <div className="flex items-center gap-2 border-b border-[var(--c-line)] px-3 py-2">
         <span className="h-3 w-3 rounded-sm" style={{ background: track.color }} />
         <Ico icon={I.piano} className="text-[var(--c-textDim)]" />
@@ -159,10 +231,16 @@ export function PianoRoll() {
         <IconButton icon={I.minus} tip="Zoom out" onClick={() => setPpt((p) => Math.max(0.02, p / 1.25))} />
         <IconButton icon={I.plus} tip="Zoom in" onClick={() => setPpt((p) => Math.min(1, p * 1.25))} />
         <IconButton icon={I.trash} tip="Delete selected notes (Delete)" disabled={!sel.size} onClick={() => commit(notes.filter((_, i) => !sel.has(i)))} />
+        {rollSuspended && (
+          <span data-testid="roll-follow-suspended" className="flex items-center gap-1.5 rounded-full border border-[var(--c-lineStrong)] bg-[var(--c-bg0)] px-2 py-0.5 text-[10px] font-semibold text-[var(--c-textDim)]">
+            Follow suspended
+            <button data-testid="roll-refollow-btn" onClick={refollowPlayhead} title="Re-follow playhead in the piano roll" className="rounded bg-[var(--c-bg2)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider hover:brightness-125">Re-follow</button>
+          </span>
+        )}
         <span className="ml-auto text-[10px] text-[var(--c-textMute)]">Right-click deletes · Shift-click multi-select · drag right edge to resize · Ctrl+A all</span>
         <IconButton icon={I.x} tip="Close piano roll (Esc) — edits are already on the timeline" onClick={() => useStore.getState().set({ pianoRollTrackId: null })} />
       </div>
-      <div ref={scroller} className="relative min-h-0 flex-1 overflow-auto" onScroll={(e) => { if (velRef.current) velRef.current.parentElement!.scrollLeft = e.currentTarget.scrollLeft; }}>
+      <div ref={scroller} data-testid="roll-scroll" className="relative min-h-0 flex-1 overflow-auto" onScroll={(e) => { if (velRef.current) velRef.current.parentElement!.scrollLeft = e.currentTarget.scrollLeft; }}>
         <div className="relative flex" style={{ width: KEYS_W + width, height }}>
           <div className="sticky left-0 z-10 shrink-0 border-r-2 border-[#0e0e10]" style={{ width: KEYS_W, height }}>
             {/* Vintage keyboard: aged ivory whites with seams and worn front edges,
@@ -220,7 +298,7 @@ export function PianoRoll() {
                 <div className="absolute right-0 top-0 h-full w-[6px] cursor-ew-resize" />
               </div>
             ))}
-            <div ref={playRef} className="pointer-events-none absolute left-0 top-0 h-full w-px bg-[var(--c-playhead)]" />
+            <div ref={playRef} data-testid="roll-playhead" className="pointer-events-none absolute left-0 top-0 h-full w-px bg-[var(--c-playhead)]" />
           </div>
         </div>
       </div>

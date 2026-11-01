@@ -4,7 +4,8 @@ import { barTicks, beatTicks, parseChord, projectBars, projectEndTick, secondsTo
 import { chordTrackApi, chordTrackGesture, isFreshManualCreate, noteManualCreate, SMART_CLIP_ID_PREFIX, syncPickerToChordCard } from '../engine/suggestion/wire';
 import { FAMILY_COLORS, tokens, velocityColor, withAlpha } from '../theme/tokens';
 import { preview } from '../audio/preview';
-import { currentTick, seek } from '../audio/transport';
+import { currentTick, loopRange, play, refollowPlayhead, registerFollowController, resumeFollow, seek, suspendFollow } from '../audio/transport';
+import { followScroll, playheadVisible, refollowScrollLeft } from '../engine/transport/follow';
 import { TrackHeader } from './TrackHeader';
 import { HEADER_W, Ico, ROW_H, RULER_H } from './ui';
 import { I } from './icons';
@@ -19,12 +20,39 @@ const sectionColor = (name: string) => {
   return SECTION_PALETTE[h % SECTION_PALETTE.length];
 };
 
-function drag(e: React.PointerEvent, move: (dx: number, ev: PointerEvent) => void, up: (moved: boolean) => void) {
+/**
+ * Programmatic scroll writes must not look like manual scrolls. Chrome
+ * coalesces scroll events, so a time-window flag cannot distinguish our own
+ * writes from the user's. Instead we remember the last value the policy
+ * wrote: a scroll event (or frame start) whose scrollLeft differs from it is
+ * a manual scroll → suspend. Our own events match the written value exactly.
+ */
+let programmaticX: number | null = null;
+function writeScroll(el: HTMLDivElement, x: number) {
+  const maxX = el.scrollWidth - el.clientWidth;
+  const v = Math.max(0, Math.min(x, maxX));
+  programmaticX = v;
+  el.scrollLeft = v;
+}
+function isOwnWrite(el: HTMLDivElement): boolean {
+  return programmaticX !== null && Math.abs(el.scrollLeft - programmaticX) <= 0.5;
+}
+
+function drag(e: React.PointerEvent, move: (dx: number, ev: PointerEvent) => void, up: (moved: boolean) => void, opts: { editSuspension?: boolean } = {}) {
   e.stopPropagation();
   const x0 = e.clientX;
   let moved = false;
   const mv = (ev: PointerEvent) => { if (Math.abs(ev.clientX - x0) > 2) moved = true; move(ev.clientX - x0, ev); };
-  const u = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', u); up(moved); };
+  const u = () => {
+    window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', u);
+    const s = useStore.getState();
+    s.set({ interactionActive: false });
+    // Editing during playback suspends auto-scroll and KEEPS it suspended
+    // after the edit ends (spec §9) — the Re-follow badge takes over.
+    if (opts.editSuspension !== false && moved && s.playing && s.settings.suspendFollowDuringEdit) suspendFollow('edit');
+    up(moved);
+  };
+  useStore.getState().set({ interactionActive: true }); // freezes follow while a precise edit is in progress
   window.addEventListener('pointermove', mv);
   window.addEventListener('pointerup', u);
 }
@@ -284,10 +312,37 @@ const Ruler = memo(function Ruler({ ppt, bars, width }: { ppt: number; bars: num
     return s ? [(s.startBar - 1) * pxBar, s.lengthBars * pxBar] : [0, bars * pxBar];
   }, [sections, selSec, pxBar, bars]);
   const seekAt = (x: number) => seek((x - ref.current!.getBoundingClientRect().left) / ppt);
+  const onPointerDown = (e: React.PointerEvent) => {
+    const s = useStore.getState();
+    // "Click during playback moves playhead" preference (spec §14): when off,
+    // clicks while playing leave the transport alone.
+    if (s.playing && !s.settings.clickDuringPlaybackMovesPlayhead) return;
+    seekAt(e.clientX);
+    drag(e, (_d, ev) => {
+      seekAt(ev.clientX);
+      // Scrubbing during playback suspends following (spec §12) — the drag
+      // itself must not fight the user's hand.
+      const s2 = useStore.getState();
+      if (s2.playing && !s2.followSuspended) suspendFollow('scrub');
+    }, (moved) => {
+      const s3 = useStore.getState();
+      // A plain click while playing re-locates and RESUMES following from
+      // the new position (spec §8.4); a scrub stays suspended (§12.4).
+      if (!moved && s3.playing) resumeFollow();
+    }, { editSuspension: false });
+  };
+  const onDoubleClick = (e: React.MouseEvent) => {
+    // Optional shortcut (spec §2): double-click the ruler to start playback
+    // from the clicked position.
+    const s = useStore.getState();
+    if (s.playing) return;
+    seekAt(e.clientX);
+    play();
+  };
   return (
-    <div ref={ref} className="panel sticky top-0 z-[25] h-full cursor-pointer border-b border-[#0f0f11]" style={{ width }}
-      title="Click or drag to move the playhead"
-      onPointerDown={(e) => { seekAt(e.clientX); drag(e, (_d, ev) => seekAt(ev.clientX), () => undefined); }}>
+    <div ref={ref} data-testid="ruler" className="panel sticky top-0 z-[25] h-full cursor-pointer border-b border-[#0f0f11]" style={{ width }}
+      title="Click or drag to move the playhead · double-click to play from here"
+      onPointerDown={onPointerDown} onDoubleClick={onDoubleClick}>
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[rgba(233,230,224,0.35)]" aria-hidden />
       {loop && <div className="absolute bottom-0 h-[5px] rounded-sm bg-[var(--c-info)] opacity-70" style={{ left: loopR[0], width: loopR[1] }} />}
       {Array.from({ length: Math.ceil(width / pxBar) }, (_, b) => (
@@ -301,25 +356,141 @@ const Ruler = memo(function Ruler({ ppt, bars, width }: { ppt: number; bars: num
   );
 });
 
+/**
+ * The playhead: one authoritative rAF loop drives the line's transform AND
+ * the follow (auto-scroll) policy. The React component never re-renders
+ * while playing — the store is read via getState() inside the loop (spec
+ * §16: no arranger re-renders during scrolling).
+ */
 function Playhead({ ppt, scroller }: { ppt: number; scroller: React.RefObject<HTMLDivElement | null> }) {
   const ref = useRef<HTMLDivElement>(null);
+
+  // Manual scrolling during playback suspends auto-scroll (spec §5): the
+  // scroll event fires for wheel, scrollbar, keyboard, minimap — any scroll
+  // that is not one of our own writes suspends. With the optional
+  // "resume when the playhead re-enters the view" preference (default off),
+  // scrolling back onto the playhead resumes following.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const onScroll = () => {
+      const s = useStore.getState();
+      if (!s.playing) return;
+      if (isOwnWrite(el)) return; // the follow policy's own write
+      programmaticX = null;
+      if (s.followSuspended) {
+        if (s.followSuspensionReason === 'manual-scroll' && s.settings.followResumeOnVisible) {
+          if (playheadVisible({ playheadTick: currentTick(), pxPerTick: s.pxPerTick, headerPx: HEADER_W, scrollLeft: el.scrollLeft, clientWidth: el.clientWidth })) resumeFollow();
+        }
+        return;
+      }
+      if (s.settings.suspendFollowOnManualScroll && s.settings.autoScrollMode !== 'off') suspendFollow('manual-scroll');
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [scroller]);
+
+  // Re-follow control (badge button / keyboard shortcut) — the transport
+  // module can snap the view without owning the scroll container.
+  useEffect(() => {
+    registerFollowController('arranger', () => {
+      const sc = scroller.current;
+      if (!sc) return;
+      const s = useStore.getState();
+      const mode = s.settings.autoScrollMode;
+      if (mode === 'off') return;
+      writeScroll(sc, refollowScrollLeft({
+        mode, trigger: s.settings.autoScrollTriggerPoint, playheadTick: currentTick(), pxPerTick: s.pxPerTick,
+        headerPx: HEADER_W, scrollLeft: sc.scrollLeft, clientWidth: sc.clientWidth, loop: s.loop ? loopRange() : null,
+      }));
+    });
+    return () => registerFollowController('arranger', null);
+  }, [ppt, scroller]);
+
   useEffect(() => {
     let raf = 0;
+    let glide: { from: number; to: number; t0: number } | null = null;
+    let prevPlaying = false;
     const loop = () => {
+      const s = useStore.getState();
       const t = currentTick();
       const x = HEADER_W + t * ppt;
       if (ref.current) ref.current.style.transform = `translateX(${x}px)`;
       const sc = scroller.current;
-      if (sc && useStore.getState().playing) {
-        const vis = sc.scrollLeft + sc.clientWidth;
-        if (x > vis - 40 || x < sc.scrollLeft + HEADER_W) sc.scrollLeft = Math.max(0, x - HEADER_W - 80);
+      if (sc) {
+        // A scrollLeft that nobody of ours wrote is a manual scroll that
+        // happened between frames — suspend BEFORE the policy overwrites it.
+        if (s.playing && programmaticX !== null && Math.abs(sc.scrollLeft - programmaticX) > 0.5) {
+          programmaticX = null;
+          if (!s.followSuspended && s.settings.suspendFollowOnManualScroll && s.settings.autoScrollMode !== 'off') suspendFollow('manual-scroll');
+        }
+        const justStarted = s.playing && !prevPlaying;
+        prevPlaying = s.playing;
+        if (s.playing && !s.followSuspended && !s.interactionActive) {
+          const mode = s.settings.autoScrollMode;
+          if (mode !== 'off') {
+            const v = {
+              mode, trigger: s.settings.autoScrollTriggerPoint, playheadTick: t, pxPerTick: ppt,
+              headerPx: HEADER_W, scrollLeft: sc.scrollLeft, clientWidth: sc.clientWidth, loop: s.loop ? loopRange() : null,
+            };
+            if (justStarted && !playheadVisible(v)) {
+              // Playback starting with the playhead off-screen: jump once so
+              // the user sees where playback begins.
+              glide = null;
+              writeScroll(sc, refollowScrollLeft(v));
+            } else {
+              const res = followScroll(v);
+              if (res.scrollLeft !== null && res.scrollLeft !== sc.scrollLeft) {
+                if (res.wrapBack) {
+                  // Loop wrap / seek back: glide the view back (spec §7.5)
+                  // instead of a hard jump; the policy keeps the target fresh.
+                  if (!glide) glide = { from: sc.scrollLeft, to: res.scrollLeft, t0: performance.now() };
+                } else {
+                  glide = null;
+                  writeScroll(sc, res.scrollLeft);
+                }
+              }
+            }
+          }
+        }
+        if (glide) {
+          const k = Math.min(1, (performance.now() - glide.t0) / 180);
+          const eased = 1 - Math.pow(1 - k, 3);
+          writeScroll(sc, Math.round(glide.from + (glide.to - glide.from) * eased));
+          if (k >= 1) glide = null;
+        }
       }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, [ppt, scroller]);
-  return <div ref={ref} className="pointer-events-none absolute left-0 top-0 z-[22] h-full w-px bg-[var(--c-playhead)] shadow-[0_0_6px_var(--c-playhead)]"><div className="sticky top-0 -ml-[5px] h-0 w-0 border-x-[5.5px] border-t-[8px] border-x-transparent border-t-[var(--c-playhead)]" /></div>;
+
+  return <div ref={ref} data-testid="playhead" className="pointer-events-none absolute left-0 top-0 z-[22] h-full w-px bg-[var(--c-playhead)] shadow-[0_0_6px_var(--c-playhead)]"><div className="sticky top-0 -ml-[5px] h-0 w-0 border-x-[5.5px] border-t-[8px] border-x-transparent border-t-[var(--c-playhead)]" /></div>;
+}
+
+/** Non-blocking badge shown while auto-scroll is suspended (spec §5, §9). */
+function FollowBadge() {
+  const suspended = useStore((s) => s.followSuspended);
+  const reason = useStore((s) => s.followSuspensionReason);
+  const refollowKey = useStore((s) => s.settings.refollowKey);
+  if (!suspended) return null;
+  const label = reason === 'edit' ? 'Follow suspended — editing' : reason === 'scrub' ? 'Follow suspended — scrubbing' : 'Follow suspended';
+  return (
+    <div data-testid="follow-suspended" className="absolute bottom-3 right-4 z-[60] flex items-center gap-2.5 rounded-full border border-[var(--c-lineStrong)] bg-[var(--c-bg2)]/95 py-1.5 pl-3 pr-1.5 shadow-2xl animate-[pop_.15s_ease]">
+      <span className="relative flex h-2 w-2">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--c-warn)] opacity-60" />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--c-warn)]" />
+      </span>
+      <span className="whitespace-nowrap text-[11px] font-semibold text-[var(--c-textDim)]">{label}</span>
+      <button data-testid="refollow-btn" onClick={refollowPlayhead}
+        title="Re-follow playhead — resume auto-scroll and jump back to the playhead"
+        className="hw flex h-6 items-center gap-1.5 rounded-full px-2.5 text-[10px] font-bold uppercase tracking-[0.08em]">
+        Re-follow
+        <kbd className="rounded border border-[var(--c-line)] bg-[var(--c-bg0)] px-1 font-mono text-[9px] uppercase">{refollowKey}</kbd>
+      </button>
+    </div>
+  );
 }
 
 /* ---------------- Add track ---------------- */
@@ -374,7 +545,10 @@ export function Arranger() {
     backgroundSize: `${pxBar}px 100%, ${pxBeat}px 100%`,
   }), [pxBar, pxBeat]);
 
-  // Ctrl+wheel zoom anchored at the mouse position.
+  // Ctrl+wheel zoom anchored at the mouse position. While following during
+  // playback, the view re-anchors around the playhead instead (spec §6): the
+  // musical position never jumps, the playhead stays visible, suspension is
+  // preserved (manual view position kept via the mouse anchor).
   useEffect(() => {
     const el = scroller.current!;
     const onWheel = (e: WheelEvent) => {
@@ -386,7 +560,18 @@ export function Arranger() {
       const tickAtMouse = (el.scrollLeft + mx) / s.pxPerTick;
       const next = Math.max(0.004, Math.min(0.6, s.pxPerTick * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
       s.set({ pxPerTick: next });
-      requestAnimationFrame(() => { el.scrollLeft = Math.max(0, tickAtMouse * next - mx); });
+      requestAnimationFrame(() => {
+        const s2 = useStore.getState();
+        if (s2.playing && !s2.followSuspended && !s2.interactionActive && s2.settings.autoScrollMode !== 'off') {
+          writeScroll(el, refollowScrollLeft({
+            mode: s2.settings.autoScrollMode, trigger: s2.settings.autoScrollTriggerPoint, playheadTick: currentTick(),
+            pxPerTick: next, headerPx: HEADER_W, scrollLeft: el.scrollLeft, clientWidth: el.clientWidth,
+            loop: s2.loop ? loopRange() : null,
+          }));
+        } else {
+          writeScroll(el, Math.max(0, tickAtMouse * next - mx));
+        }
+      });
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
@@ -395,23 +580,28 @@ export function Arranger() {
   const openRoll = useCallback((t: Track) => { if (t.family !== 'Structure' && t.family !== 'Audio') useStore.getState().set({ pianoRollTrackId: t.id }); }, []);
 
   return (
-    <div
-      ref={scroller} className="relative min-h-0 flex-1 overflow-auto bg-[var(--c-bg0)]" data-testid="arranger-scroll" id="arranger-scroll"
-      style={{ backgroundImage: 'radial-gradient(130% 55% at 50% -12%, rgba(233,184,76,0.055), transparent 62%)' }}
-    >
-      <div className="relative grid" style={{ gridTemplateColumns: `${HEADER_W}px ${width}px`, gridTemplateRows: `${RULER_H}px repeat(${tracks.length}, ${ROW_H}px) 56px`, width: HEADER_W + width }}>
-        <div className="panel sticky left-0 top-0 z-[42] flex items-center justify-between border-b border-r border-[#0f0f11] px-3" style={{ width: HEADER_W }}>
-          <span className="printed">tracks · {tracks.length}</span>
-          <span className="text-[10px] tracking-[0.06em] text-[var(--c-textMute)]" title="Project length">{bars} bars · {ts.numerator}/{ts.denominator}</span>
+    /* The wrapper owns the overlay layer: the badge must not scroll with the
+       timeline, so it sits as a sibling of the scroll container. */
+    <div className="relative min-h-0 flex-1" onPointerDownCapture={() => { const s = useStore.getState(); if (s.activeEditor !== 'arranger') s.set({ activeEditor: 'arranger' }); }}>
+      <div
+        ref={scroller} className="absolute inset-0 overflow-auto bg-[var(--c-bg0)]" data-testid="arranger-scroll" id="arranger-scroll"
+        style={{ backgroundImage: 'radial-gradient(130% 55% at 50% -12%, rgba(233,184,76,0.055), transparent 62%)' }}
+      >
+        <div className="relative grid" style={{ gridTemplateColumns: `${HEADER_W}px ${width}px`, gridTemplateRows: `${RULER_H}px repeat(${tracks.length}, ${ROW_H}px) 56px`, width: HEADER_W + width }}>
+          <div className="panel sticky left-0 top-0 z-[42] flex items-center justify-between border-b border-r border-[#0f0f11] px-3" style={{ width: HEADER_W }}>
+            <span className="printed">tracks · {tracks.length}</span>
+            <span className="text-[10px] tracking-[0.06em] text-[var(--c-textMute)]" title="Project length">{bars} bars · {ts.numerator}/{ts.denominator}</span>
+          </div>
+          <Ruler ppt={ppt} bars={bars} width={width} />
+          {tracks.map((t, i) => (
+            <Row key={t.id} track={t} index={i} selected={selected.includes(t.id)} ppt={ppt} grid={grid} onOpen={openRoll} endPx={projectEndTick({ sections, chords, timeSignature: ts }) * ppt} />
+          ))}
+          <AddTrack />
+          <div style={grid} />
+          <Playhead ppt={ppt} scroller={scroller} />
         </div>
-        <Ruler ppt={ppt} bars={bars} width={width} />
-        {tracks.map((t, i) => (
-          <Row key={t.id} track={t} index={i} selected={selected.includes(t.id)} ppt={ppt} grid={grid} onOpen={openRoll} endPx={projectEndTick({ sections, chords, timeSignature: ts }) * ppt} />
-        ))}
-        <AddTrack />
-        <div style={grid} />
-        <Playhead ppt={ppt} scroller={scroller} />
       </div>
+      <FollowBadge />
     </div>
   );
 }

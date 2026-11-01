@@ -6,6 +6,7 @@ import {
 } from '../shared/schema';
 import { generate } from '../engine/generate';
 import { transformProjectMode, transposeProjectKey } from '../engine/suggestion/transpose';
+import type { FollowMode } from '../engine/transport/follow';
 
 export const HISTORY_LIMIT = 200;
 
@@ -22,11 +23,41 @@ export interface Settings {
   devMode: boolean;
   /** Content of a freshly created Smart Chord clip (chord lane double-click). */
   smartChordPlaceholder: 'empty' | 'root-note';
+
+  /* ---- Transport & auto-scroll (persist between sessions) ---- */
+  /** Stop returns the playhead to where playback started (default off — Stop parks where it stopped). */
+  stopReturnsToStart: boolean;
+  /** A second Stop press while already stopped relocates to the playback start (default off). */
+  secondStopReturnsToStart: boolean;
+  /** Clicking the ruler/arranger while playing relocates the playhead and keeps playing (default on). */
+  clickDuringPlaybackMovesPlayhead: boolean;
+  /** Auto-scroll mode: off / smooth (default) / page / centered / stationary. */
+  autoScrollMode: FollowMode;
+  /** Fraction of the visible timeline width where smooth follow kicks in / stationary pins. */
+  autoScrollTriggerPoint: number;
+  /** Manual scrolling during playback suspends following (default on). */
+  suspendFollowOnManualScroll: boolean;
+  /** Edit drags during playback suspend following and keep it suspended after (default on). */
+  suspendFollowDuringEdit: boolean;
+  /** Resume following automatically once the playhead re-enters the view (default off — Re-follow is explicit). */
+  followResumeOnVisible: boolean;
+  /** Stationary playhead while recording (recording is not available in v1; reserved). */
+  stationaryPlayheadDuringRecording: boolean;
+  /** The piano roll follows the playhead with its own smooth scroll. */
+  pianoRollFollow: boolean;
+  /** Key for the Re-follow playhead shortcut (user-configurable, default F). */
+  refollowKey: string;
 }
 
 const SETTINGS_KEY = 'crescode.settings.v1';
 const loadSettings = (): Settings => {
-  const d: Settings = { scanDirectory: 'C:\\Program Files\\Common Files\\VST3', audioDevice: 'default', bufferSize: 512, enginePort: 47800, connectEngine: false, devMode: true, smartChordPlaceholder: 'root-note' };
+  const d: Settings = {
+    scanDirectory: 'C:\\Program Files\\Common Files\\VST3', audioDevice: 'default', bufferSize: 512, enginePort: 47800, connectEngine: false, devMode: true, smartChordPlaceholder: 'root-note',
+    stopReturnsToStart: false, secondStopReturnsToStart: false, clickDuringPlaybackMovesPlayhead: true,
+    autoScrollMode: 'smooth', autoScrollTriggerPoint: 0.75,
+    suspendFollowOnManualScroll: true, suspendFollowDuringEdit: true, followResumeOnVisible: false,
+    stationaryPlayheadDuringRecording: false, pianoRollFollow: true, refollowKey: 'f',
+  };
   try { return { ...d, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') }; } catch { return d; }
 };
 
@@ -55,10 +86,31 @@ interface State {
   importErrors: { path: string; message: string }[];
 
   playing: boolean;
+  /** Playback is frozen at an exact position; Play resumes from there. */
+  paused: boolean;
+  /** Recording state (v1 has no recording — the transport exposes it for the spec'd state model). */
+  isRecording: boolean;
   loop: boolean;
+  /** The active loop region while playing ([startTick, endTick]); null when loop is off. */
   loopRange: [number, number] | null;
   metronome: boolean;
+  /** Parked playhead position (ticks) — authoritative when not playing. */
   startTick: number;
+  /** Where the current/last playback run started (ticks). */
+  lastPlaybackStartPosition: number;
+  /** Where the last Stop parked the playhead (ticks). */
+  stoppedPosition: number;
+
+  /* ---- Follow (auto-scroll) runtime state ---- */
+  /** Manual scroll / edit / scrub suspended the arranger's auto-scroll. */
+  followSuspended: boolean;
+  followSuspensionReason: 'manual-scroll' | 'edit' | 'scrub' | null;
+  /** A pointer-driven edit interaction (drag) is in progress — freezes follow. */
+  interactionActive: boolean;
+  /** Which timeline editor the Re-follow shortcut applies to. */
+  activeEditor: 'arranger' | 'pianoRoll';
+  /** Piano roll's own follow suspension (independent of the arranger's). */
+  rollFollowSuspended: boolean;
 
   composeOptions: ComposeOptions;
   settings: Settings;
@@ -122,7 +174,9 @@ export const useStore = create<State>((set, get) => ({
   past: [], future: [], lastCoalesce: null, dirty: false, filePath: null,
   selectedTrackIds: [], selectedSectionId: null, selectedChordId: null, suggestionClipId: null,
   pxPerTick: 0.06, mixerOpen: true, routingOpen: false, pianoRollTrackId: null, modal: null, vstTargetTrackId: null, importErrors: [],
-  playing: false, loop: false, loopRange: null, metronome: false, startTick: 0,
+  playing: false, paused: false, isRecording: false, loop: false, loopRange: null, metronome: false, startTick: 0,
+  lastPlaybackStartPosition: 0, stoppedPosition: 0,
+  followSuspended: false, followSuspensionReason: null, interactionActive: false, activeEditor: 'arranger', rollFollowSuspended: false,
   composeOptions: { seed: 1, density: 1, humanize: true },
   settings: loadSettings(),
   toasts: [],

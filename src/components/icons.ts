@@ -4,6 +4,7 @@ import lock from '@iconify-icons/ph/lock-simple-fill';
 import lockOpen from '@iconify-icons/ph/lock-simple-open';
 import snowflake from '@iconify-icons/ph/snowflake';
 import play from '@iconify-icons/ph/play-fill';
+import pause from '@iconify-icons/ph/pause-fill';
 import stop from '@iconify-icons/ph/stop-fill';
 import rewind from '@iconify-icons/ph/rewind-fill';
 import record from '@iconify-icons/ph/record-fill';
@@ -48,7 +49,7 @@ import dots from '@iconify-icons/ph/dots-six-vertical-bold';
 import flame from '@iconify-icons/ph/fire-fill';
 
 export const I = {
-  plug, plugBold, lock, lockOpen, snowflake, play, stop, rewind, record, repeat, metronome, magic, exportIc, download, upload,
+  plug, plugBold, lock, lockOpen, snowflake, play, pause, stop, rewind, record, repeat, metronome, magic, exportIc, download, upload,
   save, folder, gear, info, plus, trash, x, search, sliders, graph, undo, redo, piano, notes, wave, dice, caret, warn, check,
   spinner, cpu, memory, file, clock, bug, speaker, pencil, cursor, magnet, minus, window, dots, flame,
 };

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useStore } from './store/store';
 import { applyThemeVars } from './theme/tokens';
-import { bindTransport, togglePlay } from './audio/transport';
+import { bindTransport, pause, refollowPlayhead, togglePlay } from './audio/transport';
 import { engine } from './engineClient/client';
 import { clearRecovery, openProject, readRecovery, saveProject, writeRecovery } from './lib/files';
 import { preview } from './audio/preview';
@@ -34,8 +34,12 @@ function useShortcuts() {
       if (mod && k === 'y') { e.preventDefault(); s.redo(); return; }
       if (mod && k === 's') { e.preventDefault(); void saveProject(e.shiftKey); return; }
       if (mod && k === 'o') { e.preventDefault(); guardUnsaved(() => void openProject()); return; }
-      if (s.modal || s.pianoRollTrackId) return;
+      if (s.modal) return;
+      // Re-follow in the focused editor works even with the piano roll open (spec §5, §13).
+      if (!mod && k === s.settings.refollowKey) { e.preventDefault(); refollowPlayhead(); return; }
+      if (s.pianoRollTrackId) return;
       if (e.code === 'Space') { e.preventDefault(); togglePlay(); return; }
+      if (k === 'p' && s.playing) { e.preventDefault(); pause(); return; } // Pause: freeze at the exact position (spec §3)
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (s.selectedChordId) { s.deleteChord(s.selectedChordId); s.set({ selectedChordId: null }); }
         else if (s.selectedSectionId) { s.deleteSection(s.selectedSectionId); s.set({ selectedSectionId: null }); }

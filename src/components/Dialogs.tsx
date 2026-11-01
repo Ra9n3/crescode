@@ -5,6 +5,7 @@ import { buildMergedMidi, buildPerTrackMidi, exportableTracks, parseMidiFile } f
 import { exportJson, getRecent, openProjectText, pickFile, saveFile, saveFilesToFolder, saveProject } from '../lib/files';
 import { isInstrumentTrack, noteName, PERCUSSION_FIXED_NOTES, projectBars } from '../shared/schema';
 import { preview } from '../audio/preview';
+import { FOLLOW_MODES, TRIGGER_POINTS } from '../engine/transport/follow';
 import { engine } from '../engineClient/client';
 import { cn } from '../utils/cn';
 import { I } from './icons';
@@ -195,13 +196,72 @@ function SettingsDialog() {
       <Row label="Developer tools" hint="Shows the dev menu in the status bar and the VST browser state switch">
         <div className="flex items-center gap-2 text-xs"><ToggleSwitch on={st.devMode} tip="Enable developer tools" onChange={(on) => s.setSettings({ devMode: on })} /> Enabled</div>
       </Row>
+
+      <div className="pt-4"><div className="panel-title"><span className="script">Transport &amp; Auto-scroll</span></div></div>
+
+      <Row label="Return to start position on stop" hint="Off (default): Stop parks the playhead where it stopped — best for punch-ins and resuming. On: Stop returns the playhead to where playback started.">
+        <div className="flex items-center gap-2 text-xs"><ToggleSwitch on={st.stopReturnsToStart} tip="Stop returns to the playback start position" onChange={(on) => s.setSettings({ stopReturnsToStart: on })} /> {st.stopReturnsToStart ? 'Return to start' : 'Stay where stopped'}</div>
+      </Row>
+      <Row label="Second Stop returns to start position" hint="Off (default): repeated Stop presses have no additional effect. On: pressing Stop again after stopping relocates the playhead to the playback start.">
+        <div className="flex items-center gap-2 text-xs"><ToggleSwitch on={st.secondStopReturnsToStart} tip="A second Stop press returns to the start position" onChange={(on) => s.setSettings({ secondStopReturnsToStart: on })} /> {st.secondStopReturnsToStart ? 'Second stop returns' : 'No additional effect'}</div>
+      </Row>
+      <Row label="Click during playback moves playhead" hint="On (default): clicking the ruler or arranger while playing relocates the playhead and keeps playing. Off: clicks while playing are ignored.">
+        <div className="flex items-center gap-2 text-xs"><ToggleSwitch on={st.clickDuringPlaybackMovesPlayhead} tip="Clicking during playback relocates the playhead" onChange={(on) => s.setSettings({ clickDuringPlaybackMovesPlayhead: on })} /> {st.clickDuringPlaybackMovesPlayhead ? 'Clicks relocate' : 'Clicks ignored'}</div>
+      </Row>
+      <Row label="Auto-scroll mode" hint="How the arranger follows the playhead: Off, Smooth continuous follow (default), Page jumps, Centered, or a Stationary playhead with the timeline moving beneath.">
+        <Select value={st.autoScrollMode} options={FOLLOW_MODES.map((m) => ({ value: m.value, label: m.tip.split('—')[0].trim() }))} onChange={(v) => s.setSettings({ autoScrollMode: v as typeof st.autoScrollMode })} tip="Auto-scroll mode" className="w-40" testId="settings-autoscroll-mode" />
+        <span className="ml-2 text-[11px] text-[var(--c-textMute)]">{FOLLOW_MODES.find((m) => m.value === st.autoScrollMode)?.tip}</span>
+      </Row>
+      {(st.autoScrollMode === 'smooth' || st.autoScrollMode === 'stationary') && (
+        <Row label="Auto-scroll trigger point" hint="Fraction of the visible timeline width: following engages when the playhead crosses it (or the stationary playhead pins there).">
+          <Select value={String(st.autoScrollTriggerPoint)} options={TRIGGER_POINTS.map((t) => ({ value: String(t.value), label: t.label }))} onChange={(v) => s.setSettings({ autoScrollTriggerPoint: parseFloat(v) })} tip="Trigger point" className="w-24" testId="settings-autoscroll-trigger" />
+        </Row>
+      )}
+      <Row label="Suspend auto-scroll on manual scroll" hint="On (default): scrolling during playback suspends following and shows the Re-follow badge — playback keeps running.">
+        <div className="flex items-center gap-2 text-xs"><ToggleSwitch on={st.suspendFollowOnManualScroll} tip="Manual scrolling suspends auto-scroll" onChange={(on) => s.setSettings({ suspendFollowOnManualScroll: on })} /> {st.suspendFollowOnManualScroll ? 'Manual scroll suspends' : 'View keeps following'}</div>
+      </Row>
+      <Row label="Suspend auto-scroll during editing" hint="On (default): dragging clips or notes during playback freezes the view while you edit, and keeps it suspended afterwards.">
+        <div className="flex items-center gap-2 text-xs"><ToggleSwitch on={st.suspendFollowDuringEdit} tip="Editing during playback suspends auto-scroll" onChange={(on) => s.setSettings({ suspendFollowDuringEdit: on })} /> {st.suspendFollowDuringEdit ? 'Editing suspends' : 'View keeps following'}</div>
+      </Row>
+      <Row label="Resume follow when playhead re-enters view" hint="Off (default): following only resumes via Re-follow, the shortcut, or restarting playback. On: scrolling until the playhead becomes visible again resumes following.">
+        <div className="flex items-center gap-2 text-xs"><ToggleSwitch on={st.followResumeOnVisible} tip="Resume following when the playhead becomes visible again after a manual scroll" onChange={(on) => s.setSettings({ followResumeOnVisible: on })} /> {st.followResumeOnVisible ? 'Auto-resume on visible' : 'Explicit Re-follow only'}</div>
+      </Row>
+      <Row label="Stationary playhead during recording" hint="Recording is not available in Crescode v1 (it generates MIDI, it does not record) — this preference is stored for when a record path exists.">
+        <div className="flex items-center gap-2 text-xs"><ToggleSwitch on={st.stationaryPlayheadDuringRecording} tip="Keep the playhead fixed horizontally while recording" onChange={(on) => s.setSettings({ stationaryPlayheadDuringRecording: on })} /> {st.stationaryPlayheadDuringRecording ? 'Stationary while recording' : 'Same as playback'}</div>
+      </Row>
+      <Row label="Piano roll follows playhead" hint="Each editor follows independently (spec §13): the piano roll can smooth-follow the playhead while the arranger stays put, and vice versa.">
+        <div className="flex items-center gap-2 text-xs"><ToggleSwitch on={st.pianoRollFollow} tip="Piano roll follows the playhead" onChange={(on) => s.setSettings({ pianoRollFollow: on })} /> {st.pianoRollFollow ? 'Piano roll follows' : 'Piano roll stationary'}</div>
+      </Row>
+      <Row label="Re-follow playhead shortcut" hint="Global shortcut for the focused editor: resumes following and jumps the view back to the playhead. Click and press any key.">
+        <RefollowKeyCapture />
+      </Row>
     </Modal>
+  );
+}
+
+/** User-configurable Re-follow shortcut: click, press a key, done. */
+function RefollowKeyCapture() {
+  const key = useStore((s) => s.settings.refollowKey);
+  const [capturing, setCapturing] = useState(false);
+  useEffect(() => {
+    if (!capturing) return;
+    const onKey = (e: KeyboardEvent) => {
+      e.preventDefault(); e.stopPropagation();
+      const k = e.key.length === 1 ? e.key.toLowerCase() : '';
+      if (k) useStore.getState().setSettings({ refollowKey: k });
+      setCapturing(false);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [capturing]);
+  return (
+    <Button primary={capturing} onClick={() => setCapturing(!capturing)}>{capturing ? 'Press a key…' : <span style={{ fontFamily: 'var(--font-mono)' }}>{key === ' ' ? 'Space' : key.toUpperCase()}</span>}</Button>
   );
 }
 
 function AboutDialog() {
   const close = () => useStore.getState().set({ modal: null });
-  const keys: [string, string][] = [['Space', 'Play / Stop'], ['Delete', 'Delete selected section / chord / notes'], ['Ctrl+Z / Ctrl+Shift+Z', 'Undo / Redo'], ['L / M / S', 'Lock / Mute / Solo selected tracks'], ['Ctrl+wheel', 'Zoom timeline'], ['Ctrl+S / Ctrl+O', 'Save / Open'], ['X', 'Toggle mixer'], ['Double-click lane', 'Open piano roll']];
+  const keys: [string, string][] = [['Space', 'Play / Stop / Resume'], ['P / pause button', 'Pause — freezes the playhead; Play resumes exactly there'], ['Stop ×2', 'Optional: second Stop returns to the playback start (Settings → Transport)'], ['F', 'Re-follow playhead — resume auto-scroll in the focused editor'], ['Delete', 'Delete selected section / chord / notes'], ['Ctrl+Z / Ctrl+Shift+Z', 'Undo / Redo'], ['L / M / S', 'Lock / Mute / Solo selected tracks'], ['Ctrl+wheel', 'Zoom timeline (keeps the playhead anchored while following)'], ['Ctrl+S / Ctrl+O', 'Save / Open'], ['X', 'Toggle mixer'], ['Double-click lane', 'Open piano roll'], ['Double-click ruler', 'Start playback from the clicked position']];
   return (
     <Modal title="About Crescode" icon={I.flame} onClose={close} width={520} footer={<Button primary onClick={close}>Close</Button>}>
       <div className="mb-4">

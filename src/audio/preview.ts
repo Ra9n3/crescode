@@ -100,7 +100,9 @@ export function playVoice(ctx: Ctx, dest: AudioNode, track: Pick<Track, 'family'
 }
 
 interface Strip { gain: GainNode; pan: StereoPannerNode; analyser: AnalyserNode }
-interface Segment { ctxTime: number; tick: number }
+/** One anchored mapping ctxTime → tick at a fixed tempo. A tempo change
+ *  during playback pushes a new segment instead of skewing the timeline. */
+interface Segment { ctxTime: number; tick: number; bpm: number }
 
 class PreviewEngine {
   ctx: AudioContext | null = null;
@@ -185,8 +187,27 @@ class PreviewEngine {
     const now = this.ctx.currentTime;
     let seg = this.segments[0];
     for (const s of this.segments) if (s.ctxTime <= now) seg = s;
-    const p = this.getProject();
-    return Math.max(0, seg.tick + ((now - seg.ctxTime) * p.bpm * PPQ) / 60);
+    return Math.max(0, seg.tick + ((now - seg.ctxTime) * seg.bpm * PPQ) / 60);
+  }
+
+  /**
+   * Re-anchors the timeline after a tempo change during playback: the elapsed
+   * position (computed with the OLD tempo) becomes the new segment anchor at
+   * the current ctx time, and scheduling continues at the NEW tempo with the
+   * same wall-clock lookahead. The playhead stays continuous — no jump, no
+   * desync (spec §17: user changes tempo while the playhead is moving).
+   */
+  rebase(newBpm: number) {
+    if (!this.ctx || !this.playing || !this.segments.length) return;
+    const now = this.ctx.currentTime;
+    const pos = this.position();
+    const seg = this.segments[this.segments.length - 1];
+    const aheadTicks = Math.max(0, this.cursor - pos);
+    const oldTps = (seg.bpm * PPQ) / 60;
+    const newTps = (newBpm * PPQ) / 60;
+    this.segments.push({ ctxTime: now, tick: pos, bpm: newBpm });
+    if (this.segments.length > 8) this.segments.shift();
+    this.cursor = pos + (newTps > 0 ? (aheadTicks * newTps) / oldTps : 0);
   }
 
   play(fromTick: number) {
@@ -196,7 +217,7 @@ class PreviewEngine {
     this.applyMixer(p);
     this.playing = true;
     const t0 = ctx.currentTime + 0.08;
-    this.segments = [{ ctxTime: t0, tick: fromTick }];
+    this.segments = [{ ctxTime: t0, tick: fromTick, bpm: p.bpm }];
     this.cursor = fromTick;
     this.startBuffers(t0, fromTick);
     this.timer = window.setInterval(() => this.schedule(), 25);
@@ -229,12 +250,14 @@ class PreviewEngine {
     if (!this.ctx || !this.playing) return;
     const p = this.getProject();
     const ctx = this.ctx;
-    const tps = (p.bpm * PPQ) / 60;
     const seg = this.segments[this.segments.length - 1];
     const horizon = ctx.currentTime + 0.15;
     const endTick = projectEndTick(p);
-    const loop = this.loopRange();
+    const req = this.loopRange();
+    // A degenerate loop (empty or inverted) plays as a straight read-through.
+    const loop = req && req[1] > req[0] ? req : null;
     const limit = loop ? loop[1] : endTick;
+    const tps = (seg.bpm * PPQ) / 60;
     let target = seg.tick + (horizon - seg.ctxTime) * tps;
     const wrap = target >= limit;
     if (wrap) target = limit;
@@ -243,13 +266,13 @@ class PreviewEngine {
     if (wrap) {
       const at = seg.ctxTime + (limit - seg.tick) / tps;
       if (loop) {
-        this.segments.push({ ctxTime: at, tick: loop[0] });
+        this.segments.push({ ctxTime: at, tick: loop[0], bpm: seg.bpm });
         if (this.segments.length > 8) this.segments.shift();
         this.cursor = loop[0];
         this.startBuffers(at, loop[0]);
       } else if (ctx.currentTime >= at) {
         this.stop();
-        this.cursor = 0;
+        this.cursor = limit; // park AT the project end — the transport leaves the playhead visible there (spec §11)
         this.onEnded();
       }
     }

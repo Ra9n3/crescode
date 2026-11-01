@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store/store';
 import { MODE_NAMES, NOTE_NAMES, tickToBarBeat, ticksToSeconds, createDefaultProject, type ModeName, type PitchClass } from '../shared/schema';
-import { currentTick, rewind, stop, togglePlay } from '../audio/transport';
+import { currentTick, pause, rewind, stop, togglePlay } from '../audio/transport';
 import { openProject, saveProject } from '../lib/files';
 import { guardUnsaved } from './Dialogs';
 import { I } from './icons';
@@ -105,6 +105,7 @@ export function TopBar() {
   const edit = useStore((s) => s.edit);
   const set = useStore((s) => s.set);
   const playing = useStore((s) => s.playing);
+  const paused = useStore((s) => s.paused);
   const loop = useStore((s) => s.loop);
   const metronome = useStore((s) => s.metronome);
   const mixerOpen = useStore((s) => s.mixerOpen);
@@ -166,12 +167,15 @@ export function TopBar() {
       {/* Transport Controls */}
       <div className="panel-raised flex shrink-0 items-center gap-0.5 rounded-md border border-[#0e0e10] p-0.5">
         <IconButton size="sm" icon={I.rewind} tip="Rewind to bar 1" onClick={rewind} />
-        <IconButton icon={playing ? I.stop : I.play} tip={playing ? 'Stop — Space' : 'Play — Space'} onClick={togglePlay} active={playing} activeColor="var(--c-success)" size="md" testId="play-btn" />
-        <IconButton size="sm" icon={I.stop} tip="Stop (press again to return to start)" onClick={stop} />
+        <IconButton icon={playing ? I.stop : I.play} tip={playing ? 'Stop — Space' : paused ? 'Resume from pause — Space' : 'Play — Space'} onClick={togglePlay} active={playing} activeColor="var(--c-success)" size="md" testId="play-btn" />
+        <IconButton size="sm" icon={I.pause} tip="Pause — freezes the playhead exactly here; Play resumes from the same spot" onClick={pause} testId="pause-btn" />
+        <IconButton size="sm" icon={I.stop} tip="Stop — parks the playhead where it stopped (preferences: return to start on stop, or second-stop return)" onClick={stop} testId="stop-btn" />
         <IconButton size="sm" icon={I.record} tip="Record — not available: Crescode generates MIDI, it does not record" disabled />
         <IconButton size="sm" icon={I.repeat} tip={loop ? 'Loop on (selected section or whole song)' : 'Loop off — loops the selected section or whole song'} onClick={() => set({ loop: !loop })} active={loop} activeColor="var(--c-info)" />
         <IconButton size="sm" icon={I.metronome} tip={metronome ? 'Metronome on' : 'Metronome off'} onClick={() => set({ metronome: !metronome })} active={metronome} activeColor="var(--c-warn)" />
       </div>
+
+      {/* Auto-scroll mode lives in the status bar (kept the top bar within narrow-window bounds); transport preferences in Settings. */}
 
       <div className="flex-1 min-w-0" />
 

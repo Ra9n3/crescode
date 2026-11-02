@@ -296,6 +296,17 @@ describe('band: switching templates (the picker)', () => {
     expect(trackByRole(res.project, 'tuba').notes).toHaveLength(2);
   });
 
+  it('no band still respects pins: pinned-out roles stay out and sweep (the picker says "except your pins")', () => {
+    const p = withNotes(projectFromFixture({ ensemble: { templateId: 'ensemble.symphony', overrides: {}, pins: { violas: 'out' } } }), 'violas', 3);
+    const res = applyTemplate(p, null);
+    expect(res.project.ensemble!.templateId).toBe(null);
+    expect(res.inRoles.length).toBe(17);
+    expect(res.inRoles).not.toContain('violas');
+    expect(res.sweptTrackIds).toEqual([trackByRole(p, 'violas').id]);
+    expect(trackByRole(res.project, 'violas').notes).toEqual([]);
+    expect(res.project.ensemble!.pins).toEqual({ violas: 'out' }); // the pin rides over every band, "no band" included
+  });
+
   it('re-picking the active band restarts the composition: overrides clear and out lanes sweep', () => {
     const p = withNotes(
       projectFromFixture({ ensemble: { templateId: 'ensemble.chamber', overrides: { violas: 'in' }, pins: {} } }),

@@ -219,7 +219,7 @@ function BandPinsSection() {
         ))}
       </div>
       <p className="mt-3 text-[10px] leading-relaxed text-[var(--c-textMute)]">
-        A pinned instrument refuses its track-header button — remove the pin here first. The band picker notes where pins leave a band short.
+        A pinned instrument refuses its track-header button — remove the pin here first. The band picker notes what pins change — who is missing, who is forced in.
       </p>
     </div>
   );

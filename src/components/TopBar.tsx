@@ -59,25 +59,39 @@ function BandPickerRow({ active, name, meta, warn, onClick, testId }: { active: 
 
 /** The band picker — lives inside the Compose All ▾ panel (no second panel
  *  anywhere). One row per shipped band plus "No band"; the active row is lit,
- *  and a band whose roster loses instruments to project-settings pins says
- *  so upfront. Clicking a row starts a new composition. */
+ *  and a band whose effective roster differs from the shipped one (project
+ *  pins removing or forcing instruments) says so upfront. Clicking a row
+ *  starts a new composition. */
 function BandPicker() {
   const switchTemplate = useStore((s) => s.switchTemplate);
   const templateId = useStore((s) => s.project.ensemble?.templateId ?? null);
   const pins = useStore((s) => s.project.ensemble?.pins);
   const roleNames = new Map(INSTRUMENTS.map((d) => [d.role, d.name]));
+  // Pins change every band — OUT removes, IN forces in even off-roster. Each
+  // row says so upfront (who is missing, who is forced in) so switching is
+  // never a surprise. "No band" respects pins too.
+  const pinnedOut = Object.entries(pins ?? {}).filter(([, v]) => v === 'out').map(([role]) => roleNames.get(role) ?? role);
+  const warnFor = (banned: string[], extras: string[]): string | undefined => {
+    const bits = [banned.length ? `no ${banned.join(', ')}` : '', extras.length ? `+ ${extras.join(', ')}` : ''].filter(Boolean);
+    return bits.length ? `${bits.join(' · ')} (project setting)` : undefined;
+  };
   return (
     <div className="mb-3">
       <div className="panel-title mb-2"><span className="script">Band</span></div>
       <div className="flex flex-col gap-0.5">
         <BandPickerRow testId="band-option-none" active={templateId === null} name="No band"
-          meta="every instrument plays — the classic behaviour" onClick={() => switchTemplate(null)} />
+          meta={pinnedOut.length ? 'every instrument plays, except your pins' : 'every instrument plays — the classic behaviour'}
+          warn={warnFor(pinnedOut, [])} onClick={() => switchTemplate(null)} />
         {ENSEMBLES.map((t) => {
-          const banned = t.roster.map((r) => r.role).filter((role) => pins?.[role] === 'out').map((role) => roleNames.get(role) ?? role);
-          const meta = `${t.roster.length} instruments · energy ${t.budget.energyClamp[0].toFixed(2)}–${t.budget.energyClamp[1].toFixed(2)}`;
+          const roster = new Set(t.roster.map((r) => r.role));
+          const bannedRoles = t.roster.map((r) => r.role).filter((role) => pins?.[role] === 'out');
+          const extraRoles = Object.entries(pins ?? {}).filter(([role, v]) => v === 'in' && !roster.has(role)).map(([role]) => role);
+          const count = t.roster.length - bannedRoles.length + extraRoles.length;
+          const touched = bannedRoles.length + extraRoles.length > 0;
+          const meta = `${touched ? `${count} of ${t.roster.length}` : t.roster.length} instruments · energy ${t.budget.energyClamp[0].toFixed(2)}–${t.budget.energyClamp[1].toFixed(2)}`;
           return (
             <BandPickerRow key={t.id} testId={`band-option-${t.id}`} active={templateId === t.id} name={t.name}
-              meta={meta} warn={banned.length ? `no ${banned.join(', ')} (project setting)` : undefined}
+              meta={meta} warn={warnFor(bannedRoles.map((role) => roleNames.get(role) ?? role), extraRoles.map((role) => roleNames.get(role) ?? role))}
               onClick={() => switchTemplate(t.id)} />
           );
         })}

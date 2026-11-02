@@ -111,6 +111,14 @@ const refused = await st(() => {
   return { pin: s.project.ensemble?.pins.violas, notes: t.notes.length };
 });
 check('The pinned role refuses the track-header button', refused.pin === 'out' && refused.notes === 0, JSON.stringify(refused));
+// The band picker says upfront what pins do to every band — missing and forced-in instruments (Task 7 sweep).
+await page.click('[data-testid=compose-options]');
+const pickerNotes = await st(() => ({
+  chamber: document.querySelector('[data-testid="band-option-ensemble.chamber"]')?.textContent ?? '',
+  none: document.querySelector('[data-testid="band-option-none"]')?.textContent ?? '',
+}));
+check('Picker rows note the pinned-out instrument (Chamber and No band)', pickerNotes.chamber.includes('no Violas') && pickerNotes.chamber.includes('(project setting)') && pickerNotes.none.includes('except your pins'), JSON.stringify(pickerNotes));
+await st(() => document.querySelector('.fixed.inset-0')?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
 await page.click('[aria-label="Settings"]');
 await page.click('[data-testid=pin-violas-band]');
 const unpinned = await st(() => {

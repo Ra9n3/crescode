@@ -238,8 +238,7 @@ export const useStore = create<State>((set, get) => ({
   // restores the notes and the membership together.
   toggleInBand: (trackId) => {
     const p = get().project;
-    const template = p.ensemble?.templateId ? (ENSEMBLE_BY_ID.get(p.ensemble.templateId) ?? null) : null;
-    const res = flipBand(p, trackId, template);
+    const res = flipBand(p, trackId, resolveTemplate(p.ensemble));
     if (!res.ok) {
       if (res.reason === 'pinned') {
         const name = p.tracks.find((t) => t.id === trackId)?.name ?? res.role;
@@ -250,9 +249,18 @@ export const useStore = create<State>((set, get) => ({
     const name = p.tracks.find((t) => t.id === trackId)?.name ?? res.role;
     const wasLocked = p.tracks.find((t) => t.id === trackId)?.locked;
     get().edit(() => res.project);
-    get().toast('success', res.nowIn
-      ? `${name} back in the band — Compose All will write for it again`
-      : `${name} out of the band${wasLocked ? ' — locked, so its notes stay' : res.clearedTrackIds.length ? ' — lane cleared (Ctrl+Z brings the notes back)' : ''}`);
+    if (res.nowIn) {
+      get().toast('success', `${name} back in the band — Compose All will write for it again`);
+      return;
+    }
+    // Going OUT can both keep a locked track's notes and empty sibling lanes —
+    // say both, truthfully, in one line.
+    const cleared = res.clearedTrackIds.length;
+    const bits = [
+      wasLocked ? 'this track is locked, so its notes stay' : '',
+      cleared ? `${cleared} unlocked lane${cleared > 1 ? 's' : ''} cleared (Ctrl+Z brings the notes back)` : '',
+    ].filter(Boolean);
+    get().toast('success', `${name} out of the band${bits.length ? ` — ${bits.join(' · ')}` : ''}`);
   },
 
   // Band picker (▾ next to Compose All): applyTemplate owns the semantics —
@@ -286,7 +294,7 @@ export const useStore = create<State>((set, get) => ({
     get().toast('success', res.pin === 'in'
       ? `${name} pinned in for every band — Compose All always writes for it, even bands that leave it out`
       : res.pin === 'out'
-        ? `${name} pinned out of every band${res.clearedTrackIds.length ? ' — lane cleared (Ctrl+Z brings the notes back)' : ''}`
+        ? `${name} pinned out of every band${res.clearedTrackIds.length ? ` — ${res.clearedTrackIds.length} lane${res.clearedTrackIds.length > 1 ? 's' : ''} cleared (Ctrl+Z brings the notes back)` : ''}`
         : `${name} unpinned — the active band decides again`);
   },
 

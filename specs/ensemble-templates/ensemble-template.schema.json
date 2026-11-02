@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "crescode://ensemble-template.schema.json",
+  "title": "Crescode Ensemble Template",
+  "description": "Data-only description of 'which band is on stage': roster, budget and conductor rules. Pure score logic — describes the arrangement, never the sound: no effects, no mixing, no production concerns. Ranges, families and roles reuse the app vocabulary from src/shared/schema/ranges.ts. Times are ticks at 960 PPQ. This file is the documentation contract; runtime enforcement lives in src/shared/schema/ensembleTemplate.ts (validateEnsembleTemplate), which additionally enforces cross-checks that JSON Schema cannot express (roster uniqueness, role/family agreement with the app instrument table, budget vs roster size, rule targets resolving against the roster).",
+  "type": "object",
+  "required": ["id", "name", "roster", "budget", "rules"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*(\\.[a-z0-9]+)*$",
+      "description": "Stable template identifier, e.g. \"ensemble.symphony\"."
+    },
+    "name": { "type": "string", "minLength": 1, "description": "Human-readable display name." },
+    "description": { "type": "string", "description": "Intent, vibe and any conventions worth carrying (e.g. range sources for instruments not yet in the app table)." },
+    "roster": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "description": "Expected instrument tracks, one entry per track (the app keeps one track per instrument — there are no chair counts, divisi or player numbers anywhere in a template).",
+      "items": { "$ref": "#/$defs/rosterEntry" }
+    },
+    "budget": { "$ref": "#/$defs/budget" },
+    "rules": {
+      "type": "array",
+      "description": "Conductor rules as checkable constraints over the score. A rule references families or roster roles and carries typed params; internal consistency is validated now, score enforcement arrives with the score checker.",
+      "items": { "$ref": "#/$defs/rule" }
+    }
+  },
+  "$defs": {
+    "rosterEntry": {
+      "type": "object",
+      "required": ["role", "family"],
+      "description": "One expected track. role is lowerCamelCase; when the role exists in the app instrument table (INSTRUMENTS), family must agree with it. low/high are an optional range hint for instruments not yet in the app table, written as scientific pitch (C4 = 60); low must not exceed high.",
+      "properties": {
+        "role": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
+        "family": { "enum": ["Structure", "Audio", "Strings", "Brass", "Woodwinds", "Percussion", "Keys"] },
+        "low": { "type": "string", "pattern": "^[A-G](#|b)?(-1|[0-9])$" },
+        "high": { "type": "string", "pattern": "^[A-G](#|b)?(-1|[0-9])$" }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "required": ["energyClamp", "maxLayers"],
+      "description": "Arrangement governor. A layer is a functional role, not an instrument — shared vocabulary: lead, pad, ostinato, tremolo, counterline, bass, fill, stab, percussion, color, sub, riser, texture. Energy is computed from the score, windowed per beat: E = occupancy x velocity, where occupancy = sounding roster tracks / roster size and velocity = mean note velocity of sounding tracks / 127 (calibration: solo pizz pp ~ 0.05-0.1, section mf pad ~ 0.3-0.4, tutti ff ~ 0.85-0.95). The clamp's upper bound is a HARD constraint (score checking rejects beyond it); the lower bound is a SOFT directive (report 'texture below floor', never reject).",
+      "properties": {
+        "energyClamp": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "type": "number", "minimum": 0, "maximum": 1 },
+          "description": "[min, max] with 0 <= min <= max <= 1."
+        },
+        "maxLayers": { "type": "integer", "minimum": 1, "maximum": 32, "description": "Maximum concurrent layers (functional roles). Enforced against the roster: cannot exceed the number of roster tracks." }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "required": ["type", "params"],
+      "properties": {
+        "type": { "enum": ["overlapAvoid", "octaveDoubling", "fillGating", "unisonOrnament"] },
+        "mode": {
+          "enum": ["validate", "generate", "both"],
+          "description": "Intended use. Default 'validate'. Round 1 stores and consistency-checks this; execution comes later."
+        },
+        "params": {
+          "type": "object",
+          "description": "Typed per rule type. overlapAvoid: { actor: familyOrRole, against: familyOrRole, windowTicks: 1-7680 } — actor onsets must stay clear of against onsets by the window (e.g. woodwinds in the windows between brass stabs). octaveDoubling: { policy: allowed | climaxOnly | forbidden, energyThreshold? (0 < t <= 1, required iff climaxOnly) }. fillGating: { fills: familyOrRole, duringRestsOf: familyOrRole, minGapTicks: 1-7680 } — fills enter only during rests of the target (call-and-response). unisonOrnament: { tracks: rosterRole[] (1-64), transforms: (graceNote | slide | turn)[] , divergence?: 'perInstrument' } — heterophonic doubling with per-track ornamentation."
+        }
+      }
+    }
+  }
+}

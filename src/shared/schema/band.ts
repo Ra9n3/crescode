@@ -83,3 +83,57 @@ export function flipBand(project: Project, trackId: string, template: EnsembleTe
 
   return { ok: true, role, nowIn, clearedTrackIds, project: { ...project, ensemble: next, tracks } };
 }
+
+/** Result of a template switch from the band picker. */
+export interface BandApplyResult {
+  project: Project;
+  /** Roles playing in the new band, in roster order (every band role when template is null). */
+  inRoles: string[];
+  /** Lanes the switch emptied: now out of the band, unlocked, had notes. */
+  sweptTrackIds: string[];
+}
+
+/**
+ * Switching templates from the band picker = starting a new composition.
+ * The templateId is replaced, every track-header choice resets (overrides
+ * clear — they were per-composition), project-settings pins ride over, and
+ * every UNLOCKED lane whose instrument is OUT of the new band is emptied —
+ * the new piece truly lacks those instruments. One undoable edit restores
+ * the whole previous composition. Selecting the band that is already active
+ * with no header choices pending changes nothing (same project reference).
+ * Pure: never mutates, never throws.
+ */
+export function applyTemplate(project: Project, template: EnsembleTemplate | null): BandApplyResult {
+  const ensemble = project.ensemble ?? freshEnsemble();
+  const roster = templateBandRoles(template);
+  // Effective membership: pins ride over the roster; no template = everyone in.
+  const member = (role: string) => {
+    const pin = ensemble.pins[role];
+    if (pin) return pin === 'in';
+    return template ? roster.has(role) : true;
+  };
+  // Roster order first, then any pinned-in extras the roster does not name.
+  const inRoles = template
+    ? [...template.roster.map((r) => r.role), ...[...BAND_ROLES].filter((role) => !roster.has(role))].filter(member)
+    : [...BAND_ROLES].filter(member);
+  const next: ProjectEnsemble = { templateId: template?.id ?? null, overrides: {}, pins: { ...ensemble.pins } };
+
+  const sweptTrackIds: string[] = [];
+  let tracksChanged = false;
+  const tracks = project.tracks.map((t) => {
+    if (!BAND_ROLES.has(t.role)) return t;
+    if (member(t.role) || t.locked || t.notes.length === 0) return t;
+    tracksChanged = true;
+    sweptTrackIds.push(t.id);
+    return { ...t, notes: [] };
+  });
+
+  // Same band already on, no header choices pending, nothing to sweep → no-op.
+  const sameBand = (project.ensemble?.templateId ?? null) === next.templateId;
+  const noOverrides = Object.keys(ensemble.overrides).length === 0;
+  if (sameBand && noOverrides && !tracksChanged) {
+    return { project, inRoles, sweptTrackIds };
+  }
+
+  return { project: { ...project, ensemble: next, tracks: tracksChanged ? tracks : project.tracks }, inRoles, sweptTrackIds };
+}

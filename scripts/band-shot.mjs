@@ -23,5 +23,9 @@ await page.locator('#arranger-scroll').scrollIntoViewIfNeeded().catch(() => {});
 const col = page.locator('[data-track-header]').first();
 const box = await col.boundingBox();
 await page.screenshot({ path: '/tmp/render/band-header.png', clip: { x: 0, y: Math.max(0, box.y - 40), width: 310, height: 560 } });
+// band picker panel (Compose All ▾)
+await page.click('[data-testid=compose-options]');
+await page.waitForTimeout(200);
+await page.screenshot({ path: '/tmp/render/band-picker.png' });
 await browser.close();
 console.log('shot saved');

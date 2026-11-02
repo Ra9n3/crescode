@@ -56,6 +56,35 @@ const afterUndo = await st(() => {
 });
 check('Undo restores the notes and the membership together', afterUndo.notes === band.notes && !afterUndo.hasOverride, JSON.stringify(afterUndo));
 
+// Band picker (inside the Compose All ▾ panel): switching bands starts a new
+// composition — header choices reset, out-of-band lanes sweep, undo restores.
+await page.click('[data-testid=compose-options]');
+await page.click('[data-testid="band-option-ensemble.chamber"]');
+const switched = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  const q = (role) => {
+    const t = s.project.tracks.find((x) => x.role === role);
+    return document.querySelector(`[data-track-header="${t.id}"] [data-testid=band-btn]`)?.getAttribute('data-in');
+  };
+  return {
+    templateId: s.project.ensemble.templateId,
+    overrides: JSON.stringify(s.project.ensemble.overrides),
+    tubaNotes: s.project.tracks.find((x) => x.role === 'tuba').notes.length,
+    tubaBtn: q('tuba'),
+    violins1Btn: q('violins1'),
+  };
+});
+check('Picking Chamber starts the new composition', switched.templateId === 'ensemble.chamber' && switched.overrides === '{}' && switched.tubaNotes === 0, JSON.stringify(switched));
+check('Header buttons follow the new band', switched.tubaBtn === 'false' && switched.violins1Btn === 'true', JSON.stringify(switched));
+await st(() => window.crescodeTest.store.getState().undo());
+const afterSwitchUndo = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  return { templateId: s.project.ensemble?.templateId ?? null, tubaNotes: s.project.tracks.find((x) => x.role === 'tuba').notes.length };
+});
+check('Undo restores the whole previous composition', afterSwitchUndo.templateId === null && afterSwitchUndo.tubaNotes > 0, JSON.stringify(afterSwitchUndo));
+// close the picker panel (dispatch pointerdown on the backdrop — React closes it)
+await st(() => document.querySelector('.fixed.inset-0')?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+
 let align = await st(() => window.crescodeTest.runAlignmentTest());
 check('Alignment (21 tracks) before/after scroll', align.ok, `${align.checked} checks ${align.failures.slice(0, 2).join(';')}`);
 

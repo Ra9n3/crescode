@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store/store';
-import { MODE_NAMES, NOTE_NAMES, tickToBarBeat, ticksToSeconds, createDefaultProject, type ModeName, type PitchClass } from '../shared/schema';
+import { INSTRUMENTS, MODE_NAMES, NOTE_NAMES, tickToBarBeat, ticksToSeconds, createDefaultProject, type ModeName, type PitchClass } from '../shared/schema';
+import { ENSEMBLES } from '../config/ensembles';
 import { currentTick, pause, rewind, stop, togglePlay } from '../audio/transport';
 import { openProject, saveProject } from '../lib/files';
 import { guardUnsaved } from './Dialogs';
@@ -40,6 +41,52 @@ function Timecode() {
   );
 }
 
+function BandPickerRow({ active, name, meta, warn, onClick, testId }: { active: boolean; name: string; meta: string; warn?: string; onClick: () => void; testId: string }) {
+  return (
+    <button type="button" data-testid={testId} onClick={onClick} aria-pressed={active}
+      className={cn('flex w-full items-start gap-2 rounded px-2 py-1.5 text-left transition-colors', active ? 'bg-[var(--c-bg3)]' : 'hover:bg-[var(--c-bg2)]')}>
+      <span className={cn('mt-[4px] h-2 w-2 shrink-0 rounded-full', active ? 'bg-[var(--c-accent)] shadow-[0_0_6px_var(--c-accent)]' : 'bg-[var(--c-bg4)]')} />
+      <span className="min-w-0 flex-1">
+        <span className={cn('block text-[11px] font-bold', active ? 'text-[var(--c-text)]' : 'text-[var(--c-textDim)]')}>{name}</span>
+        <span className="block text-[9px] leading-snug text-[var(--c-textMute)]">
+          {meta}
+          {warn && <span className="text-[var(--c-warn)]"> · {warn}</span>}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+/** The band picker — lives inside the Compose All ▾ panel (no second panel
+ *  anywhere). One row per shipped band plus "No band"; the active row is lit,
+ *  and a band whose roster loses instruments to project-settings pins says
+ *  so upfront. Clicking a row starts a new composition. */
+function BandPicker() {
+  const switchTemplate = useStore((s) => s.switchTemplate);
+  const templateId = useStore((s) => s.project.ensemble?.templateId ?? null);
+  const pins = useStore((s) => s.project.ensemble?.pins);
+  const roleNames = new Map(INSTRUMENTS.map((d) => [d.role, d.name]));
+  return (
+    <div className="mb-3">
+      <div className="panel-title mb-2"><span className="script">Band</span></div>
+      <div className="flex flex-col gap-0.5">
+        <BandPickerRow testId="band-option-none" active={templateId === null} name="No band"
+          meta="every instrument plays — the classic behaviour" onClick={() => switchTemplate(null)} />
+        {ENSEMBLES.map((t) => {
+          const banned = t.roster.map((r) => r.role).filter((role) => pins?.[role] === 'out').map((role) => roleNames.get(role) ?? role);
+          const meta = `${t.roster.length} instruments · energy ${t.budget.energyClamp[0].toFixed(2)}–${t.budget.energyClamp[1].toFixed(2)}`;
+          return (
+            <BandPickerRow key={t.id} testId={`band-option-${t.id}`} active={templateId === t.id} name={t.name}
+              meta={meta} warn={banned.length ? `no ${banned.join(', ')} (project setting)` : undefined}
+              onClick={() => switchTemplate(t.id)} />
+          );
+        })}
+      </div>
+      <p className="mt-2 leading-relaxed text-[var(--c-textMute)]">Switching bands starts a new composition: header choices reset and out-of-band lanes empty (Ctrl+Z restores). Pinned instruments ride over every band.</p>
+    </div>
+  );
+}
+
 function ComposeButton() {
   const [open, setOpen] = useState(false);
   const opts = useStore((s) => s.composeOptions);
@@ -58,7 +105,7 @@ function ComposeButton() {
       >
         <Ico icon={I.magic} className="text-sm" /> Compose All
       </button>
-      <button title="Generation options (seed, density, humanize)" aria-label="Generation options" onClick={() => setOpen(!open)}
+      <button title="Band & generation options" aria-label="Band and generation options" data-testid="compose-options" onClick={() => setOpen(!open)}
         className="hw hw-primary flex h-8 items-center rounded-r-[4px] border-l border-[#4a3212] px-1">
         <Ico icon={I.caret} />
       </button>
@@ -66,6 +113,7 @@ function ComposeButton() {
         <>
           <div className="fixed inset-0 z-30" onPointerDown={() => setOpen(false)} />
           <div className="panel-raised absolute right-0 top-10 z-40 w-[268px] rounded-md border border-[#0e0e10] p-3 text-xs shadow-2xl animate-[pop_.15s_ease]">
+            <BandPicker />
             <div className="panel-title mb-3"><span className="script">Generation</span></div>
             <label className="mb-2 flex items-center justify-between"><span className="printed">seed</span>
               <div className="flex items-center gap-1">

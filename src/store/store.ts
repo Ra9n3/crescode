@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import fixture from '../../fixtures/dorian-16bars.json';
 import {
-  createAddedTrack, flipBand, projectFromFixture, uid, MAX_TRACKS_PER_GROUP, NOTE_NAMES,
+  applyTemplate, createAddedTrack, flipBand, projectFromFixture, uid, MAX_TRACKS_PER_GROUP, NOTE_NAMES,
   type Chord, type LibraryGroup, type ModeName, type Note, type Project, type Section, type Track, type TrackFamily, type PitchClass,
 } from '../shared/schema';
 import { ENSEMBLE_BY_ID } from '../config/ensembles';
@@ -141,6 +141,10 @@ interface State {
    *  lane (lock wins on locked tracks); a project-settings pin refuses the
    *  flip with a toast. */
   toggleInBand: (trackId: string) => void;
+  /** Band picker: switch to a template (or null = no band, everyone in).
+   *  Starting a new composition — header choices reset, out-of-band unlocked
+   *  lanes empty, pins ride over — as ONE undoable edit. */
+  switchTemplate: (templateId: string | null) => void;
   setNotes: (id: string, notes: Note[]) => void;
   addTrack: (family: TrackFamily) => void;
   removeTrack: (id: string) => void;
@@ -239,6 +243,22 @@ export const useStore = create<State>((set, get) => ({
     get().toast('success', res.nowIn
       ? `${name} back in the band — Compose All will write for it again`
       : `${name} out of the band${wasLocked ? ' — locked, so its notes stay' : res.clearedTrackIds.length ? ' — lane cleared (Ctrl+Z brings the notes back)' : ''}`);
+  },
+
+  // Band picker (▾ next to Compose All): applyTemplate owns the semantics —
+  // new templateId, header choices reset, pins ride over, out-of-band
+  // unlocked lanes empty. One edit() step, so Ctrl+Z restores the whole
+  // previous composition.
+  switchTemplate: (templateId) => {
+    const p = get().project;
+    const template = templateId ? (ENSEMBLE_BY_ID.get(templateId) ?? null) : null;
+    const res = applyTemplate(p, template);
+    if (res.project === p) return;
+    const name = template?.name ?? 'No band';
+    get().edit(() => res.project);
+    get().toast('success', res.sweptTrackIds.length
+      ? `${name} — ${res.inRoles.length} instruments in the band; ${res.sweptTrackIds.length} out lane${res.sweptTrackIds.length > 1 ? 's' : ''} cleared (Ctrl+Z restores)`
+      : `${name} — ${res.inRoles.length} instruments in the band`);
   },
   updateTracks: (ids, fn) => get().edit((p) => ({ ...p, tracks: p.tracks.map((t) => (ids.includes(t.id) ? { ...t, ...fn(t) } : t)) })),
   setNotes: (id, notes) => get().edit((p) => mapTrack(p, id, (t) => ({ ...t, notes }))),

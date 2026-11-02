@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BAND_ROLES, clearOverrides, createDefaultProject, flipBand, freshEnsemble, isInBand,
+  applyTemplate, BAND_ROLES, clearOverrides, createDefaultProject, flipBand, freshEnsemble, isInBand,
   projectFromFixture, templateBandRoles, validateProject,
   type EnsembleTemplate, type Project, type ProjectEnsemble,
 } from '../src/shared/schema';
@@ -238,5 +238,89 @@ describe('band: the track-header in/out button', () => {
     const b = flipBand(p, trackByRole(p, 'violins2').id, null);
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
     expect(JSON.stringify(p)).toBe(before);
+  });
+});
+
+describe('band: switching templates (the picker)', () => {
+  const chamber = ENSEMBLE_BY_ID.get('ensemble.chamber') as EnsembleTemplate;
+
+  it('a switch starts a new composition: templateId set, overrides cleared, pins kept, now-out lanes swept', () => {
+    const p = withNotes(
+      withNotes(
+        projectFromFixture({ ensemble: { templateId: null, overrides: { violas: 'out', piano: 'in' }, pins: { harp: 'in' } } }),
+        'tuba', 4,
+      ),
+      'violins1', 6,
+    );
+    const res = applyTemplate(p, chamber);
+    expect(res.project.ensemble).toEqual({ templateId: 'ensemble.chamber', overrides: {}, pins: { harp: 'in' } });
+    expect(res.inRoles).toEqual([...chamber.roster.map((r) => r.role), 'harp']); // pinned-in harp rides over the roster
+    expect(res.sweptTrackIds).toEqual([trackByRole(p, 'tuba').id]); // tuba was in (no template) with notes → now out → swept
+    expect(trackByRole(res.project, 'tuba').notes).toEqual([]);
+    expect(trackByRole(res.project, 'violins1').notes).toHaveLength(6); // in-band lane untouched
+    expect(validateProject(res.project).ok).toBe(true);
+    // the original composition is untouched — one Ctrl+Z restores it wholesale
+    expect(trackByRole(p, 'tuba').notes).toHaveLength(4);
+  });
+
+  it('locked lanes keep their notes even when the switch puts them out — lock wins over OUT', () => {
+    const p = withNotes(projectFromFixture({}), 'tuba', 3, true);
+    const res = applyTemplate(p, chamber);
+    expect(res.sweptTrackIds).toEqual([]);
+    expect(trackByRole(res.project, 'tuba').notes).toHaveLength(3);
+    expect(res.project.ensemble!.templateId).toBe('ensemble.chamber');
+  });
+
+  it('pins ride over: a pinned-in non-roster instrument stays in, a pinned-out roster instrument is swept', () => {
+    const p = withNotes(
+      withNotes(
+        projectFromFixture({ ensemble: { templateId: null, overrides: {}, pins: { tuba: 'in', violins1: 'out' } } }),
+        'tuba', 4,
+      ),
+      'violins1', 3,
+    );
+    const res = applyTemplate(p, chamber); // chamber roster has violins1, not tuba
+    expect(res.inRoles).toContain('tuba');
+    expect(res.inRoles).not.toContain('violins1');
+    expect(trackByRole(res.project, 'tuba').notes).toHaveLength(4); // pinned in → never swept
+    expect(res.sweptTrackIds).toEqual([trackByRole(p, 'violins1').id]);
+    expect(trackByRole(res.project, 'violins1').notes).toEqual([]);
+  });
+
+  it('switching to no band brings everyone in and sweeps nothing', () => {
+    const p = withNotes(projectFromFixture({ ensemble: { templateId: 'ensemble.symphony', overrides: {}, pins: {} } }), 'tuba', 2);
+    const res = applyTemplate(p, null);
+    expect(res.project.ensemble!.templateId).toBe(null);
+    expect(res.sweptTrackIds).toEqual([]);
+    expect(res.inRoles.length).toBe(18);
+    expect(trackByRole(res.project, 'tuba').notes).toHaveLength(2);
+  });
+
+  it('re-picking the active band restarts the composition: overrides clear and out lanes sweep', () => {
+    const p = withNotes(
+      projectFromFixture({ ensemble: { templateId: 'ensemble.chamber', overrides: { violas: 'in' }, pins: {} } }),
+      'tuba', 2,
+    );
+    const res = applyTemplate(p, chamber);
+    expect(res.project).not.toBe(p);
+    expect(res.project.ensemble!.overrides).toEqual({});
+    expect(res.sweptTrackIds).toEqual([trackByRole(p, 'tuba').id]);
+  });
+
+  it('re-picking the active band with nothing pending changes nothing (same project reference, no history spam)', () => {
+    const p = projectFromFixture({ ensemble: { templateId: 'ensemble.chamber', overrides: {}, pins: {} } });
+    const res = applyTemplate(p, chamber);
+    expect(res.project).toBe(p);
+    expect(res.sweptTrackIds).toEqual([]);
+  });
+
+  it('deterministic: same input → identical output, input never mutated, result validates', () => {
+    const p = withNotes(projectFromFixture({ ensemble: { templateId: 'ensemble.symphony', overrides: { piano: 'in' }, pins: {} } }), 'horns', 5);
+    const before = JSON.stringify(p);
+    const a = applyTemplate(p, chamber);
+    const b = applyTemplate(p, chamber);
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    expect(JSON.stringify(p)).toBe(before);
+    expect(validateProject(a.project).ok).toBe(true);
   });
 });

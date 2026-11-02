@@ -2,6 +2,8 @@ import { parseChord } from './chords';
 import { MODES } from './modes';
 import { projectEndTick } from './meter';
 import { noteName } from './modes';
+import { BAND_ROLES } from './band';
+import { ENSEMBLE_IDS } from '../../config/ensembles';
 import type { Project } from './types';
 
 export interface ValidationError { path: string; message: string }
@@ -72,6 +74,30 @@ export function validateProject(input: unknown): ValidationResult {
     groupIds.add(g.id);
     if (g.pluginState !== null && typeof g.pluginState !== 'string') err(`libraryGroups[${i}].pluginState`, 'pluginState must be a base64 string or null');
   });
+
+  // --- ensemble (band memory) ----------------------------------------------
+  if (p.ensemble !== undefined) {
+    const e = p.ensemble;
+    if (!e || typeof e !== 'object' || Array.isArray(e)) {
+      err('ensemble', 'ensemble must be an object (templateId, overrides, pins)');
+    } else {
+      if (e.templateId !== null && (typeof e.templateId !== 'string' || !ENSEMBLE_IDS.has(e.templateId))) {
+        err('ensemble.templateId', `unknown ensemble template ${JSON.stringify(e.templateId)} (expected null or one of ${[...ENSEMBLE_IDS].join(', ')})`);
+      }
+      for (const kind of ['overrides', 'pins'] as const) {
+        const map = e[kind];
+        if (map === undefined) continue;
+        if (!map || typeof map !== 'object' || Array.isArray(map)) {
+          err(`ensemble.${kind}`, `${kind} must be an object keyed by instrument role`);
+          continue;
+        }
+        for (const [role, state] of Object.entries(map)) {
+          if (!BAND_ROLES.has(role)) err(`ensemble.${kind}.${role}`, `"${role}" is not an instrument track role`);
+          if (state !== 'in' && state !== 'out') err(`ensemble.${kind}.${role}`, `state must be "in" or "out" (got ${JSON.stringify(state)})`);
+        }
+      }
+    }
+  }
 
   const endTick = projectEndTick(p);
   const groupChannels = new Map<string, Map<number, string>>();

@@ -33,6 +33,7 @@
       "properties": { "path": { "type": ["string", "null"] }, "offsetMs": { "type": "number" } }
     },
     "tracks": { "type": "array", "items": { "$ref": "#/$defs/track" } },
+    "ensemble": { "$ref": "#/$defs/ensemble" },
     "libraryGroups": {
       "type": "array",
       "items": { "type": "object", "required": ["id", "name", "pluginId", "pluginState"], "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "pluginId": { "type": ["string", "null"] }, "pluginState": { "type": ["string", "null"], "contentEncoding": "base64" } } }
@@ -40,6 +41,20 @@
     "masterVolume": { "type": "number", "minimum": 0, "maximum": 1.5 }
   },
   "$defs": {
+    "ensemble": {
+      "type": "object",
+      "description": "Band memory: which ensemble template is on, per-composition in/out overrides from the track-header buttons (cleared on template switch), and sticky project-settings pins (always in / always out). A band marks membership over existing instrument tracks — it never creates or deletes them. Absent field = no band: every instrument track is in. Precedence: pins beat overrides, overrides beat the template roster.",
+      "properties": {
+        "templateId": { "type": ["string", "null"], "description": "Shipped ensemble template id (e.g. \"ensemble.symphony\"), or null for no band." },
+        "overrides": { "$ref": "#/$defs/bandStates" },
+        "pins": { "$ref": "#/$defs/bandStates" }
+      }
+    },
+    "bandStates": {
+      "type": "object",
+      "description": "Instrument role -> \"in\" | \"out\". Keys must be real instrument track roles (Strings/Brass/Woodwinds/Percussion/Keys), never Structure or Audio lanes.",
+      "additionalProperties": { "enum": ["in", "out"] }
+    },
     "note": {
       "type": "object", "required": ["pitch", "startTick", "durationTicks", "velocity"],
       "properties": { "pitch": { "type": "integer", "minimum": 0, "maximum": 127 }, "startTick": { "type": "integer", "minimum": 0 }, "durationTicks": { "type": "integer", "minimum": 1 }, "velocity": { "type": "integer", "minimum": 1, "maximum": 127 } }

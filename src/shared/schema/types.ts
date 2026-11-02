@@ -53,6 +53,22 @@ export interface LibraryGroup {
   pluginState: string | null;
 }
 
+export type BandState = 'in' | 'out';
+
+/**
+ * Band memory (ensemble templates). A band marks membership over the app's
+ * existing instrument tracks — it never creates or deletes tracks.
+ * Absent field = no band chosen: every instrument track is in.
+ */
+export interface ProjectEnsemble {
+  /** Shipped ensemble template id (e.g. "ensemble.symphony"), or null for no band. */
+  templateId: string | null;
+  /** Track-header in/out choices for this composition. Cleared when the template switches. */
+  overrides: Record<string, BandState>;
+  /** Project-settings pins ("always in" / "always out"). Ride over every template. */
+  pins: Record<string, BandState>;
+}
+
 export interface Project {
   schemaVersion: number;
   name: string;
@@ -67,6 +83,7 @@ export interface Project {
   referenceAudio: ReferenceAudio;
   tracks: Track[];
   libraryGroups: LibraryGroup[];
+  ensemble?: ProjectEnsemble;
   masterVolume: number;
 }
 

@@ -1,5 +1,6 @@
 import { FAMILY_COLORS } from '../../theme/tokens';
 import { ADD_TRACK_TEMPLATES, INSTRUMENTS, instrumentRange } from './ranges';
+import { freshEnsemble } from './band';
 import { PPQ, SCHEMA_VERSION, isInstrumentTrack, type Project, type Track, type TrackFamily } from './types';
 
 let counter = 0;
@@ -59,6 +60,7 @@ export function createDefaultProject(): Project {
     referenceAudio: { path: null, offsetMs: 0 },
     tracks: createDefaultTracks(),
     libraryGroups: [],
+    ensemble: freshEnsemble(),
     masterVolume: 1,
   };
 }

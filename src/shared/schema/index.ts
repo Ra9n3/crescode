@@ -5,5 +5,7 @@ export * from './ranges';
 export * from './meter';
 export * from './factory';
 export * from './validate';
+export * from './band';
+export * from './ensembleTemplate';
 import schema from './project.schema.json';
 export const projectJsonSchema = schema;

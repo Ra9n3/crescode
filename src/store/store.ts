@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import fixture from '../../fixtures/dorian-16bars.json';
 import {
-  createAddedTrack, projectFromFixture, uid, MAX_TRACKS_PER_GROUP, NOTE_NAMES,
+  createAddedTrack, flipBand, projectFromFixture, uid, MAX_TRACKS_PER_GROUP, NOTE_NAMES,
   type Chord, type LibraryGroup, type ModeName, type Note, type Project, type Section, type Track, type TrackFamily, type PitchClass,
 } from '../shared/schema';
+import { ENSEMBLE_BY_ID } from '../config/ensembles';
 import { generate } from '../engine/generate';
 import { transformProjectMode, transposeProjectKey } from '../engine/suggestion/transpose';
 import type { FollowMode } from '../engine/transport/follow';
@@ -135,6 +136,11 @@ interface State {
 
   updateTrack: (id: string, patch: Partial<Track>, coalesce?: string) => void;
   updateTracks: (ids: string[], fn: (t: Track) => Partial<Track>) => void;
+  /** Track-header IN/OUT band button: flips the track's instrument in or out
+   *  of the current composition as ONE undoable edit. Going out empties the
+   *  lane (lock wins on locked tracks); a project-settings pin refuses the
+   *  flip with a toast. */
+  toggleInBand: (trackId: string) => void;
   setNotes: (id: string, notes: Note[]) => void;
   addTrack: (family: TrackFamily) => void;
   removeTrack: (id: string) => void;
@@ -211,6 +217,29 @@ export const useStore = create<State>((set, get) => ({
   markSaved: (filePath) => set((s) => ({ dirty: false, filePath: filePath === undefined ? s.filePath : filePath })),
 
   updateTrack: (id, patch, coalesce) => get().edit((p) => mapTrack(p, id, (t) => ({ ...t, ...patch })), coalesce),
+
+  // Band in/out (track header): flipBand owns the semantics — going out
+  // empties the lane of every unlocked track with the role, lock wins on
+  // locked tracks, pins refuse the header. One edit() step, so Ctrl+Z
+  // restores the notes and the membership together.
+  toggleInBand: (trackId) => {
+    const p = get().project;
+    const template = p.ensemble?.templateId ? (ENSEMBLE_BY_ID.get(p.ensemble.templateId) ?? null) : null;
+    const res = flipBand(p, trackId, template);
+    if (!res.ok) {
+      if (res.reason === 'pinned') {
+        const name = p.tracks.find((t) => t.id === trackId)?.name ?? res.role;
+        get().toast('warn', `"${name}" is pinned by project settings — change the pin in Settings, not here.`);
+      }
+      return;
+    }
+    const name = p.tracks.find((t) => t.id === trackId)?.name ?? res.role;
+    const wasLocked = p.tracks.find((t) => t.id === trackId)?.locked;
+    get().edit(() => res.project);
+    get().toast('success', res.nowIn
+      ? `${name} back in the band — Compose All will write for it again`
+      : `${name} out of the band${wasLocked ? ' — locked, so its notes stay' : res.clearedTrackIds.length ? ' — lane cleared (Ctrl+Z brings the notes back)' : ''}`);
+  },
   updateTracks: (ids, fn) => get().edit((p) => ({ ...p, tracks: p.tracks.map((t) => (ids.includes(t.id) ? { ...t, ...fn(t) } : t)) })),
   setNotes: (id, notes) => get().edit((p) => mapTrack(p, id, (t) => ({ ...t, notes }))),
   addTrack: (family) => get().edit((p) => ({ ...p, tracks: [...p.tracks, createAddedTrack(family, p.tracks)] })),

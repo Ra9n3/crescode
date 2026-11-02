@@ -1,6 +1,8 @@
 import { memo } from 'react';
 import { useStore } from '../store/store';
+import { BAND_ROLES, freshEnsemble, isInBand } from '../shared/schema';
 import type { Track } from '../shared/schema/types';
+import { ENSEMBLE_BY_ID } from '../config/ensembles';
 import { routingInfo, toggleFreeze } from '../lib/routing';
 import { preview } from '../audio/preview';
 import { pickFile } from '../lib/files';
@@ -57,12 +59,54 @@ function Strip({ color }: { color: string }) {
   );
 }
 
+/** Stable empty band state for projects that predate the ensemble field. */
+const NO_ENSEMBLE = freshEnsemble();
+
+/** The track-header IN/OUT band button. One click flips the instrument in or
+ *  out of this composition: OUT truly empties the lane (one undo brings the
+ *  notes back), a locked track keeps its notes (lock wins over OUT), and a
+ *  project-settings pin shows the pin marker and refuses the flip. */
+function BandButton({ track }: { track: Track }) {
+  const toggleInBand = useStore((s) => s.toggleInBand);
+  const inBand = useStore((s) => {
+    const e = s.project.ensemble;
+    return isInBand(track.role, e ?? NO_ENSEMBLE, e?.templateId ? (ENSEMBLE_BY_ID.get(e.templateId) ?? null) : null);
+  });
+  const pin = useStore((s) => s.project.ensemble?.pins[track.role]);
+  const tip = pin
+    ? `Pinned ${pin === 'in' ? 'in' : 'out'} for this whole project — project settings beat every template and this button. Change the pin in Settings.`
+    : inBand
+      ? `${track.name}: IN the band — Compose All writes for it. Click to take it out of this composition (its lane empties; Ctrl+Z brings the notes back).`
+      : track.locked
+        ? `${track.name}: OUT of the band, but the track is LOCKED — locked tracks keep their notes. Unlock it and take it out again to truly empty the lane.`
+        : `${track.name}: OUT of the band — this composition has no ${track.name}. Click to bring it back in (Compose All refills the lane).`;
+  return (
+    <button
+      type="button" title={tip} aria-label={tip} aria-pressed={inBand}
+      data-testid="band-btn" data-in={inBand ? 'true' : 'false'} data-pinned={pin || undefined}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => { e.stopPropagation(); toggleInBand(track.id); }}
+      className="lamp relative flex h-[21px] w-[30px] shrink-0 items-center justify-center rounded-[2px] text-[8px] font-bold leading-none tracking-wide transition-all duration-150"
+      style={{ color: inBand ? 'var(--c-text)' : 'var(--c-textMute)', '--lamp-color': tokens.accent } as React.CSSProperties}
+      data-on={inBand || undefined}
+    >
+      {inBand ? 'IN' : 'OUT'}
+      {pin && <Ico icon={I.pin} className="absolute -right-[3px] -top-[3px] text-[9px] text-[var(--c-accent)]" />}
+    </button>
+  );
+}
+
 export const TrackHeader = memo(function TrackHeader({ track, index, selected }: { track: Track; index: number; selected: boolean }) {
   const updateTrack = useStore((s) => s.updateTrack);
   const freeze = useStore((s) => s.freezeProgress[track.id]);
   const refOffset = useStore((s) => (track.family === 'Audio' ? s.project.referenceAudio.offsetMs : 0));
   const refPath = useStore((s) => (track.family === 'Audio' ? s.project.referenceAudio.path : null));
   const edit = useStore((s) => s.edit);
+  const inBand = useStore((s) => {
+    const e = s.project.ensemble;
+    return isInBand(track.role, e ?? NO_ENSEMBLE, e?.templateId ? (ENSEMBLE_BY_ID.get(e.templateId) ?? null) : null);
+  });
+  const bandTrack = BAND_ROLES.has(track.role);
   const select = (e: React.MouseEvent) => {
     const s = useStore.getState();
     const ids = e.ctrlKey || e.metaKey ? (s.selectedTrackIds.includes(track.id) ? s.selectedTrackIds.filter((x) => x !== track.id) : [...s.selectedTrackIds, track.id]) : [track.id];
@@ -111,7 +155,8 @@ export const TrackHeader = memo(function TrackHeader({ track, index, selected }:
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-[5px] py-1.5">
         <div className="flex items-center gap-1.5">
           <span className="w-4 shrink-0 text-right font-mono text-[10px] text-[var(--c-textMute)]">{index + 1}</span>
-          <span className={cn('min-w-0 flex-1 truncate text-[13px] font-bold', track.muted && 'opacity-50')} title={`${track.name} · role "${track.role}"`}>{track.name}</span>
+          <span className={cn('min-w-0 flex-1 truncate text-[13px] font-bold', bandTrack && !inBand ? 'opacity-40' : track.muted && 'opacity-50')} title={`${track.name} · role "${track.role}"`}>{track.name}</span>
+          {bandTrack && <BandButton track={track} />}
           <ToggleChip on={track.locked} label="L" tip={track.locked ? 'Locked — Compose All keeps this track (L)' : 'Lock track (L)'} color={tokens.lock} onClick={() => updateTrack(track.id, { locked: !track.locked })} />
           <ToggleChip on={track.muted} label="M" tip="Mute (M) — preview only, still generated & exported" color={tokens.mute} onClick={() => updateTrack(track.id, { muted: !track.muted })} />
           <ToggleChip on={track.soloed} label="S" tip="Solo (S) — preview only" color={tokens.solo} onClick={() => updateTrack(track.id, { soloed: !track.soloed })} />

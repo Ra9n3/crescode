@@ -1,6 +1,6 @@
 import { INSTRUMENTS } from './ranges';
 import type { EnsembleTemplate } from './ensembleTemplate';
-import type { ProjectEnsemble } from './types';
+import type { Project, ProjectEnsemble } from './types';
 
 /**
  * Band membership (ensemble templates). A band decides which of the app's
@@ -43,3 +43,43 @@ export const clearOverrides = (ensemble: ProjectEnsemble): ProjectEnsemble => ({
   ...ensemble,
   overrides: {},
 });
+
+/** Result of a track-header band flip. */
+export type BandFlip =
+  | { ok: true; role: string; nowIn: boolean; clearedTrackIds: string[]; project: Project }
+  | { ok: false; reason: 'pinned' | 'notBand'; role: string };
+
+/**
+ * One click on a track header's IN/OUT button. Flips the track's instrument
+ * role in or out of the band for this composition:
+ *  - going OUT truly empties the piece of the instrument — every UNLOCKED
+ *    track with the role loses its notes in the same undoable edit, so one
+ *    Ctrl+Z brings the whole picture back;
+ *  - a LOCKED track keeps its notes even when out — lock wins over OUT, so
+ *    to truly silence a locked track the user unlocks it first;
+ *  - a role pinned by project settings refuses the header (pins beat the
+ *    button) — pins are changed in project settings, not here.
+ * Pure: returns a new project, never mutates, never throws.
+ */
+export function flipBand(project: Project, trackId: string, template: EnsembleTemplate | null): BandFlip {
+  const track = project.tracks.find((t) => t.id === trackId);
+  if (!track || !BAND_ROLES.has(track.role)) return { ok: false, reason: 'notBand', role: track?.role ?? '' };
+  const role = track.role;
+  const ensemble = project.ensemble ?? freshEnsemble();
+  if (ensemble.pins[role]) return { ok: false, reason: 'pinned', role };
+
+  const nowIn = !isInBand(role, ensemble, template);
+  const next: ProjectEnsemble = { ...ensemble, overrides: { ...ensemble.overrides, [role]: nowIn ? 'in' : 'out' } };
+
+  // Going OUT empties the lane of every unlocked track carrying the role.
+  const clearedTrackIds: string[] = [];
+  const tracks = nowIn
+    ? project.tracks
+    : project.tracks.map((t) => {
+        if (t.role !== role || t.locked || t.notes.length === 0) return t;
+        clearedTrackIds.push(t.id);
+        return { ...t, notes: [] };
+      });
+
+  return { ok: true, role, nowIn, clearedTrackIds, project: { ...project, ensemble: next, tracks } };
+}

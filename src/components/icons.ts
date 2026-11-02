@@ -47,9 +47,10 @@ import minus from '@iconify-icons/ph/minus-bold';
 import window from '@iconify-icons/ph/app-window-bold';
 import dots from '@iconify-icons/ph/dots-six-vertical-bold';
 import flame from '@iconify-icons/ph/fire-fill';
+import pin from '@iconify-icons/ph/push-pin-bold';
 
 export const I = {
   plug, plugBold, lock, lockOpen, snowflake, play, pause, stop, rewind, record, repeat, metronome, magic, exportIc, download, upload,
   save, folder, gear, info, plus, trash, x, search, sliders, graph, undo, redo, piano, notes, wave, dice, caret, warn, check,
-  spinner, cpu, memory, file, clock, bug, speaker, pencil, cursor, magnet, minus, window, dots, flame,
+  spinner, cpu, memory, file, clock, bug, speaker, pencil, cursor, magnet, minus, window, dots, flame, pin,
 };

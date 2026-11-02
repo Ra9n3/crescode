@@ -1,14 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BAND_ROLES, clearOverrides, createDefaultProject, freshEnsemble, isInBand,
+  BAND_ROLES, clearOverrides, createDefaultProject, flipBand, freshEnsemble, isInBand,
   projectFromFixture, templateBandRoles, validateProject,
-  type EnsembleTemplate, type ProjectEnsemble,
+  type EnsembleTemplate, type Project, type ProjectEnsemble,
 } from '../src/shared/schema';
 import { ENSEMBLES, ENSEMBLE_BY_ID, ENSEMBLE_IDS } from '../src/config/ensembles';
 import { validateEnsembleTemplate } from '../src/shared/schema/ensembleTemplate';
 
 const symphony = ENSEMBLE_BY_ID.get('ensemble.symphony') as EnsembleTemplate;
 const noBand = freshEnsemble();
+
+const note = (i: number) => ({ pitch: 60 + (i % 12), startTick: i * 240, durationTicks: 120, velocity: 80 });
+const trackByRole = (p: Project, role: string) => p.tracks.find((t) => t.role === role)!;
+const withNotes = (p: Project, role: string, count: number, locked = false): Project => ({
+  ...p,
+  tracks: p.tracks.map((t) => (t.role === role ? { ...t, locked, notes: Array.from({ length: count }, (_, i) => note(i)) } : t)),
+});
 
 describe('band: the shipped registry', () => {
   it('bundles exactly the six agreed bands, in lineup order', () => {
@@ -132,5 +139,104 @@ describe('band: projects remember their band', () => {
   it('rejects a malformed ensemble section', () => {
     expect(validateProject(projectFromFixture({ ensemble: 'Symphony' as unknown as ProjectEnsemble })).ok).toBe(false);
     expect(validateProject(projectFromFixture({ ensemble: { templateId: null, overrides: [], pins: {} } as unknown as ProjectEnsemble })).ok).toBe(false);
+  });
+});
+
+describe('band: the track-header in/out button', () => {
+  it('taking an instrument out empties its lane and marks the override — the untouched original is what undo restores', () => {
+    const p = withNotes(projectFromFixture({}), 'violins1', 5);
+    const res = flipBand(p, trackByRole(p, 'violins1').id, null);
+    if (!res.ok) throw new Error('expected a successful flip');
+    expect(res.nowIn).toBe(false);
+    expect(res.clearedTrackIds).toEqual([trackByRole(p, 'violins1').id]);
+    expect(res.project.ensemble!.overrides.violins1).toBe('out');
+    expect(trackByRole(res.project, 'violins1').notes).toEqual([]);
+    expect(validateProject(res.project).ok).toBe(true);
+    // other lanes untouched
+    expect(trackByRole(res.project, 'cellosBasses').notes).toEqual(trackByRole(p, 'cellosBasses').notes);
+    // the original project keeps its notes — one Ctrl+Z brings them back
+    expect(trackByRole(p, 'violins1').notes).toHaveLength(5);
+  });
+
+  it('a locked track keeps its notes even when out — lock wins over OUT', () => {
+    const p = withNotes(projectFromFixture({}), 'tuba', 3, true);
+    const res = flipBand(p, trackByRole(p, 'tuba').id, null);
+    if (!res.ok) throw new Error('expected a successful flip');
+    expect(res.nowIn).toBe(false);
+    expect(res.clearedTrackIds).toEqual([]);
+    expect(trackByRole(res.project, 'tuba').notes).toHaveLength(3);
+    expect(res.project.ensemble!.overrides.tuba).toBe('out');
+  });
+
+  it('bringing it back in writes an explicit override and resurrects nothing (undo, not the button, returns notes)', () => {
+    const p = withNotes(projectFromFixture({}), 'violins1', 5);
+    const out = flipBand(p, trackByRole(p, 'violins1').id, null);
+    if (!out.ok) throw new Error('expected a successful flip');
+    const back = flipBand(out.project, trackByRole(p, 'violins1').id, null);
+    if (!back.ok) throw new Error('expected a successful flip');
+    expect(back.nowIn).toBe(true);
+    expect(back.clearedTrackIds).toEqual([]);
+    expect(back.project.ensemble!.overrides.violins1).toBe('in');
+    expect(trackByRole(back.project, 'violins1').notes).toEqual([]);
+  });
+
+  it('a pinned role refuses the header button', () => {
+    const p = projectFromFixture({ ensemble: { templateId: null, overrides: {}, pins: { violas: 'out' } } });
+    expect(flipBand(p, trackByRole(p, 'violas').id, null)).toEqual({ ok: false, reason: 'pinned', role: 'violas' });
+  });
+
+  it('non-band lanes refuse the flip', () => {
+    const p = projectFromFixture({});
+    for (const role of ['structure', 'chords', 'reference']) {
+      expect(flipBand(p, trackByRole(p, role).id, null)).toEqual({ ok: false, reason: 'notBand', role });
+    }
+    expect(flipBand(p, 'no-such-track', null)).toEqual({ ok: false, reason: 'notBand', role: '' });
+  });
+
+  it('the template roster sets the starting position; the button overrules both ways and keeps the templateId', () => {
+    const base = withNotes(
+      projectFromFixture({ ensemble: { templateId: 'ensemble.symphony', overrides: {}, pins: {} } }),
+      'tuba', 3,
+    );
+    const piano = flipBand(base, trackByRole(base, 'piano').id, symphony); // roster leaves piano out → click brings it in
+    if (!piano.ok) throw new Error('expected a successful flip');
+    expect(piano.nowIn).toBe(true);
+    expect(piano.project.ensemble!.overrides.piano).toBe('in');
+    expect(piano.project.ensemble!.templateId).toBe('ensemble.symphony');
+    const tuba = flipBand(base, trackByRole(base, 'tuba').id, symphony); // roster has tuba in → click takes it out
+    if (!tuba.ok) throw new Error('expected a successful flip');
+    expect(tuba.nowIn).toBe(false);
+    expect(tuba.clearedTrackIds).toEqual([trackByRole(base, 'tuba').id]);
+    expect(trackByRole(tuba.project, 'tuba').notes).toEqual([]);
+  });
+
+  it('every unlocked track with the role empties together; locked ones keep their notes', () => {
+    const p0 = withNotes(projectFromFixture({}), 'violins1', 4);
+    const dupe = { ...trackByRole(p0, 'violins1'), id: 'violins1-copy', locked: true };
+    const p: Project = { ...p0, tracks: [...p0.tracks, dupe] };
+    const res = flipBand(p, trackByRole(p, 'violins1').id, null);
+    if (!res.ok) throw new Error('expected a successful flip');
+    expect(res.clearedTrackIds).toEqual([trackByRole(p, 'violins1').id]);
+    expect(trackByRole(res.project, 'violins1').notes).toEqual([]);
+    expect(res.project.tracks.find((t) => t.id === 'violins1-copy')!.notes).toHaveLength(4);
+  });
+
+  it('a project without an ensemble field gains a valid one on the first flip', () => {
+    const legacy = withNotes(projectFromFixture({}), 'violas', 2);
+    delete legacy.ensemble;
+    const res = flipBand(legacy, trackByRole(legacy, 'violas').id, null);
+    if (!res.ok) throw new Error('expected a successful flip');
+    expect(res.project.ensemble).toEqual({ templateId: null, overrides: { violas: 'out' }, pins: {} });
+    expect(validateProject(res.project).ok).toBe(true);
+    expect(trackByRole(res.project, 'violas').notes).toEqual([]);
+  });
+
+  it('deterministic: same input → identical output, and the input is never mutated', () => {
+    const p = withNotes(projectFromFixture({}), 'violins2', 7);
+    const before = JSON.stringify(p);
+    const a = flipBand(p, trackByRole(p, 'violins2').id, null);
+    const b = flipBand(p, trackByRole(p, 'violins2').id, null);
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    expect(JSON.stringify(p)).toBe(before);
   });
 });

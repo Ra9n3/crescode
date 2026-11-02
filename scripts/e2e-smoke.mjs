@@ -31,6 +31,31 @@ await page.click('[data-testid=compose-all]');
 const noteCount = await st(() => window.crescodeTest.store.getState().project.tracks.reduce((a, t) => a + t.notes.length, 0));
 check('Compose All fills lanes', noteCount > 100, `${noteCount} notes`);
 
+// Band button (track header IN/OUT): taking an instrument out truly empties its lane
+// and remembers the choice; one undo brings notes AND membership back together.
+const band = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  const t = s.project.tracks.find((t) => t.family !== 'Structure' && t.family !== 'Audio' && !t.locked && t.notes.length > 0);
+  return t ? { id: t.id, role: t.role, notes: t.notes.length } : null;
+});
+check('An unlocked generated track exists for the band check', !!band);
+await page.evaluate((b) => { window.crescodeTest.bandProbeId = b.id; window.crescodeTest.bandRole = b.role; }, band);
+await page.click(`[data-track-header="${band.id}"] [data-testid=band-btn]`);
+const outState = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  const t = s.project.tracks.find((t) => t.id === window.crescodeTest.bandProbeId);
+  const btn = document.querySelector(`[data-track-header="${window.crescodeTest.bandProbeId}"] [data-testid=band-btn]`);
+  return { notes: t.notes.length, override: s.project.ensemble.overrides[window.crescodeTest.bandRole], btn: btn.getAttribute('data-in') };
+});
+check('OUT empties the lane, stores the override, button reads OUT', outState.notes === 0 && outState.override === 'out' && outState.btn === 'false', JSON.stringify(outState));
+await st(() => window.crescodeTest.store.getState().undo());
+const afterUndo = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  const t = s.project.tracks.find((t) => t.id === window.crescodeTest.bandProbeId);
+  return { notes: t.notes.length, hasOverride: !!s.project.ensemble?.overrides[window.crescodeTest.bandRole] };
+});
+check('Undo restores the notes and the membership together', afterUndo.notes === band.notes && !afterUndo.hasOverride, JSON.stringify(afterUndo));
+
 let align = await st(() => window.crescodeTest.runAlignmentTest());
 check('Alignment (21 tracks) before/after scroll', align.ok, `${align.checked} checks ${align.failures.slice(0, 2).join(';')}`);
 

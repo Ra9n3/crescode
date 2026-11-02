@@ -1,0 +1,35 @@
+{
+  "id": "ensemble.hybridstudio",
+  "name": "Hybrid Studio",
+  "description": "The modern studio orchestra: strings and warm brass over piano, harp and a light percussion section — the session band behind pop-meets-orchestra arrangements. Tighter than Cinematic, busier than Chamber. Budget: at most 8 concurrent layers, energy clamp [0.30, 0.90]; the ceiling is a hard constraint, the floor is a soft directive. Percussion fills stay out of the strings' long lines and enter in their rests; octave doubling is free. Every role is a track the app already has.",
+  "roster": [
+    { "role": "violins1", "family": "Strings" },
+    { "role": "violins2", "family": "Strings" },
+    { "role": "violas", "family": "Strings" },
+    { "role": "cellosBasses", "family": "Strings" },
+    { "role": "flutes", "family": "Woodwinds" },
+    { "role": "clarinets", "family": "Woodwinds" },
+    { "role": "horns", "family": "Brass" },
+    { "role": "trumpets", "family": "Brass" },
+    { "role": "trombones", "family": "Brass" },
+    { "role": "snare", "family": "Percussion" },
+    { "role": "cymbals", "family": "Percussion" },
+    { "role": "aux", "family": "Percussion" },
+    { "role": "piano", "family": "Keys" },
+    { "role": "harp", "family": "Keys" }
+  ],
+  "budget": {
+    "energyClamp": [0.30, 0.90],
+    "maxLayers": 8
+  },
+  "rules": [
+    {
+      "type": "fillGating",
+      "params": { "fills": "Percussion", "duringRestsOf": "Strings", "minGapTicks": 480 }
+    },
+    {
+      "type": "octaveDoubling",
+      "params": { "policy": "allowed" }
+    }
+  ]
+}

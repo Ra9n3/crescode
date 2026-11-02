@@ -1,0 +1,22 @@
+{
+  "id": "ensemble.vocalbacking",
+  "name": "Vocal Backing",
+  "description": "The band that sits under a singer: soft string pads, piano and harp for gentle motion, low strings for a floor. The singer is not a Crescode track — this band is everything around the voice, and its first duty is to leave the middle clear: no brass, no bright percussion, nothing that blurs the lead. Budget: at most 4 concurrent layers, energy clamp [0.15, 0.65]; the ceiling is a hard constraint, the floor is a soft directive. Octave doubling is forbidden. Every role is a track the app already has.",
+  "roster": [
+    { "role": "violins2", "family": "Strings" },
+    { "role": "violas", "family": "Strings" },
+    { "role": "cellosBasses", "family": "Strings" },
+    { "role": "piano", "family": "Keys" },
+    { "role": "harp", "family": "Keys" }
+  ],
+  "budget": {
+    "energyClamp": [0.15, 0.65],
+    "maxLayers": 4
+  },
+  "rules": [
+    {
+      "type": "octaveDoubling",
+      "params": { "policy": "forbidden" }
+    }
+  ]
+}

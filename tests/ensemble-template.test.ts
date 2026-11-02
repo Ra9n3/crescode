@@ -1,6 +1,7 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { validateEnsembleTemplate, type EnsembleTemplate } from '../src/shared/schema/ensembleTemplate';
+import { INSTRUMENTS } from '../src/shared/schema/ranges';
 
 const load = (p: string): unknown => JSON.parse(readFileSync(new URL(p, import.meta.url), 'utf8'));
 const SYMPHONY = load('../specs/ensemble-templates/templates/symphony.json');
@@ -146,6 +147,69 @@ describe('ensemble templates: rules', () => {
     t.rules.push({ type: 'fillGating', params: { fills: 'Percussion', duringRestsOf: 'Ghosts', minGapTicks: 480 } });
     const r = validateEnsembleTemplate(t);
     expect(r.errors.some((e) => e.path === 'rules[2].params.duringRestsOf' && /"Ghosts" is neither a family/.test(e.message))).toBe(true);
+  });
+});
+
+describe('ensemble templates: the shipped library', () => {
+  const TEMPLATE_DIR = new URL('../specs/ensemble-templates/templates/', import.meta.url);
+  const FILES = readdirSync(TEMPLATE_DIR).filter((f) => f.endsWith('.json')).sort();
+  const APP_ROLES = new Set(INSTRUMENTS.map((d) => d.role));
+
+  it('ships exactly the six agreed bands', () => {
+    expect(FILES).toEqual([
+      'chamber.json', 'cinematic.json', 'hybridstudio.json',
+      'sonata.json', 'symphony.json', 'vocalbacking.json',
+    ]);
+  });
+
+  it('every template in the folder validates cleanly', () => {
+    for (const file of FILES) {
+      const doc = load(`../specs/ensemble-templates/templates/${file}`);
+      const r = validateEnsembleTemplate(doc);
+      if (!r.ok) throw new Error(`${file} should pass: ` + JSON.stringify(r.errors, null, 2));
+    }
+  });
+
+  it('every roster role is a track the app already has', () => {
+    // The band model lives on existing tracks: a template must never invent an instrument.
+    for (const file of FILES) {
+      const t = load(`../specs/ensemble-templates/templates/${file}`) as EnsembleTemplate;
+      for (const entry of t.roster) {
+        expect(APP_ROLES.has(entry.role), `${file}: "${entry.role}" is not an app track`).toBe(true);
+      }
+    }
+  });
+
+  it('every budget fits its own band and the agreed reference values', () => {
+    const expected: Record<string, { clamp: [number, number]; layers: number }> = {
+      'symphony.json': { clamp: [0.25, 0.85], layers: 7 },
+      'chamber.json': { clamp: [0.20, 0.70], layers: 5 },
+      'cinematic.json': { clamp: [0.35, 0.95], layers: 9 },
+      'sonata.json': { clamp: [0.15, 0.65], layers: 3 },
+      'vocalbacking.json': { clamp: [0.15, 0.65], layers: 4 },
+      'hybridstudio.json': { clamp: [0.30, 0.90], layers: 8 },
+    };
+    for (const file of FILES) {
+      const t = load(`../specs/ensemble-templates/templates/${file}`) as EnsembleTemplate;
+      expect(t.budget.maxLayers, file).toBeLessThanOrEqual(t.roster.length);
+      expect(t.budget, file).toEqual({ energyClamp: expected[file].clamp, maxLayers: expected[file].layers });
+    }
+  });
+
+  it('picks the right rules per band character', () => {
+    const byId = new Map(FILES.map((f) => {
+      const t = load(`../specs/ensemble-templates/templates/${f}`) as EnsembleTemplate;
+      return [t.id, t];
+    }));
+    // Sonata: no doubling, piano answers the soloist.
+    expect(byId.get('ensemble.sonata')!.rules.map((r) => r.type)).toEqual(['octaveDoubling', 'fillGating']);
+    expect(byId.get('ensemble.sonata')!.rules[0].params).toEqual({ policy: 'forbidden' });
+    // Cinematic: doubling free, woodwinds clear of brass stabs.
+    expect(byId.get('ensemble.cinematic')!.rules.map((r) => r.type)).toEqual(['overlapAvoid', 'octaveDoubling']);
+    // Chamber: doubling only above 0.55.
+    expect(byId.get('ensemble.chamber')!.rules[0].params).toEqual({ policy: 'climaxOnly', energyThreshold: 0.55 });
+    // Vocal Backing: no doubling, nothing else — leave the middle clear.
+    expect(byId.get('ensemble.vocalbacking')!.rules.map((r) => r.type)).toEqual(['octaveDoubling']);
   });
 });
 

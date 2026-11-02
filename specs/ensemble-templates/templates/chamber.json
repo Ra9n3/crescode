@@ -1,0 +1,26 @@
+{
+  "id": "ensemble.chamber",
+  "name": "Chamber",
+  "description": "Small classical ensemble, one player to a part: a string quartet joined by piano. Intimacy is the point — thin texture, transparent layering, every line audible. Budget: at most 5 concurrent layers, energy clamp [0.20, 0.70]; the ceiling is a hard constraint, the floor is a soft directive. Octave doubling is reserved for louder passages (energy above 0.55), and the piano answers in the rests of the strings rather than playing continuously. Every role is a track the app already has — picking this band only decides who is on stage.",
+  "roster": [
+    { "role": "violins1", "family": "Strings" },
+    { "role": "violins2", "family": "Strings" },
+    { "role": "violas", "family": "Strings" },
+    { "role": "cellosBasses", "family": "Strings" },
+    { "role": "piano", "family": "Keys" }
+  ],
+  "budget": {
+    "energyClamp": [0.20, 0.70],
+    "maxLayers": 5
+  },
+  "rules": [
+    {
+      "type": "octaveDoubling",
+      "params": { "policy": "climaxOnly", "energyThreshold": 0.55 }
+    },
+    {
+      "type": "fillGating",
+      "params": { "fills": "piano", "duringRestsOf": "Strings", "minGapTicks": 480 }
+    }
+  ]
+}

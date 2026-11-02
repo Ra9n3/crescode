@@ -85,6 +85,43 @@ check('Undo restores the whole previous composition', afterSwitchUndo.templateId
 // close the picker panel (dispatch pointerdown on the backdrop — React closes it)
 await st(() => document.querySelector('.fixed.inset-0')?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
 
+// Project-settings pins (Settings → Band): a pin rides over every band, the
+// track-header chip shows the marker and REFUSES while pinned, and removing
+// the pin frees the instrument (lane stays empty — unpin resurrects nothing).
+await page.click('[aria-label="Settings"]');
+const pinRows = await page.locator('[data-testid^=pin-row-]').count();
+check('Settings lists the 18 band instruments as pin rows', pinRows === 18, `${pinRows} rows`);
+await page.evaluate(() => {
+  const s = window.crescodeTest.store.getState();
+  window.crescodeTest.violasId = s.project.tracks.find((x) => x.role === 'violas').id;
+});
+await page.click('[data-testid=pin-violas-out]');
+const pinnedOut = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  const t = s.project.tracks.find((x) => x.id === window.crescodeTest.violasId);
+  const btn = document.querySelector(`[data-track-header="${window.crescodeTest.violasId}"] [data-testid=band-btn]`);
+  return { pin: s.project.ensemble?.pins.violas, notes: t.notes.length, in: btn.getAttribute('data-in'), marker: btn.getAttribute('data-pinned') };
+});
+check('Pinning violas out clears the lane and marks the header chip', pinnedOut.pin === 'out' && pinnedOut.notes === 0 && pinnedOut.in === 'false' && pinnedOut.marker === 'out', JSON.stringify(pinnedOut));
+await page.keyboard.press('Escape'); // close Settings — the track header is reachable again
+await page.click(`[data-track-header="${await page.evaluate(() => window.crescodeTest.violasId)}"] [data-testid=band-btn]`);
+const refused = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  const t = s.project.tracks.find((x) => x.id === window.crescodeTest.violasId);
+  return { pin: s.project.ensemble?.pins.violas, notes: t.notes.length };
+});
+check('The pinned role refuses the track-header button', refused.pin === 'out' && refused.notes === 0, JSON.stringify(refused));
+await page.click('[aria-label="Settings"]');
+await page.click('[data-testid=pin-violas-band]');
+const unpinned = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  const t = s.project.tracks.find((x) => x.id === window.crescodeTest.violasId);
+  const btn = document.querySelector(`[data-track-header="${window.crescodeTest.violasId}"] [data-testid=band-btn]`);
+  return { pin: s.project.ensemble?.pins.violas, notes: t.notes.length, in: btn.getAttribute('data-in'), marker: btn.getAttribute('data-pinned') };
+});
+check('Removing the pin frees the instrument (lane stays empty, marker gone)', !unpinned.pin && unpinned.notes === 0 && unpinned.in === 'true' && !unpinned.marker, JSON.stringify(unpinned));
+await page.keyboard.press('Escape');
+
 let align = await st(() => window.crescodeTest.runAlignmentTest());
 check('Alignment (21 tracks) before/after scroll', align.ok, `${align.checked} checks ${align.failures.slice(0, 2).join(';')}`);
 

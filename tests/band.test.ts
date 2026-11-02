@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyTemplate, BAND_ROLES, clearOverrides, createDefaultProject, flipBand, freshEnsemble, isInBand,
-  projectFromFixture, templateBandRoles, validateProject,
+  projectFromFixture, setPin, templateBandRoles, validateProject,
   type EnsembleTemplate, type Project, type ProjectEnsemble,
 } from '../src/shared/schema';
 import { ENSEMBLES, ENSEMBLE_BY_ID, ENSEMBLE_IDS } from '../src/config/ensembles';
@@ -322,5 +322,101 @@ describe('band: switching templates (the picker)', () => {
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
     expect(JSON.stringify(p)).toBe(before);
     expect(validateProject(a.project).ok).toBe(true);
+  });
+});
+
+describe('band: project-settings pins (Settings → Band)', () => {
+  const chamber = ENSEMBLE_BY_ID.get('ensemble.chamber') as EnsembleTemplate;
+
+  it('pinning an instrument out writes the pin AND empties its unlocked lanes in the same edit', () => {
+    const p = withNotes(projectFromFixture({}), 'violas', 4);
+    const res = setPin(p, 'violas', 'out');
+    if (!res.ok) throw new Error('expected a successful pin');
+    expect(res.pin).toBe('out');
+    expect(res.clearedTrackIds).toEqual([trackByRole(p, 'violas').id]);
+    expect(res.project.ensemble!.pins).toEqual({ violas: 'out' });
+    expect(trackByRole(res.project, 'violas').notes).toEqual([]);
+    expect(validateProject(res.project).ok).toBe(true);
+    // the original is untouched — one Ctrl+Z restores notes + pin together
+    expect(trackByRole(p, 'violas').notes).toHaveLength(4);
+    expect(p.ensemble!.pins).toEqual({});
+  });
+
+  it('lock wins over pins, too: a locked track keeps its notes while pinned out', () => {
+    const p = withNotes(projectFromFixture({}), 'violas', 3, true);
+    const res = setPin(p, 'violas', 'out');
+    if (!res.ok) throw new Error('expected a successful pin');
+    expect(res.clearedTrackIds).toEqual([]);
+    expect(trackByRole(res.project, 'violas').notes).toHaveLength(3);
+    expect(res.project.ensemble!.pins.violas).toBe('out');
+  });
+
+  it('a pin retires the header tweak beneath it: pin out beats an explicit override in', () => {
+    const p = withNotes(
+      projectFromFixture({ ensemble: { templateId: 'ensemble.symphony', overrides: { violas: 'in' }, pins: {} } }),
+      'violas', 4,
+    );
+    expect(isInBand('violas', p.ensemble!, symphony)).toBe(true); // the header put it in
+    const res = setPin(p, 'violas', 'out');
+    if (!res.ok) throw new Error('expected a successful pin');
+    expect(res.project.ensemble!.overrides).toEqual({}); // the tweak is retired
+    expect(isInBand('violas', res.project.ensemble!, symphony)).toBe(false);
+    expect(trackByRole(res.project, 'violas').notes).toEqual([]);
+  });
+
+  it('pinning in forces the instrument into every band — even off-roster — and resurrects nothing', () => {
+    const p = withNotes(projectFromFixture({ ensemble: { templateId: 'ensemble.chamber', overrides: {}, pins: {} } }), 'tuba', 2);
+    expect(isInBand('tuba', p.ensemble!, chamber)).toBe(false); // chamber is strings + piano, no tuba
+    const res = setPin(p, 'tuba', 'in');
+    if (!res.ok) throw new Error('expected a successful pin');
+    expect(isInBand('tuba', res.project.ensemble!, chamber)).toBe(true);
+    expect(res.clearedTrackIds).toEqual([]);
+    expect(trackByRole(res.project, 'tuba').notes).toHaveLength(2); // nothing resurrected, nothing cleared
+  });
+
+  it('removing the pin returns the instrument to band control — and to an empty lane if the pin had swept it', () => {
+    const p = withNotes(projectFromFixture({ ensemble: { templateId: 'ensemble.chamber', overrides: {}, pins: {} } }), 'violas', 3);
+    const out = setPin(p, 'violas', 'out');
+    if (!out.ok) throw new Error('expected a successful pin');
+    const back = setPin(out.project, 'violas', null);
+    if (!back.ok) throw new Error('expected a successful unpin');
+    expect(back.project.ensemble!.pins).toEqual({});
+    expect(isInBand('violas', back.project.ensemble!, chamber)).toBe(true); // roster decides again
+    expect(trackByRole(back.project, 'violas').notes).toEqual([]); // unpin resurrects nothing — Compose All refills
+  });
+
+  it('pinning a role the pin already describes is a no-op (no history spam)', () => {
+    const p = projectFromFixture({ ensemble: { templateId: null, overrides: {}, pins: { tuba: 'out' } } });
+    expect(setPin(p, 'tuba', 'out')).toMatchObject({ ok: false, reason: 'noop' });
+    expect(setPin(p, 'violas', null)).toMatchObject({ ok: false, reason: 'noop' }); // removing a pin that is not there
+    expect(p.ensemble!.pins).toEqual({ tuba: 'out' });
+  });
+
+  it('refuses roles the band does not manage: Structure, Chords, Reference Audio, unknown', () => {
+    const p = projectFromFixture({});
+    for (const role of ['structure', 'chords', 'reference', 'theremin']) {
+      expect(setPin(p, role, 'out')).toMatchObject({ ok: false, reason: 'notBand', role });
+    }
+    expect(p.ensemble!.pins).toEqual({});
+  });
+
+  it('a legacy project without an ensemble field gains a valid one on its first pin', () => {
+    const doc = projectFromFixture({ name: 'Legacy' }) as Record<string, unknown>;
+    delete doc.ensemble;
+    const p = doc as unknown as Project;
+    const res = setPin(p, 'violas', 'out');
+    if (!res.ok) throw new Error('expected a successful pin');
+    expect(res.project.ensemble).toEqual({ templateId: null, overrides: {}, pins: { violas: 'out' } });
+    expect(validateProject(res.project).ok).toBe(true);
+  });
+
+  it('deterministic: same input → identical output, input never mutated, repeated pins agree', () => {
+    const p = withNotes(projectFromFixture({ ensemble: { templateId: 'ensemble.symphony', overrides: { harp: 'in' }, pins: {} } }), 'harp', 4);
+    const before = JSON.stringify(p);
+    const a = setPin(p, 'harp', 'out');
+    const b = setPin(p, 'harp', 'out');
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    expect(JSON.stringify(p)).toBe(before);
+    expect(validateProject(a.ok ? a.project : p).ok).toBe(true);
   });
 });

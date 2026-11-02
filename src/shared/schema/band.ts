@@ -84,6 +84,53 @@ export function flipBand(project: Project, trackId: string, template: EnsembleTe
   return { ok: true, role, nowIn, clearedTrackIds, project: { ...project, ensemble: next, tracks } };
 }
 
+/** Result of changing a project-settings pin from the Settings dialog. */
+export type PinChange =
+  | { ok: true; role: string; pin: 'in' | 'out' | null; clearedTrackIds: string[]; project: Project }
+  | { ok: false; reason: 'notBand' | 'noop'; role: string };
+
+/**
+ * Set or clear a project-settings pin for one instrument role. Pins ride over
+ * EVERY band — "always in" joins even bands that do not roster the instrument,
+ * "always out" removes it from every band (the band picker notes what is
+ * missing). Rules:
+ *  - pinning OUT truly empties the piece of the instrument — every UNLOCKED
+ *    track with the role loses its notes in this same undoable edit, the same
+ *    rule the track-header OUT follows; LOCK wins over pins, too;
+ *  - pinning IN resurrects nothing — Compose All refills the lane;
+ *  - the pin takes over the instrument: any track-header tweak beneath it is
+ *    retired, so removing the pin later returns the instrument to whatever
+ *    the band decides, not to a stale per-composition choice;
+ *  - projects without an ensemble field gain a valid one;
+ *  - asking for the pin the role already has changes nothing ('noop').
+ * Pure: returns a new project, never mutates, never throws.
+ */
+export function setPin(project: Project, role: string, pin: 'in' | 'out' | null): PinChange {
+  if (!BAND_ROLES.has(role)) return { ok: false, reason: 'notBand', role };
+  const ensemble = project.ensemble ?? freshEnsemble();
+  if ((ensemble.pins[role] ?? null) === pin) return { ok: false, reason: 'noop', role };
+
+  const pins = { ...ensemble.pins };
+  if (pin) pins[role] = pin;
+  else delete pins[role];
+  const overrides = { ...ensemble.overrides };
+  delete overrides[role]; // the pin retires the header tweak beneath it
+  const next: ProjectEnsemble = { ...ensemble, pins, overrides };
+
+  // Pinning out empties the lane of every unlocked track carrying the role.
+  const clearedTrackIds: string[] = [];
+  let tracks = project.tracks;
+  if (pin === 'out') {
+    tracks = project.tracks.map((t) => {
+      if (t.role !== role || t.locked || t.notes.length === 0) return t;
+      clearedTrackIds.push(t.id);
+      return { ...t, notes: [] };
+    });
+  }
+
+  return { ok: true, role, pin, clearedTrackIds, project: { ...project, ensemble: next, tracks: clearedTrackIds.length ? tracks : project.tracks } };
+}
+
 /** Result of a template switch from the band picker. */
 export interface BandApplyResult {
   project: Project;

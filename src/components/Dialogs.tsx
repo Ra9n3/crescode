@@ -3,7 +3,9 @@ import { create } from 'zustand';
 import { useStore } from '../store/store';
 import { buildMergedMidi, buildPerTrackMidi, exportableTracks, parseMidiFile } from '../export/midi';
 import { exportJson, getRecent, openProjectText, pickFile, saveFile, saveFilesToFolder, saveProject } from '../lib/files';
-import { isInstrumentTrack, noteName, PERCUSSION_FIXED_NOTES, projectBars } from '../shared/schema';
+import { BAND_ROLES, freshEnsemble, INSTRUMENTS, isInstrumentTrack, isInBand, noteName, PERCUSSION_FIXED_NOTES, projectBars } from '../shared/schema';
+import { ENSEMBLE_BY_ID } from '../config/ensembles';
+import { FAMILY_COLORS, tokens } from '../theme/tokens';
 import { preview } from '../audio/preview';
 import { FOLLOW_MODES, TRIGGER_POINTS } from '../engine/transport/follow';
 import { engine } from '../engineClient/client';
@@ -143,6 +145,86 @@ function ImportErrorsDialog() {
   );
 }
 
+/* ---------- band pins (project settings) ---------- */
+
+/** Stable empty band state for projects that predate the ensemble field. */
+const NO_ENSEMBLE = freshEnsemble();
+
+/** One instrument row in Settings → Band: a tri-state control — the band
+ *  decides (no pin), ALWAYS IN, or ALWAYS OUT. The lamp of the active state
+ *  glows, echoing the track-header chip; a pinned row shows the pin marker. */
+function PinRow({ role, name }: { role: string; name: string }) {
+  const setBandPin = useStore((s) => s.setBandPin);
+  const pin = useStore((s) => s.project.ensemble?.pins[role]);
+  const inBand = useStore((s) => {
+    const e = s.project.ensemble;
+    return isInBand(role, e ?? NO_ENSEMBLE, e?.templateId ? (ENSEMBLE_BY_ID.get(e.templateId) ?? null) : null);
+  });
+  const tip = pin === 'in'
+    ? `${name}: ALWAYS IN — rides over every band; even a band without the instrument composes for it. The track-header button refuses while pinned.`
+    : pin === 'out'
+      ? `${name}: ALWAYS OUT — rides over every band; no band composes for it and the band picker notes the gap. The track-header button refuses while pinned.`
+      : `${name}: no pin — the active band decides (now ${inBand ? 'IN' : 'OUT'}), and the track-header button can flip it per composition.`;
+  const seg = [
+    { id: 'band', label: 'BAND', on: !pin, lamp: 'var(--c-textMute)', go: () => setBandPin(role, null), tip: 'No pin — the active band decides (removes the pin)' },
+    { id: 'in', label: 'IN', on: pin === 'in', lamp: tokens.accent, go: () => setBandPin(role, 'in'), tip: 'Always in — every band includes it, even off-roster' },
+    { id: 'out', label: 'OUT', on: pin === 'out', lamp: 'var(--c-warn)', go: () => setBandPin(role, 'out'), tip: 'Always out — no band includes it' },
+  ] as const;
+  return (
+    <div className="flex items-center justify-between gap-2" data-testid={`pin-row-${role}`} data-pinned={pin || undefined}>
+      <span className={cn('flex min-w-0 items-center gap-1.5 text-[11px]', pin === 'out' ? 'text-[var(--c-textMute)]' : 'text-[var(--c-textDim)]')}>
+        <span className="truncate" title={tip}>{name}</span>
+        {pin && <Ico icon={I.pin} className="shrink-0 text-[9px] text-[var(--c-accent)]" />}
+      </span>
+      <span className="flex shrink-0 items-center gap-[3px]">
+        {seg.map((s) => (
+          <button key={s.id} type="button" title={s.tip} aria-label={`${name}: ${s.tip}`} aria-pressed={s.on}
+            data-testid={`pin-${role}-${s.id}`}
+            onClick={() => s.go()}
+            className="lamp flex h-[16px] w-[32px] items-center justify-center rounded-[2px] text-[7px] font-bold leading-none tracking-wide transition-all duration-150"
+            style={{ color: s.on ? 'var(--c-text)' : 'var(--c-textMute)', '--lamp-color': s.lamp } as React.CSSProperties}
+            data-on={s.on || undefined}>
+            {s.label}
+          </button>
+        ))}
+      </span>
+    </div>
+  );
+}
+
+/** Settings → Band: the band model's project-settings pins. One row per
+ *  instrument the band manages, grouped by family; a pin rides over EVERY
+ *  band and refuses the track-header button until it is removed here. */
+function BandPinsSection() {
+  const pins = useStore((s) => s.project.ensemble?.pins);
+  const bandDefs = INSTRUMENTS.filter((d) => BAND_ROLES.has(d.role));
+  const families = [...new Set(bandDefs.map((d) => d.family))];
+  const set = Object.keys(pins ?? {}).length;
+  return (
+    <div className="pb-1" data-testid="band-pins">
+      <p className="mb-2 text-[10px] leading-relaxed text-[var(--c-textMute)]">
+        Always-include / always-exclude choices that ride over every band{set ? ` — ${set} pin${set > 1 ? 's' : ''} set` : ' — none set'}.
+      </p>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+        {families.map((fam) => (
+          <div key={fam}>
+            <div className="mb-1.5 flex items-center gap-1.5">
+              <span className="h-[7px] w-[7px] rounded-[1px]" style={{ background: FAMILY_COLORS[fam] }} aria-hidden />
+              <span className="printed text-[7.5px] tracking-wider text-[var(--c-textMute)]">{fam.toUpperCase()}</span>
+            </div>
+            <div className="flex flex-col gap-[4px]">
+              {bandDefs.filter((d) => d.family === fam).map((d) => <PinRow key={d.role} role={d.role} name={d.name} />)}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-[10px] leading-relaxed text-[var(--c-textMute)]">
+        A pinned instrument refuses its track-header button — remove the pin here first. The band picker notes where pins leave a band short.
+      </p>
+    </div>
+  );
+}
+
 /* ---------- settings ---------- */
 function SettingsDialog() {
   const s = useStore();
@@ -196,6 +278,9 @@ function SettingsDialog() {
       <Row label="Developer tools" hint="Shows the dev menu in the status bar and the VST browser state switch">
         <div className="flex items-center gap-2 text-xs"><ToggleSwitch on={st.devMode} tip="Enable developer tools" onChange={(on) => s.setSettings({ devMode: on })} /> Enabled</div>
       </Row>
+
+      <div className="pt-4"><div className="panel-title"><span className="script">Band — project pins</span></div></div>
+      <BandPinsSection />
 
       <div className="pt-4"><div className="panel-title"><span className="script">Transport &amp; Auto-scroll</span></div></div>
 

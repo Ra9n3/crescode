@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import fixture from '../../fixtures/dorian-16bars.json';
 import {
-  applyTemplate, createAddedTrack, flipBand, projectFromFixture, uid, MAX_TRACKS_PER_GROUP, NOTE_NAMES,
+  applyTemplate, createAddedTrack, flipBand, projectFromFixture, setPin, uid, MAX_TRACKS_PER_GROUP, NOTE_NAMES,
+  INSTRUMENTS,
   type Chord, type LibraryGroup, type ModeName, type Note, type Project, type Section, type Track, type TrackFamily, type PitchClass,
 } from '../shared/schema';
 import { ENSEMBLE_BY_ID } from '../config/ensembles';
@@ -145,6 +146,11 @@ interface State {
    *  Starting a new composition — header choices reset, out-of-band unlocked
    *  lanes empty, pins ride over — as ONE undoable edit. */
   switchTemplate: (templateId: string | null) => void;
+  /** Project-settings pin (Settings → Band): 'in'/'out' rides over EVERY
+   *  band, null removes the pin. Pinning out empties the lane of every
+   *  unlocked track with the role (lock wins) as ONE undoable edit; the pin
+   *  retires any track-header tweak beneath it. */
+  setBandPin: (role: string, pin: 'in' | 'out' | null) => void;
   setNotes: (id: string, notes: Note[]) => void;
   addTrack: (family: TrackFamily) => void;
   removeTrack: (id: string) => void;
@@ -260,6 +266,26 @@ export const useStore = create<State>((set, get) => ({
       ? `${name} — ${res.inRoles.length} instruments in the band; ${res.sweptTrackIds.length} out lane${res.sweptTrackIds.length > 1 ? 's' : ''} cleared (Ctrl+Z restores)`
       : `${name} — ${res.inRoles.length} instruments in the band`);
   },
+  // Project-settings pin (Settings → Band): setPin owns the semantics — the
+  // pin rides over every band, pinning out empties the role's unlocked lanes
+  // (lock wins), and the pin retires the header tweak beneath it. One edit()
+  // step, so Ctrl+Z restores notes + pins together.
+  setBandPin: (role, pin) => {
+    const p = get().project;
+    const res = setPin(p, role, pin);
+    if (!res.ok) {
+      if (res.reason === 'notBand') get().toast('warn', `"${role}" is not an instrument the band manages — Structure and Audio lanes are always there.`);
+      return; // 'noop': the pin already says that — nothing to record
+    }
+    const name = INSTRUMENTS.find((d) => d.role === role)?.name ?? role;
+    get().edit(() => res.project);
+    get().toast('success', res.pin === 'in'
+      ? `${name} pinned in for every band — Compose All always writes for it, even bands that leave it out`
+      : res.pin === 'out'
+        ? `${name} pinned out of every band${res.clearedTrackIds.length ? ' — lane cleared (Ctrl+Z brings the notes back)' : ''}`
+        : `${name} unpinned — the active band decides again`);
+  },
+
   updateTracks: (ids, fn) => get().edit((p) => ({ ...p, tracks: p.tracks.map((t) => (ids.includes(t.id) ? { ...t, ...fn(t) } : t)) })),
   setNotes: (id, notes) => get().edit((p) => mapTrack(p, id, (t) => ({ ...t, notes }))),
   addTrack: (family) => get().edit((p) => ({ ...p, tracks: [...p.tracks, createAddedTrack(family, p.tracks)] })),

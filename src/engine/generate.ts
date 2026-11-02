@@ -2,12 +2,15 @@
  * Crescode generation engine — a generic interpreter of the rules config.
  * Contains no musical decisions; it only expands what the rules describe
  * and enforces engineering invariants (determinism, ranges, no overlaps,
- * no zero-length notes, nothing past the project end, locked tracks untouched).
+ * no zero-length notes, nothing past the project end, locked tracks untouched,
+ * out-of-band tracks untouched — the band gates who gets written).
  */
 import { parseChord, type ParsedChord } from '../shared/schema/chords';
 import { barTicks, beatOffsets, beatTicks, isCompound, projectBars, pulseTicks } from '../shared/schema/meter';
 import { scalePitchClasses } from '../shared/schema/modes';
 import { PPQ, isInstrumentTrack, type Note, type Project, type Track } from '../shared/schema/types';
+import { freshEnsemble, isInBand } from '../shared/schema/band';
+import { resolveTemplate } from '../config/ensembles';
 import { defaultRules } from '../config/generation-rules';
 import type {
   GenerationContext, GenerationRules, MeterInfo, PartContext, PartRule, PitchSpec, ResolvedChord,
@@ -330,6 +333,15 @@ export function generate(project: Project, options: GenerateOptions): Track[] {
   const opts = { seed: options.seed, density: options.density ?? 1, humanize: options.humanize ?? false, lockedTrackIds: options.lockedTrackIds ?? [] };
   const isLocked = (t: Track) => t.locked || opts.lockedTrackIds.includes(t.id);
   const locked = project.tracks.filter((t) => isInstrumentTrack(t) && isLocked(t));
+  // The band gates who gets written: only tracks IN the band (and not locked)
+  // are composed. No band chosen (no ensemble field, null templateId, or an
+  // unresolvable id) means everyone is in — the classic behaviour. An
+  // out-of-band lane is simply not touched: generate never deletes, and its
+  // role feeds neither generatedByRole nor lockedNotes, so doubles of an
+  // out-of-band instrument produce nothing either.
+  const ensemble = project.ensemble ?? freshEnsemble();
+  const template = resolveTemplate(project.ensemble);
+  const inBand = (t: Track) => isInBand(t.role, ensemble, template);
   const ctx = buildContext(project, opts, locked, rules);
 
   const lockedAt = (tick: number) => {
@@ -343,7 +355,7 @@ export function generate(project: Project, options: GenerateOptions): Track[] {
   const results = new Map<string, Note[]>();
 
   for (const track of project.tracks) {
-    if (!isInstrumentTrack(track) || isLocked(track)) continue;
+    if (!isInstrumentTrack(track) || isLocked(track) || !inBand(track)) continue;
     const out: Note[] = [];
     results.set(track.id, out);
     for (const section of ctx.sections) {
@@ -368,7 +380,7 @@ export function generate(project: Project, options: GenerateOptions): Track[] {
   }
 
   return project.tracks.map((t) => {
-    if (!isInstrumentTrack(t) || isLocked(t)) return t;
+    if (!isInstrumentTrack(t) || isLocked(t) || !inBand(t)) return t;
     let notes = sanitizeNotes(results.get(t.id) ?? [], t.lowestNote, t.highestNote, ctx.endTick);
     if (opts.humanize) notes = sanitizeNotes(humanizeNotes(notes, ctx, rngFor(opts.seed, t.id, 'humanize'), rules), t.lowestNote, t.highestNote, ctx.endTick);
     return { ...t, notes };

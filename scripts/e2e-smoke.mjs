@@ -122,6 +122,21 @@ const unpinned = await st(() => {
 check('Removing the pin frees the instrument (lane stays empty, marker gone)', !unpinned.pin && unpinned.notes === 0 && unpinned.in === 'true' && !unpinned.marker, JSON.stringify(unpinned));
 await page.keyboard.press('Escape');
 
+// Compose All respects the band (Task 6): writes only for in-band, unlocked
+// tracks; out-of-band lanes stay empty; the result reports what it skipped.
+await page.click('[data-testid=compose-options]');
+await page.click('[data-testid="band-option-ensemble.chamber"]');
+await st(() => document.querySelector('.fixed.inset-0')?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+await page.click('[data-testid=compose-all]');
+const bandCompose = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  const byRole = (r) => s.project.tracks.find((x) => x.role === r).notes.length;
+  return { templateId: s.project.ensemble.templateId, tuba: byRole('tuba'), flutes: byRole('flutes'), violins1: byRole('violins1'), piano: byRole('piano') };
+});
+check('Compose All writes for the band, not out-of-band lanes', bandCompose.templateId === 'ensemble.chamber' && bandCompose.tuba === 0 && bandCompose.flutes === 0 && bandCompose.violins1 > 0 && bandCompose.piano > 0, JSON.stringify(bandCompose));
+const report = await st(() => window.crescodeTest.store.getState().composeAll());
+check('Compose All reports the band skips (13 of 18 instruments off the Chamber roster)', report.bandSkipped === 13 && report.lockedKept === 0 && report.ms >= 0, JSON.stringify(report));
+
 let align = await st(() => window.crescodeTest.runAlignmentTest());
 check('Alignment (21 tracks) before/after scroll', align.ok, `${align.checked} checks ${align.failures.slice(0, 2).join(';')}`);
 

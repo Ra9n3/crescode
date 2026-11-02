@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fixture from '../fixtures/dorian-16bars.json';
 import { generate, mulberry32 } from '../src/engine/generate';
 import { defaultRules } from '../src/config/generation-rules';
+import { ENSEMBLE_BY_ID } from '../src/config/ensembles';
 import type { GenerationRules } from '../src/engine/rules-schema';
 import {
   MODE_NAMES, barTicks, isInstrumentTrack, projectEndTick, projectFromFixture, validateProject, type Project, type Track,
@@ -162,5 +163,72 @@ describe('generation engine', () => {
       expect(seen.length).toBeGreaterThanOrEqual(6);
       expect(seen[0]).toBe(p.key);
     }
+  });
+});
+
+describe('generate: the band gates who gets written (Task 6)', () => {
+  const chamber = ENSEMBLE_BY_ID.get('ensemble.chamber')!;
+  const symphony = ENSEMBLE_BY_ID.get('ensemble.symphony')!;
+
+  it('a band writes only for its roster: out-of-band lanes come back untouched, in-band lanes composed', () => {
+    const p = fx();
+    p.ensemble = { templateId: 'ensemble.chamber', overrides: {}, pins: {} };
+    const out = generate(p, { seed: 5 });
+    const tuba = out.find((t) => t.role === 'tuba')!;
+    expect(tuba).toBe(p.tracks.find((t) => t.role === 'tuba')); // same object — the lane is not touched
+    expect(out.find((t) => t.role === 'violins1')!.notes.length).toBeGreaterThan(0);
+    // the input project is never mutated
+    expect(p.ensemble!.templateId).toBe('ensemble.chamber');
+  });
+
+  it('a header override (out) silences a roster instrument; a pin (in) rescues an off-roster one', () => {
+    const p = fx();
+    p.ensemble = { templateId: 'ensemble.chamber', overrides: { violins2: 'out' }, pins: { tuba: 'in' } };
+    const out = generate(p, { seed: 5 });
+    expect(out.find((t) => t.role === 'violins2')).toBe(p.tracks.find((t) => t.role === 'violins2')); // override: untouched
+    expect(out.find((t) => t.role === 'tuba')!.notes.length).toBeGreaterThan(0); // pin: composed even off-roster
+  });
+
+  it('a pin (out) silences a roster instrument against the template', () => {
+    const p = fx();
+    p.ensemble = { templateId: 'ensemble.symphony', overrides: {}, pins: { violas: 'out' } };
+    const out = generate(p, { seed: 5 });
+    expect(out.find((t) => t.role === 'violas')).toBe(p.tracks.find((t) => t.role === 'violas'));
+    expect(out.find((t) => t.role === 'violins1')!.notes.length).toBeGreaterThan(0);
+  });
+
+  it('manual notes on an out-of-band lane survive Compose All — generate never deletes', () => {
+    const p = fx();
+    p.ensemble = { templateId: 'ensemble.chamber', overrides: {}, pins: {} };
+    const tuba = p.tracks.find((t) => t.role === 'tuba')!;
+    tuba.notes = [{ pitch: 40, startTick: 0, durationTicks: 480, velocity: 90 }];
+    const out = generate(p, { seed: 5 });
+    expect(out.find((t) => t.id === tuba.id)!.notes).toHaveLength(1); // same object, same notes
+  });
+
+  it('doubles of an out-of-band instrument produce nothing — no violins1, no flute doubles of it', () => {
+    const withV1 = fx();
+    withV1.ensemble = { templateId: 'ensemble.symphony', overrides: {}, pins: {} };
+    const withoutV1 = fx();
+    withoutV1.ensemble = { templateId: 'ensemble.symphony', overrides: { violins1: 'out' }, pins: {} };
+    const a = generate(withV1, { seed: 5 }).find((t) => t.role === 'flutes')!.notes.length;
+    const b = generate(withoutV1, { seed: 5 }).find((t) => t.role === 'flutes')!.notes.length;
+    expect(a).toBeGreaterThan(0);
+    expect(b).toBe(0);
+  });
+
+  it('no band chosen = everyone is in (backward compatible)', () => {
+    const p = fx(); // ensemble seeded fresh, templateId null
+    const out = generate(p, { seed: 5 });
+    const expected = p.tracks.filter((t) => isInstrumentTrack(t) && !t.locked).length;
+    expect(out.filter((t) => t.notes.length > 0 || isInstrumentTrack(t)).length).toBe(expected);
+  });
+
+  it('deterministic with band state: same input → identical output', () => {
+    const p = fx();
+    p.ensemble = { templateId: 'ensemble.chamber', overrides: { piano: 'in' }, pins: { harp: 'in' } };
+    const a = generate(p, { seed: 5 });
+    const b = generate(p, { seed: 5 });
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 });

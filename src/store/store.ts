@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import fixture from '../../fixtures/dorian-16bars.json';
 import {
-  applyTemplate, createAddedTrack, flipBand, projectFromFixture, setPin, uid, MAX_TRACKS_PER_GROUP, NOTE_NAMES,
+  applyTemplate, createAddedTrack, flipBand, freshEnsemble, isInBand, isInstrumentTrack, projectFromFixture, setPin, uid,
+  MAX_TRACKS_PER_GROUP, NOTE_NAMES,
   INSTRUMENTS,
   type Chord, type LibraryGroup, type ModeName, type Note, type Project, type Section, type Track, type TrackFamily, type PitchClass,
 } from '../shared/schema';
-import { ENSEMBLE_BY_ID } from '../config/ensembles';
+import { ENSEMBLE_BY_ID, resolveTemplate } from '../config/ensembles';
 import { generate } from '../engine/generate';
 import { transformProjectMode, transposeProjectKey } from '../engine/suggestion/transpose';
 import type { FollowMode } from '../engine/transport/follow';
@@ -174,7 +175,10 @@ interface State {
   updateGroup: (id: string, patch: Partial<LibraryGroup>) => void;
   deleteGroup: (id: string) => void;
   routeTrack: (trackId: string, groupId: string | null) => boolean;
-  composeAll: () => number;
+  /** Generate MIDI for every unlocked instrument track IN the band (no band
+   *  chosen = everyone). Locked and out-of-band lanes are left exactly as
+   *  they are. ONE undoable edit; returns timing and who was left alone. */
+  composeAll: () => { ms: number; bandSkipped: number; lockedKept: number };
 
   set: (patch: Partial<State>) => void;
   setSettings: (patch: Partial<Settings>) => void;
@@ -355,9 +359,13 @@ export const useStore = create<State>((set, get) => ({
   composeAll: () => {
     const { project, composeOptions } = get();
     const t0 = performance.now();
+    const ensemble = project.ensemble ?? freshEnsemble();
+    const template = resolveTemplate(project.ensemble);
+    const bandSkipped = project.tracks.filter((t) => isInstrumentTrack(t) && !t.locked && !isInBand(t.role, ensemble, template)).length;
+    const lockedKept = project.tracks.filter((t) => t.locked).length;
     const tracks = generate(project, { ...composeOptions, lockedTrackIds: project.tracks.filter((t) => t.locked).map((t) => t.id) });
     get().edit((p) => ({ ...p, tracks: p.tracks.map((t) => tracks.find((g) => g.id === t.id) ?? t) }));
-    return performance.now() - t0;
+    return { ms: performance.now() - t0, bandSkipped, lockedKept };
   },
 
   set: (patch) => set(patch),

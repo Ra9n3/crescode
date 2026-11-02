@@ -5,6 +5,7 @@ import sonata from '../../specs/ensemble-templates/templates/sonata.json';
 import symphony from '../../specs/ensemble-templates/templates/symphony.json';
 import vocalBacking from '../../specs/ensemble-templates/templates/vocalbacking.json';
 import { validateEnsembleTemplate, type EnsembleTemplate } from '../shared/schema/ensembleTemplate';
+import type { ProjectEnsemble } from '../shared/schema/types';
 
 /**
  * The shipped ensemble library, bundled for the app. Source of truth stays in
@@ -31,3 +32,8 @@ export const ENSEMBLES: readonly EnsembleTemplate[] = validated;
 export const ENSEMBLE_BY_ID: ReadonlyMap<string, EnsembleTemplate> = new Map(validated.map((t) => [t.id, t]));
 
 export const ENSEMBLE_IDS: ReadonlySet<string> = new Set(ENSEMBLE_BY_ID.keys());
+
+/** The template a project's band state points at (null = no band chosen, or
+ *  an id that no longer resolves — both mean "everyone is in"). */
+export const resolveTemplate = (ensemble: ProjectEnsemble | null | undefined): EnsembleTemplate | null =>
+  ensemble?.templateId ? (ENSEMBLE_BY_ID.get(ensemble.templateId) ?? null) : null;

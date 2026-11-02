@@ -91,15 +91,19 @@ function ComposeButton() {
   const [open, setOpen] = useState(false);
   const opts = useStore((s) => s.composeOptions);
   const set = useStore((s) => s.set);
-  const lockedCount = useStore((s) => s.project.tracks.filter((t) => t.locked).length);
   const compose = () => {
-    const ms = useStore.getState().composeAll();
-    useStore.getState().toast('success', `Composed in ${ms.toFixed(0)} ms${lockedCount ? ` · ${lockedCount} locked track${lockedCount > 1 ? 's' : ''} kept` : ''}`);
+    const r = useStore.getState().composeAll();
+    const bits = [
+      `${r.ms.toFixed(0)} ms`,
+      r.bandSkipped ? `${r.bandSkipped} out-of-band skipped` : '',
+      r.lockedKept ? `${r.lockedKept} locked kept` : '',
+    ].filter(Boolean);
+    useStore.getState().toast('success', `Composed in ${bits.join(' · ')}`);
   };
   return (
     <div className="relative flex shrink-0">
       <button
-        data-testid="compose-all" title="Compose All — generate MIDI for every unlocked instrument track using your rules config"
+        data-testid="compose-all" title="Compose All — generate MIDI for every unlocked instrument track in the band (no band chosen: everyone)"
         onClick={compose}
         className="hw hw-primary engrave flex h-8 items-center gap-1.5 rounded-l-[4px] px-3 text-[11px] font-bold uppercase tracking-[0.1em] transition-transform active:translate-y-[1px]"
       >

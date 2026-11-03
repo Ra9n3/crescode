@@ -19,7 +19,7 @@ import { isInstrumentTrack, type Note, type OrchestrationState, type Project, ty
 import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
 import { resolveTemplate } from '../config/ensembles';
 import { chordSpans, sectionMap, orchestrationSeedFor, energyCurve } from './spine';
-import { stringsModule, stringVoiceTracks, prepareStrings } from './render';
+import { stringsModule, stringVoiceTracks, prepareStrings, maybeLayerCellosBasses } from './render';
 import { conduct, type ConductorPlan } from './conductor';
 import { governPadVelocities } from './energy/mix';
 import type { OrchestratorContext } from './module';
@@ -84,6 +84,9 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     }
   }
   const stringsTrackIds = voiceTracks.map((t) => t.id);
+  // Phase 4f: Cb an octave below the Vc line inside cellosBasses, where the
+  // policy allows doubling and the range holds both — otherwise reported+skipped
+  maybeLayerCellosBasses(ctx, notesByTrackId, stringsTrackIds);
 
   // the rules generator covers every other family — strings excluded from
   // its WRITING, but their rendered notes feed its doublings (D9)

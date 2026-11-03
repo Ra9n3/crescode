@@ -192,8 +192,16 @@ describe('Compose All through the orchestrator: property sweep', () => {
     expect(track(project, 'horns').notes.length).toBeGreaterThan(0);
     expect(track(project, 'trumpets').notes.length).toBeGreaterThan(0);
     expect(track(project, 'timpani').notes.length).toBeGreaterThan(0);
-    // strings carry pads with chord tones only
-    for (const n of track(project, 'cellosBasses').notes) {
+    // symphony cellosBasses is the pizz-pulse layer (4e): short notes on strong beats
+    const cb = track(project, 'cellosBasses').notes;
+    expect(cb.length).toBeGreaterThan(0);
+    for (const n of cb) {
+      expect(n.articulation).toBe('pizz');
+      expect(n.durationTicks).toBeLessThan(960);
+    }
+    // …while chamber keeps the sustained bass
+    const { project: chamber } = compose('ensemble.chamber', {}, { seed: 11 });
+    for (const n of track(chamber, 'cellosBasses').notes) {
       expect(n.durationTicks).toBeGreaterThanOrEqual(960);
     }
   });

@@ -26,7 +26,7 @@
  * track on pad (wide legato only, 4e).
  */
 import { mulberry32 } from '../engine/generate';
-import { scalePitchClasses } from '../shared/schema/modes';
+import { noteName, scalePitchClasses } from '../shared/schema/modes';
 import { isInstrumentTrack, PPQ, type Note } from '../shared/schema/types';
 import { barTicks, projectBars } from '../shared/schema/meter';
 import { isInBand } from '../shared/schema/band';
@@ -40,6 +40,9 @@ import type { LayerPlan, OrchestratorContext, SectionModule, SectionPatch, Strin
 import { assignStringLayers, stringLayerForBar } from './conductor/layers';
 import { motifLine } from './lines/motif';
 import { counterlineLine } from './lines/counterline';
+import { ostinatoNotes, TREMOLO_STEP_TICKS, SHORT_NOTE_SECONDS } from './lines/ostinato';
+import { beatOffsets, isCompound } from '../shared/schema/meter';
+import { secondsToTicks } from './spine';
 
 const MODULE_ID = 'strings';
 
@@ -378,8 +381,53 @@ export const stringsModule: SectionModule = {
               writeLineNotes(notesByTrackId[trackId], lines.lead.notes, s, e, velocity);
             } else if (plan.layer === 'counterline' && lines.counter?.trackId === trackId && !fellBack) {
               writeLineNotes(notesByTrackId[trackId], lines.counter.notes, s, e, velocity);
+            } else if (plan.layer === 'ostinato') {
+              // Phase 4e: chord tones at the finest regular beat subdivision —
+              // both ostinato tracks are drawn in ONE call so the lower voice
+              // stays under the upper; each track takes its own slice. The
+              // leading tone is never an ostinato tone: two ostinato voices
+              // (or an ostinato voice over the bass) must not double it.
+              const ltPc = leadingTonePcOf(ctx.project.key, scalePitchClasses(ctx.project.key, ctx.project.mode));
+              const ordered = [...plan.voiceTrackIds].reverse(); // top first
+              const perTrack = ostinatoNotes({
+                ts: ctx.project.timeSignature,
+                tempoMap: ctx.project.tempoMap,
+                startTick: s, endTick: e,
+                tones: chordTones(ctx.spans[spanIndex].parsed).tones.filter((t) => ltPc === null || ((t.pc % 12) + 12) % 12 !== ltPc),
+                project: ctx.project,
+                spanIndex,
+                tracks: ordered.map((id) => {
+                  const t = ctx.project.tracks.find((x) => x.id === id)!;
+                  const prof = STRING_PROFILE_BY_ROLE.get(t.role);
+                  return { low: t.lowestNote, high: t.highestNote, comfortable: prof ? [Math.max(t.lowestNote, Math.min(t.highestNote, prof.comfortable[0])), Math.max(t.lowestNote, Math.min(t.highestNote, prof.comfortable[1]))] as [number, number] : [t.lowestNote, t.highestNote] as [number, number] };
+                }),
+                velocity,
+              });
+              const idx = ordered.indexOf(trackId);
+              notesByTrackId[trackId].push(...(perTrack[idx] ?? []));
+            } else if (plan.layer === 'tremolo') {
+              // Phase 4e: measured repeated notes on the DP's V1 pitch —
+              // audible as distinct repeats in any DAW, articulation 'tremolo'
+              if (dpPitch === null) continue;
+              for (let t = s; t < e; t += TREMOLO_STEP_TICKS) {
+                notesByTrackId[trackId].push({ pitch: dpPitch, startTick: t, durationTicks: Math.min(TREMOLO_STEP_TICKS, e - t), velocity, articulation: 'tremolo' });
+              }
+            } else if (plan.layer === 'bass' && ctx.template?.id === 'ensemble.symphony') {
+              // Phase 4e: pizz-pulse on the strong beats under pads and lines
+              if (dpPitch === null) continue;
+              const offsets = beatOffsets(ctx.project.timeSignature);
+              const nBeats = offsets.length;
+              const simple = !isCompound(ctx.project.timeSignature);
+              const barStart = Math.floor(s / btBar) * btBar;
+              const shortTicks = Math.max(1, secondsToTicks(SHORT_NOTE_SECONDS, ctx.project.tempoMap));
+              offsets.forEach((off, idx) => {
+                const strong = idx === 0 || (simple && idx * 2 === nBeats);
+                const t = barStart + off;
+                if (!strong || t < s || t >= e) return;
+                notesByTrackId[trackId].push({ pitch: dpPitch, startTick: t, durationTicks: Math.min(shortTicks, e - t), velocity, articulation: 'pizz' });
+              });
             } else if (dpPitch !== null) {
-              // pad / bass — and ostinato/tremolo until their presets land (4e)
+              // pad / bass (sustained outside the symphony pizz preset)
               pushDPNote(notesByTrackId[trackId], dpPitch, s, e, velocity, reattack);
             }
           }
@@ -393,3 +441,38 @@ export const stringsModule: SectionModule = {
 
 /** Roles the strings module claims — used to exclude them from the rules generator. */
 export const stringsFamilyRoles = STRING_ROLES;
+
+/**
+ * Phase 4f: Vc+Cb layering inside cellosBasses — the Cb doubles the Vc line
+ * an octave below, ONLY where the template's octaveDoubling policy allows it
+ * and the track's hard range holds both lines at once. Otherwise: report and
+ * skip (the brief's own contract). Mutates the handed-in note arrays.
+ */
+export function maybeLayerCellosBasses(ctx: OrchestratorContext, notesByTrackId: Record<string, Note[]>, stringsTrackIds: string[]): void {
+  const template = ctx.template;
+  if (!template) return;
+  const allowed = template.rules.some((r) => r.type === 'octaveDoubling' && (r.params as { policy?: string }).policy === 'allowed');
+  if (!allowed) return;
+  const cbId = stringsTrackIds.find((id) => ctx.project.tracks.find((t) => t.id === id)?.role === 'cellosBasses');
+  if (!cbId) return;
+  const track = ctx.project.tracks.find((t) => t.id === cbId)!;
+  const notes = notesByTrackId[cbId] ?? [];
+  if (!notes.length) return;
+  const lowest = Math.min(...notes.map((n) => n.pitch));
+  // a Cb octave below a leading-tone note would DOUBLE the leading tone —
+  // the hard rule wins over the layering, so the line must avoid it entirely
+  const lt = leadingTonePcOf(ctx.project.key, scalePitchClasses(ctx.project.key, ctx.project.mode));
+  const crossesLt = lt !== null && notes.some((n) => ((n.pitch % 12) + 12) % 12 === lt);
+  if (crossesLt) {
+    ctx.lines?.reports.push('Vc+Cb layering skipped: the Vc line crosses the leading tone — a Cb octave below would double it');
+    return;
+  }
+  if (lowest - 12 >= track.lowestNote) {
+    const doubled = [...notes, ...notes.map((n) => ({ ...n, pitch: n.pitch - 12 }))];
+    doubled.sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
+    notesByTrackId[cbId] = doubled;
+    ctx.lines?.reports.push(`Vc+Cb layering: the cellosBasses line (low ${noteName(lowest)}) holds a Cb line an octave below — ${notes.length} notes doubled`);
+  } else {
+    ctx.lines?.reports.push(`Vc+Cb layering skipped: the Vc line reaches ${noteName(lowest)}; an octave below (${noteName(lowest - 12)}) is under the track's low ${noteName(track.lowestNote)}`);
+  }
+}

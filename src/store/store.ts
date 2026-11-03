@@ -7,7 +7,7 @@ import {
   type Chord, type LibraryGroup, type ModeName, type Note, type Project, type Section, type Track, type TrackFamily, type PitchClass,
 } from '../shared/schema';
 import { ENSEMBLE_BY_ID, resolveTemplate } from '../config/ensembles';
-import { generate } from '../engine/generate';
+import { composeAllTracks } from '../orchestrator/compose';
 import { transformProjectMode, transposeProjectKey } from '../engine/suggestion/transpose';
 import type { FollowMode } from '../engine/transport/follow';
 
@@ -371,8 +371,15 @@ export const useStore = create<State>((set, get) => ({
     const template = resolveTemplate(project.ensemble);
     const bandSkipped = project.tracks.filter((t) => isInstrumentTrack(t) && !t.locked && !isInBand(t.role, ensemble, template)).length;
     const lockedKept = project.tracks.filter((t) => t.locked).length;
-    const tracks = generate(project, { ...composeOptions, lockedTrackIds: project.tracks.filter((t) => t.locked).map((t) => t.id) });
-    get().edit((p) => ({ ...p, tracks: p.tracks.map((t) => tracks.find((g) => g.id === t.id) ?? t) }));
+    // Orchestrator compose: strings via the strings module (one global DP),
+    // everything else through the rules generator — and the take increments
+    // INSIDE the same edit, so one Ctrl+Z restores notes and take together.
+    const res = composeAllTracks(project, composeOptions);
+    get().edit((p) => ({
+      ...p,
+      tracks: p.tracks.map((t) => res.tracks.find((g) => g.id === t.id) ?? t),
+      orchestration: res.orchestration,
+    }));
     return { ms: performance.now() - t0, bandSkipped, lockedKept };
   },
 

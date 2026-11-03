@@ -12,10 +12,14 @@ import type { EnsembleTemplate } from '../../shared/schema/ensembleTemplate';
 
 /** Highest mean velocity n sounding tracks may hold without breaching the clamp. */
 export function maxMeanVelocity(template: EnsembleTemplate, nSounding: number): number {
+  return maxMeanVelocityFor(template.roster.length, template.budget.energyClamp[1], nSounding);
+}
+
+/** Primitive form used by the renderer (no template object needed). */
+export function maxMeanVelocityFor(rosterSize: number, clampMax: number, nSounding: number): number {
   const n = Math.floor(nSounding);
   if (n <= 0) return 127; // nothing sounding: no note to cap
-  const [clampMax] = [template.budget.energyClamp[1]];
-  return Math.min(127, Math.floor((127 * clampMax * template.roster.length) / n));
+  return Math.min(127, Math.floor((127 * clampMax * Math.max(1, rosterSize)) / n));
 }
 
 /** Governor for a single note velocity in a window with n sounding tracks. */

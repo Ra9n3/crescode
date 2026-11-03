@@ -5,5 +5,5 @@ export {
   type EnergyViolation,
   type EnergyViolationKind,
 } from './measureEnergy';
-export { maxMeanVelocity, governVelocity, energyOf } from './governor';
+export { maxMeanVelocity, maxMeanVelocityFor, governVelocity, energyOf } from './governor';
 export { checkTemplateRules, type RuleFinding } from './rules';

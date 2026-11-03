@@ -22,6 +22,10 @@ export interface GenerateOptions {
   density?: number;
   humanize?: boolean;
   lockedTrackIds?: string[];
+  /** Roles to skip entirely (orchestrator modules own them — Compose All
+   *  excludes strings so no lane is written twice). Same contract as
+   *  out-of-band: never written, never read as locked material. */
+  excludeRoles?: string[];
   /** Override the rules config (used by tests); defaults to src/config/generation-rules.ts. */
   rules?: GenerationRules;
 }
@@ -99,7 +103,10 @@ export function chordSpans(p: Project): ResolvedChord[] {
   return out;
 }
 
-export function buildContext(p: Project, opts: Required<Omit<GenerateOptions, 'rules'>>, locked: Track[], rules: GenerationRules): GenerationContext {
+export function buildContext(p: Project, opts: Partial<GenerateOptions>, locked: Track[], rules: GenerationRules): GenerationContext {
+  const contextOptions = {
+    seed: opts.seed ?? 0, density: opts.density ?? 1, humanize: opts.humanize ?? false, lockedTrackIds: opts.lockedTrackIds ?? [],
+  };
   const meter = buildMeter(p);
   const bars = projectBars(p);
   const endTick = bars * meter.barTicks;
@@ -139,7 +146,7 @@ export function buildContext(p: Project, opts: Required<Omit<GenerateOptions, 'r
 
   return {
     ppq: PPQ, bpm: p.bpm, key: p.key, mode: p.mode, scalePitchClasses: scalePitchClasses(p.key, p.mode),
-    meter, endTick, bars, chords, sections, chordAt, options: opts,
+    meter, endTick, bars, chords, sections, chordAt, options: contextOptions,
     lockedNotes: { byTrackId, byRole }, generatedByRole: {},
   };
 }
@@ -383,8 +390,9 @@ function partMatches(part: PartRule, t: Track): boolean {
 
 export function generate(project: Project, options: GenerateOptions): Track[] {
   const rules = options.rules ?? defaultRules;
-  const opts = { seed: options.seed, density: options.density ?? 1, humanize: options.humanize ?? false, lockedTrackIds: options.lockedTrackIds ?? [] };
+  const opts = { seed: options.seed, density: options.density ?? 1, humanize: options.humanize ?? false, lockedTrackIds: options.lockedTrackIds ?? [], excludeRoles: options.excludeRoles ?? [] };
   const isLocked = (t: Track) => t.locked || opts.lockedTrackIds.includes(t.id);
+  const excluded = (t: Track) => opts.excludeRoles.includes(t.role);
   const locked = project.tracks.filter((t) => isInstrumentTrack(t) && isLocked(t));
   // The band gates who gets written: only tracks IN the band (and not locked)
   // are composed. No band chosen (no ensemble field, null templateId, or an
@@ -408,7 +416,7 @@ export function generate(project: Project, options: GenerateOptions): Track[] {
   const results = new Map<string, Note[]>();
 
   for (const track of project.tracks) {
-    if (!isInstrumentTrack(track) || isLocked(track) || !inBand(track)) continue;
+    if (!isInstrumentTrack(track) || isLocked(track) || !inBand(track) || excluded(track)) continue;
     const out: Note[] = [];
     results.set(track.id, out);
     for (const section of ctx.sections) {
@@ -433,7 +441,7 @@ export function generate(project: Project, options: GenerateOptions): Track[] {
   }
 
   return project.tracks.map((t) => {
-    if (!isInstrumentTrack(t) || isLocked(t) || !inBand(t)) return t;
+    if (!isInstrumentTrack(t) || isLocked(t) || !inBand(t) || excluded(t)) return t;
     let notes = sanitizeNotes(results.get(t.id) ?? [], t.lowestNote, t.highestNote, ctx.endTick);
     if (opts.humanize) notes = sanitizeNotes(humanizeNotes(notes, ctx, rngFor(opts.seed, t.id, 'humanize'), rules), t.lowestNote, t.highestNote, ctx.endTick);
     return { ...t, notes };

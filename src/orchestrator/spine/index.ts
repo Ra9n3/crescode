@@ -6,7 +6,7 @@
  */
 import { hashString } from '../../engine/generate';
 import { barTicks, beatOffsets, beatTicks, isCompound, projectBars, pulseTicks } from '../../shared/schema/meter';
-import type { Project, TempoEntry } from '../../shared/schema/types';
+import type { OrchestrationState, Project, TempoEntry } from '../../shared/schema/types';
 
 /** A chord span (normalized chord list entry, Phase 0). */
 export type { ResolvedChord } from '../../engine/rules-schema';
@@ -108,7 +108,12 @@ export const secondsToTicks = (sec: number, tempoMap: TempoEntry[]): number => m
  * → a new stream; a section re-roll changes only that section's seed.
  */
 export function orchestrationSeed(p: Project, sectionId?: string): number {
-  const o = p.orchestration;
+  return orchestrationSeedFor(p.orchestration, sectionId);
+}
+
+/** Same seed derivation for a take state that is about to be written (the
+ *  new take), so Compose All can seed generation before the edit lands. */
+export function orchestrationSeedFor(o: OrchestrationState | undefined, sectionId?: string): number {
   return hashString([
     'orchestration',
     `take:${o?.take ?? 0}`,

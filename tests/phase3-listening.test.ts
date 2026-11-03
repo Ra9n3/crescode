@@ -14,21 +14,21 @@ import type { ConductorPlan } from '../src/orchestrator/conductor';
  */
 const TEMPLATE_IDS = ['ensemble.symphony', 'ensemble.chamber', 'ensemble.cinematic', 'ensemble.sonata', 'ensemble.vocalbacking', 'ensemble.hybridstudio'] as const;
 
-/** Run-length compress a bar-token list into "pad 1–7, REST 8 (reason)" strings. */
+/** Run-length compress a bar-token list into "lead 1–7, REST (nearSilence) 8" strings. */
 const compressRuns = (tokens: string[], bars: number[]): string => {
   const runs: string[] = [];
   let i = 0;
   while (i < tokens.length) {
     let j = i;
     while (j < tokens.length && tokens[j] === tokens[i]) j++;
-    const label = tokens[i] === 'pad' ? 'pad' : `REST (${tokens[i].replace('REST:', '')})`;
+    const label = tokens[i].startsWith('REST') ? `REST (${tokens[i].replace('REST:', '')})` : tokens[i];
     runs.push(i === j - 1 ? `${label} ${bars[i]}` : `${label} ${bars[i]}–${bars[j - 1]}`);
     i = j;
   }
   return runs.join(', ');
 };
 
-/** Per string track: the bar tokens ('pad' or 'REST:<reason>') from the plan's breaths. */
+/** Per string track: the bar tokens (its LAYER per the plan, or 'REST:<reason>'). */
 const stringLayerByTrack = (plan: ConductorPlan, stringsTrackIds: string[], bars: number[]): Map<string, string[]> => {
   const out = new Map<string, string[]>();
   for (const id of stringsTrackIds) {
@@ -37,7 +37,9 @@ const stringLayerByTrack = (plan: ConductorPlan, stringsTrackIds: string[], bars
       bars.map((bar) => {
         const bp = plan.bars[bar - 1];
         const breath = plan.breaths.find((b) => b.trackIds.includes(id) && b.startTick <= bp.startTick && bp.endTick <= b.endTick);
-        return breath ? `REST:${breath.reason}${breath.nearSilence ? '+nearSilence' : ''}` : 'pad';
+        if (breath) return `REST:${breath.reason}${breath.nearSilence ? '+nearSilence' : ''}`;
+        const slot = bp.layers.find((l) => l.trackIds.includes(id));
+        return slot?.layer ?? 'pad';
       }),
     );
   }

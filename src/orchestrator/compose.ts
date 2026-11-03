@@ -47,7 +47,7 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   };
 
   const ctx: OrchestratorContext = { project: { ...project, orchestration }, template, ensemble, spans: chordSpans(project), sections: sectionMap(project) };
-  const seed = orchestrationSeedFor(orchestration);
+  const seed = orchestrationSeedFor(project, orchestration);
   const voiceTracks = stringVoiceTracks(ctx);
   const plans = stringsModule.roles(ctx);
 

@@ -5,12 +5,13 @@
  * conversion, and the orchestration seed. Pure functions only.
  */
 import { hashString } from '../../engine/generate';
+import { chordSpans } from '../../engine/generate';
 import { barTicks, beatOffsets, beatTicks, isCompound, projectBars, pulseTicks } from '../../shared/schema/meter';
 import type { OrchestrationState, Project, TempoEntry } from '../../shared/schema/types';
 
 /** A chord span (normalized chord list entry, Phase 0). */
 export type { ResolvedChord } from '../../engine/rules-schema';
-export { chordSpans } from '../../engine/generate';
+export { chordSpans };
 
 /** A section window in ticks, with occurrence numbering for repeated names. */
 export interface SpineSection {
@@ -98,26 +99,50 @@ export function msToTicks(ms: number, tempoMap: TempoEntry[]): number {
 export const ticksToSeconds = (tick: number, tempoMap: TempoEntry[]): number => ticksToMs(tick, tempoMap) / 1000;
 export const secondsToTicks = (sec: number, tempoMap: TempoEntry[]): number => msToTicks(sec * 1000, tempoMap);
 
-/* ---------------- orchestration seed ---------------- */
+/* ---------------- orchestration seed (spec D8) ---------------- */
 
 /**
- * The orchestrator's seed source (spec §2.1 + §8). NOTE: the work order cites
- * "D8" for this; the spec's decisions end at D7, so this follows §2.1/§8
- * instead: the take number (plus a per-section take for re-rolls) hashes into
- * a deterministic 32-bit stream seed. Same take → byte-identical; a new take
- * → a new stream; a section re-roll changes only that section's seed.
+ * The canonical musical inputs, D8: chords, structure, key, mode, tempo,
+ * template id, band. Serialized SEMANTICALLY (no uids, no notes, no
+ * orchestration state): two projects that agree musically hash identically
+ * even if their track/chord ids differ, and editing only notes never moves
+ * the seed. Pure, deterministic, never throws.
  */
-export function orchestrationSeed(p: Project, sectionId?: string): number {
-  return orchestrationSeedFor(p.orchestration, sectionId);
+export function orchestrationInputs(p: Project): string {
+  const chords = chordSpans(p).map((s) => `${s.symbol}@${s.startTick}-${s.endTick}`).join(',');
+  const structure = p.sections.length
+    ? [...p.sections].sort((a, b) => a.startBar - b.startBar).map((s) => `${s.name}:${s.startBar}+${s.lengthBars}`).join(',')
+    : `*:${projectBars(p)}`;
+  const tempo = `${p.bpm}|${[...p.tempoMap].sort((a, b) => a.tick - b.tick).map((t) => `${t.tick}:${t.bpm}`).join(',')}`;
+  const band = p.ensemble
+    ? `${p.ensemble.templateId ?? 'none'};o:${sortedEntries(p.ensemble.overrides)};p:${sortedEntries(p.ensemble.pins)}`
+    : 'none';
+  return ['orchestration:v2', `chords:${chords}`, `structure:${structure}`, `key:${p.key}`, `mode:${p.mode}`, `tempo:${tempo}`, `band:${band}`].join('\n');
 }
 
-/** Same seed derivation for a take state that is about to be written (the
- *  new take), so Compose All can seed generation before the edit lands. */
-export function orchestrationSeedFor(o: OrchestrationState | undefined, sectionId?: string): number {
-  return hashString([
-    'orchestration',
+const sortedEntries = (rec: Record<string, string>): string =>
+  Object.keys(rec).sort().map((k) => `${k}=${rec[k]}`).join(',').concat('.'); // trailing '.' so {} != {a:''} edge cases
+
+/**
+ * The orchestrator's seed source (spec D8): hashString over the musical
+ * inputs, combined with the take counters. Same inputs + same take → the
+ * same 32-bit stream seed (byte-identical output); any chord, structure,
+ * key, mode, tempo, template or band change → a different stream; a section
+ * re-roll changes only that section's seed.
+ */
+export function orchestrationSeed(p: Project, sectionId?: string): number {
+  return orchestrationSeedFor(p, p.orchestration, sectionId);
+}
+
+/** Same derivation for a take state that is about to be written (the new
+ *  take), so Compose All can seed generation before the edit lands. */
+export function orchestrationSeedFor(p: Project, o: OrchestrationState | undefined, sectionId?: string): number {
+  const base = hashString(orchestrationInputs(p));
+  const takePart = hashString([
     `take:${o?.take ?? 0}`,
     `section:${sectionId ?? 'all'}`,
     `sectionTake:${(sectionId && o?.sectionTakes?.[sectionId]) ?? 0}`,
   ].join('|'));
+  // mix both halves with odd multipliers so neither input can cancel the other
+  return (Math.imul(base, 0x9e3779b1) ^ Math.imul(takePart, 0x85ebca6b)) >>> 0;
 }

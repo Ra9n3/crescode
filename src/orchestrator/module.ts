@@ -20,11 +20,16 @@ export interface OrchestratorContext {
   arc?: ArcBar[];
 }
 
-/** One layer one section. Phase 2 only ever produces pad layers. */
+/** The string layer vocabulary the orchestrator renders today (Phase 4a) —
+ *  a subset of the shared layer vocabulary from the ensemble-template schema. */
+export type StringsLayer = 'lead' | 'counterline' | 'pad' | 'ostinato' | 'tremolo' | 'bass';
+
+/** One layer one section. Phase 4 renders pad, lead, counterline, ostinato,
+ *  tremolo and bass layers. */
 export interface LayerPlan {
   moduleId: string;
   sectionId: string;
-  layer: 'pad';
+  layer: StringsLayer;
   /** The track ids that will carry this layer, bass voice first. */
   voiceTrackIds: string[];
   /** Conductor breath windows per TRACK id (3a): the track rests inside

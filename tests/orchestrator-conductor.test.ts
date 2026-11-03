@@ -21,21 +21,43 @@ const compose = (templateId: string | null) => {
 const track = (p: Project, role: string) => p.tracks.find((t) => t.role === role)!;
 
 describe('conductor: per-bar layer plan (3a)', () => {
-  it('uses the shared layer vocabulary and annotates the strings pad on every bar', () => {
+  it('uses the shared layer vocabulary and gives every string track exactly one role per bar (4a)', () => {
     expect(LAYER_VOCABULARY).toContain('lead');
     expect(LAYER_VOCABULARY).toContain('pad');
     expect(LAYER_VOCABULARY).toContain('fill');
-    const { result } = compose('ensemble.chamber');
+    const { project, result } = compose('ensemble.chamber');
     expect(result.plan.bars).toHaveLength(16);
+    const voiceIds = project.tracks.filter((t) => t.family === 'Strings').map((t) => t.id).sort();
     for (const bar of result.plan.bars) {
-      expect(bar.layers.map((l) => l.layer)).toEqual(['pad']);
-      expect(bar.layers[0].trackIds).toHaveLength(4); // the quartet
-      expect(bar.layers[0].source).toBe('strings');
+      expect(bar.layers.map((l) => l.layer).sort()).toEqual(['bass', 'counterline', 'lead', 'pad']); // the chamber preset
+      // one track = one role per bar: the voice tracks partition exactly
+      const ids = bar.layers.flatMap((l) => l.trackIds).sort();
+      expect(new Set(ids).size).toBe(ids.length);
+      expect(ids).toEqual(voiceIds);
+      for (const l of bar.layers) expect(l.source).toBe('strings');
     }
     expect(result.plan.templateId).toBe('ensemble.chamber');
     expect(result.plan.maxLayers).toBe(5);
     expect(result.plan.octaveDoublingPolicy).toBe('climaxOnly');
     expect(result.plan.unannotatedRoles).toEqual(['piano']); // in band, owned by the rules generator
+  });
+
+  it('presets assign the documented roles per bar (4a): cinematic switches V1 by arc energy', () => {
+    const sym = compose('ensemble.symphony');
+    expect(sym.result.plan.bars[2].layers.map((l) => l.layer).sort()).toEqual(['bass', 'lead', 'pad']);
+    const cine = compose('ensemble.cinematic');
+    // chorus bars (arc ≥ 0.65) put V1 on tremolo; verse bars keep the lead
+    expect(cine.result.plan.bars[9].layers.map((l) => l.layer).sort()).toEqual(['bass', 'ostinato', 'tremolo']);
+    expect(cine.result.plan.bars[1].layers.map((l) => l.layer).sort()).toEqual(['bass', 'lead', 'ostinato']);
+    const vb = compose('ensemble.vocalbacking');
+    for (const bar of vb.result.plan.bars) expect(bar.layers.map((l) => l.layer)).toEqual(['pad']); // wide legato only
+    // intro-like sections never carry a lead — the motif arrives with the first phrase
+    const ip = BASE();
+    ip.sections = [{ id: 's0', name: 'Intro', startBar: 1, lengthBars: 4 }, { id: 's1', name: 'Verse', startBar: 5, lengthBars: 12 }];
+    ip.ensemble = { templateId: 'ensemble.chamber', overrides: {}, pins: {} };
+    const intro = composeAllTracks(ip, { seed: 11 });
+    expect(intro.plan.bars[0].layers.map((l) => l.layer).sort()).toEqual(['bass', 'pad']);
+    expect(intro.plan.bars[6].layers.map((l) => l.layer).sort()).toEqual(['bass', 'counterline', 'lead', 'pad']);
   });
 
   it('fillGating breaths: the resting parts rest on each non-final section\u2019s last bar, \u2265 minGapTicks, fills registered', () => {
@@ -159,7 +181,7 @@ describe('checker from the annotation (3b): maxLayers + fillGating replace their
       ...result.plan,
       bars: result.plan.bars.map((b, i) =>
         i === 0
-          ? { ...b, layers: [...b.layers, { layer: 'lead' as const, trackIds: b.layers[0].trackIds, source: 'strings' as const }, { layer: 'ostinato' as const, trackIds: b.layers[0].trackIds, source: 'strings' as const }, { layer: 'tremolo' as const, trackIds: b.layers[0].trackIds, source: 'strings' as const }, { layer: 'counterline' as const, trackIds: b.layers[0].trackIds, source: 'strings' as const }, { layer: 'fill' as const, trackIds: b.layers[0].trackIds, source: 'strings' as const }] }
+          ? { ...b, layers: [...b.layers, { layer: 'tremolo' as const, trackIds: b.layers[0].trackIds, source: 'strings' as const }, { layer: 'fill' as const, trackIds: b.layers[0].trackIds, source: 'strings' as const }] }
           : b,
       ),
     };

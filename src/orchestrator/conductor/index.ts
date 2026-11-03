@@ -27,6 +27,7 @@ import type { EnsembleTemplate } from '../../shared/schema/ensembleTemplate';
 import { isInBand } from '../../shared/schema/band';
 import type { OrchestratorContext } from '../module';
 import { stringVoiceTracks, sectionEnergyTarget } from '../render';
+import { layerSlotsForBar } from './layers';
 
 /** The shared layer vocabulary (ensemble-template.schema.json §budget). */
 export const LAYER_VOCABULARY = [
@@ -119,9 +120,10 @@ export function conduct(ctx: OrchestratorContext, arc?: ArcBar[]): ConductorPlan
       endTick: startTick + btBar,
       sectionId: sec?.id ?? '__all',
       sectionName: sec?.name ?? '*',
-      // D7/D9: the plan annotates what the orchestrator actually writes — the
-      // strings pad layer over the in-band unlocked string tracks.
-      layers: voiceIds.length ? [{ layer: 'pad' as const, trackIds: [...voiceIds], source: 'strings' as const }] : [],
+      // Phase 4a: one role per string TRACK per bar (lead, counterline, pad,
+      // ostinato, tremolo, bass) from section type, arc energy and preset —
+      // the same assignment the renderer plays, so the annotation is honest.
+      layers: layerSlotsForBar(ctx, bar).map((s) => ({ ...s, source: 'strings' as const })),
       energyTarget: arcBar ? arcBar.target : sectionEnergyTarget(sec?.name ?? '*'),
     });
   }

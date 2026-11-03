@@ -7,7 +7,11 @@
  *     (the final section winds down);
  *   - one deliberate near-silence bar before the FIRST Chorus — the strings
  *     rest there entirely (the conductor plans it as a breath), only when a
- *     template is active and unlocked in-band strings exist to silence.
+ *     template is active and unlocked in-band strings exist to silence;
+ *   - peak reservation (Phase 3.5): the last Chorus (or the last non-outro
+ *     section) is the PEAK — scaled to sit exactly at the clamp max — while
+ *     every other section caps at PEAK_RESERVE of the clamp, so exactly one
+ *     section ever owns the top of the dynamic range.
  *
  * Per-take variation (3d) is seeded per D8: the shape parameters (build
  * strength, dip depth, taper lengths) are drawn from a stream derived from
@@ -39,6 +43,31 @@ export interface ArcBar {
 
 /** Sections matching this are "chorus-like" for the near-silence bar. */
 const CHORUS_LIKE = /chorus|refrain|hook|drop/;
+
+/** Sections matching this wind the song down (excluded from peak selection). */
+const OUTRO_LIKE = /outro|coda|fade/;
+
+/**
+ * Peak reservation (Phase 3.5): only ONE section — the peak — may reach 100%
+ * of the clamp max; every other section's planned energy caps at this share
+ * of the clamp. The last Chorus (or, without one, the last non-outro
+ * section) is the peak by default.
+ */
+export const PEAK_RESERVE = 0.88;
+
+/**
+ * The peak section: the last chorus-like section by start bar, else the last
+ * section that is not outro-like (degenerate all-outro maps fall back to the
+ * last section). Null when the song has no real structure — with nothing to
+ * contrast against there is no peak to reserve.
+ */
+export function peakSectionOf(sections: SpineSection[]): SpineSection | null {
+  if (!sections.length) return null;
+  const byStart = [...sections].sort((a, b) => a.startBar - b.startBar);
+  const lastChorus = [...byStart].reverse().find((s) => CHORUS_LIKE.test(s.name.trim().toLowerCase()));
+  if (lastChorus) return lastChorus;
+  return [...byStart].reverse().find((s) => !OUTRO_LIKE.test(s.name.trim().toLowerCase())) ?? byStart[byStart.length - 1];
+}
 
 export function energyCurve(p: Project, sections: SpineSection[], take: number, template: EnsembleTemplate | null, allowSilence: boolean): ArcBar[] {
   const btBar = barTicks(p.timeSignature);
@@ -99,6 +128,27 @@ export function energyCurve(p: Project, sections: SpineSection[], take: number, 
 
     target = Math.max(0, Math.min(clampMax, target));
     out.push({ bar, startTick: (bar - 1) * btBar, endTick: bar * btBar, sectionId: sec?.id ?? '__all', target, nearSilence });
+  }
+
+  // Peak reservation (Phase 3.5): the peak section is scaled so its loudest
+  // bar sits exactly at the clamp max — every other section caps at
+  // PEAK_RESERVE of the clamp. Applies only to real structure: a structure-
+  // less project is one pseudo-section, and scaling it to the clamp would
+  // flatten the whole arc for no musical reason. The near-silence bars are
+  // re-zeroed last so neither the scale nor the cap can resurrect them.
+  if (p.sections.length) {
+    const peak = peakSectionOf(sections);
+    if (peak) {
+      const peakBars = out.filter((b) => b.sectionId === peak.id && !b.nearSilence);
+      const rawMax = peakBars.length ? Math.max(...peakBars.map((b) => b.target)) : 0;
+      if (rawMax > 0 && rawMax < clampMax) {
+        const scale = clampMax / rawMax;
+        for (const b of out) if (b.sectionId === peak.id && !b.nearSilence) b.target = Math.min(clampMax, b.target * scale);
+      }
+      const cap = PEAK_RESERVE * clampMax;
+      for (const b of out) if (b.sectionId !== peak.id) b.target = Math.min(b.target, cap);
+      for (const b of out) if (b.nearSilence) b.target = 0;
+    }
   }
   return out;
 }

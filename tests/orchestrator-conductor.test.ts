@@ -4,7 +4,7 @@ import { ENSEMBLE_BY_ID } from '../src/config/ensembles';
 import { composeAllTracks } from '../src/orchestrator/compose';
 import { checkTemplateRules, measureEnergy } from '../src/orchestrator/energy';
 import { LAYER_VOCABULARY, type ConductorPlan } from '../src/orchestrator/conductor';
-import { energyCurve, arcTargetAt, sectionMap } from '../src/orchestrator/spine';
+import { energyCurve, arcTargetAt, sectionMap, peakSectionOf, PEAK_RESERVE, type SpineSection } from '../src/orchestrator/spine';
 import { projectFromFixture, type Project } from '../src/shared/schema';
 
 const TEMPLATE_IDS = ['ensemble.symphony', 'ensemble.chamber', 'ensemble.cinematic', 'ensemble.sonata', 'ensemble.vocalbacking', 'ensemble.hybridstudio'] as const;
@@ -265,5 +265,67 @@ describe('energy arc (3c): per-section curves, dips, tapers, one near-silence ba
         }
       }
     }
+  });
+});
+
+describe('Phase 3.5: peak reservation — one section owns the top of the range', () => {
+  const symphony = ENSEMBLE_BY_ID.get('ensemble.symphony')!;
+  const sec = (id: string, name: string, startBar: number, lengthBars: number): SpineSection => ({
+    id, name, index: 0, occurrence: 1, startBar, lengthBars,
+    startTick: (startBar - 1) * 3840, endTick: (startBar - 1 + lengthBars) * 3840,
+  });
+  const sectionRuns = (plan: ConductorPlan) => {
+    const runs: { id: string; name: string; targets: number[] }[] = [];
+    for (const b of plan.bars) {
+      const last = runs[runs.length - 1];
+      if (last && last.id === b.sectionId) last.targets.push(b.energyTarget);
+      else runs.push({ id: b.sectionId, name: b.sectionName, targets: [b.energyTarget] });
+    }
+    return runs;
+  };
+
+  it('the peak is the last Chorus, else the last non-outro section; none without structure', () => {
+    expect(peakSectionOf([sec('v', 'Verse', 1, 8), sec('c', 'Chorus', 9, 6), sec('o', 'Outro', 15, 2)])?.id).toBe('c');
+    expect(peakSectionOf([sec('v', 'Verse', 1, 6), sec('b', 'Bridge', 7, 6), sec('o', 'Outro', 13, 4)])?.id).toBe('b');
+    expect(peakSectionOf([sec('v', 'Verse', 1, 8), sec('c1', 'Chorus', 9, 4), sec('c2', 'Chorus', 13, 4)])?.id).toBe('c2');
+    expect(peakSectionOf([])).toBeNull();
+  });
+
+  it('exactly one section reaches within 3% of the clamp; every other caps at PEAK_RESERVE; measureEnergy never exceeds it', () => {
+    for (const id of TEMPLATE_IDS) {
+      const { project, result } = compose(id);
+      const template = ENSEMBLE_BY_ID.get(id)!;
+      const clampMax = template.budget.energyClamp[1];
+      const peak = peakSectionOf(sectionMap(BASE()))!;
+      const runs = sectionRuns(result.plan).map((r) => ({ ...r, max: Math.max(...r.targets) }));
+
+      const atTop = runs.filter((r) => r.max >= 0.97 * clampMax);
+      expect(atTop).toHaveLength(1);
+      expect(atTop[0].id).toBe(peak.id); // the last Chorus (here) is the peak by default
+      for (const r of runs) {
+        if (r.id === peak.id) continue;
+        expect(r.max).toBeLessThanOrEqual(PEAK_RESERVE * clampMax + 1e-9); // ~88%, the named constant
+      }
+
+      // …and the plan is audible honestly: the measured energy never breaches the clamp
+      const energy = measureEnergy(project, template);
+      expect(energy.max).toBeLessThanOrEqual(clampMax + 1e-9);
+      expect(energy.violations.filter((v) => v.kind === 'aboveMax')).toHaveLength(0);
+    }
+  });
+
+  it('a peak section planned below the clamp is scaled UP to it (cinematic: raw top 0.81 → clamp 0.95)', () => {
+    const { result } = compose('ensemble.cinematic');
+    const clampMax = ENSEMBLE_BY_ID.get('ensemble.cinematic')!.budget.energyClamp[1];
+    const chorus = sectionRuns(result.plan).find((r) => /chorus/i.test(r.name))!;
+    expect(Math.max(...chorus.targets)).toBeCloseTo(clampMax, 9);
+  });
+
+  it('no structure → no peak reservation: the arc keeps its own shape below the clamp', () => {
+    const p = BASE();
+    p.sections = [];
+    const a = energyCurve(p, sectionMap(p), 1, symphony, true);
+    expect(Math.max(...a.map((b) => b.target))).toBeLessThan(symphony.budget.energyClamp[1]);
+    expect(a.every((b) => b.target >= 0)).toBe(true);
   });
 });

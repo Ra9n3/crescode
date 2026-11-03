@@ -73,9 +73,12 @@ describe('chord parser', () => {
     }
   });
   it('case never flips the m/M distinction and unicode accidentals fold', () => {
-    expect(parseChord('cm').ok && parseChord('cm').chord.quality).toBe('minor');
-    expect(parseChord('cM').ok && parseChord('cM').chord.quality).toBe('major');
-    expect(parseChord('CM').ok && parseChord('CM').chord.quality).toBe('major');
+    const cm = parseChord('cm');
+    expect(cm.ok && cm.chord.quality).toBe('minor');
+    const cM = parseChord('cM');
+    expect(cM.ok && cM.chord.quality).toBe('major');
+    const CM = parseChord('CM');
+    expect(CM.ok && CM.chord.quality).toBe('major');
     const sharp = parseChord('F♯7');
     expect(sharp.ok && sharp.chord.symbol).toBe('F#7');
     expect(sharp.ok && sharp.chord.root).toBe(6);

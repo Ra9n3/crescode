@@ -12,6 +12,14 @@
  * preserved bounds, failure rollback and the no-clip-creation guarantee.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
+
+/** parseChord for tests: throws on unparseable input so assertions stay one-liners. */
+const chordOf = (symbol: string) => {
+  const r = parseChord(symbol);
+  if (!r.ok) throw new Error(`test setup: "${symbol}" does not parse: ${r.error}`);
+  return r.chord;
+};
+
 import {
   parseChord, projectFromFixture, scalePitchClasses,
   type Chord as ChordEvent, type Note, type PitchClass, type Project,
@@ -168,7 +176,7 @@ describe('suggestChordCompletions (triad-only autocomplete)', () => {
     expect(suggestChordCompletions('C#', KEY_EB).map((c) => c.symbol)).toEqual(['Db', 'Dbm', 'Dbdim', 'Dbaug']);
     expect(suggestChordCompletions('Db', KEY_EB).map((c) => c.symbol)).toEqual(['Db', 'Dbm', 'Dbdim', 'Dbaug']);
     expect(suggestChordCompletions('Bb', KEY_F)[0]).toMatchObject({ symbol: 'Bb', exact: true });
-    for (const c of suggestChordCompletions('Db', KEY_D)) expect(parseChord(c.symbol).chord.root).toBe(1);
+    for (const c of suggestChordCompletions('Db', KEY_D)) expect(chordOf(c.symbol).root).toBe(1);
   });
 
   it('respects the limit and returns nothing for non-note text', () => {
@@ -211,8 +219,8 @@ describe('normalizeChordText (key-idiomatic spelling, pitch class invariant)', (
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.symbol).toBe('C#/F');
-      expect(parseChord(r.symbol).chord.root).toBe(parseChord('Db/F').chord.root);
-      expect(parseChord(r.symbol).chord.bass).toBe(parseChord('Db/F').chord.bass);
+      expect(chordOf(r.symbol).root).toBe(chordOf('Db/F').root);
+      expect(chordOf(r.symbol).bass).toBe(chordOf('Db/F').bass);
     }
   });
 

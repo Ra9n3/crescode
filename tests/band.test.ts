@@ -102,7 +102,7 @@ describe('band: projects remember their band', () => {
   });
 
   it('old saved projects without an ensemble field still load', () => {
-    const doc = projectFromFixture({ name: 'Legacy' }) as Record<string, unknown>;
+    const doc = projectFromFixture({ name: 'Legacy' }) as unknown as Record<string, unknown>;
     delete doc.ensemble;
     const r = validateProject(doc);
     expect(r.ok).toBe(true);
@@ -130,7 +130,7 @@ describe('band: projects remember their band', () => {
   });
 
   it('rejects band states other than in/out', () => {
-    const p = projectFromFixture({ ensemble: { templateId: null, overrides: { tuba: 'maybe' }, pins: {} } });
+    const p = projectFromFixture({ ensemble: { templateId: null, overrides: { tuba: 'maybe' as never }, pins: {} } });
     const r = validateProject(p);
     expect(r.ok).toBe(false);
     expect(r.errors.some((e) => e.path === 'ensemble.overrides.tuba' && /must be "in" or "out" \(got "maybe"\)/.test(e.message))).toBe(true);
@@ -412,7 +412,7 @@ describe('band: project-settings pins (Settings → Band)', () => {
   });
 
   it('a legacy project without an ensemble field gains a valid one on its first pin', () => {
-    const doc = projectFromFixture({ name: 'Legacy' }) as Record<string, unknown>;
+    const doc = projectFromFixture({ name: 'Legacy' }) as unknown as Record<string, unknown>;
     delete doc.ensemble;
     const p = doc as unknown as Project;
     const res = setPin(p, 'violas', 'out');

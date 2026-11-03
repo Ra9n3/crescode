@@ -28,7 +28,7 @@ describe('ensemble templates: roster', () => {
 
   it('rejects unknown families', () => {
     const t = clone(SYMPHONY);
-    t.roster[0].family = 'Guitars';
+    t.roster[0].family = 'Guitars' as never;
     const r = validateEnsembleTemplate(t);
     expect(r.errors.some((e) => e.path === 'roster[0].family' && /unknown family "Guitars"/.test(e.message))).toBe(true);
   });
@@ -109,7 +109,7 @@ describe('ensemble templates: rules', () => {
 
   it('rejects rule targets that resolve to nothing', () => {
     const t = clone(SYMPHONY);
-    (t.rules[0].params as { actor: string }).actor = 'Guitars';
+    (t.rules[0].params as { actor: string }).actor = 'Guitars'; // string, checked at runtime
     const r = validateEnsembleTemplate(t);
     expect(r.errors.some((e) => e.path === 'rules[0].params.actor' && /"Guitars" is neither a family \(.*\) nor a roster role/.test(e.message))).toBe(true);
   });

@@ -138,7 +138,7 @@ describe('Chord', () => {
     const r = chordFromSymbol('C7');
     if (r.ok) {
       expect(validateChord({ ...r.chord, extensions: ['none', 'b9'] }).ok).toBe(false);
-      expect(validateChord({ ...r.chord, extensions: ['weird'] }).ok).toBe(false);
+      expect(validateChord({ ...r.chord, extensions: ['weird' as never] }).ok).toBe(false);
       expect(validateChord({ ...r.chord, confidence: 1.5 }).ok).toBe(false);
     }
   });

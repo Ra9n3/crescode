@@ -14,7 +14,7 @@ import { transformProjectMode } from '../src/engine/suggestion/transpose';
 
 const TS44 = { numerator: 4, denominator: 4 } as const;
 
-const makeProject = (key: number, mode: Project['mode'], chords: { id: string; symbol: string; startTick: number; durationTicks: number }[], laneNotes: Note[] = []): Project => {
+const makeProject = (key: Project['key'], mode: Project['mode'], chords: { id: string; symbol: string; startTick: number; durationTicks: number }[], laneNotes: Note[] = []): Project => {
   const p = projectFromFixture({
     schemaVersion: 1, name: 'mode-transform-test', bpm: 120,
     tempoMap: [{ tick: 0, bpm: 120 }], timeSignature: TS44,

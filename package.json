@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.tests.json",
     "harness": "vite-node scripts/harness.ts",
     "e2e": "npm run build && node scripts/e2e-smoke.mjs",
     "e2e:gesture": "npm run build && node scripts/e2e-chord-gesture.mjs",

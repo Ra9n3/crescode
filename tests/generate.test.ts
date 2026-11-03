@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import fixture from '../fixtures/dorian-16bars.json';
 import { buildContext, generate, humanizeNotes, mulberry32 } from '../src/engine/generate';
 import { defaultRules } from '../src/config/generation-rules';
-import { ENSEMBLE_BY_ID } from '../src/config/ensembles';
 import type { GenerationRules } from '../src/engine/rules-schema';
 import {
   MODE_NAMES, barTicks, isInstrumentTrack, projectEndTick, projectFromFixture, validateProject, type Note, type Project, type Track,
@@ -167,8 +166,6 @@ describe('generation engine', () => {
 });
 
 describe('generate: the band gates who gets written (Task 6)', () => {
-  const chamber = ENSEMBLE_BY_ID.get('ensemble.chamber')!;
-  const symphony = ENSEMBLE_BY_ID.get('ensemble.symphony')!;
 
   it('a band writes only for its roster: out-of-band lanes come back untouched, in-band lanes composed', () => {
     const p = fx();

@@ -9,7 +9,7 @@ import { transposeChordSymbol, transposeProjectKey } from '../src/engine/suggest
 
 const TS44 = { numerator: 4, denominator: 4 } as const;
 
-const makeProject = (key: number, chords: { id: string; symbol: string; startTick: number; durationTicks: number }[], laneNotes: Note[] = []): Project => {
+const makeProject = (key: Project['key'], chords: { id: string; symbol: string; startTick: number; durationTicks: number }[], laneNotes: Note[] = []): Project => {
   const p = projectFromFixture({
     schemaVersion: 1, name: 'key-transpose-test', bpm: 120,
     tempoMap: [{ tick: 0, bpm: 120 }], timeSignature: TS44,

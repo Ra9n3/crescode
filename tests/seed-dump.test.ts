@@ -20,7 +20,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import fixture from '../fixtures/dorian-16bars.json';
 import { generate } from '../src/engine/generate';
-import { barTicks, projectBars, projectFromFixture, type Project, type Section } from '../src/shared/schema';
+import { barTicks, projectBars, projectFromFixture, type Project, type Section, type Track } from '../src/shared/schema';
 
 let idc = 0;
 const sec = (name: string, startBar: number, lengthBars: number): Section => ({ id: `s${idc++}`, name, startBar, lengthBars });
@@ -63,7 +63,7 @@ function auditLine(p: Project, tracks: Track[]): string {
     .map((s) => {
       const start = (s.startBar - 1) * bt, end = start + s.lengthBars * bt;
       const notes = tracks.filter((t) => t.family !== 'Structure' && t.family !== 'Audio')
-        .reduce((a, t) => a + t.notes.filter((n) => n.startTick >= start && n.startTick < end).length, 0);
+        .reduce((a, t) => a + t.notes.filter((n: { startTick: number }) => n.startTick >= start && n.startTick < end).length, 0);
       return `${s.name} ${notes}`;
     })
     .join(' · ');

@@ -62,6 +62,43 @@ function fallbackChord(p: Project): ParsedChord {
   };
 }
 
+/**
+ * The Chords lane as an ordered list of non-overlapping parsed spans — the
+ * one reading every consumer (generation today, the orchestrator later) must
+ * share. Rules, deterministically:
+ *  - unparseable symbols are skipped (a bad paste never blocks the lane);
+ *  - zero/negative-duration chords are skipped; negative starts clamp to 0;
+ *  - spans sort by start tick, input order breaking ties;
+ *  - a later start CUTS the span before it, never extends it (latest start
+ *    wins an overlap — the UI never authors overlaps, pasted data may), and
+ *    a gap between chords stays a gap;
+ *  - two chords on the same start: the later one in input order wins;
+ *  - the final span keeps its own end tick.
+ * Unlike buildContext there is no tonic fallback — an empty or fully
+ * unparseable lane yields []. The span symbol is the parser's canonical
+ * spelling (accidentals folded, whitespace trimmed).
+ */
+export function chordSpans(p: Project): ResolvedChord[] {
+  const items: { c: (typeof p.chords)[number]; i: number; parsed: ParsedChord }[] = [];
+  p.chords.forEach((c, i) => {
+    const r = parseChord(c.symbol);
+    if (r.ok && c.durationTicks > 0) items.push({ c, i, parsed: r.chord });
+  });
+  items.sort((a, b) => a.c.startTick - b.c.startTick || a.i - b.i);
+  const out: ResolvedChord[] = [];
+  for (const { c, parsed } of items) {
+    const start = Math.max(0, c.startTick);
+    const last = out[out.length - 1];
+    if (last && start === last.startTick) {
+      out[out.length - 1] = { id: c.id, symbol: parsed.symbol, startTick: start, endTick: start + c.durationTicks, parsed };
+      continue;
+    }
+    if (last && last.endTick > start) last.endTick = start; // overlap: cut, never extend
+    out.push({ id: c.id, symbol: parsed.symbol, startTick: start, endTick: start + c.durationTicks, parsed });
+  }
+  return out;
+}
+
 export function buildContext(p: Project, opts: Required<Omit<GenerateOptions, 'rules'>>, locked: Track[], rules: GenerationRules): GenerationContext {
   const meter = buildMeter(p);
   const bars = projectBars(p);
@@ -307,7 +344,7 @@ export function sanitizeNotes(notes: Note[], lo: number, hi: number, endTick: nu
   return out.sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
 }
 
-function humanizeNotes(notes: Note[], ctx: GenerationContext, rng: () => number, rules: GenerationRules): Note[] {
+export function humanizeNotes(notes: Note[], ctx: GenerationContext, rng: () => number, rules: GenerationRules): Note[] {
   const ms = Math.min(14.5, rules.humanize?.maxTimingMs ?? 12);
   const maxTicks = Math.floor((ms / 1000) * (ctx.bpm / 60) * PPQ);
   const vd = rules.humanize?.maxVelocityDelta ?? 6;

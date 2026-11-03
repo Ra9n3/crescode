@@ -38,28 +38,26 @@ describe('conductor: per-bar layer plan (3a)', () => {
     expect(result.plan.unannotatedRoles).toEqual(['piano']); // in band, owned by the rules generator
   });
 
-  it('fillGating breaths: the resting parts rest on each section\u2019s last bar, \u2265 minGapTicks, fills registered', () => {
+  it('fillGating breaths: the resting parts rest on each non-final section\u2019s last bar, \u2265 minGapTicks, fills registered', () => {
     const { result } = compose('ensemble.chamber'); // piano fills during Strings rests (480)
+    // Phase 3.5: the Chorus's last bar IS the song's final bar — the landing
+    // chord always sounds, so no breath and no fill window there
     expect(result.plan.breaths.map((b) => [b.startTick, b.endTick])).toEqual([
       [26880, 30720], // Verse last bar (bar 8) — also the arc's pre-Chorus near-silence
-      [57600, 61440], // Chorus last bar (bar 16)
     ]);
     expect(result.plan.breaths[0].reason).toBe('fillGating');
     expect(result.plan.breaths[0].nearSilence).toBe(true); // merged with the arc's silence bar
-    expect(result.plan.breaths[1].nearSilence).toBeUndefined();
     expect(result.plan.breaths.every((b) => b.endTick - b.startTick >= b.minGapTicks)).toBe(true);
     expect(result.plan.breaths[0].duringRestsOf).toBe('Strings');
     expect(result.plan.breaths[0].trackIds).toHaveLength(4);
-    expect(result.plan.fills).toEqual([
-      { target: 'piano', startTick: 26880, endTick: 30720 },
-      { target: 'piano', startTick: 57600, endTick: 61440 },
-    ]);
+    expect(result.plan.fills).toEqual([{ target: 'piano', startTick: 26880, endTick: 30720 }]);
 
     // sonata gates on violins1 specifically — its fillGating breaths touch
-    // only that track; the arc's near-silence breath covers every string voice
+    // only that track, and only on bar 8 (bar 16 is the final bar, Phase 3.5);
+    // the arc's near-silence breath covers every string voice
     const sonata = compose('ensemble.sonata');
     const gate = sonata.result.plan.breaths.filter((b) => b.reason === 'fillGating');
-    expect(gate).toHaveLength(2);
+    expect(gate).toHaveLength(1);
     expect(gate.every((b) => b.roles.length === 1 && b.roles[0] === 'violins1')).toBe(true);
     const silence = sonata.result.plan.breaths.filter((b) => b.reason === 'nearSilence');
     expect(silence.map((b) => [b.startTick, b.endTick])).toEqual([[26880, 30720]]);
@@ -77,14 +75,14 @@ describe('conductor: per-bar layer plan (3a)', () => {
     for (const role of ['violins1', 'violins2', 'violas', 'cellosBasses']) {
       for (const n of track(project, role).notes) {
         expect(n.startTick >= 26880 && n.startTick < 30720).toBe(false);
-        expect(n.startTick >= 57600 && n.startTick < 61440).toBe(false);
         // a note must never STRADDLE a breath window either
         expect(n.startTick < 30720 && n.startTick + n.durationTicks > 26880).toBe(false);
-        expect(n.startTick < 61440 && n.startTick + n.durationTicks > 57600).toBe(false);
       }
     }
-    // …and strings still play elsewhere
+    // …and strings still play elsewhere — including the FINAL bar (Phase 3.5:
+    // the landing chord is sustained; only bar 8, the pre-Chorus silence, rests)
     expect(track(project, 'cellosBasses').notes.length).toBeGreaterThan(0);
+    expect(track(project, 'violins1').notes.some((n) => n.startTick < 61440 && n.startTick + n.durationTicks > 57600)).toBe(true);
     // symphony has no fillGating: bar 16 keeps its pads, bar 8 rests (the
     // arc's deliberate near-silence before the first Chorus)
     const sym = compose('ensemble.symphony');
@@ -92,6 +90,26 @@ describe('conductor: per-bar layer plan (3a)', () => {
     expect(v1.some((n) => n.startTick < 30720 && n.startTick + n.durationTicks > 26880)).toBe(false);
     expect(v1.some((n) => n.startTick < 61440 && n.startTick + n.durationTicks > 57600)).toBe(true);
     expect(v1.some((n) => n.startTick < 26880 && n.startTick + n.durationTicks > 23040)).toBe(true); // bar 7 sounds
+  });
+
+  it('Phase 3.5: the final bar always sounds — no breath or fill lands on it (all six templates)', () => {
+    const btBar = 3840; // 4/4 at 960 PPQ
+    const finalStart = 15 * btBar;
+    for (const id of TEMPLATE_IDS) {
+      const { project, result } = compose(id);
+      const template = ENSEMBLE_BY_ID.get(id)!;
+      const strings = project.tracks.filter((t) => t.family === 'Strings' && result.stringsTrackIds.includes(t.id));
+      expect(strings.length).toBeGreaterThan(0); // every template has in-band strings to sustain the landing chord
+      for (const t of strings) {
+        const sounding = t.notes.some((n) => n.startTick < finalStart + btBar && n.startTick + n.durationTicks > finalStart);
+        expect(sounding).toBe(true);
+      }
+      // and the plan agrees: no breath, no fill window may claim the final bar
+      for (const b of result.plan.breaths) expect(b.endTick <= finalStart || b.startTick >= finalStart + btBar).toBe(true);
+      for (const f of result.plan.fills) expect(f.endTick <= finalStart || f.startTick >= finalStart + btBar).toBe(true);
+      // the fillGating templates really do gate fills (the test is not vacuous)
+      if (template.rules.some((r) => r.type === 'fillGating')) expect(result.plan.breaths.some((b) => b.reason === 'fillGating')).toBe(true);
+    }
   });
 
   it('the plan never exceeds maxLayers and never plans doubling against the band policy', () => {
@@ -170,7 +188,7 @@ describe('checker from the annotation (3b): maxLayers + fillGating replace their
       breaths: result.plan.breaths.map((b) => ({ ...b, endTick: b.startTick + 240 })), // 240 < 480
     };
     const findings = checkTemplateRules(BASE(), ENSEMBLE_BY_ID.get('ensemble.chamber')!, bad).filter((f) => f.rule === 'fillGating');
-    expect(findings.length).toBe(2); // both fills lose their (now too short) rests
+    expect(findings.length).toBe(1); // the one remaining fill (bar 8) loses its (now too short) rest
     expect(findings.every((f) => f.severity === 'hard')).toBe(true);
   });
 

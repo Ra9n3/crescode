@@ -140,6 +140,10 @@ export function conduct(ctx: OrchestratorContext, arc?: ArcBar[]): ConductorPlan
       for (const sec of ctx.sections) {
         const lastBar = sec.startBar + sec.lengthBars - 1;
         if (lastBar < 1 || lastBar > bars) continue;
+        // Phase 3.5: never on the song's FINAL bar — the strings sustain the
+        // landing chord there, so no breath is planned and no fill window is
+        // registered (the landing chord is not a fill moment).
+        if (lastBar === bars) continue;
         const startTick = (lastBar - 1) * btBar;
         if (btBar < minGapTicks) continue; // a bar too short to gate a fill: no breath, no fill window
         breaths.push({

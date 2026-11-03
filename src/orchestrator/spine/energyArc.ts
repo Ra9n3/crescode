@@ -62,9 +62,11 @@ export function energyCurve(p: Project, sections: SpineSection[], take: number, 
     return s;
   };
 
-  // the near-silence bar: the bar immediately before the first chorus-like section
+  // the near-silence bar: the bar immediately before the first chorus-like
+  // section — never the song's FINAL bar (Phase 3.5: the landing chord always
+  // sounds; the guard is explicit even though startBar − 1 < bars always holds)
   const firstChorus = [...sections].sort((a, b) => a.startBar - b.startBar).find((s) => CHORUS_LIKE.test(s.name.trim().toLowerCase()));
-  const silenceBar = allowSilence && firstChorus && firstChorus.startBar > 1 ? firstChorus.startBar - 1 : 0;
+  const silenceBar = allowSilence && firstChorus && firstChorus.startBar > 1 && firstChorus.startBar - 1 < bars ? firstChorus.startBar - 1 : 0;
   const lastSection = sections.length ? sections.reduce((a, b) => (b.startBar > a.startBar ? b : a)) : null;
 
   const out: ArcBar[] = [];

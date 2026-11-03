@@ -20,6 +20,7 @@ import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
 import { resolveTemplate } from '../config/ensembles';
 import { chordSpans, sectionMap, orchestrationSeedFor } from './spine';
 import { stringsModule, stringVoiceTracks } from './render';
+import { conduct, type ConductorPlan } from './conductor';
 import { governPadVelocities } from './energy/mix';
 import type { OrchestratorContext } from './module';
 
@@ -35,6 +36,9 @@ export interface ComposeResult {
   orchestration: OrchestrationState;
   /** Track ids written by the strings module (the rest went through the rules generator). */
   stringsTrackIds: string[];
+  /** The conductor's per-bar layer plan (3a) — an in-memory annotation for
+   *  the audit stage. Never persisted; the store writes only tracks + take. */
+  plan: ConductorPlan;
 }
 
 export function composeAllTracks(project: Project, options: ComposeOptions): ComposeResult {
@@ -52,12 +56,19 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   const ctx: OrchestratorContext = { project: { ...project, orchestration }, template, ensemble, spans: chordSpans(project), sections: sectionMap(project) };
   const seed = orchestrationSeedFor(project, orchestration);
   const voiceTracks = stringVoiceTracks(ctx);
-  const plans = stringsModule.roles(ctx);
+  const plan = conduct(ctx);
+  // the conductor's breaths ride into the strings plans per track (3a)
+  const plans = stringsModule.roles(ctx).map((pl) => ({
+    ...pl,
+    breathByTrack: Object.fromEntries(
+      pl.voiceTrackIds.map((id) => [id, plan.breaths.filter((b) => b.trackIds.includes(id)).map((b) => [b.startTick, b.endTick] as [number, number])]),
+    ),
+  }));
 
   const notesByTrackId: Record<string, Note[]> = {};
   for (const t of voiceTracks) notesByTrackId[t.id] = [];
-  for (const plan of plans) {
-    const patch = stringsModule.render(ctx, plan, seed);
+  for (const pl of plans) {
+    const patch = stringsModule.render(ctx, pl, seed);
     for (const [id, notes] of Object.entries(patch.notesByTrackId)) {
       notesByTrackId[id] = [...(notesByTrackId[id] ?? []), ...notes];
     }
@@ -106,5 +117,5 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     return gen ? { ...t, notes: gen.notes } : t;
   });
 
-  return { tracks, orchestration, stringsTrackIds };
+  return { tracks, orchestration, stringsTrackIds, plan };
 }

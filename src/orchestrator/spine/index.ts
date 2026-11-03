@@ -54,6 +54,16 @@ export function sectionMap(p: Project): SpineSection[] {
 
 export { barTicks, beatOffsets, beatTicks, isCompound, projectBars, pulseTicks };
 
+/** The section a bar belongs to (sections tile the song; gaps fall back to the
+ *  nearest section starting at or before the bar, then the first one). */
+export function sectionAtBar(sections: SpineSection[], bar: number): SpineSection | null {
+  if (!sections.length) return null;
+  const covering = sections.find((s) => bar >= s.startBar && bar < s.startBar + s.lengthBars);
+  if (covering) return covering;
+  const before = [...sections].sort((a, b) => a.startBar - b.startBar).filter((s) => s.startBar <= bar);
+  return before.length ? before[before.length - 1] : sections[0];
+}
+
 /* ---------------- tempo-map time conversion (spec §2.8) ---------------- */
 
 const sortedMap = (tempoMap: TempoEntry[]): TempoEntry[] =>

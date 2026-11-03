@@ -25,6 +25,9 @@ export interface LayerPlan {
   layer: 'pad';
   /** The track ids that will carry this layer, bass voice first. */
   voiceTrackIds: string[];
+  /** Conductor breath windows per TRACK id (3a): the track rests inside
+   *  these tick windows — the renderer cuts its notes around them. */
+  breathByTrack?: Record<string, [number, number][]>;
 }
 
 /** The notes a module wants written, keyed by TRACK id. */

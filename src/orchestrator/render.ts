@@ -35,6 +35,22 @@ import { leadingTonePcOf, voiceLead, type VoicedChord, type VoiceSpec, type Voic
 
 const MODULE_ID = 'strings';
 
+/** Subtract the breath windows from one [start, end) span: what is left is
+ *  what the track may actually sound (Phase 3a — the conductor's breaths). */
+export function subtractBreaths([start, end]: [number, number], cuts: [number, number][]): [number, number][] {
+  let out: [number, number][] = [[start, end]];
+  for (const [cs, ce] of [...cuts].sort((a, b) => a[0] - b[0])) {
+    const next: [number, number][] = [];
+    for (const [s, e] of out) {
+      if (ce <= s || cs >= e) { next.push([s, e]); continue; }
+      if (cs > s) next.push([s, cs]);
+      if (ce < e) next.push([ce, e]);
+    }
+    out = next;
+  }
+  return out.filter(([s, e]) => e > s);
+}
+
 /** Per-section-type energy targets (0..1), clamped into the template budget. */
 const SECTION_ENERGY: [RegExp, number][] = [
   [/intro|prelude/, 0.30],
@@ -154,8 +170,7 @@ export const stringsModule: SectionModule = {
       // re-articulates per section with that section's energy
       const start = Math.max(vc.startTick, section.startTick);
       const end = Math.min(vc.endTick, section.endTick);
-      const len = end - start;
-      if (len < minDuration) return; // gap or too short (Vocal Backing eighth rule)
+      if (end - start < minDuration) return; // gap or too short (Vocal Backing eighth rule)
 
       const sounding = vc.pitches.filter((p): p is number => p !== null);
       if (!sounding.length) return;
@@ -164,17 +179,24 @@ export const stringsModule: SectionModule = {
 
       // the take's phrase decision for this span (both halves must clear the
       // preset's minimum duration, so tiny spans are never split into stubs)
-      const reattack = ((phraseMask >>> (spanIndex % 31)) & 1) === 1 && len >= minDuration * 2;
-      const half = Math.floor(len / 2);
+      const reattack = ((phraseMask >>> (spanIndex % 31)) & 1) === 1;
 
       plan.voiceTrackIds.forEach((trackId, vi) => {
         const pitch = vc.pitches[vi];
         if (pitch === null) return;
-        if (reattack) {
-          notesByTrackId[trackId].push({ pitch, startTick: start, durationTicks: half, velocity });
-          notesByTrackId[trackId].push({ pitch, startTick: start + half, durationTicks: len - half, velocity });
-        } else {
-          notesByTrackId[trackId].push({ pitch, startTick: start, durationTicks: len, velocity });
+        // conductor breaths (3a): the track rests inside its breath windows,
+        // so the span is cut around them before any note is written
+        const windows = subtractBreaths([start, end], plan.breathByTrack?.[trackId] ?? []);
+        for (const [s, e] of windows) {
+          const len = e - s;
+          if (len < minDuration) continue;
+          if (reattack && len >= minDuration * 2) {
+            const half = Math.floor(len / 2);
+            notesByTrackId[trackId].push({ pitch, startTick: s, durationTicks: half, velocity });
+            notesByTrackId[trackId].push({ pitch, startTick: s + half, durationTicks: len - half, velocity });
+          } else {
+            notesByTrackId[trackId].push({ pitch, startTick: s, durationTicks: len, velocity });
+          }
         }
       });
     });

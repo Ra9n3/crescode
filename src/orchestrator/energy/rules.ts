@@ -18,12 +18,20 @@
  * layer. A deliberate layer double — voices within the distinct-tone count —
  * is still reported exactly as before. The doubled pitch class must also be
  * a chord tone: doubling a foreign pitch class is never forced.
+ *
+ * climaxOnly additionally exempts SAME-TRACK SAME-ONSET pairs on chord tones:
+ * one instrument's block-chord voicing inside a single chord event is a
+ * register choice, not a layer decision (the rules generator's piano chords
+ * voice this way). Under policy 'forbidden' that exemption does NOT apply —
+ * D2's strict reading keeps in-track octave layering (the Cb+Vc case)
+ * reportable there.
  */
 import { measureEnergy, type EnergyReport } from './measureEnergy';
 import { isInstrumentTrack, type Note, type Project, type TrackFamily } from '../../shared/schema/types';
 import type { EnsembleTemplate, EnsembleRule } from '../../shared/schema/ensembleTemplate';
 import { chordSpans, type ResolvedChord } from '../spine';
 import { chordTones } from '../voicing/chordTones';
+import type { ConductorPlan, FillWindow } from '../conductor';
 
 export interface RuleFinding {
   /** Which rule spoke: a template rule type, 'energy', or 'maxLayers'. */
@@ -135,9 +143,18 @@ function checkOctaveDoubling(p: Project, template: EnsembleTemplate, rule: Ensem
     const doubledPc = ((pitch % 12) + 12) % 12;
     return tonePcs.includes(doubledPc) && voicesAt(tick) > tonePcs.length;
   };
+  // climaxOnly only: one instrument voicing a single chord event in blocks
+  // (same track, same onset, chord tones) is a register choice, not a layer.
+  const blockChordVoicing = (pair: { tick: number; a: RoleNote; b: RoleNote }): boolean =>
+    policy === 'climaxOnly' &&
+    pair.a.trackId === pair.b.trackId &&
+    pair.a.note.startTick === pair.b.note.startTick &&
+    chordAt(pair.tick) !== null &&
+    chordTones(chordAt(pair.tick)!.parsed).tones.some((t) => t.pc === ((pair.a.note.pitch % 12) + 12) % 12);
 
   for (const d of doublings) {
     if (forcedDoubling(d.tick, d.a.note.pitch)) continue; // D10 exemption
+    if (blockChordVoicing(d)) continue; // one event, one instrument, chord tones
     if (policy === 'climaxOnly') {
       const w = energyAtTick(report, d.tick);
       const e = w?.energy ?? 0;
@@ -156,15 +173,66 @@ function checkOctaveDoubling(p: Project, template: EnsembleTemplate, rule: Ensem
   return findings;
 }
 
-export function checkTemplateRules(p: Project, template: EnsembleTemplate): RuleFinding[] {
+/**
+ * maxLayers (3b): every bar of the plan must hold at most the template's
+ * concurrent-layer budget. Hard: a budget breach is not shipped.
+ */
+function checkMaxLayers(plan: ConductorPlan, template: EnsembleTemplate): RuleFinding[] {
+  const out: RuleFinding[] = [];
+  for (const bar of plan.bars) {
+    if (bar.layers.length > template.budget.maxLayers) {
+      out.push({
+        rule: 'maxLayers', severity: 'hard', tick: bar.startTick,
+        message: `Bar ${bar.bar}: ${bar.layers.length} concurrent layers (${bar.layers.map((l) => l.layer).join(', ')}) exceed the budget ${template.budget.maxLayers}`,
+      });
+    }
+  }
+  return out;
+}
+
+const matchesFamilyOrRole = (target: string, role: string, family: string): boolean =>
+  target.toLowerCase() === family.toLowerCase() || target === role;
+
+/**
+ * fillGating (3b): every fill window the plan reserves for this rule's actor
+ * must sit inside a breath of the duringRestsOf parts that is at least
+ * minGapTicks long. Hard: "only during rests" is the template's absolute.
+ */
+function checkFillGating(plan: ConductorPlan, rule: EnsembleRule): RuleFinding[] {
+  const { fills: fillTarget, duringRestsOf, minGapTicks } = rule.params as { fills: string; duringRestsOf: string; minGapTicks: number };
+  const out: RuleFinding[] = [];
+  const covered = (fill: FillWindow): boolean =>
+    plan.breaths.some(
+      (b) =>
+        b.reason === 'fillGating' &&
+        matchesFamilyOrRole(duringRestsOf, b.duringRestsOf, b.duringRestsOf) &&
+        b.startTick <= fill.startTick &&
+        fill.endTick <= b.endTick &&
+        b.endTick - b.startTick >= minGapTicks,
+    );
+  for (const fill of plan.fills.filter((f) => matchesFamilyOrRole(fillTarget, f.target, f.target))) {
+    if (!covered(fill)) {
+      out.push({
+        rule: 'fillGating', severity: 'hard', tick: fill.startTick,
+        message: `${fill.target} fill at ${fill.startTick}..${fill.endTick} has no ${duringRestsOf} rest ≥ ${minGapTicks} ticks around it`,
+      });
+    }
+  }
+  return out;
+}
+
+export function checkTemplateRules(p: Project, template: EnsembleTemplate, annotation?: ConductorPlan): RuleFinding[] {
   const findings: RuleFinding[] = [];
   const spans = chordSpans(p);
 
-  // Budget: maxLayers needs per-bar layer annotations → explicit stub.
-  findings.push({
-    rule: 'maxLayers', severity: 'stub',
-    message: `maxLayers ${template.budget.maxLayers}: not checkable yet — needs the per-bar conductor layer plan (Phase 7)`,
-  });
+  // Budget: maxLayers from the conductor's per-bar plan when one is handed in;
+  // without the annotation it stays an explicit stub (never silent).
+  if (annotation) findings.push(...checkMaxLayers(annotation, template));
+  else
+    findings.push({
+      rule: 'maxLayers', severity: 'stub',
+      message: `maxLayers ${template.budget.maxLayers}: not checkable yet — needs the per-bar conductor layer plan (Phase 7)`,
+    });
 
   // Energy clamp violations, phrased as rule findings.
   const report = measureEnergy(p, template);
@@ -184,10 +252,11 @@ export function checkTemplateRules(p: Project, template: EnsembleTemplate): Rule
         findings.push(...checkOverlapAvoid(p, template, rule, report));
         break;
       case 'fillGating':
-        findings.push({
-          rule: 'fillGating', severity: 'stub',
-          message: 'fillGating: not checkable yet — needs layer annotations (which tracks are "fills") from the conductor',
-        });
+        findings.push(
+          ...(annotation
+            ? checkFillGating(annotation, rule)
+            : [{ rule: 'fillGating', severity: 'stub' as const, message: 'fillGating: not checkable yet — needs layer annotations (which tracks are "fills") from the conductor' }]),
+        );
         break;
       case 'unisonOrnament':
         findings.push({

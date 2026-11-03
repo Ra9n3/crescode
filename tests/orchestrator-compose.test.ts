@@ -213,11 +213,15 @@ describe('Compose All through the orchestrator: property sweep', () => {
 
 describe('golden: fixtures/dorian-16bars.json (half-bar chords, C/E and G/B bass)', () => {
   it('the bass voice sings every chord’s bass pitch class — slash basses included', () => {
-    const { project } = compose('ensemble.chamber', {}, { seed: 11 });
+    const { project, result } = compose('ensemble.chamber', {}, { seed: 11 });
     const spans = chordSpans(project);
     const cb = track(project, 'cellosBasses').notes;
     expect(cb.length).toBeGreaterThan(0);
-    for (const span of spans) {
+    // the conductor's breath windows (fillGating + the pre-Chorus silence) are
+    // deliberate string rests — spans the breaths swallow are skipped here
+    const breathCovered = (s: { startTick: number; endTick: number }) =>
+      result.plan.breaths.some((b) => b.startTick <= s.startTick && s.endTick <= b.endTick);
+    for (const span of spans.filter((s) => !breathCovered(s))) {
       const sounding = cb.filter((n) => n.startTick < span.endTick && n.startTick + n.durationTicks > span.startTick);
       expect(sounding.length).toBeGreaterThan(0);
       const bassPc = span.parsed.bass ?? span.parsed.root;

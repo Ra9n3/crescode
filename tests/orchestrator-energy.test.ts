@@ -217,6 +217,26 @@ describe('template rule checker (notes-only rules; the rest are explicit stubs)'
     expect(flagged.length).toBe(1);
   });
 
+  it('climaxOnly exempts one instrument\u2019s same-onset block-chord octave voicing; forbidden (D2) does not', () => {
+    // A piano block chord on Dm7 voicing F3+F4 / D4+D5 — same onset, same track.
+    const block = (p: Project) => {
+      track(p, 'piano').notes = [
+        note(53, 0, 70, 960), note(62, 0, 70, 960), note(65, 0, 70, 960), note(74, 0, 70, 960),
+      ];
+    };
+    const soft = base();
+    block(soft);
+    expect(checkTemplateRules(soft, chamber).filter((f) => f.rule === 'octaveDoubling')).toHaveLength(0);
+
+    // The same voicing inside a 'forbidden' band stays reported (D2 strict
+    // reading) — both in-block octave pairs (F3+F4 and D4+D5).
+    const strict = base();
+    block(strict);
+    const flagged = checkTemplateRules(strict, sonata).filter((f) => f.rule === 'octaveDoubling');
+    expect(flagged.length).toBe(2);
+    expect(flagged.every((f) => f.severity === 'hard')).toBe(true);
+  });
+
   it('overlapAvoid: entrances inside the window are flagged, distant ones are not', () => {
     const p = base();
     track(p, 'flutes').notes = [note(80, 1920, 90, 480)];

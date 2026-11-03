@@ -151,6 +151,18 @@ describe('Compose All through the orchestrator: property sweep', () => {
       expect(n.durationTicks).toBeGreaterThanOrEqual(960);
     }
   });
+
+  it('D9 compose order: strings render first, so doubling parts double what they wrote', () => {
+    for (const templateId of ['ensemble.symphony', 'ensemble.cinematic']) {
+      const { project } = compose(templateId, {}, { seed: 11 });
+      const flutes = track(project, 'flutes').notes;
+      expect(flutes.length).toBeGreaterThan(0);
+      // every flute entrance doubles a Violins I entrance (the strings module's
+      // top line, +12 before sanitization — sanitize never moves startTicks)
+      const vln1Starts = new Set(track(project, 'violins1').notes.map((n) => n.startTick));
+      for (const n of flutes) expect(vln1Starts.has(n.startTick)).toBe(true);
+    }
+  });
 });
 
 describe('golden: fixtures/dorian-16bars.json (half-bar chords, C/E and G/B bass)', () => {

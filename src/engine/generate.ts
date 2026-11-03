@@ -26,6 +26,11 @@ export interface GenerateOptions {
    *  excludes strings so no lane is written twice). Same contract as
    *  out-of-band: never written, never read as locked material. */
   excludeRoles?: string[];
+  /** Notes from the orchestrator's family modules, by ROLE (D9 compose
+   *  order: modules render first, the generator doubles what they wrote).
+   *  Read-only source for doubleOf parts — never written, never sanitized
+   *  here; the module already sanitized its own output. */
+  roleNotes?: { role: string; notes: Note[] }[];
   /** Override the rules config (used by tests); defaults to src/config/generation-rules.ts. */
   rules?: GenerationRules;
 }
@@ -390,7 +395,7 @@ function partMatches(part: PartRule, t: Track): boolean {
 
 export function generate(project: Project, options: GenerateOptions): Track[] {
   const rules = options.rules ?? defaultRules;
-  const opts = { seed: options.seed, density: options.density ?? 1, humanize: options.humanize ?? false, lockedTrackIds: options.lockedTrackIds ?? [], excludeRoles: options.excludeRoles ?? [] };
+  const opts = { seed: options.seed, density: options.density ?? 1, humanize: options.humanize ?? false, lockedTrackIds: options.lockedTrackIds ?? [], excludeRoles: options.excludeRoles ?? [], roleNotes: options.roleNotes ?? [] };
   const isLocked = (t: Track) => t.locked || opts.lockedTrackIds.includes(t.id);
   const excluded = (t: Track) => opts.excludeRoles.includes(t.role);
   const locked = project.tracks.filter((t) => isInstrumentTrack(t) && isLocked(t));
@@ -404,6 +409,14 @@ export function generate(project: Project, options: GenerateOptions): Track[] {
   const template = resolveTemplate(project.ensemble);
   const inBand = (t: Track) => isInBand(t.role, ensemble, template);
   const ctx = buildContext(project, opts, locked, rules);
+
+  // D9: the family modules rendered BEFORE the generator; their notes are
+  // role sources for doubleOf parts ("Flutes double Vln I" doubles the
+  // strings module's top line). Excluded roles are never written by the
+  // generator itself, so these entries are read-only inputs.
+  for (const rn of opts.roleNotes ?? []) {
+    ctx.generatedByRole[rn.role] = [...(ctx.generatedByRole[rn.role] ?? []), ...rn.notes];
+  }
 
   const lockedAt = (tick: number) => {
     const s = new Set<number>();

@@ -1,10 +1,13 @@
 /**
- * Compose All, orchestrator edition (spec §8, work-order step 2e). Pure:
- * project in, tracks + take state out. Strings go through the strings module
- * (pads voiced by the global DP); every other family keeps the existing rules
- * generator until its module exists — with strings EXCLUDED from it so no
- * lane is written twice. Locked and out-of-band tracks are returned untouched
- * (band semantics via isInBand, lock checks as in the rules engine).
+ * Compose All, orchestrator edition (spec §8, D9 compose order). Pure:
+ * project in, tracks + take state out. The strings module renders FIRST;
+ * its notes are then handed to the rules generator as role sources so
+ * cross-family doubling parts ("Flutes double Vln I") double what the
+ * strings actually wrote — while strings stay EXCLUDED from the generator's
+ * own writing so no lane is written twice. Every other family keeps the
+ * rules generator until its module exists. Locked and out-of-band tracks
+ * are returned untouched (band semantics via isInBand, lock checks as in
+ * the rules engine).
  *
  * The take increments here (inside the same edit the store wraps around this)
  * and seeds the strings module via orchestrationSeedFor: each Compose All is
@@ -61,14 +64,19 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   }
   const stringsTrackIds = voiceTracks.map((t) => t.id);
 
-  // the rules generator covers every other family — strings excluded so they
-  // are never written twice
+  // the rules generator covers every other family — strings excluded from
+  // its WRITING, but their rendered notes feed its doublings (D9)
+  const roleNotes = Object.entries(notesByTrackId).map(([id, notes]) => ({
+    role: project.tracks.find((t) => t.id === id)!.role,
+    notes,
+  }));
   const ruleTracks = generate(project, {
     seed: options.seed,
     density: options.density,
     humanize: options.humanize,
     lockedTrackIds,
     excludeRoles: [...new Set(voiceTracks.map((t) => t.role))],
+    roleNotes,
   });
 
   // Mixed-window governor: the pads' own cap bounds strings-only windows, but

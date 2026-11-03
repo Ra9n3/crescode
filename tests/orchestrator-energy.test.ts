@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import fixture from '../fixtures/dorian-16bars.json';
 import { ENSEMBLE_BY_ID } from '../src/config/ensembles';
+import { composeAllTracks } from '../src/orchestrator/compose';
 import { checkTemplateRules, energyOf, governVelocity, maxMeanVelocity, measureEnergy } from '../src/orchestrator/energy';
 import { projectBars, projectFromFixture, projectEndTick, type Project, type Track } from '../src/shared/schema';
 
@@ -165,6 +166,50 @@ describe('template rule checker (notes-only rules; the rest are explicit stubs)'
     track(p, 'cellosBasses').notes = [note(48, 0, 80, 960), note(36, 0, 80, 960)]; // Vc + Cb one octave down, same track
     const dbl = checkTemplateRules(p, sonata).filter((f) => f.rule === 'octaveDoubling');
     expect(dbl.length).toBe(1);
+  });
+
+  it('D10: chamber audit on the composed dorian fixture reports ZERO octaveDoubling — every doubling there is forced', () => {
+    const p = base();
+    p.ensemble = { templateId: 'ensemble.chamber', overrides: {}, pins: {} };
+    const res = composeAllTracks(p, { seed: 11 });
+    const composed = { ...p, tracks: res.tracks };
+    const dbl = checkTemplateRules(composed, chamber).filter((f) => f.rule === 'octaveDoubling');
+    expect(dbl).toHaveLength(0);
+  });
+
+  it('D10: a doubling forced by voices > distinct tones is exempt; the same double with voices == tones is still reported', () => {
+    // Dm7 = D F A C (4 distinct tones). Five sounding voices double C at the
+    // octave (v1 84 + v2 72): arithmetic necessity → exempt.
+    const set = (p: Project, extraPiano: boolean) => {
+      track(p, 'violins1').notes = [note(84, 0, 40, 1920)];
+      track(p, 'violins2').notes = [note(72, 0, 40, 1920)];
+      track(p, 'violas').notes = [note(57, 0, 40, 1920)];
+      track(p, 'cellosBasses').notes = [note(50, 0, 40, 1920)];
+      track(p, 'piano').notes = extraPiano ? [note(65, 0, 40, 1920)] : []; // F4, no new octave pairs
+    };
+    const forced = base();
+    set(forced, true);
+    expect(checkTemplateRules(forced, chamber).filter((f) => f.rule === 'octaveDoubling')).toHaveLength(0);
+
+    // Drop one voice: 4 voices == 4 tones — the octave double is now a
+    // deliberate layer choice below the climax threshold → still reported.
+    const deliberate = base();
+    set(deliberate, false);
+    const flagged = checkTemplateRules(deliberate, chamber).filter((f) => f.rule === 'octaveDoubling');
+    expect(flagged.length).toBe(1);
+    expect(flagged[0].severity).toBe('soft');
+  });
+
+  it('D10: doubling a pitch class OUTSIDE the chord is never exempt, even with voices > tones', () => {
+    // Same five voices, but the octave pair sits on F# (78/66) — not a Dm7 tone.
+    const p = base();
+    track(p, 'violins1').notes = [note(78, 0, 40, 1920)];
+    track(p, 'violins2').notes = [note(66, 0, 40, 1920)];
+    track(p, 'violas').notes = [note(57, 0, 40, 1920)];
+    track(p, 'cellosBasses').notes = [note(50, 0, 40, 1920)];
+    track(p, 'piano').notes = [note(65, 0, 40, 1920)];
+    const flagged = checkTemplateRules(p, chamber).filter((f) => f.rule === 'octaveDoubling');
+    expect(flagged.length).toBe(1);
   });
 
   it('overlapAvoid: entrances inside the window are flagged, distant ones are not', () => {

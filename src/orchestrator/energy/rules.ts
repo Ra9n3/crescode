@@ -1,16 +1,29 @@
 /**
- * Template rule checker (spec §6/§8 audit stage) — what NOTES ALONE can show.
- * Layer-annotated rules (fillGating, maxLayers, unisonOrnament) need the
- * Phase-7 per-bar conductor layer plan and are explicit "not checkable yet"
- * stubs here, never silent.
+ * Template rule checker (spec §6/§8 audit stage) — what NOTES ALONE can show,
+ * plus the per-bar conductor annotation when one is handed in (D10/3b).
+ * Layer-annotated rules (fillGating, maxLayers) are checked from the
+ * annotation when present; without one they stay explicit "not checkable
+ * yet" stubs, never silent.
  *
  * Severities: energy above max = hard (spec §6), energy below floor = soft
  * (report only), octaveDoubling forbidden = hard, climaxOnly breach = soft
- * (an energy-threshold judgment), overlapAvoid = soft ("avoid", not "never").
+ * (an energy-threshold judgment), overlapAvoid = soft ("avoid", not "never"),
+ * maxLayers breach = hard (a budget), fillGating breach = hard ("only during
+ * rests" is an absolute).
+ *
+ * D10: chord-internal octave doubling FORCED by sounding voices outnumbering
+ * the chord's distinct tones is exempt from octaveDoubling findings — the
+ * texture has no choice (the voicer's own mustDouble rule) and the checker,
+ * without layer annotations, cannot call any particular voice "the" doubling
+ * layer. A deliberate layer double — voices within the distinct-tone count —
+ * is still reported exactly as before. The doubled pitch class must also be
+ * a chord tone: doubling a foreign pitch class is never forced.
  */
 import { measureEnergy, type EnergyReport } from './measureEnergy';
 import { isInstrumentTrack, type Note, type Project, type TrackFamily } from '../../shared/schema/types';
 import type { EnsembleTemplate, EnsembleRule } from '../../shared/schema/ensembleTemplate';
+import { chordSpans, type ResolvedChord } from '../spine';
+import { chordTones } from '../voicing/chordTones';
 
 export interface RuleFinding {
   /** Which rule spoke: a template rule type, 'energy', or 'maxLayers'. */
@@ -90,12 +103,41 @@ function checkOverlapAvoid(p: Project, template: EnsembleTemplate, rule: Ensembl
   return findings;
 }
 
-function checkOctaveDoubling(p: Project, template: EnsembleTemplate, rule: EnsembleRule, report: EnergyReport): RuleFinding[] {
+function checkOctaveDoubling(p: Project, template: EnsembleTemplate, rule: EnsembleRule, report: EnergyReport, spans: ResolvedChord[]): RuleFinding[] {
   const { policy, energyThreshold } = rule.params as { policy: string; energyThreshold?: number };
   if (policy === 'allowed') return [];
-  const doublings = octaveDoublings(collectNotes(p, template));
+  const notes = collectNotes(p, template);
+  const doublings = octaveDoublings(notes);
   const findings: RuleFinding[] = [];
+
+  // D10: is this doubling arithmetic necessity? A chord must cover the tick,
+  // the doubled pitch class must be one of its tones, and more voices must
+  // be sounding than the chord has distinct tones.
+  const chordAt = (tick: number): ResolvedChord | null => {
+    for (const s of spans) {
+      if (tick < s.startTick) return null; // sorted, non-overlapping
+      if (tick < s.endTick) return s;
+    }
+    return null;
+  };
+  const voicesAt = (tick: number): number => {
+    let count = 0;
+    for (const rn of notes) {
+      if (rn.note.startTick > tick) break; // sorted by start
+      if (rn.note.startTick + rn.note.durationTicks > tick) count++;
+    }
+    return count;
+  };
+  const forcedDoubling = (tick: number, pitch: number): boolean => {
+    const chord = chordAt(tick);
+    if (!chord) return false;
+    const tonePcs = chordTones(chord.parsed).tones.map((t) => t.pc);
+    const doubledPc = ((pitch % 12) + 12) % 12;
+    return tonePcs.includes(doubledPc) && voicesAt(tick) > tonePcs.length;
+  };
+
   for (const d of doublings) {
+    if (forcedDoubling(d.tick, d.a.note.pitch)) continue; // D10 exemption
     if (policy === 'climaxOnly') {
       const w = energyAtTick(report, d.tick);
       const e = w?.energy ?? 0;
@@ -116,6 +158,7 @@ function checkOctaveDoubling(p: Project, template: EnsembleTemplate, rule: Ensem
 
 export function checkTemplateRules(p: Project, template: EnsembleTemplate): RuleFinding[] {
   const findings: RuleFinding[] = [];
+  const spans = chordSpans(p);
 
   // Budget: maxLayers needs per-bar layer annotations → explicit stub.
   findings.push({
@@ -135,7 +178,7 @@ export function checkTemplateRules(p: Project, template: EnsembleTemplate): Rule
   for (const rule of template.rules) {
     switch (rule.type) {
       case 'octaveDoubling':
-        findings.push(...checkOctaveDoubling(p, template, rule, report));
+        findings.push(...checkOctaveDoubling(p, template, rule, report, spans));
         break;
       case 'overlapAvoid':
         findings.push(...checkOverlapAvoid(p, template, rule, report));

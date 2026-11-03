@@ -232,3 +232,34 @@ modules (later), a score checker beyond `measureEnergy` + template rules.
 - Confirm D1-D7 above.
 - VOCAL_ZONE default (A3..A5) is a proposal.
 - Target sample library for future keyswitches.
+
+
+## Amendments v2 (after Phase 0)
+
+§3  Add D8-D11 from the review above.
+§4  Replace stale facts:
+    - Chord = {id, symbol, startTick, durationTicks}. No chord-level lock;
+      locks are track-level.
+    - chordSpans(project) is the normalized chord list. It currently lives in
+      src/engine/generate.ts and is re-exported from orchestrator/spine/.
+    - sanitizeNotes rebuilds notes as 4 fields and drops unknown ones.
+      Phase 1 makes it preserve the optional fields.
+    - midi.ts writes no CC and ignores unknown note fields.
+    - composeAll() is in src/store/store.ts; band semantics are in
+      src/shared/schema/band.ts; templates resolve via resolveTemplate() in
+      src/config/ensembles.ts.
+    - tsconfig covers src only; tests are gated by vitest. Add a test typecheck.
+§7.3 Chord vocabulary: the voicer must handle every quality parseChord reads:
+    maj, m, dim, aug, sus2, sus4, 7, maj7, m7, m7b5, dim7, m(maj7), add9,
+    madd9, 9, maj9, m9, 7sus4, 9sus4, 7b9, 7b5, plus slash bass. Spelling
+    such as G#dim7 must resolve to the right pitch classes.
+    Leading tone is derived, not named: it exists iff the mode's scale
+    contains the pitch class one semitone below the tonic. (D Dorian: no.)
+    Parallel-5th/8ve checks are OFF in Whole Tone, both Diminished modes and
+    Locrian (symmetric or non-tertian harmony); the other soft rules stay on.
+§7.6 Detune is a profile constant applied by the preview. It is not stored on notes.
+§9  Move MIDI CC export from Phase 5 to Phase 1, so expression data is
+    audible in a DAW as soon as it exists.
+§10 Add: sanitizeNotes preserves optional fields; old project files load
+    unchanged; CC round-trips through export; the same inputs and take give
+    byte-identical output; a different take gives different output.

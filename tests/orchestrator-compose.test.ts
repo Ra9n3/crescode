@@ -283,7 +283,7 @@ describe('Vocal Backing preset (spec §7.7)', () => {
   };
 
   it('keeps the vocal zone free, never writes under an eighth, and keeps triads complete', () => {
-    const { project } = compose('ensemble.vocalbacking', {}, { seed: 11 });
+    const { project, result } = compose('ensemble.vocalbacking', {}, { seed: 11 });
     for (const t of bandStringTracks(project)) {
       expect(t.notes.length).toBeGreaterThan(0);
       for (const n of t.notes) {
@@ -291,8 +291,11 @@ describe('Vocal Backing preset (spec §7.7)', () => {
         expect(n.durationTicks).toBeGreaterThanOrEqual(480); // no notes under an eighth
       }
     }
-    // triads stay complete on the three string voices
-    for (const span of chordSpans(project).filter((s) => ['Dm', 'G', 'C', 'Am'].includes(s.symbol))) {
+    // triads stay complete on the three string voices — except spans the
+    // conductor deliberately silences (the pre-Chorus near-silence bar)
+    const breathCovered = (s: { startTick: number; endTick: number }) =>
+      result.plan.breaths.some((b) => b.startTick <= s.startTick && s.endTick <= b.endTick);
+    for (const span of chordSpans(project).filter((s) => ['Dm', 'G', 'C', 'Am'].includes(s.symbol) && !breathCovered(s))) {
       const soundingPcs = new Set<number>();
       for (const t of bandStringTracks(project)) {
         for (const n of t.notes) {

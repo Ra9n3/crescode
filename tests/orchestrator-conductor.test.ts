@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import fixture from '../fixtures/dorian-16bars.json';
 import { ENSEMBLE_BY_ID } from '../src/config/ensembles';
 import { composeAllTracks } from '../src/orchestrator/compose';
-import { checkTemplateRules } from '../src/orchestrator/energy';
+import { checkTemplateRules, measureEnergy } from '../src/orchestrator/energy';
 import { LAYER_VOCABULARY, type ConductorPlan } from '../src/orchestrator/conductor';
+import { energyCurve, arcTargetAt, sectionMap } from '../src/orchestrator/spine';
 import { projectFromFixture, type Project } from '../src/shared/schema';
 
 const TEMPLATE_IDS = ['ensemble.symphony', 'ensemble.chamber', 'ensemble.cinematic', 'ensemble.sonata', 'ensemble.vocalbacking', 'ensemble.hybridstudio'] as const;
@@ -40,9 +41,12 @@ describe('conductor: per-bar layer plan (3a)', () => {
   it('fillGating breaths: the resting parts rest on each section\u2019s last bar, \u2265 minGapTicks, fills registered', () => {
     const { result } = compose('ensemble.chamber'); // piano fills during Strings rests (480)
     expect(result.plan.breaths.map((b) => [b.startTick, b.endTick])).toEqual([
-      [26880, 30720], // Verse last bar (bar 8)
+      [26880, 30720], // Verse last bar (bar 8) — also the arc's pre-Chorus near-silence
       [57600, 61440], // Chorus last bar (bar 16)
     ]);
+    expect(result.plan.breaths[0].reason).toBe('fillGating');
+    expect(result.plan.breaths[0].nearSilence).toBe(true); // merged with the arc's silence bar
+    expect(result.plan.breaths[1].nearSilence).toBeUndefined();
     expect(result.plan.breaths.every((b) => b.endTick - b.startTick >= b.minGapTicks)).toBe(true);
     expect(result.plan.breaths[0].duringRestsOf).toBe('Strings');
     expect(result.plan.breaths[0].trackIds).toHaveLength(4);
@@ -51,15 +55,20 @@ describe('conductor: per-bar layer plan (3a)', () => {
       { target: 'piano', startTick: 57600, endTick: 61440 },
     ]);
 
-    // sonata gates on violins1 specifically — only that track breathes
+    // sonata gates on violins1 specifically — its fillGating breaths touch
+    // only that track; the arc's near-silence breath covers every string voice
     const sonata = compose('ensemble.sonata');
-    expect(sonata.result.plan.breaths.every((b) => b.trackIds === undefined || b.roles.includes('violins1'))).toBe(true);
-    expect(sonata.result.plan.breaths.every((b) => b.trackIds.every((id) => track(sonata.project, 'violins1').id === id || b.roles.includes('violins1')))).toBe(true);
-    expect(sonata.result.plan.breaths[0].roles).toEqual(['violins1']);
+    const gate = sonata.result.plan.breaths.filter((b) => b.reason === 'fillGating');
+    expect(gate).toHaveLength(2);
+    expect(gate.every((b) => b.roles.length === 1 && b.roles[0] === 'violins1')).toBe(true);
+    const silence = sonata.result.plan.breaths.filter((b) => b.reason === 'nearSilence');
+    expect(silence.map((b) => [b.startTick, b.endTick])).toEqual([[26880, 30720]]);
+    expect(silence[0].roles.sort()).toEqual(['cellosBasses', 'violins1']);
 
-    // templates without fillGating plan no breaths
+    // templates without fillGating still plan the arc's near-silence bar
     for (const id of ['ensemble.symphony', 'ensemble.cinematic', 'ensemble.vocalbacking']) {
-      expect(compose(id).result.plan.breaths).toHaveLength(0);
+      const { result: r } = compose(id);
+      expect(r.plan.breaths.map((b) => [b.startTick, b.endTick, b.reason])).toEqual([[26880, 30720, 'nearSilence']]);
     }
   });
 
@@ -76,9 +85,13 @@ describe('conductor: per-bar layer plan (3a)', () => {
     }
     // …and strings still play elsewhere
     expect(track(project, 'cellosBasses').notes.length).toBeGreaterThan(0);
-    // symphony has no fillGating: bar 8 and bar 16 keep their pads
+    // symphony has no fillGating: bar 16 keeps its pads, bar 8 rests (the
+    // arc's deliberate near-silence before the first Chorus)
     const sym = compose('ensemble.symphony');
-    expect(track(sym.project, 'violins1').notes.some((n) => n.startTick < 30720 && n.startTick + n.durationTicks > 26880)).toBe(true);
+    const v1 = track(sym.project, 'violins1').notes;
+    expect(v1.some((n) => n.startTick < 30720 && n.startTick + n.durationTicks > 26880)).toBe(false);
+    expect(v1.some((n) => n.startTick < 61440 && n.startTick + n.durationTicks > 57600)).toBe(true);
+    expect(v1.some((n) => n.startTick < 26880 && n.startTick + n.durationTicks > 23040)).toBe(true); // bar 7 sounds
   });
 
   it('the plan never exceeds maxLayers and never plans doubling against the band policy', () => {
@@ -164,5 +177,75 @@ describe('checker from the annotation (3b): maxLayers + fillGating replace their
   it('without the annotation the two rules stay honest stubs', () => {
     const stubs = checkTemplateRules(BASE(), ENSEMBLE_BY_ID.get('ensemble.chamber')!).filter((f) => f.severity === 'stub');
     expect(stubs.map((f) => f.rule).sort()).toEqual(['fillGating', 'maxLayers']);
+  });
+});
+
+describe('energy arc (3c): per-section curves, dips, tapers, one near-silence bar', () => {
+  const symphony = ENSEMBLE_BY_ID.get('ensemble.symphony')!;
+  const arc = (take = 1, template = symphony) => {
+    const p = BASE();
+    return energyCurve(p, sectionMap(p), take, template, true);
+  };
+
+  it('builds inside sections: targets rise through an 8-bar section', () => {
+    const a = arc();
+    const verse = a.slice(0, 8).map((b) => b.target);
+    expect(verse[6]).toBeGreaterThan(verse[0]); // the build (bar 8 is the near-silence)
+    expect(new Set(verse.slice(0, 7).map((t) => t.toFixed(4))).size).toBeGreaterThan(2); // a curve, not one flat level
+  });
+
+  it('dips on the last bar before a section change and tapers intro and outro', () => {
+    const a = arc();
+    expect(a[7].target).toBeLessThan(a[6].target); // the pre-Chorus dip (bar 8 — here it dips to 0: near-silence)
+    expect(a[7].nearSilence).toBe(true); // bar 8 is the deliberate near-silence before the first Chorus
+    const verseMid = a[3].target;
+    expect(a[0].target).toBeLessThan(verseMid); // intro taper: bar 1 below the section body
+    expect(a[15].target).toBeLessThan(a[13].target); // outro taper into the end
+    // the near-silence bar is the bar right before the first Chorus
+    const chorus = sectionMap(BASE()).find((s) => s.name === 'Chorus')!;
+    expect(chorus.startBar).toBe(9);
+    expect(a[7].bar).toBe(8);
+  });
+
+  it('every target respects the template clamp; the lookup reads the right bar', () => {
+    const a = arc();
+    for (const b of a) expect(b.target).toBeLessThanOrEqual(symphony.budget.energyClamp[1] + 1e-12);
+    expect(arcTargetAt(a, 0)).toBe(a[0].target);
+    expect(arcTargetAt(a, 26880)).toBe(a[7].target); // bar 8
+    expect(arcTargetAt(a, 999999)).toBe(a[15].target); // past the end → last bar
+  });
+
+  it('no template and no strings → no near-silence bar (and the arc still shapes the build)', () => {
+    const p = BASE();
+    const a = energyCurve(p, sectionMap(p), 1, null, false);
+    expect(a.some((b) => b.nearSilence)).toBe(false);
+    expect(a[7].target).toBeGreaterThan(0); // the dip is a dip, not a silence
+  });
+
+  it('3d: the arc shape varies per take, deterministically per D8', () => {
+    const one = arc(1);
+    const oneAgain = arc(1);
+    expect(one).toEqual(oneAgain); // same take → byte-identical shape
+    const two = arc(2);
+    const differing = one.filter((b, i) => Math.abs(b.target - two[i].target) > 1e-9).length;
+    expect(differing).toBeGreaterThan(0); // a new take re-rolls the SHAPE
+    // …and never past the clamp
+    for (const b of two) expect(b.target).toBeLessThanOrEqual(symphony.budget.energyClamp[1] + 1e-12);
+  });
+
+  it('composed output follows the arc: measureEnergy stays under the clamp with the near-silence in it', () => {
+    for (const id of TEMPLATE_IDS) {
+      const { project, result } = compose(id);
+      const template = ENSEMBLE_BY_ID.get(id)!;
+      const energy = measureEnergy(project, template);
+      expect(energy.max).toBeLessThanOrEqual(template.budget.energyClamp[1] + 1e-9);
+      // the near-silence bar really is silent in the strings
+      const silence = result.plan.breaths.filter((b) => b.nearSilence);
+      for (const b of silence) {
+        for (const t of project.tracks.filter((x) => x.family === 'Strings')) {
+          expect(t.notes.some((n) => n.startTick < b.endTick && n.startTick + n.durationTicks > b.startTick)).toBe(false);
+        }
+      }
+    }
   });
 });

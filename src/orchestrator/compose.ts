@@ -18,7 +18,7 @@ import { freshEnsemble, isInBand } from '../shared/schema/band';
 import { isInstrumentTrack, type Note, type OrchestrationState, type Project, type Track } from '../shared/schema/types';
 import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
 import { resolveTemplate } from '../config/ensembles';
-import { chordSpans, sectionMap, orchestrationSeedFor } from './spine';
+import { chordSpans, sectionMap, orchestrationSeedFor, energyCurve } from './spine';
 import { stringsModule, stringVoiceTracks } from './render';
 import { conduct, type ConductorPlan } from './conductor';
 import { governPadVelocities } from './energy/mix';
@@ -56,7 +56,12 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   const ctx: OrchestratorContext = { project: { ...project, orchestration }, template, ensemble, spans: chordSpans(project), sections: sectionMap(project) };
   const seed = orchestrationSeedFor(project, orchestration);
   const voiceTracks = stringVoiceTracks(ctx);
-  const plan = conduct(ctx);
+  // Phase 3c/3d: the per-bar energy arc, seeded per D8 — the near-silence
+  // bar only when a template is active and unlocked in-band strings exist
+  // to silence (locked lanes are never written either way).
+  const arc = energyCurve(project, ctx.sections, orchestration.take, template, template !== null && voiceTracks.length > 0);
+  ctx.arc = arc;
+  const plan = conduct(ctx, arc);
   // the conductor's breaths ride into the strings plans per track (3a)
   const plans = stringsModule.roles(ctx).map((pl) => ({
     ...pl,

@@ -21,7 +21,7 @@
  *    convention) of at least minGapTicks on the duringRestsOf tracks, and
  *    the corresponding fill window is registered for the checker.
  */
-import { barTicks, projectBars, sectionAtBar } from '../spine';
+import { barTicks, projectBars, sectionAtBar, type ArcBar } from '../spine';
 import { isInstrumentTrack, type TrackFamily } from '../../shared/schema/types';
 import type { EnsembleTemplate } from '../../shared/schema/ensembleTemplate';
 import { isInBand } from '../../shared/schema/band';
@@ -66,6 +66,8 @@ export interface BreathWindow {
   /** The minimum rest length the template demands for a fill to land here. */
   minGapTicks: number;
   reason: 'fillGating' | 'nearSilence';
+  /** True when this window also carries the arc's pre-Chorus near-silence. */
+  nearSilence?: boolean;
 }
 
 /** A window the conductor reserves for a fillGating actor. */
@@ -96,8 +98,10 @@ export function octaveDoublingPolicyOf(template: EnsembleTemplate | null): Condu
 const matchesTarget = (target: string, role: string, family: TrackFamily): boolean =>
   target.toLowerCase() === family.toLowerCase() || target === role;
 
-/** Build the per-bar plan for the project. Pure: same context → same plan. */
-export function conduct(ctx: OrchestratorContext): ConductorPlan {
+/** Build the per-bar plan for the project. Pure: same context → same plan.
+ *  The arc (Phase 3c) supplies per-bar energy targets and the pre-Chorus
+ *  near-silence bar; without one the flat per-section table stands in. */
+export function conduct(ctx: OrchestratorContext, arc?: ArcBar[]): ConductorPlan {
   const template = ctx.template;
   const voices = stringVoiceTracks(ctx);
   const voiceIds = voices.map((t) => t.id);
@@ -108,6 +112,7 @@ export function conduct(ctx: OrchestratorContext): ConductorPlan {
   for (let bar = 1; bar <= bars; bar++) {
     const startTick = (bar - 1) * btBar;
     const sec = sectionAtBar(ctx.sections, bar);
+    const arcBar = arc?.[bar - 1];
     barPlans.push({
       bar,
       startTick,
@@ -117,7 +122,7 @@ export function conduct(ctx: OrchestratorContext): ConductorPlan {
       // D7/D9: the plan annotates what the orchestrator actually writes — the
       // strings pad layer over the in-band unlocked string tracks.
       layers: voiceIds.length ? [{ layer: 'pad' as const, trackIds: [...voiceIds], source: 'strings' as const }] : [],
-      energyTarget: sectionEnergyTarget(sec?.name ?? '*'),
+      energyTarget: arcBar ? arcBar.target : sectionEnergyTarget(sec?.name ?? '*'),
     });
   }
 
@@ -148,6 +153,30 @@ export function conduct(ctx: OrchestratorContext): ConductorPlan {
         });
         fills.push({ target: fillTarget, startTick, endTick: startTick + btBar });
       }
+    }
+  }
+
+  // the arc's deliberate near-silence bar (pre-first-Chorus): the strings
+  // rest there. Merged into an existing breath ONLY when that breath already
+  // covers every string voice; otherwise it rides as its own window (the
+  // near-silence always rests the WHOLE string section).
+  if (arc && voiceIds.length) {
+    for (const a of arc) {
+      if (!a.nearSilence) continue;
+      const coversAll = (ids: string[]) => ids.length === voiceIds.length && voiceIds.every((id) => ids.includes(id));
+      const existing = breaths.find((b) => b.startTick === a.startTick && b.endTick === a.endTick && coversAll(b.trackIds));
+      if (existing) existing.nearSilence = true;
+      else
+        breaths.push({
+          trackIds: [...voiceIds],
+          roles: voices.map((t) => t.role),
+          duringRestsOf: 'arc',
+          startTick: a.startTick,
+          endTick: a.endTick,
+          minGapTicks: a.endTick - a.startTick,
+          reason: 'nearSilence',
+          nearSilence: true,
+        });
     }
   }
 

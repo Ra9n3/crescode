@@ -7,7 +7,7 @@
  */
 import type { Note, Project, TrackFamily, ProjectEnsemble } from '../shared/schema/types';
 import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
-import type { ResolvedChord, SpineSection } from './spine';
+import type { ResolvedChord, SpineSection, ArcBar } from './spine';
 
 export interface OrchestratorContext {
   project: Project;
@@ -16,6 +16,8 @@ export interface OrchestratorContext {
   /** Normalized, non-overlapping chord spans (Phase 0 reading). */
   spans: ResolvedChord[];
   sections: SpineSection[];
+  /** The per-bar energy arc (Phase 3c) — targets the modules render at. */
+  arc?: ArcBar[];
 }
 
 /** One layer one section. Phase 2 only ever produces pad layers. */

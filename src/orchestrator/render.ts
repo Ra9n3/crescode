@@ -28,6 +28,7 @@ import { isInstrumentTrack, PPQ, type Note, type Track } from '../shared/schema/
 import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
 import { isInBand } from '../shared/schema/band';
 import { maxMeanVelocityFor } from './energy';
+import { arcTargetAt } from './spine';
 import { STRING_PROFILE_BY_ROLE, STRING_ROLES, VOCAL_ZONE } from './profiles/strings';
 import type { LayerPlan, OrchestratorContext, SectionModule, SectionPatch } from './module';
 import { chordTones } from './voicing/chordTones';
@@ -151,7 +152,14 @@ export const stringsModule: SectionModule = {
     const isVocalBacking = ctx.template?.id === 'ensemble.vocalbacking';
     const minDuration = isVocalBacking ? PPQ / 2 : 1; // no notes under an eighth
     const { voiced } = globalVoicing(ctx, plan.voiceTrackIds, seed);
-    const target = Math.min(sectionEnergyTarget(section.name), clamp[1]);
+    // Phase 3c: per-span target from the arc (sampled at the span's midpoint
+    // so two-bar chords lean into the bar they lean into); the flat
+    // per-section table stands in when no arc is around.
+    const clampMax = clamp[1];
+    const targetOf = (start: number, end: number): number => {
+      const t = ctx.arc ? arcTargetAt(ctx.arc, Math.floor((start + end) / 2)) : sectionEnergyTarget(section.name);
+      return Math.min(clampMax, Math.max(0, t));
+    };
 
     const notesByTrackId: Record<string, Note[]> = {};
     for (const id of plan.voiceTrackIds) notesByTrackId[id] = [];
@@ -175,7 +183,6 @@ export const stringsModule: SectionModule = {
       const sounding = vc.pitches.filter((p): p is number => p !== null);
       if (!sounding.length) return;
       const cap = maxMeanVelocityFor(rosterLength, clamp[1], sounding.length);
-      const velocity = Math.max(1, Math.min(127, Math.round(1 + (cap - 1) * target)));
 
       // the take's phrase decision for this span (both halves must clear the
       // preset's minimum duration, so tiny spans are never split into stubs)
@@ -190,6 +197,9 @@ export const stringsModule: SectionModule = {
         for (const [s, e] of windows) {
           const len = e - s;
           if (len < minDuration) continue;
+          // per-window target: a note is voiced for the part of the span it
+          // actually sounds in (Phase 3c)
+          const velocity = Math.max(1, Math.min(127, Math.round(1 + (cap - 1) * targetOf(s, e))));
           if (reattack && len >= minDuration * 2) {
             const half = Math.floor(len / 2);
             notesByTrackId[trackId].push({ pitch, startTick: s, durationTicks: half, velocity });

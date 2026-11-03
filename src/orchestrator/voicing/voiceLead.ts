@@ -44,7 +44,21 @@ export interface VoicingChord {
   startTick: number;
   endTick: number;
   ct: ChordTones;
+  /** Phase 4b: per-voice constraints from the fixed lines. A 'pitch' fix
+   *  forces that voice to exactly this pitch for the chord (it may be a
+   *  scale step — not a chord tone); 'rest' forces the voice silent. Voices
+   *  ABOVE a fixed voice must stay strictly above it; voices BELOW are kept
+   *  strictly under it by the no-crossing walk. When the constraint makes
+   *  the chord infeasible the caller falls back to the pad voicing. */
+  fixed?: (VoiceFix | undefined)[];
+  /** Every pitch class the fixed lines sound anywhere in this span (4b):
+   *  the free voices must not double the leading tone against them, nor —
+   *  under a doubling-forbidding policy — octave-double them. A chord where
+   *  that cannot be honoured is infeasible → the span falls back to pad. */
+  linePcs?: ReadonlySet<number>;
 }
+
+export type VoiceFix = { kind: 'pitch'; pitch: number } | { kind: 'rest' };
 
 export interface VoicingOptions {
   forbidOctaveDoubling: boolean;
@@ -89,7 +103,7 @@ export const VOICING_TOP_K = 8;
 export const VOICING_COST_MARGIN = 5.0;
 const PARENT_TOP_P = 8;
 
-interface Candidate { pitch: number; staticCost: number }
+interface Candidate { pitch: number; staticCost: number; fixed?: boolean }
 
 function outsideComfy(pitch: number, v: VoiceSpec, lean: number): number {
   const lo = Math.max(v.low, Math.min(v.high, v.comfortable[0] + lean));
@@ -97,10 +111,13 @@ function outsideComfy(pitch: number, v: VoiceSpec, lean: number): number {
   return pitch < lo ? lo - pitch : pitch > hi ? hi - pitch : 0;
 }
 
-function voiceCandidates(v: VoiceSpec, allowedPcs: number[], bassPc: number, opts: VoicingOptions, lean: number, mustDouble: boolean): Candidate[] {
+function voiceCandidates(v: VoiceSpec, allowedPcs: number[], bassPc: number, opts: VoicingOptions, lean: number, mustDouble: boolean, exclude?: ReadonlySet<number>): Candidate[] {
   // When voices outnumber distinct tones, doubling is unavoidable — restrict
   // it to the BASS pitch class (classic root doubling) instead of resting.
-  const pcs = v.isBass ? [bassPc] : [...new Set(mustDouble ? [bassPc, ...allowedPcs] : allowedPcs)];
+  // `exclude` removes pcs the pad may not double against the fixed lines (4b).
+  const pcs = v.isBass
+    ? [bassPc]
+    : [...new Set(mustDouble ? [bassPc, ...allowedPcs] : allowedPcs)].filter((pc) => !exclude?.has(pc));
   const zone = opts.zoneFree;
   const rankOf = new Map(allowedPcs.map((pc, i) => [pc, i]));
   // Cap per PITCH CLASS, not globally: a global cap lets one pc crowd the
@@ -238,13 +255,47 @@ export function voiceLead(chords: VoicingChord[], voices: VoiceSpec[], opts: Voi
     const allowedPcs = kept.map((t) => t.pc);
     if (!allowedPcs.includes(chord.ct.bassPc)) allowedPcs.unshift(chord.ct.bassPc);
     // voices outnumbering distinct tones force a minimal root (bass) doubling
-    const mustDouble = new Set(allowedPcs).size < nVoices;
+    // Phase 4b: pcs the fixed lines sound are off-limits for the pad — a pad
+    // note there would double the line's leading tone (always) or the line
+    // itself (when the policy forbids doubling). The bass voice cannot yield
+    // its bass pc, so a conflict there makes the whole chord infeasible —
+    // it becomes an all-rests beam entry, which the caller reads as fallback.
+    const linePcs = chord.linePcs ?? new Set<number>();
+    const padForbidden = (pc: number): boolean =>
+      (opts.leadingTonePc !== null && pc === opts.leadingTonePc && linePcs.has(opts.leadingTonePc)) ||
+      (opts.forbidOctaveDoubling && linePcs.has(pc));
+    const forbiddenPcs = new Set(allowedPcs.filter(padForbidden));
+    const bassBlocked = voices.some((v) => v.isBass) && padForbidden(chord.ct.bassPc);
+    const allNulls: (number | null)[] = new Array(nVoices).fill(null);
+    if (bassBlocked) {
+      const entries: BeamEntry[] = ci === 0
+        ? [{ pitches: allNulls, cost: 0, parents: [] }]
+        : prev.length
+          ? prev.map((p, i) => ({ pitches: [...allNulls], cost: p.cost + 1e6, parents: [{ index: i, transition: 0, total: p.cost }] }))
+          : [{ pitches: [...allNulls], cost: 1e6, parents: [] }];
+      beams.push(entries);
+      prev = entries;
+      return;
+    }
+    const freeAllowedPcs = allowedPcs.filter((pc) => !padForbidden(pc));
+    const mustDouble = new Set(freeAllowedPcs).size < nVoices;
     const doublePc = mustDouble ? chord.ct.bassPc : null;
 
-    // per-voice candidates; a voice with none simply rests on this chord
+    // per-voice candidates; a voice with none simply rests on this chord.
+    // A FIXED voice (4b) gets exactly one candidate — its pitch — or rests
+    // when the fix demands silence; an out-of-range fix yields no candidate
+    // either, so the chord cannot honour it and the caller falls back.
     const chordLeans = voices.map((_, i) => baseLeans[i] + Math.floor((opts.rng() - 0.5) * 5));
     const candLists: (Candidate[] | null)[] = voices.map((v, i) => {
-      const c = voiceCandidates(v, allowedPcs, chord.ct.bassPc, opts, chordLeans[i], mustDouble);
+      const fix = chord.fixed?.[i];
+      if (fix?.kind === 'rest') return null;
+      if (fix?.kind === 'pitch') {
+        const zone = opts.zoneFree;
+        if (fix.pitch < v.low || fix.pitch > v.high) return null;
+        if (zone && fix.pitch >= zone[0] && fix.pitch <= zone[1]) return null;
+        return [{ pitch: fix.pitch, staticCost: 0, fixed: true }];
+      }
+      const c = voiceCandidates(v, freeAllowedPcs, chord.ct.bassPc, opts, chordLeans[i], mustDouble, forbiddenPcs);
       return c.length ? c : null;
     });
 
@@ -269,7 +320,8 @@ export function voiceLead(chords: VoicingChord[], voices: VoiceSpec[], opts: Voi
         for (const c of cands) {
           if (c.pitch < minPitch) continue; // no crossing
           full[vi] = c.pitch;
-          dfs(vi + 1, c.pitch, acc + c.staticCost);
+          // a FIXED voice claims its register: the next voice up stays strictly above it
+          dfs(vi + 1, c.fixed ? c.pitch + 1 : c.pitch, acc + c.staticCost);
           full[vi] = null;
         }
       };

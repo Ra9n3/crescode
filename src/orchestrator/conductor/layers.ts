@@ -25,7 +25,7 @@
  *     first real phrase; the intro is pad and bass only).
  */
 import type { OrchestratorContext, StringsLayer } from '../module';
-import { stringVoiceTracks } from '../render';
+import { stringVoiceTracks } from '../profiles/strings';
 
 /** The bar's arc energy from which Cinematic V1 switches to measured tremolo. */
 export const TREMOLO_ENERGY_THRESHOLD = 0.65;

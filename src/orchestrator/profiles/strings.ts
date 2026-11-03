@@ -7,6 +7,9 @@
  * user can still move.
  */
 import { INSTRUMENTS, instrumentRange } from '../../shared/schema/ranges';
+import { isInstrumentTrack, type Project, type ProjectEnsemble, type Track } from '../../shared/schema/types';
+import type { EnsembleTemplate } from '../../shared/schema/ensembleTemplate';
+import { isInBand } from '../../shared/schema/band';
 
 export interface StringProfile {
   role: string;
@@ -49,3 +52,17 @@ export const STRING_ROLES: readonly string[] = STRING_PROFILES.map((s) => s.role
 export const VOCAL_ZONE: readonly [number, number] = [57, 81]; // A3..A5
 
 export const inVocalZone = (pitch: number): boolean => pitch >= VOCAL_ZONE[0] && pitch <= VOCAL_ZONE[1];
+
+/** The strings family tracks that will actually sound: in the band, unlocked
+ *  (D7), bass slot first. Lives here so the conductor's layer assignment and
+ *  the renderer share one reading without import cycles. */
+export function stringVoiceTracks(ctx: { project: Project; ensemble: ProjectEnsemble; template: EnsembleTemplate | null }): Track[] {
+  return ctx.project.tracks
+    .filter((t) => t.family === 'Strings' && isInstrumentTrack(t) && !t.locked && isInBand(t.role, ctx.ensemble, ctx.template))
+    .sort((a, b) => {
+      const sa = STRING_PROFILE_BY_ROLE.get(a.role)?.slot ?? 'inner';
+      const sb = STRING_PROFILE_BY_ROLE.get(b.role)?.slot ?? 'inner';
+      const order = { bass: 0, inner: 1, top: 2 } as Record<string, number>;
+      return order[sa] - order[sb] || a.role.localeCompare(b.role);
+    });
+}

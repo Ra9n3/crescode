@@ -8,6 +8,7 @@
 import type { Note, Project, TrackFamily, ProjectEnsemble } from '../shared/schema/types';
 import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
 import type { ResolvedChord, SpineSection, ArcBar } from './spine';
+import type { StringLines } from './render';
 
 export interface OrchestratorContext {
   project: Project;
@@ -18,6 +19,9 @@ export interface OrchestratorContext {
   sections: SpineSection[];
   /** The per-bar energy arc (Phase 3c) — targets the modules render at. */
   arc?: ArcBar[];
+  /** The prepared lines (Phase 4b): motif, counterline, constrained voicing.
+   *  An in-memory annotation of the compose run — never persisted. */
+  lines?: StringLines;
 }
 
 /** The string layer vocabulary the orchestrator renders today (Phase 4a) —

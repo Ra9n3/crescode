@@ -19,7 +19,7 @@ import { isInstrumentTrack, type Note, type OrchestrationState, type Project, ty
 import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
 import { resolveTemplate } from '../config/ensembles';
 import { chordSpans, sectionMap, orchestrationSeedFor, energyCurve } from './spine';
-import { stringsModule, stringVoiceTracks } from './render';
+import { stringsModule, stringVoiceTracks, prepareStrings } from './render';
 import { conduct, type ConductorPlan } from './conductor';
 import { governPadVelocities } from './energy/mix';
 import type { OrchestratorContext } from './module';
@@ -39,6 +39,8 @@ export interface ComposeResult {
   /** The conductor's per-bar layer plan (3a) — an in-memory annotation for
    *  the audit stage. Never persisted; the store writes only tracks + take. */
   plan: ConductorPlan;
+  /** Phase 4: renderer notes for the report (fallbacks, skipped layerings). */
+  reports: string[];
 }
 
 export function composeAllTracks(project: Project, options: ComposeOptions): ComposeResult {
@@ -62,6 +64,9 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   const arc = energyCurve(project, ctx.sections, orchestration.take, template, template !== null && voiceTracks.length > 0);
   ctx.arc = arc;
   const plan = conduct(ctx, arc);
+  // Phase 4b: prepare the lines (motif + counterline + constrained voicing)
+  // once per compose — the per-section render calls slice the result
+  ctx.lines = prepareStrings(ctx, orchestration.take);
   // the conductor's breaths ride into the strings plans per track (3a)
   const plans = stringsModule.roles(ctx).map((pl) => ({
     ...pl,
@@ -122,5 +127,5 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     return gen ? { ...t, notes: gen.notes } : t;
   });
 
-  return { tracks, orchestration, stringsTrackIds, plan };
+  return { tracks, orchestration, stringsTrackIds, plan, reports: [...ctx.lines!.reports] };
 }

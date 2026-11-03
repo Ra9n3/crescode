@@ -29,12 +29,15 @@ export interface CounterInput {
   lead: Note[];
   comfortable: [number, number];
   take: number;
+  /** Pitch class of the leading tone, or null — the counter never doubles
+   *  the lead's leading tone (the hard no-doubled-LT rule, 4h). */
+  leadingTonePc?: number | null;
 }
 
 const overlapsTick = (n: Note, tick: number) => n.startTick <= tick && tick < n.startTick + n.durationTicks;
 
 export function counterlineLine(input: CounterInput): Note[] {
-  const { project, spans, counterBars, lead, comfortable, take } = input;
+  const { project, spans, counterBars, lead, comfortable, take, leadingTonePc } = input;
   if (!counterBars.size) return [];
   const btBar = barTicks(project.timeSignature);
   const beat = beatTicks(project.timeSignature);
@@ -120,6 +123,12 @@ export function counterlineLine(input: CounterInput): Note[] {
         if (!settled) { degree! -= dir; continue; }
         degree = settled.d;
         let pitch = settled.p;
+        // never double the lead's leading tone (hard rule): step away or rest
+        if (leadingTonePc != null && leadNow && ((leadNow.pitch % 12) + 12) % 12 === leadingTonePc && pcOfDegree(degree!) === leadingTonePc) {
+          const alt = settle(degree! + dir, ceiling);
+          if (alt && pcOfDegree(alt.d) !== leadingTonePc) { degree = alt.d; pitch = alt.p; }
+          else continue;
+        }
         // strong beats: consonant with the lead — or with the chord if it rests
         if (isStrongBeat(t)) {
           const l = leadAt(t);
@@ -130,7 +139,8 @@ export function counterlineLine(input: CounterInput): Note[] {
               if (!s) continue;
               if (l) {
                 const iv = ((((l.pitch - s.p) % 12) + 12) % 12);
-                if (CONSONANT_BELOW_MOD.has(iv)) { fixed = s.p; degree! = s.d; break; }
+                const ltClash = leadingTonePc != null && ((l.pitch % 12) + 12) % 12 === leadingTonePc && pcOfDegree(s.d) === leadingTonePc;
+                if (CONSONANT_BELOW_MOD.has(iv) && !ltClash) { fixed = s.p; degree! = s.d; break; }
               } else {
                 const chord = chordAt(spans, t);
                 if (chord && chord.parsed.pitchClasses.includes(pcOfDegree(s.d))) {

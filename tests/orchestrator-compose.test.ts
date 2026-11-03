@@ -122,6 +122,51 @@ describe('Compose All through the orchestrator: property sweep', () => {
     expect(new Set(dumps).size).toBe(dumps.length); // all six takes differ
   });
 
+  it('D11 take variety: ≥40% of spans differ in PITCHES between neighbouring takes, hard rules intact', () => {
+    const takes = [0, 1, 2, 3, 4, 5].map((t) => compose('ensemble.chamber', { orchestration: { take: t } }, { seed: 11 }));
+
+    // per-span sounding pitch multiset per take
+    const spans = chordSpans(takes[0].project);
+    const spanPitches = (c: ReturnType<typeof compose>) =>
+      spans.map((span) => {
+        const pitches: number[] = [];
+        for (const t of bandStringTracks(c.project)) {
+          for (const n of t.notes) {
+            if (n.startTick < span.endTick && n.startTick + n.durationTicks > span.startTick) pitches.push(n.pitch);
+          }
+        }
+        return pitches.sort((a, b) => a - b).join(',');
+      });
+
+    for (let i = 1; i < takes.length; i++) {
+      const a = spanPitches(takes[i - 1]);
+      const b = spanPitches(takes[i]);
+      const withNotes = a.filter((s) => s !== '').length;
+      const differing = a.filter((s, j) => s !== '' && s !== b[j]).length;
+      expect(differing / withNotes).toBeGreaterThanOrEqual(0.4);
+    }
+
+    // hard rules still hold on every take (ranges, low-interval limit, sanitize no-op)
+    const end = projectEndTick(takes[0].project);
+    for (const c of takes) {
+      for (const t of bandStringTracks(c.project)) {
+        for (const n of t.notes) {
+          expect(n.pitch).toBeGreaterThanOrEqual(t.lowestNote);
+          expect(n.pitch).toBeLessThanOrEqual(t.highestNote);
+        }
+        expect(sanitizeNotes(t.notes, t.lowestNote, t.highestNote, end)).toEqual(t.notes);
+      }
+      simultaneousPairs(bandStringTracks(c.project), (x, y) => {
+        if (x.pitch < 48 && y.pitch < 48) expect([0, 7]).toContain(Math.abs(x.pitch - y.pitch) % 12);
+      });
+    }
+
+    // same take stays byte-identical
+    const again = compose('ensemble.chamber', { orchestration: { take: 3 } }, { seed: 11 });
+    expect(JSON.stringify(bandStringTracks(again.project).map((t) => t.notes)))
+      .toBe(JSON.stringify(bandStringTracks(takes[3].project).map((t) => t.notes)));
+  });
+
   it('locked and out-of-band string tracks come back byte-identical', () => {
     const original = BASE();
     const violas = track(original, 'violas');

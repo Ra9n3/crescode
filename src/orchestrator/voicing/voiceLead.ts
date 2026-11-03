@@ -73,6 +73,17 @@ const C3 = 48;
  *  below the structural costs (motion ≥ 1, parallels 8). */
 const TAKE_JITTER = 2.0;
 const CANDIDATE_JITTER = 0.5;
+/**
+ * D11 take variety: the backtrack does not walk the single optimal path — it
+ * SAMPLES, seeded by the take's stream, among the top-K near-optimal choices
+ * at every chord (the best entry within COST_MARGIN of it, capped at K;
+ * backwards through the P best parents each entry kept). Hard constraints
+ * are never traded: every sampled state is a feasibility-checked static.
+ * Same take → same draws → byte-identical; a new take re-samples.
+ */
+export const VOICING_TOP_K = 8;
+export const VOICING_COST_MARGIN = 5.0;
+const PARENT_TOP_P = 8;
 
 interface Candidate { pitch: number; staticCost: number }
 
@@ -196,7 +207,9 @@ const cmpPitches = (a: (number | null)[], b: (number | null)[]): number => {
 interface BeamEntry {
   pitches: (number | null)[];
   cost: number;
-  parent: number; // index into the previous beam (-1 on the first chord)
+  /** The P best predecessors (chord > 0): beam index + the transition cost
+   *  to it. Sorted by total (prev cost + transition), best first. */
+  parents: { index: number; transition: number; total: number }[];
 }
 
 /**
@@ -263,39 +276,60 @@ export function voiceLead(chords: VoicingChord[], voices: VoiceSpec[], opts: Voi
 
     let entries: BeamEntry[];
     if (ci === 0) {
-      entries = statics.map((s) => ({ pitches: s.pitches, cost: s.staticCost, parent: -1 }));
-      if (!entries.length) entries = [{ pitches: new Array(nVoices).fill(null), cost: 0, parent: -1 }];
+      entries = statics.map((s) => ({ pitches: s.pitches, cost: s.staticCost, parents: [] }));
+      if (!entries.length) entries = [{ pitches: new Array(nVoices).fill(null), cost: 0, parents: [] }];
     } else {
       entries = [];
       for (const s of statics) {
-        let bestCost = Infinity;
-        let bestParent = -1;
+        // keep the P best parents (no big intermediate arrays)
+        const top: BeamEntry['parents'] = [];
         for (let pi = 0; pi < prev.length; pi++) {
-          const c = prev[pi].cost + transitionCost(prev[pi].pitches, s.pitches, opts);
-          if (c < bestCost) { bestCost = c; bestParent = pi; }
+          const transition = transitionCost(prev[pi].pitches, s.pitches, opts);
+          const total = prev[pi].cost + transition;
+          if (top.length < PARENT_TOP_P) {
+            top.push({ index: pi, transition, total });
+            top.sort((a, b) => a.total - b.total);
+          } else if (total < top[top.length - 1].total) {
+            top[top.length - 1] = { index: pi, transition, total };
+            top.sort((a, b) => a.total - b.total);
+          }
         }
-        if (bestParent >= 0) entries.push({ pitches: s.pitches, cost: bestCost + s.staticCost, parent: bestParent });
+        if (top.length) entries.push({ pitches: s.pitches, cost: top[0].total + s.staticCost, parents: top });
       }
       entries.sort((a, b) => a.cost - b.cost || cmpPitches(a.pitches, b.pitches));
       entries = entries.slice(0, BEAM_WIDTH);
-      if (!entries.length) entries = prev.map((p, i) => ({ pitches: p.pitches.map(() => null), cost: p.cost + 1e6, parent: i }));
+      if (!entries.length) {
+        entries = prev.map((p, i) => ({ pitches: p.pitches.map(() => null), cost: p.cost + 1e6, parents: [{ index: i, transition: 0, total: p.cost }] }));
+      }
     }
 
     beams.push(entries);
     prev = entries;
   });
 
-  // backtrack from the best final entry
-  const last = beams[beams.length - 1];
-  let idx = 0;
-  for (let i = 1; i < last.length; i++) {
-    if (last[i].cost < last[idx].cost || (last[i].cost === last[idx].cost && cmpPitches(last[i].pitches, last[idx].pitches) < 0)) idx = i;
-  }
+  // D11 stochastic backtrack: sample the ending among near-optimal entries,
+  // then walk back sampling among each entry's near-optimal parents.
   const out: VoicedChord[] = new Array(chords.length);
+  let childIdx = -1;
   for (let ci = chords.length - 1; ci >= 0; ci--) {
-    const e = beams[ci][idx];
+    const beam = beams[ci];
+    let idx: number;
+    if (childIdx < 0) {
+      const best = beam[0].cost; // entries sorted by cost
+      const pool = beam.map((e, i) => ({ i, cost: e.cost })).filter(({ cost }) => cost <= best + VOICING_COST_MARGIN).slice(0, VOICING_TOP_K);
+      idx = pool.length ? pool[Math.floor(opts.rng() * pool.length)].i : 0;
+    } else {
+      const parents = beams[ci + 1][childIdx].parents;
+      if (parents.length) {
+        const pool = parents.filter((p) => p.total <= parents[0].total + VOICING_COST_MARGIN).slice(0, VOICING_TOP_K);
+        idx = pool[Math.floor(opts.rng() * pool.length)].index;
+      } else {
+        idx = 0; // the all-rests fallback of a first chord with no feasible state
+      }
+    }
+    const e = beam[idx];
     out[ci] = { id: chords[ci].id, startTick: chords[ci].startTick, endTick: chords[ci].endTick, pitches: [...e.pitches] };
-    idx = Math.max(0, e.parent);
+    childIdx = idx;
   }
   return out;
 }

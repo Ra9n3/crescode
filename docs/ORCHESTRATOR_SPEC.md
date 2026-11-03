@@ -53,6 +53,29 @@ D6. Vocal Backing assumes the vocal sings throughout. The singer is not a
     default is the author's proposal, not the user's.
 D7. Voices are assigned from whoever is in the band (top line, inner, bass),
     not hard-wired V1=soprano, because Vocal Backing has no `violins1`.
+D8. The orchestrator's seed derives from the MUSICAL INPUTS ONLY: the
+    normalized chord list, the structure (section names, start bars,
+    lengths), key, mode, tempo (bpm + tempo map), template id and band
+    membership — hashed with `hashString`, then combined with the take (and
+    the per-section take for section re-rolls). Notes are never inputs;
+    orchestration state other than the take counters is never an input.
+    Same inputs + same take → the same stream (byte-identical output); any
+    chord, structure, key, mode, tempo, template or band change → a
+    different stream.
+D9. Compose order: family modules render FIRST, and their rendered notes
+    are handed to the rules generator as role sources, so cross-family
+    doubling parts ("Flutes double Vln I") double what the modules wrote.
+    Families a module owns stay excluded from the generator's own writing,
+    so no lane is written twice.
+D10. The checker judges layers, not arithmetic necessity: chord-internal
+    octave doubling FORCED by sounding voices outnumbering the chord's
+    distinct tones is exempt from octaveDoubling findings (with the doubled
+    pitch class a chord tone); a deliberate layer double — voices within
+    the distinct-tone count — is still reported exactly as before.
+D11. Take variety comes from seeded sampling among the top-K near-optimal
+    voicings; K and the cost margin are named constants in
+    `voicing/voiceLead.ts`. Hard constraints are never traded for variety,
+    and the same take stays byte-identical.
 
 ## 4. Repo facts to verify (do not trust blindly)
 
@@ -236,7 +259,9 @@ modules (later), a score checker beyond `measureEnergy` + template rules.
 
 ## Amendments v2 (after Phase 0)
 
-§3  Add D8-D11 from the review above.
+§3  D8–D11 added above (orchestrationSeed derivation, compose order,
+    checker's forced-doubling exemption, top-K take variety) — they were
+    cited by the review but their text never landed in the repo.
 §4  Replace stale facts:
     - Chord = {id, symbol, startTick, durationTicks}. No chord-level lock;
       locks are track-level.

@@ -56,6 +56,10 @@ export interface VoicingOptions {
   zoneFree: readonly [number, number] | null;
   /** Deterministic per-take stream for the tie-break jitter and register lean. */
   rng: () => number;
+  /** Diagnostic overrides (Phase 2.5 beam-vs-exhaustive report). Production
+   *  code leaves both undefined: beam pruning + per-voice candidate caps. */
+  beamWidth?: number;
+  candidateCap?: number;
 }
 
 export interface VoicedChord {
@@ -103,7 +107,7 @@ function voiceCandidates(v: VoiceSpec, allowedPcs: number[], bassPc: number, opt
   // others out (3 A's beat 1 E on cost) and can leave a no-doubling chord
   // with no feasible tuple at all. Two octaves per pc keep every tone
   // reachable while bounding the tuple space.
-  const perPc = Math.max(2, Math.ceil(MAX_CANDIDATES_PER_VOICE / pcs.length));
+  const perPc = Math.max(2, Math.ceil((opts.candidateCap ?? MAX_CANDIDATES_PER_VOICE) / Math.max(1, pcs.length)));
   const byPc = new Map<number, Candidate[]>();
   for (let p = v.low; p <= v.high; p++) {
     if (zone && p >= zone[0] && p <= zone[1]) continue;
@@ -219,6 +223,7 @@ interface BeamEntry {
 export function voiceLead(chords: VoicingChord[], voices: VoiceSpec[], opts: VoicingOptions): VoicedChord[] {
   if (!chords.length || !voices.length) return [];
   const nVoices = voices.length;
+  const beamWidth = opts.beamWidth ?? BEAM_WIDTH;
   // Per-take register lean: a base lean (±5) per voice plus a per-chord
   // offset (±2, redrawn every chord from the same deterministic take stream)
   // — takes genuinely re-register and re-shape lines chord by chord.
@@ -271,7 +276,7 @@ export function voiceLead(chords: VoicingChord[], voices: VoiceSpec[], opts: Voi
       dfs(0, -1, 0);
 
       statics.sort((a, b) => a.staticCost - b.staticCost || cmpPitches(a.pitches, b.pitches));
-      statics = statics.slice(0, BEAM_WIDTH);
+      statics = statics.slice(0, beamWidth);
     }
 
     let entries: BeamEntry[];
@@ -297,7 +302,7 @@ export function voiceLead(chords: VoicingChord[], voices: VoiceSpec[], opts: Voi
         if (top.length) entries.push({ pitches: s.pitches, cost: top[0].total + s.staticCost, parents: top });
       }
       entries.sort((a, b) => a.cost - b.cost || cmpPitches(a.pitches, b.pitches));
-      entries = entries.slice(0, BEAM_WIDTH);
+      entries = entries.slice(0, beamWidth);
       if (!entries.length) {
         entries = prev.map((p, i) => ({ pitches: p.pitches.map(() => null), cost: p.cost + 1e6, parents: [{ index: i, transition: 0, total: p.cost }] }));
       }
@@ -338,4 +343,25 @@ export function voiceLead(chords: VoicingChord[], voices: VoiceSpec[], opts: Voi
 export function leadingTonePcOf(key: number, scalePcs: number[]): number | null {
   const lt = ((key % 12) + 11) % 12;
   return scalePcs.includes(lt) ? lt : null;
+}
+
+/**
+ * Deterministic, jitter-free cost of a FINISHED voicing — motion + common
+ * tones, parallels, spacing, comfortable-register distance and upper-voice
+ * leaps, replayed without the take stream. Diagnostic (the Phase-2.5
+ * beam-vs-exhaustive comparison): relative comparisons only, the absolute
+ * number means nothing on its own.
+ */
+export function scoreVoicing(_chords: VoicingChord[], voices: VoiceSpec[], opts: VoicingOptions, voiced: VoicedChord[]): number {
+  const lean = 0;
+  let total = 0;
+  voiced.forEach((vc, ci) => {
+    vc.pitches.forEach((p, vi) => {
+      if (p !== null) total += outsideComfy(p, voices[vi], lean) * 0.8;
+    });
+    const placed = vc.pitches.filter((p): p is number => p !== null);
+    total += spacingCost(placed, opts);
+    if (ci > 0) total += transitionCost(voiced[ci - 1].pitches, vc.pitches, opts);
+  });
+  return total;
 }

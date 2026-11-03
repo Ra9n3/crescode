@@ -2,6 +2,32 @@
 
 Branch `orchestrator-phase1-2` (continues Phase 1). Baseline for this phase: 579/579 (24 files). **Final: 656/656 tests, 26 files, `npm run typecheck` (src + tests) clean, single-file build green at every commit.**
 
+## Phase 2.5 (fixes) — the review round
+
+The spec's D8–D11 decision text landed in §3 (commit `0660220`); these fixes implement them.
+
+| # | Fix | Commit | Notes |
+|---|---|---|---|
+| 1 | **D8 seed**: `orchestrationSeed` = `hashString(musical inputs)` combined with take/sectionTakes. Inputs = chords (normalized spans), structure, key, mode, tempo (bpm + map), template id, band (templateId + overrides + pins). **Semantic serialization**: no uids, no notes — two musically identical projects hash identically; editing only notes never moves the seed. `e44a1ca` | 6 tests (same-inputs-same-seed, one-chord change, every input dimension, take/sectionTake combine, byte-identity). D8 lists no meter — time-signature changes therefore do NOT reseed (verbatim spec reading, flagged here). |
+| 2 | **D9 compose order**: the strings module renders first and its notes become `roleNotes` sources for the rules generator, so "Flutes double Vln I" doubles the strings module's top line again. Strings stay excluded from the generator's own writing. `b1d5ab3` | Flutes non-empty in symphony + cinematic on the fixture; every flute entrance sits on a Violins I entrance (sanitize never moves startTicks). This retires PHASE2 deviation #8. |
+| 3 | **D10 checker exemption**: chord-internal octave doubling FORCED by sounding voices > the chord's distinct tones (doubled pc a chord tone) is exempt from octaveDoubling findings; deliberate layer doubles still reported. `b6f5353` | Chamber audit on the composed fixture: **zero octaveDoubling** (was honest audit noise). Sibling tests: 5 voices on Dm7 → exempt; drop to 4 voices (== tones) → reported; doubling F# against Dm7 with 5 voices → still reported (foreign pc never forced). |
+| 4 | **D11 take variety**: the backtrack SAMPLES (seeded by the take's stream) among the top-K near-optimal choices — best ending within `VOICING_COST_MARGIN = 5.0` capped at `VOICING_TOP_K = 8`, then backward through the 8 best parents per entry. Hard constraints never traded (every sampled state passed feasibility). `c1649ec` | Measured on the fixture (chamber, takes 0→5): **66.7 / 55.6 / 72.2 / 50.0 / 61.1 %** of spans differ in pitches between neighbouring takes (guard ≥ 40%). Same take byte-identical; ranges/low-interval/sanitize hold on every take. |
+| 5 | Report items — see below. | | |
+
+### Report: beam vs exhaustive (small case)
+
+4-chord progression (Dm7 G7 Cmaj7 G/B), 3 voices in one-octave ranges, best-of-8 seeds per configuration (both sample paths, so best-of-N approximates each optimum; jitter-free `scoreVoicing`):
+
+**beam (width 320, per-pc caps) best 15.2 = exhaustive (width ∞, caps ∞) best 15.2 — pitch agreement 8/8.** On the small case the production beam loses nothing; the wide-register/quartet case is beam-only by cost (the exhaustive DP is quadratic in the static frontier).
+
+### Report: `cellosBasses` range vs Vc+Cb layering
+
+`INSTRUMENTS` gives the shared track **E1..C6 (28..84)**. The Vc layer needs **C2..C6 (36..84)** — contained exactly. The Cb layer per spec §7.1 sounds **C1..D3 (24..50)**: its bottom four semitones (C1..D#1, 24..27) fall **below the track floor E1 = 28**, so the track as configured cannot host the lowest quarter of the Cb range. Today the profile keeps the bass voice ≥ E1 (comfortable [28,60]) and nothing breaks; when the Vc+Cb layering phase arrives, either the `INSTRUMENTS` floor moves to C1 (user call — the app's single source of truth) or the Cb layer is capped at E1. Flagged as a mismatch, not silently papered over.
+
+### Report: sustained-note min-velocity over its windows
+
+Unit-tested: four pad notes sustaining across a loud mixed beat (piano 4×127 → per-pad window cap 50) and a strings-only beat (no cap) come out at **velocity 50 for their whole length** — a note takes the MIN cap over every beat window it touches, so a sustained note can never straddle a clamp breach. `measureEnergy` on the result stays ≤ the chamber clamp (0.70).
+
 ## Shipped
 
 | Commit | Content |

@@ -3,6 +3,11 @@ import fixture from '../fixtures/dorian-16bars.json';
 import { ENSEMBLE_BY_ID } from '../src/config/ensembles';
 import { composeAllTracks } from '../src/orchestrator/compose';
 import { checkTemplateRules, energyOf, governVelocity, maxMeanVelocity, measureEnergy } from '../src/orchestrator/energy';
+import { governPadVelocities } from '../src/orchestrator/energy/mix';
+import { chordTones } from '../src/orchestrator/voicing/chordTones';
+import { leadingTonePcOf, scoreVoicing, voiceLead, type VoicingOptions, type VoiceSpec } from '../src/orchestrator/voicing/voiceLead';
+import { mulberry32 } from '../src/engine/generate';
+import { parseChord } from '../src/shared/schema/chords';
 import { projectBars, projectFromFixture, projectEndTick, type Project, type Track } from '../src/shared/schema';
 
 const symphony = ENSEMBLE_BY_ID.get('ensemble.symphony')!;
@@ -236,6 +241,87 @@ describe('template rule checker (notes-only rules; the rest are explicit stubs)'
     expect(checkTemplateRules(p, sonata).filter((f) => f.severity === 'stub').map((f) => f.rule).sort()).toEqual(['fillGating', 'maxLayers']);
     expect(checkTemplateRules(p, ENSEMBLE_BY_ID.get('ensemble.vocalbacking')!).filter((f) => f.severity === 'stub').map((f) => f.rule)).toEqual(['maxLayers']);
   });
+});
+
+describe('mixed-window governor: sustained notes take the MIN cap over their windows', () => {
+  it('a pad note spanning a loud mixed beat and a strings-only beat is pulled to the mixed cap for its whole length', () => {
+    const p = base();
+    p.ensemble = { templateId: 'ensemble.chamber', overrides: {}, pins: {} };
+    // four sustained pad notes (0..1920, two beats), loud piano on beat 1 only
+    for (const [role, pitch] of [['violins1', 74], ['violins2', 70], ['violas', 65], ['cellosBasses', 50]] as [string, number][]) {
+      track(p, role).notes = [{ pitch, startTick: 0, durationTicks: 1920, velocity: 100 }];
+    }
+    track(p, 'piano').notes = [
+      { pitch: 60, startTick: 0, durationTicks: 960, velocity: 127 },
+      { pitch: 64, startTick: 0, durationTicks: 960, velocity: 127 },
+      { pitch: 67, startTick: 0, durationTicks: 960, velocity: 127 },
+      { pitch: 71, startTick: 0, durationTicks: 960, velocity: 127 },
+    ];
+    const padNotes = new Map(
+      (['cellosBasses', 'violas', 'violins2', 'violins1'] as const).map((role) => {
+        const t = track(p, role);
+        return [t.id, t.notes];
+      }),
+    );
+    governPadVelocities({
+      project: p,
+      template: chamber,
+      rosterRoles: new Set(chamber.roster.map((r) => r.role)),
+      padNotes,
+      otherNotes: [{ role: 'piano', notes: track(p, 'piano').notes }],
+    });
+
+    // beat 1 budget: 8 notes, 5 roles, otherSum 508 → perPad = floor((127·0.7·5·8/5 − 508)/4) = 50
+    for (const role of ['violins1', 'violins2', 'violas', 'cellosBasses']) {
+      const ns = track(p, role).notes;
+      expect(ns).toHaveLength(1);
+      expect(ns[0].velocity).toBe(50); // min over the two windows: the mixed beat binds
+    }
+    // …and the whole result now measures under the clamp
+    const r = measureEnergy(p, chamber);
+    expect(r.max).toBeLessThanOrEqual(chamber.budget.energyClamp[1] + 1e-9);
+  });
+});
+
+describe('Phase 2.5 diagnostics: beam vs exhaustive', () => {
+  const symbols = ['Dm7', 'G7', 'Cmaj7', 'G/B'];
+  const voices: VoiceSpec[] = [
+    { trackId: 'cb', role: 'cellosBasses', low: 43, high: 55, comfortable: [43, 55], isBass: true },
+    { trackId: 'vla', role: 'violas', low: 52, high: 64, comfortable: [52, 64], isBass: false },
+    { trackId: 'v1', role: 'violins1', low: 59, high: 71, comfortable: [59, 71], isBass: false },
+  ];
+  const mkChords = () =>
+    symbols.map((s, i) => {
+      const r = parseChord(s);
+      if (!r.ok) throw new Error(s);
+      return { id: `c${i}`, startTick: i * 1920, endTick: (i + 1) * 1920, ct: chordTones(r.chord) };
+    });
+  const opts = (rng: () => number, over: Partial<VoicingOptions> = {}): VoicingOptions => ({
+    forbidOctaveDoubling: false,
+    leadingTonePc: leadingTonePcOf(2, [2, 4, 5, 7, 9, 11, 0]), // D Dorian: none
+    checkParallels: true, openSpacing: false, zoneFree: null, rng, ...over,
+  });
+
+  it('beam vs exhaustive (best-of-N sampled paths per configuration — report numbers printed)', () => {
+    // Both configurations SAMPLE near-optimal paths (D11), so a single run
+    // compares two draws, not two optima. Best-of-8 seeds per configuration
+    // approximates each one's optimum; the production beam must not be worse.
+    let beamMin = Infinity;
+    let exhaustiveMin = Infinity;
+    let agree = 0;
+    for (let seed = 1; seed <= 8; seed++) {
+      const exhaustive = voiceLead(mkChords(), voices, opts(mulberry32(seed), { beamWidth: Infinity, candidateCap: Infinity }));
+      const beam = voiceLead(mkChords(), voices, opts(mulberry32(seed)));
+      exhaustiveMin = Math.min(exhaustiveMin, scoreVoicing(mkChords(), voices, opts(mulberry32(0)), exhaustive));
+      beamMin = Math.min(beamMin, scoreVoicing(mkChords(), voices, opts(mulberry32(0)), beam));
+      if (JSON.stringify(exhaustive.map((v) => v.pitches)) === JSON.stringify(beam.map((v) => v.pitches))) agree++;
+    }
+    console.log('beam-vs-exhaustive:', JSON.stringify({
+      seeds: 8, beamBest: Number(beamMin.toFixed(4)), exhaustiveBest: Number(exhaustiveMin.toFixed(4)),
+      pitchAgreement: `${agree}/8`,
+    }));
+    expect(beamMin).toBeLessThanOrEqual(exhaustiveMin + 1e-9);
+  }, 30000);
 });
 
 describe('calibration points (reported honestly — the formula is NOT bent to hit them)', () => {

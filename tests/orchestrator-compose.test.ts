@@ -143,6 +143,7 @@ describe('Compose All through the orchestrator: property sweep', () => {
       const b = spanPitches(takes[i]);
       const withNotes = a.filter((s) => s !== '').length;
       const differing = a.filter((s, j) => s !== '' && s !== b[j]).length;
+      console.log(`D11 take variety ${i - 1}→${i}: ${differing}/${withNotes} spans differ (${(100 * differing / withNotes).toFixed(1)}%)`);
       expect(differing / withNotes).toBeGreaterThanOrEqual(0.4);
     }
 

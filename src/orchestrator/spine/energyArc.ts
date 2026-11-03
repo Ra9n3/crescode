@@ -8,10 +8,12 @@
  *   - one deliberate near-silence bar before the FIRST Chorus — the strings
  *     rest there entirely (the conductor plans it as a breath), only when a
  *     template is active and unlocked in-band strings exist to silence;
- *   - peak reservation (Phase 3.5): the last Chorus (or the last non-outro
- *     section) is the PEAK — scaled to sit exactly at the clamp max — while
- *     every other section caps at PEAK_RESERVE of the clamp, so exactly one
- *     section ever owns the top of the dynamic range.
+ *   - peak reservation (Phase 3.5, reshaped in Phase 4.5): the last Chorus
+ *     (or the last non-outro section) is the PEAK — it OPENS at PEAK_OPEN of
+ *     the clamp max and rises linearly to 100% of the clamp by its last bar
+ *     before the final taper (never clipped flat to the clamp) — while every
+ *     other section caps at PEAK_RESERVE of the clamp, so exactly one section
+ *     ever owns the top of the dynamic range.
  *
  * Per-take variation (3d) is seeded per D8: the shape parameters (build
  * strength, dip depth, taper lengths) are drawn from a stream derived from
@@ -54,6 +56,14 @@ const OUTRO_LIKE = /outro|coda|fade/;
  * section) is the peak by default.
  */
 export const PEAK_RESERVE = 0.88;
+
+/**
+ * Peak shape (Phase 4.5): the peak section OPENS at this share of the clamp
+ * max and rises linearly to 100% by its last bar before the final taper —
+ * the outro taper when the peak ends the song, else the pre-change dip bar.
+ * The peak is shaped, never clipped flat to the clamp.
+ */
+export const PEAK_OPEN = 0.85;
 
 /**
  * The peak section: the last chorus-like section by start bar, else the last
@@ -99,6 +109,7 @@ export function energyCurve(p: Project, sections: SpineSection[], take: number, 
   const lastSection = sections.length ? sections.reduce((a, b) => (b.startBar > a.startBar ? b : a)) : null;
 
   const out: ArcBar[] = [];
+  const mods: number[] = []; // per-bar shape multipliers (parallel to out)
   for (let bar = 1; bar <= bars; bar++) {
     const sec = sectionAtBar(sections, bar);
     const name = sec?.name ?? '*';
@@ -110,18 +121,24 @@ export function energyCurve(p: Project, sections: SpineSection[], take: number, 
     // build inside the section: rises from (1−build/2)·base to (1+build/2)·base
     let target = B > 1 ? base * (1 - shape.build / 2 + (shape.build * i) / (B - 1)) : base;
 
+    // the combined shape multipliers — intro taper, outro taper, pre-change
+    // dip — recorded per bar so the peak pass can rebuild the peak section ON
+    // the ramp with the same landing shape (Phase 4.5)
+    let mult = 1;
     // intro taper: the very first section starts lower and ramps in
     if (sec && sec.index === 0 && i < shape.taperBars) {
-      target *= 0.6 + 0.4 * ((i + 1) / shape.taperBars);
+      mult *= 0.6 + 0.4 * ((i + 1) / shape.taperBars);
     }
     // outro taper: the final section winds down over its last bars
     if (sec && lastSection && sec.id === lastSection.id && B - 1 - i < shape.taperBars) {
-      target *= 0.55 + 0.45 * ((B - 1 - i) / shape.taperBars);
+      mult *= 0.55 + 0.45 * ((B - 1 - i) / shape.taperBars);
     }
     // dip before a section change: the last bar of any non-final section
     if (sec && lastSection && sec.id !== lastSection.id && i === B - 1) {
-      target *= 1 - shape.dip;
+      mult *= 1 - shape.dip;
     }
+    target *= mult;
+    mods.push(mult);
 
     const nearSilence = bar === silenceBar;
     if (nearSilence) target = 0;
@@ -130,20 +147,25 @@ export function energyCurve(p: Project, sections: SpineSection[], take: number, 
     out.push({ bar, startTick: (bar - 1) * btBar, endTick: bar * btBar, sectionId: sec?.id ?? '__all', target, nearSilence });
   }
 
-  // Peak reservation (Phase 3.5): the peak section is scaled so its loudest
-  // bar sits exactly at the clamp max — every other section caps at
+  // Peak reservation (Phase 3.5, Phase 4.5 shape): the peak section is not
+  // clipped to the clamp — it OPENS at PEAK_OPEN·clampMax and rises linearly
+  // to 100% of the clamp by its last bar before the final taper (the outro
+  // taper when the peak ends the song, else the pre-change dip bar); the
+  // taper/dip multipliers still land on top. Every other section caps at
   // PEAK_RESERVE of the clamp. Applies only to real structure: a structure-
-  // less project is one pseudo-section, and scaling it to the clamp would
+  // less project is one pseudo-section, and giving it the peak ramp would
   // flatten the whole arc for no musical reason. The near-silence bars are
-  // re-zeroed last so neither the scale nor the cap can resurrect them.
+  // re-zeroed last so neither the ramp nor the cap can resurrect them.
   if (p.sections.length) {
     const peak = peakSectionOf(sections);
     if (peak) {
-      const peakBars = out.filter((b) => b.sectionId === peak.id && !b.nearSilence);
-      const rawMax = peakBars.length ? Math.max(...peakBars.map((b) => b.target)) : 0;
-      if (rawMax > 0 && rawMax < clampMax) {
-        const scale = clampMax / rawMax;
-        for (const b of out) if (b.sectionId === peak.id && !b.nearSilence) b.target = Math.min(clampMax, b.target * scale);
+      const trailing = lastSection && peak.id === lastSection.id ? shapeOf(peak).taperBars : 1; // bars under the taper/dip
+      const riseBars = Math.max(1, peak.lengthBars - trailing); // bars that carry the rise
+      for (const b of out) {
+        if (b.sectionId !== peak.id || b.nearSilence) continue;
+        const i = b.bar - peak.startBar;
+        const prog = riseBars > 1 ? Math.min(1, i / (riseBars - 1)) : 1;
+        b.target = Math.min(clampMax, clampMax * (PEAK_OPEN + (1 - PEAK_OPEN) * prog) * mods[b.bar - 1]);
       }
       const cap = PEAK_RESERVE * clampMax;
       for (const b of out) if (b.sectionId !== peak.id) b.target = Math.min(b.target, cap);

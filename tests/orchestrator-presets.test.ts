@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import fixture from '../fixtures/dorian-16bars.json';
-import { ENSEMBLE_BY_ID } from '../src/config/ensembles';
 import { composeAllTracks } from '../src/orchestrator/compose';
 import { chordSpans } from '../src/engine/generate';
 import { chordTones } from '../src/orchestrator/voicing/chordTones';

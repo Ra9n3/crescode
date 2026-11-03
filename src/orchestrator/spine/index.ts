@@ -12,7 +12,7 @@ import type { OrchestrationState, Project, TempoEntry } from '../../shared/schem
 /** A chord span (normalized chord list entry, Phase 0). */
 export type { ResolvedChord } from '../../engine/rules-schema';
 export { chordSpans };
-export { energyCurve, arcTargetAt, peakSectionOf, PEAK_RESERVE, type ArcBar } from './energyArc';
+export { energyCurve, arcTargetAt, peakSectionOf, PEAK_RESERVE, PEAK_OPEN, type ArcBar } from './energyArc';
 
 /** A section window in ticks, with occurrence numbering for repeated names. */
 export interface SpineSection {

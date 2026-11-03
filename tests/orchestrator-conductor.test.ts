@@ -4,7 +4,7 @@ import { ENSEMBLE_BY_ID } from '../src/config/ensembles';
 import { composeAllTracks } from '../src/orchestrator/compose';
 import { checkTemplateRules, measureEnergy } from '../src/orchestrator/energy';
 import { LAYER_VOCABULARY, type ConductorPlan } from '../src/orchestrator/conductor';
-import { energyCurve, arcTargetAt, sectionMap, peakSectionOf, PEAK_RESERVE, type SpineSection } from '../src/orchestrator/spine';
+import { energyCurve, arcTargetAt, sectionMap, peakSectionOf, PEAK_RESERVE, PEAK_OPEN, type SpineSection } from '../src/orchestrator/spine';
 import { projectFromFixture, type Project } from '../src/shared/schema';
 
 const TEMPLATE_IDS = ['ensemble.symphony', 'ensemble.chamber', 'ensemble.cinematic', 'ensemble.sonata', 'ensemble.vocalbacking', 'ensemble.hybridstudio'] as const;
@@ -336,11 +336,12 @@ describe('Phase 3.5: peak reservation — one section owns the top of the range'
     }
   });
 
-  it('a peak section planned below the clamp is scaled UP to it (cinematic: raw top 0.81 → clamp 0.95)', () => {
+  it('the peak section is shaped onto the clamp: opens at PEAK_OPEN·clamp and rises to 100% (cinematic)', () => {
     const { result } = compose('ensemble.cinematic');
     const clampMax = ENSEMBLE_BY_ID.get('ensemble.cinematic')!.budget.energyClamp[1];
     const chorus = sectionRuns(result.plan).find((r) => /chorus/i.test(r.name))!;
-    expect(Math.max(...chorus.targets)).toBeCloseTo(clampMax, 9);
+    expect(Math.max(...chorus.targets)).toBeCloseTo(clampMax, 9); // the rise tops out AT the clamp
+    expect(chorus.targets[0]).toBeCloseTo(PEAK_OPEN * clampMax, 9); // the opening bar, before any taper
   });
 
   it('no structure → no peak reservation: the arc keeps its own shape below the clamp', () => {

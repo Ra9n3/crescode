@@ -17,6 +17,7 @@ import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
 import { resolveTemplate } from '../config/ensembles';
 import { chordSpans, sectionMap, orchestrationSeedFor } from './spine';
 import { stringsModule, stringVoiceTracks } from './render';
+import { governPadVelocities } from './energy/mix';
 import type { OrchestratorContext } from './module';
 
 export interface ComposeOptions {
@@ -45,7 +46,7 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     ...(project.orchestration?.sectionLocks ? { sectionLocks: [...project.orchestration.sectionLocks] } : {}),
   };
 
-  const ctx: OrchestratorContext = { project, template, ensemble, spans: chordSpans(project), sections: sectionMap(project) };
+  const ctx: OrchestratorContext = { project: { ...project, orchestration }, template, ensemble, spans: chordSpans(project), sections: sectionMap(project) };
   const seed = orchestrationSeedFor(orchestration);
   const voiceTracks = stringVoiceTracks(ctx);
   const plans = stringsModule.roles(ctx);
@@ -68,6 +69,23 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     humanize: options.humanize,
     lockedTrackIds,
     excludeRoles: [...new Set(voiceTracks.map((t) => t.role))],
+  });
+
+  // Mixed-window governor: the pads' own cap bounds strings-only windows, but
+  // real windows mix pads with the rules generator's output. Re-check every
+  // beat window and pull pad velocities down where the MIX would breach the
+  // template's hard clamp (spec §6, Phase-2 acceptance). No band → no clamp.
+  const rosterRoles = new Set(
+    (template ? template.roster.map((r) => r.role) : project.tracks.filter((t) => isInstrumentTrack(t) && isInBand(t.role, ensemble, template)).map((t) => t.role)),
+  );
+  governPadVelocities({
+    project,
+    template,
+    rosterRoles,
+    padNotes: new Map(stringsTrackIds.map((id) => [id, notesByTrackId[id]])),
+    otherNotes: ruleTracks
+      .filter((t) => !stringsTrackIds.includes(t.id))
+      .map((t) => ({ role: t.role, notes: t.notes })),
   });
 
   const stringsNotes = new Map(stringsTrackIds.map((id) => [id, notesByTrackId[id]]));

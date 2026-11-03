@@ -69,10 +69,10 @@ export interface VoicedChord {
 const MAX_CANDIDATES_PER_VOICE = 8;
 const BEAM_WIDTH = 320;
 const C3 = 48;
-/** Per-take cost jitter: large enough to flip near-ties between takes, far
- *  below any structural cost (motion ≥ 1, parallels 8, outside-comfy 0.8/semi). */
-const TAKE_JITTER = 1.2;
-const CANDIDATE_JITTER = 0.3;
+/** Per-take cost jitter: large enough to flip near-ties between takes, well
+ *  below the structural costs (motion ≥ 1, parallels 8). */
+const TAKE_JITTER = 2.0;
+const CANDIDATE_JITTER = 0.5;
 
 interface Candidate { pitch: number; staticCost: number }
 
@@ -85,18 +85,31 @@ function outsideComfy(pitch: number, v: VoiceSpec, lean: number): number {
 function voiceCandidates(v: VoiceSpec, allowedPcs: number[], bassPc: number, opts: VoicingOptions, lean: number, mustDouble: boolean): Candidate[] {
   // When voices outnumber distinct tones, doubling is unavoidable — restrict
   // it to the BASS pitch class (classic root doubling) instead of resting.
-  const pcs = v.isBass ? [bassPc] : mustDouble ? [bassPc, ...allowedPcs] : allowedPcs;
+  const pcs = v.isBass ? [bassPc] : [...new Set(mustDouble ? [bassPc, ...allowedPcs] : allowedPcs)];
   const zone = opts.zoneFree;
-  const out: Candidate[] = [];
   const rankOf = new Map(allowedPcs.map((pc, i) => [pc, i]));
+  // Cap per PITCH CLASS, not globally: a global cap lets one pc crowd the
+  // others out (3 A's beat 1 E on cost) and can leave a no-doubling chord
+  // with no feasible tuple at all. Two octaves per pc keep every tone
+  // reachable while bounding the tuple space.
+  const perPc = Math.max(2, Math.ceil(MAX_CANDIDATES_PER_VOICE / pcs.length));
+  const byPc = new Map<number, Candidate[]>();
   for (let p = v.low; p <= v.high; p++) {
     if (zone && p >= zone[0] && p <= zone[1]) continue;
     if (!pcs.includes(p % 12)) continue;
-    const rank = v.isBass || p % 12 === bassPc ? (mustDouble ? 0 : (rankOf.get(p % 12) ?? 0)) : (rankOf.get(p % 12) ?? 0);
-    out.push({ pitch: p, staticCost: outsideComfy(p, v, lean) * 0.8 + rank * 0.4 + opts.rng() * CANDIDATE_JITTER });
+    const rank = v.isBass ? 0 : (rankOf.get(p % 12) ?? 0);
+    const cand: Candidate = { pitch: p, staticCost: outsideComfy(p, v, lean) * 0.8 + rank * 0.4 + opts.rng() * CANDIDATE_JITTER };
+    const list = byPc.get(p % 12) ?? [];
+    list.push(cand);
+    byPc.set(p % 12, list);
+  }
+  const out: Candidate[] = [];
+  for (const list of byPc.values()) {
+    list.sort((a, b) => a.staticCost - b.staticCost || a.pitch - b.pitch);
+    out.push(...list.slice(0, perPc));
   }
   out.sort((a, b) => a.staticCost - b.staticCost || a.pitch - b.pitch);
-  return out.slice(0, MAX_CANDIDATES_PER_VOICE);
+  return out;
 }
 
 /** Hard checks on a complete tuple (nulls = resting voices, skipped).
@@ -193,7 +206,10 @@ interface BeamEntry {
 export function voiceLead(chords: VoicingChord[], voices: VoiceSpec[], opts: VoicingOptions): VoicedChord[] {
   if (!chords.length || !voices.length) return [];
   const nVoices = voices.length;
-  const leans = voices.map(() => Math.floor((opts.rng() - 0.5) * 7));
+  // Per-take register lean: a base lean (±5) per voice plus a per-chord
+  // offset (±2, redrawn every chord from the same deterministic take stream)
+  // — takes genuinely re-register and re-shape lines chord by chord.
+  const baseLeans = voices.map(() => Math.floor((opts.rng() - 0.5) * 11));
 
   interface StaticState { pitches: (number | null)[]; staticCost: number }
   const beams: BeamEntry[][] = [];
@@ -208,8 +224,9 @@ export function voiceLead(chords: VoicingChord[], voices: VoiceSpec[], opts: Voi
     const doublePc = mustDouble ? chord.ct.bassPc : null;
 
     // per-voice candidates; a voice with none simply rests on this chord
+    const chordLeans = voices.map((_, i) => baseLeans[i] + Math.floor((opts.rng() - 0.5) * 5));
     const candLists: (Candidate[] | null)[] = voices.map((v, i) => {
-      const c = voiceCandidates(v, allowedPcs, chord.ct.bassPc, opts, leans[i], mustDouble);
+      const c = voiceCandidates(v, allowedPcs, chord.ct.bassPc, opts, chordLeans[i], mustDouble);
       return c.length ? c : null;
     });
 

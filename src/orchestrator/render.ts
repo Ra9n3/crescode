@@ -140,25 +140,44 @@ export const stringsModule: SectionModule = {
     const notesByTrackId: Record<string, Note[]> = {};
     for (const id of plan.voiceTrackIds) notesByTrackId[id] = [];
 
-    for (const vc of voiced) {
+    // Take phrasing: which chord spans the pad RE-ATTACKS (split at the
+    // midpoint) instead of sustaining through. The mask is take · 0x9E3779B1
+    // (odd multiplier) — multiplication by an odd constant is a bijection
+    // mod 2ⁿ, so takes within 2ⁿ of each other always differ in at least one
+    // of the first n span bits: nearby takes are GUARANTEED different scores,
+    // not just probably different. Same take → same mask → same phrase.
+    const take = ctx.project.orchestration?.take ?? 0;
+    const phraseMask = Math.imul(take, 0x9e3779b1) >>> 0;
+
+    voiced.forEach((vc, spanIndex) => {
       // clip the span into the section window — a chord crossing a boundary
       // re-articulates per section with that section's energy
       const start = Math.max(vc.startTick, section.startTick);
       const end = Math.min(vc.endTick, section.endTick);
       const len = end - start;
-      if (len < minDuration) continue; // gap or too short (Vocal Backing eighth rule)
+      if (len < minDuration) return; // gap or too short (Vocal Backing eighth rule)
 
       const sounding = vc.pitches.filter((p): p is number => p !== null);
-      if (!sounding.length) continue;
+      if (!sounding.length) return;
       const cap = maxMeanVelocityFor(rosterLength, clamp[1], sounding.length);
       const velocity = Math.max(1, Math.min(127, Math.round(1 + (cap - 1) * target)));
+
+      // the take's phrase decision for this span (both halves must clear the
+      // preset's minimum duration, so tiny spans are never split into stubs)
+      const reattack = ((phraseMask >>> (spanIndex % 31)) & 1) === 1 && len >= minDuration * 2;
+      const half = Math.floor(len / 2);
 
       plan.voiceTrackIds.forEach((trackId, vi) => {
         const pitch = vc.pitches[vi];
         if (pitch === null) return;
-        notesByTrackId[trackId].push({ pitch, startTick: start, durationTicks: len, velocity });
+        if (reattack) {
+          notesByTrackId[trackId].push({ pitch, startTick: start, durationTicks: half, velocity });
+          notesByTrackId[trackId].push({ pitch, startTick: start + half, durationTicks: len - half, velocity });
+        } else {
+          notesByTrackId[trackId].push({ pitch, startTick: start, durationTicks: len, velocity });
+        }
       });
-    }
+    });
 
     return { notesByTrackId };
   },

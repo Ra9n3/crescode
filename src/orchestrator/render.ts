@@ -468,36 +468,43 @@ export const stringsModule: SectionModule = {
 export const stringsFamilyRoles = STRING_ROLES;
 
 /**
- * Phase 4f: Vc+Cb layering inside cellosBasses — the Cb doubles the Vc line
- * an octave below, ONLY where the template's octaveDoubling policy allows it
- * and the track's hard range holds both lines at once. Otherwise: report and
- * skip (the brief's own contract). Mutates the handed-in note arrays.
+ * Phase 4f, per note since Phase 4.5: Vc+Cb layering inside cellosBasses —
+ * the Cb doubles the Vc line an octave below, ONLY where the template's
+ * octaveDoubling policy is 'allowed'. Per note: a note whose octave below
+ * would leave the track's hard range is skipped (only that note), and the
+ * leading tone is NEVER doubled — the hard rule wins over the layering, note
+ * by note, so the Cb line simply opens where the Vc crosses it. The
+ * doubled/total count lands in the reports per template. Mutates the
+ * handed-in note arrays.
  */
 export function maybeLayerCellosBasses(ctx: OrchestratorContext, notesByTrackId: Record<string, Note[]>, stringsTrackIds: string[]): void {
   const template = ctx.template;
   if (!template) return;
-  const allowed = template.rules.some((r) => r.type === 'octaveDoubling' && (r.params as { policy?: string }).policy === 'allowed');
-  if (!allowed) return;
   const cbId = stringsTrackIds.find((id) => ctx.project.tracks.find((t) => t.id === id)?.role === 'cellosBasses');
   if (!cbId) return;
-  const track = ctx.project.tracks.find((t) => t.id === cbId)!;
+  const policy = (template.rules.find((r) => r.type === 'octaveDoubling')?.params as { policy?: string } | undefined)?.policy;
   const notes = notesByTrackId[cbId] ?? [];
   if (!notes.length) return;
-  const lowest = Math.min(...notes.map((n) => n.pitch));
-  // a Cb octave below a leading-tone note would DOUBLE the leading tone —
-  // the hard rule wins over the layering, so the line must avoid it entirely
-  const lt = leadingTonePcOf(ctx.project.key, scalePitchClasses(ctx.project.key, ctx.project.mode));
-  const crossesLt = lt !== null && notes.some((n) => ((n.pitch % 12) + 12) % 12 === lt);
-  if (crossesLt) {
-    ctx.lines?.reports.push('Vc+Cb layering skipped: the Vc line crosses the leading tone — a Cb octave below would double it');
+  if (policy !== 'allowed') {
+    ctx.lines?.reports.push(`Vc+Cb layering (${template.id}): skipped — the octaveDoubling policy is ${policy ?? 'none'}`);
     return;
   }
-  if (lowest - 12 >= track.lowestNote) {
-    const doubled = [...notes, ...notes.map((n) => ({ ...n, pitch: n.pitch - 12 }))];
-    doubled.sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
-    notesByTrackId[cbId] = doubled;
-    ctx.lines?.reports.push(`Vc+Cb layering: the cellosBasses line (low ${noteName(lowest)}) holds a Cb line an octave below — ${notes.length} notes doubled`);
-  } else {
-    ctx.lines?.reports.push(`Vc+Cb layering skipped: the Vc line reaches ${noteName(lowest)}; an octave below (${noteName(lowest - 12)}) is under the track's low ${noteName(track.lowestNote)}`);
+  const track = ctx.project.tracks.find((t) => t.id === cbId)!;
+  const lt = leadingTonePcOf(ctx.project.key, scalePitchClasses(ctx.project.key, ctx.project.mode));
+  const doubles: Note[] = [];
+  let underRange = 0;
+  let onLeadingTone = 0;
+  for (const n of notes) {
+    if (lt !== null && ((n.pitch % 12) + 12) % 12 === lt) { onLeadingTone++; continue; } // never double the leading tone
+    if (n.pitch - 12 < track.lowestNote) { underRange++; continue; } // skip only the notes that would fall below
+    doubles.push({ ...n, pitch: n.pitch - 12 });
   }
+  if (doubles.length) {
+    notesByTrackId[cbId] = [...notes, ...doubles].sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
+  }
+  const skips = [
+    underRange ? `${underRange} under the track's low ${noteName(track.lowestNote)}` : null,
+    onLeadingTone ? `${onLeadingTone} on the leading tone` : null,
+  ].filter(Boolean).join(', ');
+  ctx.lines?.reports.push(`Vc+Cb layering (${template.id}): ${doubles.length}/${notes.length} notes doubled an octave below${skips ? ` (skipped: ${skips})` : ''}`);
 }

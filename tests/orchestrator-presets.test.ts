@@ -141,27 +141,56 @@ describe('Vocal Backing preset (4e): wide legato only', () => {
   });
 });
 
-describe('Vc+Cb layering (4f): octave below where policy and range allow', () => {
-  it('dorian fixture (no leading tone): symphony cellosBasses carries the Cb octave', () => {
+describe('Vc+Cb layering (4f, per note since 4.5): octave below where policy and range allow', () => {
+  const ltPcOf = (p: Project) => leadingTonePcOf(p.key, scalePitchClasses(p.key, p.mode));
+
+  it('symphony dorian: the Cb doubles every note that stays in range; skips are per note and reported', () => {
     const { project, result } = compose('ensemble.symphony');
     const cb = track(project, 'cellosBasses');
-    const report = result.reports.find((r) => r.startsWith('Vc+Cb layering'));
-    // either layered (every note has its octave-below partner) or reported+skipped
-    if (report?.includes('holds a Cb line')) {
-      const pitches = new Set(cb.notes.map((n) => `${n.startTick}:${n.pitch}`));
-      for (const n of cb.notes) {
-        expect(pitches.has(`${n.startTick}:${n.pitch - 12}`) || pitches.has(`${n.startTick}:${n.pitch + 12}`)).toBe(true);
-      }
-      expect(Math.min(...cb.notes.map((n) => n.pitch)) - 12).toBeGreaterThanOrEqual(cb.lowestNote);
-    } else {
-      expect(report).toMatch(/skipped/);
+    const report = result.reports.find((r) => r.startsWith(`Vc+Cb layering (ensemble.symphony)`));
+    expect(report).toBeTruthy();
+    const m = report!.match(/(\d+)\/(\d+) notes doubled/)!;
+    const doubled = Number(m[1]);
+    const total = Number(m[2]);
+    console.log(`Phase 4.5 report (symphony · dorian): ${report}`);
+    expect(total).toBeGreaterThan(0);
+    // every doubled note has its octave partner; every note stays in the hard range
+    const pairs = new Set(cb.notes.map((n) => `${n.startTick}:${n.pitch}`));
+    const isDouble = (n: { startTick: number; pitch: number }) => pairs.has(`${n.startTick}:${n.pitch + 12}`);
+    expect(cb.notes.filter(isDouble).length).toBe(doubled);
+    for (const n of cb.notes) {
+      expect(n.pitch).toBeGreaterThanOrEqual(cb.lowestNote);
+      expect(n.pitch).toBeLessThanOrEqual(cb.highestNote);
     }
-    console.log('Phase 4f report (symphony · dorian):', report);
+    // the skipped notes really are the ones that would fall below (dorian: no leading tone)
+    const lt = ltPcOf(project);
+    expect(lt).toBeNull();
+    const skipped = cb.notes.filter((n) => !isDouble(n) && n.pitch - 12 < cb.lowestNote).length;
+    expect(total - doubled).toBe(skipped);
+    expect(report).toMatch(/under the track's low E1/);
   });
 
-  it('chamber and sonata (doubling not allowed): no same-track octave pairs in cellosBasses', () => {
+  it('a leading tone is never doubled, note by note (cinematic on C Ionian)', () => {
+    const p = BASE();
+    p.key = 0; // C
+    p.mode = 'Ionian';
+    p.ensemble = { templateId: 'ensemble.cinematic', overrides: {}, pins: {} };
+    const composed = composeAllTracks(p, { seed: 11 });
+    const project = { ...p, tracks: composed.tracks } as Project;
+    const cb = track(project, 'cellosBasses');
+    const report = composed.reports.find((r) => r.startsWith('Vc+Cb layering (ensemble.cinematic)'))!;
+    const doubledNotes = cb.notes.filter((n) => cb.notes.some((m) => m !== n && m.startTick === n.startTick && m.pitch === n.pitch + 12));
+    const lt = ltPcOf(project);
+    expect(lt).toBe(11); // B in C Ionian
+    for (const n of doubledNotes) expect(((n.pitch % 12) + 12) % 12).not.toBe(lt); // the hard rule wins per note
+    console.log(`Phase 4.5 report (cinematic · C Ionian): ${report}`);
+  });
+
+  it('chamber and sonata (doubling not allowed): no same-track octave pairs in cellosBasses, reported as skipped', () => {
     for (const id of ['ensemble.chamber', 'ensemble.sonata']) {
-      const { project } = compose(id);
+      const { project, result } = compose(id);
+      const report = result.reports.find((r) => r.startsWith(`Vc+Cb layering (${id})`));
+      expect(report).toMatch(/skipped — the octaveDoubling policy is (climaxOnly|forbidden)/);
       const cb = track(project, 'cellosBasses').notes;
       for (const a of cb) {
         for (const b of cb) {
@@ -171,6 +200,15 @@ describe('Vc+Cb layering (4f): octave below where policy and range allow', () =>
           }
         }
       }
+    }
+  });
+
+  it('reports the doubled/total counts per template (dorian fixture)', () => {
+    for (const id of ['ensemble.symphony', 'ensemble.chamber', 'ensemble.cinematic', 'ensemble.sonata', 'ensemble.vocalbacking', 'ensemble.hybridstudio']) {
+      const { result } = compose(id);
+      const report = result.reports.find((r) => r.startsWith(`Vc+Cb layering (${id})`));
+      expect(report).toBeTruthy();
+      console.log(`Phase 4.5 report (dorian · ${id.slice(9)}): ${report}`);
     }
   });
 });

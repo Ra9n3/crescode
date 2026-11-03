@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import fixture from '../fixtures/dorian-16bars.json';
-import { generate, mulberry32 } from '../src/engine/generate';
+import { buildContext, generate, humanizeNotes, mulberry32 } from '../src/engine/generate';
 import { defaultRules } from '../src/config/generation-rules';
 import { ENSEMBLE_BY_ID } from '../src/config/ensembles';
 import type { GenerationRules } from '../src/engine/rules-schema';
 import {
-  MODE_NAMES, barTicks, isInstrumentTrack, projectEndTick, projectFromFixture, validateProject, type Project, type Track,
+  MODE_NAMES, barTicks, isInstrumentTrack, projectEndTick, projectFromFixture, validateProject, type Note, type Project, type Track,
 } from '../src/shared/schema';
 
 const fx = (): Project => projectFromFixture(JSON.parse(JSON.stringify(fixture)));
@@ -230,5 +230,37 @@ describe('generate: the band gates who gets written (Task 6)', () => {
     const a = generate(p, { seed: 5 });
     const b = generate(p, { seed: 5 });
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  });
+});
+
+describe('Phase 0 guards', () => {
+  it('humanizeNotes is exported and deterministic for a given rng stream', () => {
+    const p = fx();
+    const rules = defaultRules;
+    const opts = { seed: 7, density: 1, humanize: true, lockedTrackIds: [] as string[] };
+    const ctx = buildContext(p, opts, [], rules);
+    const notes: Note[] = [
+      { pitch: 60, startTick: 0, durationTicks: 960, velocity: 80 },
+      { pitch: 64, startTick: 960, durationTicks: 960, velocity: 90 },
+    ];
+    const a = humanizeNotes(notes, ctx, mulberry32(99), rules);
+    const b = humanizeNotes(notes, ctx, mulberry32(99), rules);
+    expect(a).toEqual(b);
+    for (const n of a) {
+      expect(n.startTick).toBeGreaterThanOrEqual(0);
+      expect(n.durationTicks).toBeGreaterThanOrEqual(1);
+      expect(n.velocity).toBeGreaterThanOrEqual(1);
+      expect(n.velocity).toBeLessThanOrEqual(127);
+    }
+  });
+
+  it('generation never writes notes into the Chords (Structure) track — no orphans possible', () => {
+    const p = fx();
+    const chordTrack = p.tracks.find((t) => t.family === 'Structure')!;
+    expect(chordTrack).toBeDefined();
+    chordTrack.notes = [{ pitch: 60, startTick: 0, durationTicks: 480, velocity: 100 }];
+    const out = generate(p, { seed: 11 });
+    const after = out.find((t) => t.id === chordTrack.id)!;
+    expect(after.notes).toEqual(chordTrack.notes);
   });
 });

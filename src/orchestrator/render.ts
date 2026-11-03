@@ -55,7 +55,7 @@ export const sectionEnergyTarget = (name: string): number => {
   return DEFAULT_ENERGY;
 };
 
-const SYMMETRIC_MODES = new Set(['Whole Tone', 'Diminished (Half-Whole)', 'Diminished (Whole-Half)']);
+const SYMMETRIC_MODES = new Set(['Whole Tone', 'Diminished (Half-Whole)', 'Diminished (Whole-Half)', 'Locrian']);
 
 /** The strings family tracks that will actually sound: in the band, unlocked. */
 export function stringVoiceTracks(ctx: OrchestratorContext): Track[] {

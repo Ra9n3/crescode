@@ -41,3 +41,16 @@ Hard: INSTRUMENTS ranges · no crossing · lowest voice sings the slash bass (or
 ## Out of scope (respected)
 
 Articulation assignment, CC generation, motifs, ostinati, humanize, preview-synth changes, UI. `docs/ORCHESTRATION_ENGINE_PLAN.md` stays marked superseded; the two work-order mismatches ("Amendments v2", "D8") are documented in PHASE1_REPORT.md and the code comments.
+
+## Amendments v2 reconciliation (arrived mid-run as `480a2a5`, merged into the branch)
+
+| Amendment | Status |
+|---|---|
+| §3 "Add D8–D11 from the review above" | **D8–D11 contents are not in the diff** — the amendment references a review that isn't in the repo. `orchestrationSeed` follows §2.1/§8 (take-seeded). Open item for the author. |
+| §4 stale-fact replacements | All already true on this branch (chordSpans home + re-export; sanitizeNotes preserves fields; midi.ts CC; composeAll/band/resolveTemplate locations; tests typecheck). |
+| §7.3 vocabulary | Covered — the full `parseChord` grammar was already generic; the amendment's named list (incl. `G#dim7`, `7b9`, `7b5`, `m(maj7)`) is now **pinned by tests** through parse → chordTones → voicing, slash basses included. |
+| §7.3 leading tone derived | Already implemented exactly so; D Dorian has none. |
+| §7.3 parallels off in symmetric/non-tertian harmony | **Fixed**: Locrian joined Whole Tone + both Diminished modes in the parallels-off set. |
+| §7.6 detune is a profile constant, not on notes | Respected — no detune storage anywhere. |
+| §9 CC export moved to Phase 1 | Was done in Phase 1 (`a909820`). |
+| §10 test additions | All five properties are tested (field-preserving sanitizer, old files load, CC round-trip, same take byte-identical, different take different). |

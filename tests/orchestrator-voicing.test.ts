@@ -5,6 +5,9 @@ import { mulberry32 } from '../src/engine/generate';
 import { parseChord } from '../src/shared/schema/chords';
 import { scalePitchClasses } from '../src/shared/schema/modes';
 
+const pcsOf = (r: { ok: boolean; chord?: { pitchClasses: number[] } }): number[] =>
+  r.ok ? r.chord!.pitchClasses : [];
+
 const ct = (symbol: string) => {
   const r = parseChord(symbol);
   if (!r.ok) throw new Error(r.error);
@@ -154,5 +157,55 @@ describe('voiceLead: soft behaviour and determinism', () => {
     const t0 = performance.now();
     voiceLead(long, voicesLowFirst, baseOpts());
     expect(performance.now() - t0).toBeLessThan(1000);
+  });
+});
+
+describe('Amendments v2 §7.3: the voicer handles every quality parseChord reads', () => {
+  const AMENDMENT_VOCAB = ['Cmaj', 'Cm', 'Cdim', 'Caug', 'Csus2', 'Csus4', 'C7', 'Cmaj7', 'Cm7', 'Cm7b5', 'Cdim7', 'Cm(maj7)', 'Cadd9', 'Cmadd9', 'C9', 'Cmaj9', 'Cm9', 'C7sus4', 'C9sus4', 'C7b9', 'C7b5'];
+  const spell = (sym: string): [number, number[]] => {
+    const r = parseChord(sym);
+    if (!r.ok) throw new Error(r.error);
+    return [r.chord.root, r.chord.pitchClasses];
+  };
+
+  it('every named quality parses to the right pitch classes', () => {
+    expect(spell('G#dim7')).toEqual([8, [8, 11, 2, 5]]); // G# B D F
+    expect(spell('C7b9')).toEqual([0, [0, 4, 7, 10, 1]]); // C E G Bb Db
+    expect(spell('C7b5')).toEqual([0, [0, 4, 6, 10]]); // C E Gb Bb
+    expect(spell('Cm(maj7)')).toEqual([0, [0, 3, 7, 11]]);
+    for (const sym of AMENDMENT_VOCAB) {
+      const [root, pcs] = spell(sym);
+      expect(pcs[0] === root || pcs.includes(root), `${sym} must contain its root`).toBe(true);
+      expect(new Set(pcs).size, `${sym} must have distinct pitch classes`).toBe(pcs.length);
+    }
+  });
+
+  it('keeps voicing feasible across the whole vocabulary (4 voices, no doubling)', () => {
+    const cb = voice('cellosBasses', 28, 84, true);
+    const voicesLowFirst = [cb, voice('violas', 48, 88), voice('violins2', 55, 93), voice('violins1', 55, 96)];
+    for (const root of ['C', 'F#', 'Bb']) {
+      for (const q of AMENDMENT_VOCAB.map((s) => s.slice(1))) {
+        const sym = `${root}${q}`;
+        const parsed = parseChord(sym);
+        expect(parsed.ok, sym).toBe(true);
+        const out = voiceLead([chord('x', 0, 3840, sym)], voicesLowFirst, baseOpts());
+        const ps = out[0].pitches.filter((p): p is number => p !== null);
+        expect(ps.length, `${sym}: every voice sounds`).toBe(4);
+        for (const p of ps) expect(pcsOf(parsed).includes(p % 12), `${sym}: ${p} is a chord tone`).toBe(true);
+      }
+    }
+  });
+
+  it('the bass voice sings the slash bass for every spelled slash chord', () => {
+    const cb = voice('cellosBasses', 28, 84, true);
+    const voicesLowFirst = [cb, voice('violas', 48, 88), voice('violins2', 55, 93), voice('violins1', 55, 96)];
+    for (const sym of ['G#dim7/B', 'C7b9/Db', 'Am(maj7)/E', 'F9sus4/G']) {
+      const parsed = parseChord(sym);
+      expect(parsed.ok, sym).toBe(true);
+      const wantBass = parsed.ok ? (parsed.chord.bass ?? parsed.chord.root) : -1;
+      const out = voiceLead([chord('x', 0, 3840, sym)], voicesLowFirst, baseOpts());
+      const bass = out[0].pitches[0] as number;
+      expect(bass % 12, `${sym}: the lowest voice sings the slash bass`).toBe(wantBass);
+    }
   });
 });

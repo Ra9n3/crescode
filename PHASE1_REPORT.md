@@ -16,7 +16,7 @@ Branch `orchestrator-phase1-2` off `dc6ef43`. Baseline 542/542 (22 files), tsc c
 
 ## Mismatches (repo is source of truth)
 
-1. **"Amendments v2" does not exist** — not in the spec, the repo, `upload/`, or `download/`. Phase 2's chord-tone function will cover the repo's *actual* chord vocabulary: the full `parseChord` grammar (45 quality/extension tables incl. sus, no3/no5, add/alt extensions, 6/9, slash bass) — which is the widest vocabulary that exists anywhere in the project.
+1. **"Amendments v2" did not exist when this phase started** — not in the spec, the repo, `upload/`, or `download/`. Phase 2's chord-tone function therefore covered the repo's *actual* chord vocabulary: the full `parseChord` grammar (45 quality/extension tables incl. sus, no3/no5, add/alt extensions, 6/9, slash bass). **Update (same day):** the author pushed `480a2a5` adding "Amendments v2" to the spec mid-run; it was merged into the branch and reconciled — see PHASE2_REPORT.md. The named vocabulary subset is now pinned by tests, and every §9/§10 amendment this phase owns was already satisfied.
 2. **"orchestrationSeed per D8" — there is no D8**; the spec's decisions end at D7. `orchestrationSeed` will be implemented from spec §2.1/§8 instead: `hashString` over the orchestration take (and per-section takes), so a re-roll changes one section's seed only.
 3. **validate.ts config inversion — left untouched, not trivial**: the validator genuinely needs the shipped template-id set; moving it into `shared/schema` duplicates the loader or inverts `config/ensembles` (which imports schema types) app-wide. New validators added zero new config dependencies.
 4. Spec §4 "humanizeNotes is not exported yet" was already stale (exported in Phase 0) — no action.

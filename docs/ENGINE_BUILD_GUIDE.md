@@ -5,7 +5,7 @@ This document is the implementation plan for `crescode-engine`, the native Rust 
 ## Non-Negotiable Constraints
 
 1. **Pure Rust. No C++, no JUCE, no second compiler toolchain, no exceptions to this.** This project has already paid the cost of a C++/JUCE dead end once — this build must not repeat that.
-2. **The frontend never changes.** `crescode-engine` must implement `docs/PROTOCOL.md` exactly as written. If the protocol needs new message types for routing (see Phase 5), add them to `PROTOCOL.md` and keep the frontend's `src/engineClient/` in sync — but do not change how the existing UI/engine contract already works.
+2. **The existing frontend contract does not change.** `crescode-engine` must implement `docs/PROTOCOL.md` exactly as written. The protocol may GROW — new message types (e.g. the Phase 5 rack messages) are added to `PROTOCOL.md` and the frontend's `src/engineClient/` is kept in sync — but nothing that already works changes shape: the groupId model stays the spine (see Phase 5.1).
 3. **VST3 only.** Do not implement VST2 or CLAP in this pass. Crescode's target plugins (orchestral sample libraries) are VST3-only in practice.
 4. **Never crash the UI.** A misbehaving plugin must only ever affect its own instance, never the engine process or the frontend.
 5. **Never block the audio thread.** No heap allocation, no locks, no file I/O, no logging inside the real-time audio callback. Use lock-free queues (`ringbuf` or `crossbeam`) to pass commands from the control side to the audio side.
@@ -22,7 +22,7 @@ Before committing to a VST3 hosting crate, verify it actually exists and is real
 4. If a "high-level safe wrapper" crate is being considered (as opposed to lower-level raw bindings), specifically search its GitHub issues/discussions for evidence someone else has used it successfully for **multi-bus output** — this is Crescode's core requirement, so generic "it loads a plugin and plays a note" success stories are not sufficient evidence.
 5. Document findings in `crescode-engine/README.md`: which crate was chosen, why, what was verified, and links to the evidence (repo, issues, etc.).
 
-**Default fallback if verification fails or a candidate crate is too immature/unverifiable:** use `vst3-sys` (confirmed real, maintained under the RustAudio GitHub organization) as the low-level binding layer, accepting that more manual `unsafe` COM-handling code will be required on your side in exchange for certainty that the foundation is real and maintained.
+**Default fallback if verification fails or a candidate crate is too immature/unverifiable:** drop to raw bindings and hand-write the COM layer. Known state of the candidates (verified via crates.io / GitHub on 2026-11-03 — re-verify, do not trust this paragraph): `vst3-sys` is **not published on crates.io** and its RustAudio/vst3-sys GitHub repo has been dormant since mid-2023, so it fails the checklist as a crate; the actively published candidate is **`vst3`** (coupler-rs/vst3-rs, 0.3.0, released Dec 2025, ~160k downloads). Whichever way you go, the binding layer must pass the same Phase 0a checklist and accept that more manual `unsafe` COM-handling code may be required in exchange for a foundation you have personally verified.
 
 **Do not proceed to Phase 0 until this verification is complete and documented.**
 
@@ -124,6 +124,8 @@ Add new message types to `docs/PROTOCOL.md` (and keep `src/engineClient/` in syn
 - `instrument_rack.create` — creates a shared plugin instance not tied to one track.
 - `track.assign_to_rack` — assigns a Crescode track to `{rack_id, midi_channel, output_bus_index}`.
 - `instrument_rack.list_outputs` — asks the engine what output buses a loaded plugin exposes (so the UI's routing panel can show real bus names like "Violins I" / "Violins II" if the plugin labels them, falling back to "Output 1" / "Output 2" etc.).
+
+**Naming note — racks are groups, not a second model.** In the existing protocol a *group* already IS a shared plugin instance with per-track channels (`midi/setSequence` groups, `groupId` everywhere). An "instrument rack" is the same thing made explicit: `rack_id` ≡ a `groupId` whose plugin is loaded, `midi_channel` ≡ the track's channel in that group, `output_bus_index` is the only genuinely new dimension (per-track audio return path). These messages extend the group model; they do not sit beside it, and Phase 5.5's UI work must extend the existing routing panel accordingly.
 
 ### 5.2 — Engine-side data model
 

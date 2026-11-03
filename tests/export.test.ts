@@ -95,3 +95,66 @@ describe('JSON export/import', () => {
     expect(!bad.ok && bad.errors[0].message).toMatch(/Not valid JSON/);
   });
 });
+
+describe('MIDI export: CC lanes', () => {
+  const withCc = (): Project => {
+    const p = composed();
+    const v1 = p.tracks.find((t) => t.role === 'violins1')!;
+    v1.notes = [
+      { pitch: 74, startTick: 960, durationTicks: 960, velocity: 70 },
+      { pitch: 77, startTick: 3840, durationTicks: 960, velocity: 80 },
+    ];
+    v1.cc = [
+      { cc: 1, points: [{ tick: 0, value: 8 }, { tick: 1920, value: 100 }, { tick: 5760, value: 20 }] },
+      { cc: 11, points: [{ tick: 960, value: 90 }] },
+    ];
+    return p;
+  };
+
+  it('writes CC lanes as controller events on the track channel, and parses back exactly', () => {
+    const p = withCc();
+    const v1 = p.tracks.find((t) => t.role === 'violins1')!;
+    const parsed = parseMidiFile(buildMergedMidi(p, exportableTracks(p, 'all')));
+    const got = parsed.tracks.find((t) => t.name === v1.name)!;
+    expect(got.channel).toBe(v1.midiChannel);
+    expect(got.cc).toEqual([
+      { cc: 1, tick: 0, value: 8 }, { cc: 11, tick: 960, value: 90 }, { cc: 1, tick: 1920, value: 100 }, { cc: 1, tick: 5760, value: 20 },
+    ]);
+    // the notes are untouched by the CC writer
+    expect(got.notes).toEqual(v1.notes);
+  });
+
+  it('per-track files carry the CC lanes too', () => {
+    const p = withCc();
+    const v1 = p.tracks.find((t) => t.role === 'violins1')!;
+    const file = buildPerTrackMidi(p, [v1])[0];
+    const parsed = parseMidiFile(file.data);
+    expect(parsed.tracks[1].cc.map((e) => e.cc)).toEqual([1, 11, 1, 1]);
+    expect(parsed.tracks[1].cc.filter((e) => e.cc === 1).map((e) => e.value)).toEqual([8, 100, 20]);
+  });
+
+  it('projects without cc keep byte-identical notes-only exports', () => {
+    const p = composed();
+    const a = buildMergedMidi(p, exportableTracks(p, 'all'));
+
+    const withEmptyLanes = JSON.parse(JSON.stringify(p)) as Project;
+    for (const t of withEmptyLanes.tracks) t.cc = [];
+    const b = buildMergedMidi(withEmptyLanes, exportableTracks(withEmptyLanes, 'all'));
+    expect(Buffer.from(a).equals(Buffer.from(b))).toBe(true);
+
+    const withPointlessLanes = JSON.parse(JSON.stringify(p)) as Project;
+    for (const t of withPointlessLanes.tracks) t.cc = [{ cc: 1, points: [] }, { cc: 11, points: [] }];
+    const c = buildMergedMidi(withPointlessLanes, exportableTracks(withPointlessLanes, 'all'));
+    expect(Buffer.from(a).equals(Buffer.from(c))).toBe(true);
+  });
+
+  it('a CC point at the same tick as a noteOn lands in the file before the note', () => {
+    const p = withCc();
+    const parsed = parseMidi(buildMergedMidi(p, exportableTracks(p, 'all')));
+    const v1 = parsed.tracks.find((t) => t.some((e) => e.type === 'trackName' && (e as { text?: string }).text === 'Violins I'));
+    expect(v1).toBeTruthy();
+    const kinds = v1!.filter((e) => e.type === 'controller' || e.type === 'noteOn').map((e) => e.type);
+    // first controller (tick 0, cc 1) precedes the first noteOn (tick 960)
+    expect(kinds.indexOf('controller')).toBeLessThan(kinds.indexOf('noteOn'));
+  });
+});

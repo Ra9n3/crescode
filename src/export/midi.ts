@@ -5,7 +5,7 @@
 import { parseMidi, writeMidi, type MidiData, type MidiEvent } from 'midi-file';
 import { barTicks, projectEndTick } from '../shared/schema/meter';
 import { MODES } from '../shared/schema/modes';
-import { PPQ, isInstrumentTrack, type Note, type Project, type Track } from '../shared/schema/types';
+import { PPQ, isInstrumentTrack, type CcLane, type Note, type Project, type Track } from '../shared/schema/types';
 
 type Abs = MidiEvent & { abs: number; order: number };
 
@@ -51,6 +51,28 @@ function noteEvents(notes: Note[], channel: number, endTick: number): Abs[] {
   return ev;
 }
 
+/**
+ * Optional CC lanes as controller events on the track's channel. Points sit
+ * at their exact tick (clamped into [0, endTick]); at a shared tick they sort
+ * before note-ons (order 0), so a swell peak lands before the note that
+ * follows it. Projects without cc produce zero events — notes-only exports
+ * stay byte-identical to the pre-CC writer.
+ */
+function ccEvents(cc: CcLane[] | undefined, channel: number, endTick: number): Abs[] {
+  if (!cc || !cc.length) return [];
+  const ev: Abs[] = [];
+  const ch = Math.max(0, Math.min(15, channel - 1));
+  for (const lane of cc) {
+    if (!lane || !Array.isArray(lane.points)) continue;
+    for (const pt of lane.points) {
+      if (!Number.isInteger(pt.tick) || !Number.isInteger(pt.value)) continue;
+      const tick = Math.max(0, Math.min(endTick, pt.tick));
+      ev.push({ abs: tick, order: 0, deltaTime: 0, channel: ch, type: 'controller', controllerType: Math.max(0, Math.min(127, lane.cc)), value: Math.max(0, Math.min(127, pt.value)) } as Abs);
+    }
+  }
+  return ev;
+}
+
 /** Sorts absolute events, converts to delta times and appends end-of-track at endTick. */
 function finalize(events: Abs[], endTick: number): MidiEvent[] {
   const sorted = events.map((e, i) => ({ e, i })).sort((a, b) => a.e.abs - b.e.abs || a.e.order - b.e.order || a.i - b.i).map((x) => x.e);
@@ -79,7 +101,7 @@ export function buildMergedMidi(p: Project, tracks: Track[]): Uint8Array {
     header: { format: 1, numTracks: tracks.length + 1, ticksPerBeat: PPQ },
     tracks: [
       finalize([nameEvent(p.name || 'Crescode'), ...conductorEvents(p, true)], end),
-      ...tracks.map((t) => finalize([nameEvent(t.name), ...noteEvents(t.notes, t.midiChannel, end)], end)),
+      ...tracks.map((t) => finalize([nameEvent(t.name), ...ccEvents(t.cc, t.midiChannel, end), ...noteEvents(t.notes, t.midiChannel, end)], end)),
     ],
   };
   return new Uint8Array(writeMidi(data));
@@ -100,13 +122,14 @@ export function buildPerTrackMidi(p: Project, tracks: Track[]): { fileName: stri
       header: { format: 1, numTracks: 2, ticksPerBeat: PPQ },
       tracks: [
         finalize([nameEvent(t.name), ...conductorEvents(p, true)], end),
-        finalize([nameEvent(t.name), ...noteEvents(t.notes, t.midiChannel, end)], end),
+        finalize([nameEvent(t.name), ...ccEvents(t.cc, t.midiChannel, end), ...noteEvents(t.notes, t.midiChannel, end)], end),
       ],
     })),
   }));
 }
 
-export interface ParsedMidiTrack { name: string; channel: number | null; notes: Note[]; endTick: number }
+export interface ParsedCcEvent { cc: number; tick: number; value: number }
+export interface ParsedMidiTrack { name: string; channel: number | null; notes: Note[]; cc: ParsedCcEvent[]; endTick: number }
 export interface ParsedMidiFile { ppq: number; format: number; bpm: number | null; timeSignature: [number, number] | null; markers: { tick: number; text: string }[]; tracks: ParsedMidiTrack[] }
 
 /** Parses a MIDI file back into notes (used for the round-trip test and verification). */
@@ -119,12 +142,17 @@ export function parseMidiFile(bytes: Uint8Array): ParsedMidiFile {
     let channel: number | null = null;
     const open = new Map<number, { start: number; vel: number }[]>();
     const notes: Note[] = [];
+    const cc: ParsedCcEvent[] = [];
     for (const e of tr) {
       abs += e.deltaTime;
       if (e.type === 'trackName') name = e.text;
       else if (e.type === 'setTempo') res.bpm = Math.round((60000000 / e.microsecondsPerBeat) * 1000) / 1000;
       else if (e.type === 'timeSignature') res.timeSignature = [e.numerator, e.denominator];
       else if (e.type === 'marker') res.markers.push({ tick: abs, text: e.text });
+      else if (e.type === 'controller') {
+        cc.push({ cc: e.controllerType, tick: abs, value: e.value });
+        if (channel === null) channel = e.channel + 1;
+      }
       else if (e.type === 'noteOn' && e.velocity > 0) {
         channel = e.channel + 1;
         const q = open.get(e.noteNumber) ?? [];
@@ -137,7 +165,8 @@ export function parseMidiFile(bytes: Uint8Array): ParsedMidiFile {
       }
     }
     notes.sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
-    res.tracks.push({ name, channel, notes, endTick: abs });
+    cc.sort((a, b) => a.tick - b.tick || a.cc - b.cc || a.value - b.value);
+    res.tracks.push({ name, channel, notes, cc, endTick: abs });
   }
   return res;
 }

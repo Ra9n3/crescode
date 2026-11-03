@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import fixture from '../fixtures/dorian-16bars.json';
+import { resolveTemplate } from '../src/config/ensembles';
 import { composeAllTracks } from '../src/orchestrator/compose';
 import { chordSpans } from '../src/engine/generate';
 import { chordTones } from '../src/orchestrator/voicing/chordTones';
 import { leadingTonePcOf } from '../src/orchestrator/voicing/voiceLead';
 import { TREMOLO_STEP_TICKS, subdivisionTicks, SHORT_NOTE_SECONDS } from '../src/orchestrator/lines/ostinato';
-import { secondsToTicks } from '../src/orchestrator/spine';
+import { secondsToTicks, sectionMap, energyCurve } from '../src/orchestrator/spine';
+import { prepareStrings } from '../src/orchestrator/render';
 import { scalePitchClasses } from '../src/shared/schema/modes';
 import { projectFromFixture, type Project } from '../src/shared/schema';
 
@@ -59,13 +61,58 @@ describe('cinematic preset (4e): ostinato + measured tremolo', () => {
       const bar = Math.floor(n.startTick / BT) + 1;
       const target = result.plan.bars[bar - 1].energyTarget;
       expect(target).toBeGreaterThanOrEqual(0.65); // only above the threshold
-      // measured repeats: within one chord span, the repeats hold ONE pitch
-      const span = spans.find((s) => n.startTick >= s.startTick && n.startTick < s.endTick)!;
-      const spanTremolo = tremolo.filter((m) => m.startTick >= span.startTick && m.startTick < span.endTick);
-      expect(new Set(spanTremolo.map((m) => m.pitch)).size).toBe(1);
     }
     const verseTremolo = tremolo.filter((n) => n.startTick < 8 * BT);
     expect(verseTremolo).toHaveLength(0); // verse targets sit below 0.65: V1 leads there
+  });
+
+  it('the tremolo carries the lead: first repeat on the motif pitch at the motif onset, repeats grouped per lead note', () => {
+    // rebuild the same prepared lines (deterministic) to know the motif and the fallbacks
+    const p = BASE();
+    p.ensemble = { templateId: 'ensemble.cinematic', overrides: {}, pins: {} };
+    const composed = composeAllTracks(p, { seed: 11 });
+    const composedProject = { ...p, tracks: composed.tracks };
+    const template = resolveTemplate(p.ensemble)!;
+    const arc = energyCurve(composedProject, sectionMap(composedProject), 1, template, true);
+    const ctx = {
+      project: composedProject, template, ensemble: p.ensemble!,
+      spans: chordSpans(composedProject), sections: sectionMap(composedProject), arc,
+    };
+    const lines = prepareStrings(ctx, 1);
+    const fallbackTicks: [number, number][] = lines.voiced.filter((v) => lines.fallbackSpanIds.has(v.id)).map((v) => [v.startTick, v.endTick]);
+    const inFallback = (tick: number) => fallbackTicks.some(([a, b]) => tick >= a && tick < b);
+    const tremoloBars = new Set(lines.assignment.filter((b) => b.byTrack[lines.lead!.trackId] === 'tremolo').map((b) => b.bar));
+    expect(tremoloBars.size).toBeGreaterThan(0);
+
+    const v1 = track(composedProject, 'violins1').notes;
+    const tremolo = v1.filter((n) => n.articulation === 'tremolo');
+    const key = (n: { startTick: number; pitch: number }) => `${n.startTick}:${n.pitch}`;
+    const tremoloKeys = new Set(tremolo.map(key));
+    let checked = 0;
+    for (const ln of lines.lead!.notes) {
+      const bar = Math.floor(ln.startTick / BT) + 1;
+      if (!tremoloBars.has(bar) || inFallback(ln.startTick)) continue;
+      // the first repeat lands ON the motif pitch at the motif onset
+      expect(tremoloKeys.has(key(ln))).toBe(true);
+      // every repeat inside this lead note holds the lead note's pitch
+      const group = tremolo.filter((n) => n.startTick >= ln.startTick && n.startTick < ln.startTick + ln.durationTicks);
+      expect(group.length).toBeGreaterThan(0);
+      for (const n of group) expect(n.pitch).toBe(ln.pitch);
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(10); // the chorus tune really is the motif
+    // the repeats never bleed across a lead-note boundary (fallback repeats stand in for the DP)
+    for (const n of tremolo) {
+      if (inFallback(n.startTick)) continue;
+      const host = lines.lead!.notes.find((ln) => n.startTick >= ln.startTick && n.startTick < ln.startTick + ln.durationTicks);
+      expect(host).toBeTruthy();
+    }
+    // and the count is reported
+    const report = composed.reports.find((r) => r.startsWith('cinematic tremolo'));
+    expect(report).toMatch(/cinematic tremolo: (\d+) measured repeats carry the lead motif/);
+    const reported = Number(report!.match(/(\d+)/)![1]);
+    expect(reported).toBe(tremolo.length);
+    console.log(`Phase 4.5 report: ${report} (lead notes rendered as tremolo groups: ${checked})`);
   });
 });
 

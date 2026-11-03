@@ -17,8 +17,10 @@
  *  - chamber:         V1 lead, V2 counterline, Vla pad, cellosBasses bass;
  *  - hybrid studio:   as chamber;
  *  - sonata:          V1 lead, cellosBasses bass (no counterline track in band);
- *  - cinematic:       V2+Vla ostinato, cellosBasses bass, V1 tremolo while the
- *                     bar's arc energy ≥ TREMOLO_ENERGY_THRESHOLD, else lead;
+ *  - cinematic:       V2+Vla ostinato, cellosBasses bass, V1 carries the lead
+ *                     in every non-intro bar (4.5: bars at arc energy ≥
+ *                     TREMOLO_ENERGY_THRESHOLD RENDER it as measured tremolo
+ *                     repeats — the tune stays readable);
  *  - vocal backing:   pad only — wide legato, no lead inside the vocal zone,
  *                     nothing shorter than an eighth, no ostinato, no stabs;
  *  - intro-like sections never carry a lead (the motif arrives with the

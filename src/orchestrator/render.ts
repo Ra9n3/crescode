@@ -11,8 +11,11 @@
  * Layers (Phase 4a): one track = one role per bar. The renderer reads the
  * same per-bar assignment the conductor annotates (conductor/layers.ts) and
  * writes pad / bass (sustained DP voices), lead / counterline (the fixed
- * lines, clipped to bar windows and breath windows), ostinato / tremolo
- * (their presets arrive with 4e; until then they carry the DP voice).
+ * lines), ostinato / tremolo (their presets, 4e). Phase 4.5: the cinematic
+ * 'tremolo' layer CARRIES THE LEAD — V1 plays the motif as measured repeats
+ * (each lead note subdivided at TREMOLO_STEP_TICKS, the first repeat on the
+ * motif pitch at the motif onset), so the chorus keeps its tune; fallback
+ * spans repeat the DP's pitch so the layer never falls silent.
  *
  * Energy → velocity mapping (unchanged since Phase 2): the section target E
  * maps linearly across the velocity window the governor allows for the
@@ -110,6 +113,8 @@ export interface StringLines {
   voiced: VoicedChord[];
   voiceTrackIds: string[];
   voiceIndex: Map<string, number>;
+  /** Measured tremolo repeats written while carrying the lead (4.5 report). */
+  tremoloRepeats: number;
   /** Human-readable notes for the report (fallbacks, skipped layerings). */
   reports: string[];
 }
@@ -124,13 +129,17 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
   const assignment = assignStringLayers(ctx);
   const reports: string[] = [];
 
-  // the lead and counterline tracks: the topmost voice carrying the role
+  // the lead and counterline tracks: the topmost voice carrying the role.
+  // Phase 4.5: a cinematic 'tremolo' bar still carries the LEAD — the tune is
+  // rendered as measured repeats there — so the lead track and its bars count
+  // both layers ('tremolo' is only ever assigned to the lead track).
   const barsWithLayer = (trackId: string, layer: StringsLayer) =>
     assignment.bars.filter((b) => b.byTrack[trackId] === layer).length;
-  const leadTrack = [...voices].reverse().find((v) => barsWithLayer(v.id, 'lead') > 0) ?? null;
+  const isTuneLayer = (l: StringsLayer | undefined): boolean => l === 'lead' || l === 'tremolo';
+  const leadTrack = [...voices].reverse().find((v) => assignment.bars.some((b) => isTuneLayer(b.byTrack[v.id]))) ?? null;
   const counterTrack = [...voices].reverse().find((v) => barsWithLayer(v.id, 'counterline') > 0) ?? null;
 
-  const leadBars = new Set(assignment.bars.filter((b) => leadTrack && b.byTrack[leadTrack.id] === 'lead').map((b) => b.bar));
+  const leadBars = new Set(assignment.bars.filter((b) => leadTrack && isTuneLayer(b.byTrack[leadTrack.id])).map((b) => b.bar));
   const counterBars = new Set(assignment.bars.filter((b) => counterTrack && b.byTrack[counterTrack.id] === 'counterline').map((b) => b.bar));
   const comfyOf = (trackId: string): [number, number] => {
     const t = ctx.project.tracks.find((x) => x.id === trackId)!;
@@ -167,10 +176,10 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
     const overlapping = notes.filter((n) => n.startTick < s.endTick && n.startTick + n.durationTicks > s.startTick);
     return overlapping.length ? Math.min(...overlapping.map((n) => n.pitch)) : null;
   };
-  const fixFor = (trackId: string | undefined, layer: StringsLayer, line: Note[] | null, s: { startTick: number; endTick: number }): VoiceFix | undefined => {
+  const fixFor = (trackId: string | undefined, layers: StringsLayer[], line: Note[] | null, s: { startTick: number; endTick: number }): VoiceFix | undefined => {
     if (!trackId) return undefined;
     const barsHere = spanBars(s);
-    const plannedHere = barsHere.some((b) => assignment.bars[b - 1]?.byTrack[trackId] === layer);
+    const plannedHere = barsHere.some((b) => layers.includes(assignment.bars[b - 1]?.byTrack[trackId]));
     if (!plannedHere) return undefined;
     if (!line) return { kind: 'rest' };
     const mp = minPitchOver(line, s);
@@ -185,8 +194,8 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
   const pending = new Map<string, (VoiceFix | undefined)[]>();
   for (const s of ctx.spans) {
     const arr: (VoiceFix | undefined)[] = new Array(voices.length).fill(undefined);
-    if (lead) arr[voiceIndex.get(lead.trackId)!] = fixFor(lead.trackId, 'lead', lead.notes, s);
-    if (counter) arr[voiceIndex.get(counter.trackId)!] = fixFor(counter.trackId, 'counterline', counter.notes, s);
+    if (lead) arr[voiceIndex.get(lead.trackId)!] = fixFor(lead.trackId, ['lead', 'tremolo'], lead.notes, s);
+    if (counter) arr[voiceIndex.get(counter.trackId)!] = fixFor(counter.trackId, ['counterline'], counter.notes, s);
     if (arr.some((x) => x !== undefined)) pending.set(s.id, arr);
   }
 
@@ -274,6 +283,7 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
     voiced,
     voiceTrackIds,
     voiceIndex,
+    tremoloRepeats: 0,
     reports,
   };
 }
@@ -406,11 +416,26 @@ export const stringsModule: SectionModule = {
               const idx = ordered.indexOf(trackId);
               notesByTrackId[trackId].push(...(perTrack[idx] ?? []));
             } else if (plan.layer === 'tremolo') {
-              // Phase 4e: measured repeated notes on the DP's V1 pitch —
-              // audible as distinct repeats in any DAW, articulation 'tremolo'
-              if (dpPitch === null) continue;
-              for (let t = s; t < e; t += TREMOLO_STEP_TICKS) {
-                notesByTrackId[trackId].push({ pitch: dpPitch, startTick: t, durationTicks: Math.min(TREMOLO_STEP_TICKS, e - t), velocity, articulation: 'tremolo' });
+              // Phase 4.5: the tremolo layer CARRIES THE LEAD — the motif is
+              // rendered as measured repeated notes (articulation 'tremolo'):
+              // each lead note is subdivided at TREMOLO_STEP_TICKS and the
+              // first repeat lands ON the motif pitch at the motif onset, so
+              // the chorus keeps its tune. A fallback span (or a missing
+              // line) repeats the DP's pitch — never silence.
+              const leadHere = lines.lead && lines.lead.trackId === trackId && !fellBack ? lines.lead.notes : null;
+              if (leadHere) {
+                for (const n of leadHere) {
+                  const ns = Math.max(n.startTick, s);
+                  const ne = Math.min(n.startTick + n.durationTicks, e);
+                  for (let t = ns; t < ne; t += TREMOLO_STEP_TICKS) {
+                    notesByTrackId[trackId].push({ pitch: n.pitch, startTick: t, durationTicks: Math.min(TREMOLO_STEP_TICKS, ne - t), velocity, articulation: 'tremolo' });
+                    lines.tremoloRepeats++;
+                  }
+                }
+              } else if (dpPitch !== null) {
+                for (let t = s; t < e; t += TREMOLO_STEP_TICKS) {
+                  notesByTrackId[trackId].push({ pitch: dpPitch, startTick: t, durationTicks: Math.min(TREMOLO_STEP_TICKS, e - t), velocity, articulation: 'tremolo' });
+                }
               }
             } else if (plan.layer === 'bass' && ctx.template?.id === 'ensemble.symphony') {
               // Phase 4e: pizz-pulse on the strong beats under pads and lines

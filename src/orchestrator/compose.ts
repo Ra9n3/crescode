@@ -84,6 +84,10 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     }
   }
   const stringsTrackIds = voiceTracks.map((t) => t.id);
+  // Phase 4.5: report how many measured tremolo repeats carried the lead
+  if (ctx.lines.tremoloRepeats > 0) {
+    ctx.lines.reports.push(`cinematic tremolo: ${ctx.lines.tremoloRepeats} measured repeats carry the lead motif (articulation 'tremolo')`);
+  }
   // Phase 4f: Cb an octave below the Vc line inside cellosBasses, where the
   // policy allows doubling and the range holds both — otherwise reported+skipped
   maybeLayerCellosBasses(ctx, notesByTrackId, stringsTrackIds);

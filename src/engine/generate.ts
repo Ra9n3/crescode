@@ -317,6 +317,22 @@ function pickPitches(spec: PitchSpec, track: Track, ev: Event, chord: ResolvedCh
 }
 
 /* ---------------- Sanitizer (engine invariants) ---------------- */
+/**
+ * Carries the optional performance fields (articulation, bow) through every
+ * repair: octave-shift, clamp, end-trim and the same-pitch overlap merge —
+ * where the EARLIER note's fields win (the merge truncates/keeps `last`, so
+ * `last` keeps its own articulation; a later duplicate start is dropped
+ * wholesale). Field-less notes stay exactly as they were: byte-identical
+ * output for old code paths.
+ */
+export const carryNoteFields = (n: Note) =>
+  (n.articulation === undefined && n.bow === undefined
+    ? {}
+    : {
+        ...(n.articulation !== undefined ? { articulation: n.articulation } : {}),
+        ...(n.bow !== undefined ? { bow: n.bow } : {}),
+      });
+
 export function sanitizeNotes(notes: Note[], lo: number, hi: number, endTick: number): Note[] {
   const fixed: Note[] = [];
   for (const n of notes) {
@@ -328,7 +344,7 @@ export function sanitizeNotes(notes: Note[], lo: number, hi: number, endTick: nu
     if (s >= endTick) continue;
     const e = Math.min(endTick, Math.round(n.startTick + n.durationTicks));
     if (e - s < 1) continue;
-    fixed.push({ pitch: p, startTick: s, durationTicks: e - s, velocity: Math.max(1, Math.min(127, Math.round(n.velocity))) });
+    fixed.push({ pitch: p, startTick: s, durationTicks: e - s, velocity: Math.max(1, Math.min(127, Math.round(n.velocity))), ...carryNoteFields(n) });
   }
   fixed.sort((a, b) => a.pitch - b.pitch || a.startTick - b.startTick || b.durationTicks - a.durationTicks);
   const out: Note[] = [];
@@ -355,7 +371,7 @@ export function humanizeNotes(notes: Note[], ctx: GenerationContext, rng: () => 
     const barStart = Math.floor(n.startTick / bt) * bt;
     const s = Math.max(barStart, Math.min(barStart + bt - 1, n.startTick + off));
     const end = Math.min(ctx.endTick, n.startTick + n.durationTicks + off);
-    return { pitch: n.pitch, startTick: s, durationTicks: Math.max(1, end - s), velocity: Math.max(1, Math.min(127, n.velocity + v)) };
+    return { pitch: n.pitch, startTick: s, durationTicks: Math.max(1, end - s), velocity: Math.max(1, Math.min(127, n.velocity + v)), ...carryNoteFields(n) };
   });
 }
 

@@ -4,6 +4,7 @@ import { projectEndTick } from './meter';
 import { noteName } from './modes';
 import { BAND_ROLES } from './band';
 import { ENSEMBLE_IDS } from '../../config/ensembles';
+import { ARTICULATIONS, MAX_CC_POINTS_PER_LANE } from './types';
 import type { Project } from './types';
 
 export interface ValidationError { path: string; message: string }
@@ -99,6 +100,32 @@ export function validateProject(input: unknown): ValidationResult {
     }
   }
 
+  // --- orchestration (take memory) ------------------------------------------
+  if (p.orchestration !== undefined) {
+    const o = p.orchestration;
+    if (!o || typeof o !== 'object' || Array.isArray(o)) {
+      err('orchestration', 'orchestration must be an object (take, sectionTakes?, sectionLocks?)');
+    } else {
+      if (!isInt(o.take) || o.take < 0) err('orchestration.take', `take must be an integer ≥ 0 (got ${JSON.stringify(o.take)})`);
+      if (o.sectionTakes !== undefined) {
+        if (!o.sectionTakes || typeof o.sectionTakes !== 'object' || Array.isArray(o.sectionTakes)) {
+          err('orchestration.sectionTakes', 'sectionTakes must be an object keyed by section id');
+        } else {
+          for (const [id, take] of Object.entries(o.sectionTakes)) {
+            if (!isInt(take) || take < 0) err(`orchestration.sectionTakes.${id}`, `take must be an integer ≥ 0 (got ${JSON.stringify(take)})`);
+          }
+        }
+      }
+      if (o.sectionLocks !== undefined) {
+        if (!Array.isArray(o.sectionLocks) || o.sectionLocks.some((id) => typeof id !== 'string')) {
+          err('orchestration.sectionLocks', 'sectionLocks must be an array of section ids');
+        } else if (new Set(o.sectionLocks).size !== o.sectionLocks.length) {
+          err('orchestration.sectionLocks', 'sectionLocks must not repeat a section id');
+        }
+      }
+    }
+  }
+
   const endTick = projectEndTick(p);
   const groupChannels = new Map<string, Map<number, string>>();
   p.tracks.forEach((t, i) => {
@@ -133,9 +160,47 @@ export function validateProject(input: unknown): ValidationResult {
       if (!isInt(n.startTick) || n.startTick < 0) err(np, `${nm}: note startTick must be an integer ≥ 0`);
       if (!isInt(n.durationTicks) || n.durationTicks < 1) err(np, `${nm}: note has zero or negative length`);
       if (!isInt(n.velocity) || n.velocity < 1 || n.velocity > 127) err(np, `${nm}: velocity must be 1–127 (got ${n.velocity})`);
+      if (n.articulation !== undefined && !ARTICULATIONS.includes(n.articulation)) {
+        err(`${np}.articulation`, `${nm}: unknown articulation ${JSON.stringify(n.articulation)} (expected one of ${ARTICULATIONS.join(', ')})`);
+      }
+      if (n.bow !== undefined && n.bow !== 'down' && n.bow !== 'up') {
+        err(`${np}.bow`, `${nm}: bow must be "down" or "up" (got ${JSON.stringify(n.bow)})`);
+      }
       if (isInt(n.startTick) && isInt(n.durationTicks) && n.startTick + n.durationTicks > endTick) err(np, `${nm}: note at tick ${n.startTick} extends past the project end (tick ${endTick})`);
       if (errors.length > before) reported++;
     });
+
+    // --- optional CC lanes --------------------------------------------------
+    if (t.cc !== undefined) {
+      if (!Array.isArray(t.cc)) {
+        err(`${at}.cc`, `${nm}: cc must be an array of lanes`);
+      } else {
+        const laneNos = new Set<number>();
+        t.cc.forEach((lane, j) => {
+          const lp = `${at}.cc[${j}]`;
+          if (!lane || typeof lane !== 'object' || Array.isArray(lane)) { err(lp, `${nm}: CC lane must be an object (cc, points)`); return; }
+          if (!isInt(lane.cc) || lane.cc < 0 || lane.cc > 127) {
+            err(`${lp}.cc`, `${nm}: CC number must be 0–127 (got ${JSON.stringify(lane.cc)})`);
+          } else if (laneNos.has(lane.cc)) {
+            err(`${lp}.cc`, `${nm}: duplicate CC lane ${lane.cc} — one lane per controller`);
+          } else laneNos.add(lane.cc);
+          if (!Array.isArray(lane.points)) { err(`${lp}.points`, `${nm}: CC lane points must be an array`); return; }
+          if (lane.points.length > MAX_CC_POINTS_PER_LANE) {
+            err(`${lp}.points`, `${nm}: CC lane ${lane.cc} holds ${lane.points.length} points — the cap is ${MAX_CC_POINTS_PER_LANE} per lane`);
+          }
+          lane.points.forEach((pt, k) => {
+            const pp = `${lp}.points[${k}]`;
+            if (!pt || typeof pt !== 'object' || Array.isArray(pt)) { err(pp, `${nm}: CC point must be { tick, value }`); return; }
+            if (!isInt(pt.tick) || pt.tick < 0) err(`${pp}.tick`, `${nm}: CC tick must be an integer ≥ 0 (got ${JSON.stringify(pt.tick)})`);
+            else if (pt.tick > endTick) err(`${pp}.tick`, `${nm}: CC tick ${pt.tick} is past the project end (tick ${endTick})`);
+            if (!isInt(pt.value) || pt.value < 0 || pt.value > 127) err(`${pp}.value`, `${nm}: CC value must be 0–127 (got ${JSON.stringify(pt.value)})`);
+            if (k > 0 && isInt(pt.tick) && isInt(lane.points[k - 1].tick) && pt.tick < lane.points[k - 1].tick) {
+              err(pp, `${nm}: CC lane ${lane.cc} points must be sorted by tick`);
+            }
+          });
+        });
+      }
+    }
   });
 
   return errors.length ? { ok: false, errors } : { ok: true, errors: [] };

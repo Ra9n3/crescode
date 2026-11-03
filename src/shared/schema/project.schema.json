@@ -34,6 +34,7 @@
     },
     "tracks": { "type": "array", "items": { "$ref": "#/$defs/track" } },
     "ensemble": { "$ref": "#/$defs/ensemble" },
+    "orchestration": { "$ref": "#/$defs/orchestration" },
     "libraryGroups": {
       "type": "array",
       "items": { "type": "object", "required": ["id", "name", "pluginId", "pluginState"], "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "pluginId": { "type": ["string", "null"] }, "pluginState": { "type": ["string", "null"], "contentEncoding": "base64" } } }
@@ -57,7 +58,21 @@
     },
     "note": {
       "type": "object", "required": ["pitch", "startTick", "durationTicks", "velocity"],
-      "properties": { "pitch": { "type": "integer", "minimum": 0, "maximum": 127 }, "startTick": { "type": "integer", "minimum": 0 }, "durationTicks": { "type": "integer", "minimum": 1 }, "velocity": { "type": "integer", "minimum": 1, "maximum": 127 } }
+      "properties": {
+        "pitch": { "type": "integer", "minimum": 0, "maximum": 127 }, "startTick": { "type": "integer", "minimum": 0 }, "durationTicks": { "type": "integer", "minimum": 1 }, "velocity": { "type": "integer", "minimum": 1, "maximum": 127 },
+        "articulation": { "enum": ["legato", "detache", "marcato", "staccato", "spiccato", "pizz", "tremolo", "portato", "sulTasto", "sulPont", "conSord"] },
+        "bow": { "enum": ["down", "up"] }
+      }
+    },
+    "orchestration": {
+      "type": "object",
+      "description": "Orchestration memory: which take the current score is, per-section take counters (re-roll one section only) and sections locked through Compose All. Absent field = no orchestration yet.",
+      "required": ["take"],
+      "properties": {
+        "take": { "type": "integer", "minimum": 0 },
+        "sectionTakes": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "sectionLocks": { "type": "array", "items": { "type": "string" } }
+      }
     },
     "track": {
       "type": "object",
@@ -74,7 +89,21 @@
         "frozen": { "type": "boolean" },
         "volume": { "type": "number", "minimum": 0, "maximum": 1.5 },
         "pan": { "type": "number", "minimum": -1, "maximum": 1 },
-        "notes": { "type": "array", "items": { "$ref": "#/$defs/note" } }
+        "notes": { "type": "array", "items": { "$ref": "#/$defs/note" } },
+        "cc": {
+          "type": "array",
+          "description": "Optional CC automation lanes. One lane per controller number; points sorted by tick within [0, project end].",
+          "items": {
+            "type": "object", "required": ["cc", "points"],
+            "properties": {
+              "cc": { "type": "integer", "minimum": 0, "maximum": 127 },
+              "points": {
+                "type": "array", "maxItems": 1024,
+                "items": { "type": "object", "required": ["tick", "value"], "properties": { "tick": { "type": "integer", "minimum": 0 }, "value": { "type": "integer", "minimum": 0, "maximum": 127 } } }
+              }
+            }
+          }
+        }
       }
     }
   }

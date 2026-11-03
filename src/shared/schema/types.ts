@@ -24,7 +24,45 @@ export interface Chord { id: string; symbol: string; startTick: number; duration
 
 export interface ReferenceAudio { path: string | null; offsetMs: number }
 
-export interface Note { pitch: number; startTick: number; durationTicks: number; velocity: number }
+/**
+ * Performance articulation, stored as data (spec D4: no sample-library
+ * keyswitches yet — the preview synth honours it, MIDI export ignores it).
+ */
+export const ARTICULATIONS = [
+  'legato', 'detache', 'marcato', 'staccato', 'spiccato', 'pizz',
+  'tremolo', 'portato', 'sulTasto', 'sulPont', 'conSord',
+] as const;
+export type Articulation = (typeof ARTICULATIONS)[number];
+
+export interface Note {
+  pitch: number; startTick: number; durationTicks: number; velocity: number;
+  /** Optional performance data — old projects and fixtures have none. */
+  articulation?: Articulation;
+  bow?: 'down' | 'up';
+}
+
+/** One automation point on a CC lane. Ticks are absolute, values 0–127. */
+export interface CcPoint { tick: number; value: number }
+
+/** A controller lane on a track (CC1/CC11 phrase arcs, CC7 balance, …). */
+export interface CcLane { cc: number; points: CcPoint[] }
+
+/** Safety cap: one lane may hold at most this many automation points. */
+export const MAX_CC_POINTS_PER_LANE = 1024;
+
+/**
+ * Orchestration memory: which take the current score is, per-section take
+ * numbers (re-roll one section only) and which sections are locked through
+ * Compose All and re-rolls. Absent field = no orchestration yet.
+ */
+export interface OrchestrationState {
+  /** Incremented on every full Compose All; the take number seeds generation. */
+  take: number;
+  /** Per-section take counters (section re-roll). */
+  sectionTakes?: Record<string, number>;
+  /** Section ids locked against Compose All and re-rolls. */
+  sectionLocks?: string[];
+}
 
 export interface Track {
   id: string;
@@ -44,6 +82,8 @@ export interface Track {
   volume: number;
   pan: number;
   notes: Note[];
+  /** Optional CC automation lanes (additive, validated; ignored by old code). */
+  cc?: CcLane[];
 }
 
 export interface LibraryGroup {
@@ -84,6 +124,7 @@ export interface Project {
   tracks: Track[];
   libraryGroups: LibraryGroup[];
   ensemble?: ProjectEnsemble;
+  orchestration?: OrchestrationState;
   masterVolume: number;
 }
 

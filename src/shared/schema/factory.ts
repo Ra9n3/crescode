@@ -30,6 +30,9 @@ export function makeTrack(partial: Partial<Track> & { name: string; family: Trac
     volume: partial.volume ?? 0.8,
     pan: partial.pan ?? 0,
     notes: partial.notes ?? [],
+    // cc stays absent unless explicitly provided — old callers and default
+    // tracks keep their exact shape (no `cc: []` noise in exported JSON).
+    ...(partial.cc !== undefined ? { cc: partial.cc } : {}),
   };
 }
 

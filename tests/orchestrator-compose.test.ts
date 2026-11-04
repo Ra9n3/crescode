@@ -6,6 +6,7 @@ import { measureEnergy } from '../src/orchestrator/energy';
 import { humanizeHeadTicks } from '../src/orchestrator/expression/timing';
 import { chordSpans } from '../src/engine/generate';
 import { sanitizeNotes } from '../src/engine/generate';
+import { ticksToMs } from '../src/orchestrator/spine';
 import { useStore } from '../src/store/store';
 import {
   isInstrumentTrack, projectEndTick, projectFromFixture, scalePitchClasses, validateProject,
@@ -94,16 +95,29 @@ describe('Compose All through the orchestrator: property sweep', () => {
             expect(scalePitchClasses(key, mode)).toContain(lt);
             simultaneousPairs(bandStringTracks(project), (a, b) => {
               if (a.pitch % 12 === lt && b.pitch % 12 === lt) {
-                expect(a.pitch).toBe(b.pitch); // only a unison is "one voice" — never two LT pitches
+                if (a.pitch === b.pitch) return; // a unison is "one voice"
+                // 5.1.2: a legato join crossfades two neighbours for a seeded
+                // 10–30 ms — a transient bow change, never a held doubling
+                const lo = Math.max(a.startTick, b.startTick);
+                const hi = Math.min(a.startTick + a.durationTicks, b.startTick + b.durationTicks);
+                const ms = hi > lo ? ticksToMs(hi, project.tempoMap) - ticksToMs(lo, project.tempoMap) : 0;
+                expect(ms > 0 && ms <= 31, `leading tone ${a.pitch}/${b.pitch} held together at ${lo}`).toBe(true);
               }
             });
           }
 
-          // low-interval limit below C3 across all string voices
+          // low-interval limit below C3 across all string voices. A legato
+          // join (5.1.2) crossfades two neighbours for a seeded 10–30 ms —
+          // a bow change inside the next attack, not a voicing — so those
+          // short both-legato overlaps are exempt from the interval read.
           simultaneousPairs(bandStringTracks(project), (a, b) => {
             if (a.pitch < 48 && b.pitch < 48) {
               const d = Math.abs(a.pitch - b.pitch) % 12;
-              expect([0, 7]).toContain(d);
+              if (d === 0 || d === 7) return;
+              const lo = Math.max(a.startTick, b.startTick);
+              const hi = Math.min(a.startTick + a.durationTicks, b.startTick + b.durationTicks);
+              const crossfadeMs = hi > lo ? ticksToMs(hi, project.tempoMap) - ticksToMs(lo, project.tempoMap) : 0;
+              expect(crossfadeMs > 0 && crossfadeMs <= 31, `low interval ${d} between ${a.pitch}/${b.pitch} at ${lo}`).toBe(true);
             }
           });
         });
@@ -159,7 +173,15 @@ describe('Compose All through the orchestrator: property sweep', () => {
         expect(sanitizeNotes(t.notes, t.lowestNote, t.highestNote, end)).toEqual(t.notes);
       }
       simultaneousPairs(bandStringTracks(c.project), (x, y) => {
-        if (x.pitch < 48 && y.pitch < 48) expect([0, 7]).toContain(Math.abs(x.pitch - y.pitch) % 12);
+        if (x.pitch < 48 && y.pitch < 48) {
+          const d = Math.abs(x.pitch - y.pitch) % 12;
+          if (d === 0 || d === 7) return;
+          // a legato join crossfade (5.1.2) is a bow change, not a voicing
+          const lo = Math.max(x.startTick, y.startTick);
+          const hi = Math.min(x.startTick + x.durationTicks, y.startTick + y.durationTicks);
+          const ms = hi > lo ? ticksToMs(hi, c.project.tempoMap) - ticksToMs(lo, c.project.tempoMap) : 0;
+          expect(ms > 0 && ms <= 31, `low interval ${d} between ${x.pitch}/${y.pitch} at ${lo}`).toBe(true);
+        }
       });
     }
 
@@ -246,10 +268,12 @@ describe('golden: fixtures/dorian-16bars.json (half-bar chords, C/E and G/B bass
     const breathCovered = (s: { startTick: number; endTick: number }) =>
       result.plan.breaths.some((b) => b.startTick <= s.startTick && s.endTick <= b.endTick);
     for (const span of spans.filter((s) => !breathCovered(s))) {
-      const sounding = cb.filter((n) => n.startTick < span.endTick && n.startTick + n.durationTicks > span.startTick);
-      expect(sounding.length).toBeGreaterThan(0);
+      // 5.1.2: a legato join crossfades the previous span's last note into
+      // this span's first attack — the pitch contract reads the ATTACKS
+      const attacking = cb.filter((n) => n.startTick >= span.startTick && n.startTick < span.endTick);
+      expect(attacking.length).toBeGreaterThan(0);
       const bassPc = span.parsed.bass ?? span.parsed.root;
-      for (const n of sounding) expect(n.pitch % 12).toBe(bassPc);
+      for (const n of attacking) expect(n.pitch % 12).toBe(bassPc);
     }
     // the two slash chords really are there and really were followed
     const slash = spans.filter((s) => s.parsed.bass !== null).map((s) => s.symbol);

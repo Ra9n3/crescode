@@ -7,6 +7,7 @@ import { measureEnergy } from '../src/orchestrator/energy';
 import { BASS_TIMING_MS, CB_FOLLOW_MAX_MS, VIOLIN_TIMING_MS } from '../src/orchestrator/expression/humanize';
 import { humanizeHeadTicks } from '../src/orchestrator/expression/timing';
 import { CC_BASELINE_LIFT, CC1_ARC_RANGE } from '../src/orchestrator/expression/cc';
+import { overlapLegato, LEGATO_OVERLAP_MS } from '../src/orchestrator/expression/legato';
 import { stringsModule, stringVoiceTracks, prepareStrings, maybeLayerCellosBasses } from '../src/orchestrator/render';
 import { conduct } from '../src/orchestrator/conductor';
 import { chordSpans, sectionMap, energyCurve, orchestrationSeedFor, ticksToMs } from '../src/orchestrator/spine';
@@ -312,5 +313,126 @@ describe('Phase 5.1.1: baseline CC coverage (both fixtures, all six templates)',
       const gap = (30 - 38) + (66 - 46) * level + CC_BASELINE_LIFT;
       expect(gap).toBeGreaterThan(0);
     }
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* 5.1.2 — legato overlap                                               */
+/* ------------------------------------------------------------------ */
+
+describe('Phase 5.1.2: legato overlap (all six templates, both fixtures)', () => {
+  const overlapsOf = (notes: Note[], tempoMap: Project['tempoMap']): { a: Note; b: Note; ms: number }[] => {
+    const sorted = [...notes].sort((x, y) => x.startTick - y.startTick || x.pitch - y.pitch);
+    const out: { a: Note; b: Note; ms: number }[] = [];
+    for (let i = 0; i < sorted.length; i++) {
+      for (let j = i + 1; j < sorted.length; j++) {
+        const a = sorted[i];
+        const b = sorted[j];
+        if (b.startTick >= a.startTick + a.durationTicks) break; // sorted: no later note overlaps a
+        if (b.startTick + b.durationTicks <= a.startTick) continue;
+        const lo = Math.max(a.startTick, b.startTick);
+        const hi = Math.min(a.startTick + a.durationTicks, b.startTick + b.durationTicks);
+        out.push({ a, b, ms: ticksToMs(hi, tempoMap) - ticksToMs(lo, tempoMap) });
+      }
+    }
+    return out;
+  };
+
+  it('every same-track overlap is an octave double, a join crossfade (<= 31 ms) or the line\u2019s own both-legato overlap', () => {
+    for (const [fxName, mk] of [['dorian', BASE], ['three-chorus', THREE]] as [string, () => Project][]) {
+      for (const templateId of TEMPLATES) {
+        for (const take of [0, 1]) {
+          const { project } = composeTake(mk(), templateId, take);
+          const q = ticksToMs(1, project.tempoMap);
+          const head = humanizeHeadTicks(project.tempoMap, 0);
+          for (const t of project.tracks.filter((x) => x.family === 'Strings' && x.notes.length)) {
+            for (const { a, b, ms } of overlapsOf(t.notes, project.tempoMap)) {
+              const label = `${fxName} ${templateId} take ${take} ${t.name} ${a.pitch}/${b.pitch} at ${Math.max(a.startTick, b.startTick)}`;
+              // same-position Cb doubles share their written position
+              if (Math.abs(a.pitch - b.pitch) === 12 && Math.abs(a.startTick - b.startTick) <= head) continue;
+              // 5.1.2 join: the earlier note reaches at most ~30 ms past the next start
+              if (ms <= 31 + q) continue;
+              // anything longer is the line's own legato overlap (established
+              // writing) — both notes legato; a non-legato note never overlaps
+              expect(a.articulation === 'legato' && b.articulation === 'legato', `non-legato in a long overlap: ${label}`).toBe(true);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('a non-legato note never reaches past the next note; nothing ends past its section window or the project end', () => {
+    for (const [fxName, mk] of [['dorian', BASE], ['three-chorus', THREE]] as [string, () => Project][]) {
+      for (const templateId of TEMPLATES) {
+        const { project } = composeTake(mk(), templateId, 0);
+        const end = projectEndTick(project);
+        const btBar = end / Math.max(1, sectionMap(project).reduce((a, s) => Math.max(a, s.startBar - 1 + s.lengthBars), 0));
+        const sectionEndOf = (tick: number): number => {
+          const bar = Math.floor(tick / btBar) + 1;
+          const sec = sectionMap(project).find((s) => bar >= s.startBar && bar < s.startBar + s.lengthBars);
+          return sec ? sec.endTick : end;
+        };
+        for (const t of project.tracks.filter((x) => x.family === 'Strings' && x.notes.length)) {
+          const sorted = [...t.notes].sort((x, y) => x.startTick - y.startTick || x.pitch - y.pitch);
+          for (let i = 0; i < sorted.length; i++) {
+            const n = sorted[i];
+            expect(n.startTick + n.durationTicks).toBeLessThanOrEqual(end);
+            expect(n.startTick + n.durationTicks, `${fxName} ${templateId} ${t.name} note at ${n.startTick} past its section`).toBeLessThanOrEqual(sectionEndOf(n.startTick));
+            const head = humanizeHeadTicks(project.tempoMap, n.startTick);
+            const next = sorted.find((m) => m.startTick > n.startTick + head); // the next distinct position (doubles trail within the head)
+            if (next && n.articulation && n.articulation !== 'legato') {
+              expect(n.startTick + n.durationTicks, `${fxName} ${templateId} ${t.name} non-legato ${n.articulation} overlaps the next note`).toBeLessThanOrEqual(next.startTick);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('sanitizeNotes is a no-op, validateProject passes and the clamp holds with the overlap in place (all six templates)', () => {
+    for (const templateId of TEMPLATES) {
+      const { project } = composeTake(BASE(), templateId, 2);
+      expect(validateProject(project).ok, templateId).toBe(true);
+      const end = projectEndTick(project);
+      for (const t of project.tracks.filter((x) => x.family === 'Strings' && x.notes.length)) {
+        expect(sanitizeNotes(t.notes, t.lowestNote, t.highestNote, end), templateId).toEqual(t.notes);
+      }
+      const template = ENSEMBLE_BY_ID.get(templateId)!;
+      const energy = measureEnergy(project, template);
+      expect(energy.max).toBeLessThanOrEqual(template.budget.energyClamp[1] + 1e-9);
+      expect(energy.violations.filter((v) => v.kind === 'aboveMax')).toHaveLength(0);
+    }
+  });
+
+  it('unit: joins glue humanize gaps but never a written rest, a repeated pitch, a blocked stretch or a section edge', () => {
+    const mkProject = (): Project => ({ ...BASE(), chords: [], sections: [] });
+    const run = (notes: Note[], sections = [{ id: 's', name: 'Verse', startBar: 1, lengthBars: 16 }]) => {
+      const p = mkProject();
+      const res = overlapLegato({ project: p, sections: sectionMap({ ...p, sections: sections as Project['sections'] }), notesByTrackId: { t: notes } });
+      return res.t;
+    };
+    const legato = (pitch: number, startTick: number, durationTicks: number): Note => ({ pitch, startTick, durationTicks, velocity: 70, articulation: 'legato' });
+    // butt-joined different pitches glue by 10-30 ms
+    const glued = run([legato(60, 0, 480), legato(64, 480, 480)]);
+    expect(glued[0].startTick + glued[0].durationTicks).toBeGreaterThan(480);
+    const joinMs = ticksToMs(glued[0].startTick + glued[0].durationTicks, mkProject().tempoMap) - ticksToMs(480, mkProject().tempoMap);
+    expect(joinMs).toBeGreaterThanOrEqual(LEGATO_OVERLAP_MS[0] - 2);
+    expect(joinMs).toBeLessThanOrEqual(LEGATO_OVERLAP_MS[1] + 2);
+    // a written rest (gap beyond the head) stays a rest
+    const rested = run([legato(60, 0, 480), legato(64, 480 + 600, 480)]);
+    expect(rested[0].startTick + rested[0].durationTicks).toBe(480);
+    // a repeated pitch re-articulates
+    const repeated = run([legato(60, 0, 480), legato(60, 480, 480)]);
+    expect(repeated[0].startTick + repeated[0].durationTicks).toBe(480);
+    // a third note in the bridge blocks the join (one voice per track)
+    const blocked = run([legato(60, 0, 480), { ...legato(67, 470, 20) }, legato(64, 480, 480)]);
+    expect(blocked[0].startTick + blocked[0].durationTicks).toBe(480);
+    // a section edge caps the join: no cramped overlap, the note stays as written
+    const atEdge = run([legato(60, 30240, 480), legato(64, 30720, 480)], [{ id: 's', name: 'Verse', startBar: 1, lengthBars: 8 }, { id: 'c', name: 'Chorus', startBar: 9, lengthBars: 8 }]);
+    expect(atEdge[0].startTick + atEdge[0].durationTicks).toBe(30720);
+    // non-legato notes never move
+    const pizz = run([{ ...legato(60, 0, 480), articulation: 'pizz' as const }, legato(64, 480, 480)]);
+    expect(pizz[0].startTick + pizz[0].durationTicks).toBe(480);
   });
 });

@@ -25,6 +25,7 @@ import { conduct, type ConductorPlan } from './conductor';
 import { governPadVelocities } from './energy/mix';
 import { buildCcLanes } from './expression/cc';
 import { humanizeStrings } from './expression/humanize';
+import { overlapLegato } from './expression/legato';
 import type { OrchestratorContext } from './module';
 
 export interface ComposeOptions {
@@ -133,9 +134,12 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   // Phase 5d: humanize the strings — POSITIVE section-correlated timing
   // offsets (start only, ends kept), a small velocity jitter that never
   // lifts a note above its windows' governor cap, Cb doubles trailing their
-  // cello partner. The mix governor then re-runs over the humanized notes
-  // so measureEnergy still cannot exceed the clamp, and the CC lanes (5c)
-  // are built on the final humanized score.
+  // cello partner. Phase 5.1.2 then glues the legato passages: each legato
+  // note's end reaches the next note's humanized start plus a seeded 10–30 ms
+  // overlap (legato only, one voice per track, never past the section
+  // window). The mix governor re-runs over the overlapped notes so
+  // measureEnergy still cannot exceed the clamp, and the CC lanes (5c) are
+  // built on the final score — their legato windows cover the overlap.
   const humanized = humanizeStrings({
     project: ctx.project,
     template,
@@ -146,6 +150,12 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
       .map((t) => ({ role: t.role, notes: t.notes })),
   });
   for (const [id, notes] of Object.entries(humanized)) notesByTrackId[id] = notes;
+  const overlapped = overlapLegato({
+    project: ctx.project,
+    sections: ctx.sections,
+    notesByTrackId,
+  });
+  for (const [id, notes] of Object.entries(overlapped)) notesByTrackId[id] = notes;
   governPadVelocities({
     project,
     template,

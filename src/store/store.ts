@@ -97,6 +97,10 @@ interface State {
   /** The active loop region while playing ([startTick, endTick]); null when loop is off. */
   loopRange: [number, number] | null;
   metronome: boolean;
+  /** Preview-synth mode (Phase 6): 'expressive' honours articulation, CC1/7/11
+   *  and the ensemble detune; 'simple' is the pre-Phase-6 sound. UI only —
+   *  never stored in the project. */
+  previewMode: 'simple' | 'expressive';
   /** Parked playhead position (ticks) — authoritative when not playing. */
   startTick: number;
   /** Where the current/last playback run started (ticks). */
@@ -194,7 +198,7 @@ export const useStore = create<State>((set, get) => ({
   past: [], future: [], lastCoalesce: null, dirty: false, filePath: null,
   selectedTrackIds: [], selectedSectionId: null, selectedChordId: null, suggestionClipId: null,
   pxPerTick: 0.06, mixerOpen: true, routingOpen: false, pianoRollTrackId: null, modal: null, vstTargetTrackId: null, importErrors: [],
-  playing: false, paused: false, isRecording: false, loop: false, loopRange: null, metronome: false, startTick: 0,
+  playing: false, paused: false, isRecording: false, loop: false, loopRange: null, metronome: false, previewMode: 'expressive', startTick: 0,
   lastPlaybackStartPosition: 0, stoppedPosition: 0,
   followSuspended: false, followSuspensionReason: null, interactionActive: false, activeEditor: 'arranger', rollFollowSuspended: false,
   composeOptions: { seed: 1, density: 1, humanize: true },

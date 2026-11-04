@@ -106,6 +106,11 @@ export interface ExportProfile {
   name: string;
   pitchConvention: string;
   keyswitchVelocity: number;
+  /** How the Cb layer of a layered track exports: 'separate' gives the
+   *  layer:'cb' notes their own part (own channel + file); 'omit' — the
+   *  default — drops the Cb-layer notes from the export entirely, so no
+   *  Bass part or file is created. */
+  cbLayer: 'separate' | 'omit';
   parts: ProfilePart[];
 }
 
@@ -136,6 +141,7 @@ export function validateExportProfile(doc: unknown): string[] {
   const conv = typeof d.pitchConvention === 'string' ? parsePitchConvention(d.pitchConvention) : null;
   if (!conv) err('pitchConvention', typeof d.pitchConvention === 'string' ? `unparseable convention ${JSON.stringify(d.pitchConvention)} (expected "C3=60" style)` : 'must be a string like "C3=60"');
   if (!isInt(d.keyswitchVelocity) || d.keyswitchVelocity < 1 || d.keyswitchVelocity > 127) err('keyswitchVelocity', 'must be an integer 1–127');
+  if (d.cbLayer !== undefined && d.cbLayer !== 'separate' && d.cbLayer !== 'omit') err('cbLayer', `must be "separate" or "omit" (got ${JSON.stringify(d.cbLayer)})`);
   if (!Array.isArray(d.parts) || !d.parts.length) { err('parts', 'must be a non-empty array'); return errors; }
 
   const seenChannel = new Map<number, string>();
@@ -234,6 +240,7 @@ export function parseExportProfile(doc: unknown): ExportProfile {
     name: d.name as string,
     pitchConvention: d.pitchConvention as string,
     keyswitchVelocity: d.keyswitchVelocity as number,
+    cbLayer: (d.cbLayer as 'separate' | 'omit' | undefined) ?? 'omit',
     parts: (d.parts as Record<string, unknown>[]).map((part) => ({
       id: part.id as string,
       patch: part.patch as string,
@@ -374,21 +381,27 @@ const ccForPart = (cc: CcLane[] | undefined, enabled: Record<string, boolean>): 
 /**
  * Maps one exportable track to its export chunks. Without a profile: the
  * track itself, untouched (byte-identical writer input). With a profile:
- * one chunk per part whose source matches the track's role — the
- * cellosBasses track splits by the note layer into its cello and bass
- * parts, each transposed, tremolo-merged (sampled mode) and fronted by its
+ * one chunk per part whose source matches the track's role — with
+ * cbLayer 'separate' the cellosBasses track splits by the note layer into
+ * its cello and bass parts; with 'omit' (the default) the Cb-layer notes
+ * are not exported at all and no Bass part exists. Each part is
+ * transposed, tremolo-merged (sampled mode) and fronted by its
  * keyswitches. Notes that no part claims pass through unchanged.
  */
 export function chunksForTrack(project: Project, track: Track, profile: ExportProfile | null): ExportChunk[] {
-  const passthrough = (): ExportChunk => ({ trackId: track.id, name: track.name, channel: track.midiChannel, notes: track.notes, ...(track.cc !== undefined ? { cc: track.cc } : {}) });
+  // cbLayer 'omit' (the default): the Cb-layer notes are not exported at all —
+  // no part claims them and they never reach a passthrough chunk either.
+  const omit = profile !== null && profile.cbLayer !== 'separate';
+  const visible = omit ? track.notes.filter((n) => n.layer !== 'cb') : track.notes;
+  const passthrough = (): ExportChunk => ({ trackId: track.id, name: track.name, channel: track.midiChannel, notes: visible, ...(track.cc !== undefined ? { cc: track.cc } : {}) });
   if (!profile) return [passthrough()];
-  const parts = profile.parts.filter((p) => p.source.role === track.role);
+  const parts = profile.parts.filter((p) => p.source.role === track.role && !(omit && p.source.layer === 'cb'));
   if (!parts.length) return [passthrough()];
 
   const chunks: ExportChunk[] = [];
   const claimed = new Set<Note>();
   for (const part of parts) {
-    const matched = track.notes.filter((n) => noteMatchesSource(n, part.source) && !claimed.has(n));
+    const matched = visible.filter((n) => noteMatchesSource(n, part.source) && !claimed.has(n));
     for (const n of matched) claimed.add(n);
     if (!matched.length) continue;
     const transposed = part.transposeSemitones
@@ -398,7 +411,7 @@ export function chunksForTrack(project: Project, track: Track, profile: ExportPr
     const notes = [...keyswitchNotesFor(part, merged, project, profile), ...merged].sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
     chunks.push({ trackId: track.id, name: part.patch, channel: part.channel, notes, ...(ccForPart(track.cc, part.ccEnabled) !== undefined ? { cc: ccForPart(track.cc, part.ccEnabled)! } : {}) });
   }
-  const rest = track.notes.filter((n) => !claimed.has(n));
+  const rest = visible.filter((n) => !claimed.has(n));
   if (rest.length) chunks.push({ trackId: track.id, name: track.name, channel: track.midiChannel, notes: rest, ...(track.cc !== undefined ? { cc: track.cc } : {}) });
   return chunks.length ? chunks : [passthrough()];
 }

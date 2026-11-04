@@ -12,6 +12,7 @@ export function bindTransport() {
     getProject: () => useStore.getState().project,
     loopRange: () => (useStore.getState().loop ? loopRange() : null),
     metronome: () => useStore.getState().metronome,
+    mode: () => useStore.getState().previewMode,
     // Project end (spec §11): stop, park the playhead at the end — visible,
     // never scrolling into empty space.
     onEnded: () => {

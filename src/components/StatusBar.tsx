@@ -83,6 +83,7 @@ export function StatusBar() {
   const playing = useStore((s) => s.playing);
   const followMode = useStore((s) => s.settings.autoScrollMode);
   const followTrigger = useStore((s) => s.settings.autoScrollTriggerPoint);
+  const previewMode = useStore((s) => s.previewMode);
   const setSettings = useStore((s) => s.setSettings);
   const [mem, setMem] = useState<string>('—');
   useEffect(() => {
@@ -109,6 +110,11 @@ export function StatusBar() {
       <span className="printed">{p.sections.length} sections · {p.chords.length} chords · {Math.round(projectEndTick(p) / barTicks(p.timeSignature))} bars</span>
       {playing && <span className="text-[var(--c-success)]">● playing</span>}
       <div className="flex-1" />
+      {/* Preview A/B (Phase 6): expressive honours Note.articulation, CC1/7/11 and the ensemble detune; simple is the legacy tone. Applies from the next play. */}
+      <div className="flex items-center gap-1.5" title="Preview sound — expressive honours Note.articulation, CC1/CC7/CC11 and the ensemble detune; simple is the legacy tone">
+        <span className="printed">preview</span>
+        <Select<'simple' | 'expressive'> mono testId="preview-mode" tip="Preview sound: expressive honours articulation, CC and detune — simple is the legacy tone" value={previewMode} options={[{ value: 'simple', label: 'simple' }, { value: 'expressive', label: 'expressive' }]} onChange={(v) => useStore.getState().set({ previewMode: v })} className="h-[20px] w-[86px] px-1 text-[9px]" />
+      </div>
       {/* Auto-scroll control (spec §15.3): compact, lives beside the other session utilities. */}
       <div className="flex items-center gap-1.5" title="Auto-scroll — how the arranger follows the playhead. Trigger = fraction of the visible width where following engages (or the stationary playhead pins).">
         <span className="printed">follow</span>

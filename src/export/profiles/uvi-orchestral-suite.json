@@ -1,9 +1,10 @@
 {
   "id": "uvi-orchestral-suite",
   "name": "UVI Orchestral Suite — string ensembles",
-  "description": "One part per UVI Orchestral Suite string-ensemble patch. Keyswitch names follow the manual's pitchConvention. The cellosBasses track splits by note layer: unmarked notes play the Cello Ensemble, the layer:'cb' doubles play the Bass Ensemble.",
+  "description": "One part per UVI Orchestral Suite string-ensemble patch. Keyswitch names follow the manual's pitchConvention. cbLayer omit (the default) leaves the Cb octave doubles out of the export entirely — the Cello Ensemble carries the cellosBasses track and no Bass part or file is created; 'separate' gives the layer:'cb' doubles their own Bass Ensemble part on its own channel/file.",
   "pitchConvention": "C3=60",
   "keyswitchVelocity": 100,
+  "cbLayer": "omit",
   "parts": [
     {
       "id": "violins1",

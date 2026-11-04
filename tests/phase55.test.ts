@@ -7,7 +7,7 @@ import { buildMergedMidi, buildPerTrackMidi, exportableTracks, parseMidiFile } f
 import { EXPORT_PROFILES } from '../src/export/profiles';
 import {
   chunksForTrack, keyNameToMidi, midiToKeyName, mergeTremoloGroups,
-  parsePitchConvention, resolveArticulationKeyFor, validateExportProfile,
+  parseExportProfile, parsePitchConvention, resolveArticulationKeyFor, validateExportProfile,
   type ExportProfile,
 } from '../src/export/profile';
 import { overlapLegato } from '../src/orchestrator/expression/legato';
@@ -26,6 +26,9 @@ import { projectFromFixture, validateProject, type Note, type Project } from '..
  * no-profile byte identity (golden files), and the validator's rejections.
  */
 const PROFILE = EXPORT_PROFILES[0].profile;
+/** The shipped profile ships with cbLayer 'omit' (Phase 6 item 0); the 5.5
+ *  bass-routing behaviour lives on under cbLayer 'separate'. */
+const PROFILE_SEP: ExportProfile = { ...JSON.parse(JSON.stringify(PROFILE)), cbLayer: 'separate' };
 const CONV = 'C3=60';
 const BASE = (): Project => projectFromFixture(JSON.parse(JSON.stringify(fixture)));
 const THREE = (): Project => projectFromFixture(JSON.parse(JSON.stringify(threeChorus)));
@@ -39,8 +42,8 @@ const composeTake = (project: Project, templateId: string, take: number) => {
 
 const instTracks = (p: Project) => exportableTracks(p, 'all');
 const trackOf = (p: Project, role: string) => p.tracks.find((t) => t.role === role)!;
-const partChunk = (p: Project, tracks: ReturnType<typeof instTracks>, partId: string) =>
-  tracks.flatMap((t) => chunksForTrack(p, t, PROFILE)).filter((c) => c.name === PROFILE.parts.find((x) => x.id === partId)!.patch);
+const partChunk = (p: Project, tracks: ReturnType<typeof instTracks>, partId: string, profile: ExportProfile = PROFILE_SEP) =>
+  tracks.flatMap((t) => chunksForTrack(p, t, profile)).filter((c) => c.name === profile.parts.find((x) => x.id === partId)!.patch);
 
 /* ---------------- convention ---------------- */
 describe('pitch convention (C3=60)', () => {
@@ -184,14 +187,14 @@ describe('profile export (dorian, cinematic take 1)', () => {
     expect(celloNotes.length).toBe(cbRest.length);
     expect(bass[0].channel).toBe(5);
     expect(cello[0].channel).toBe(4);
-    for (const [i, part] of PROFILE.parts.entries()) {
+    for (const [i, part] of PROFILE_SEP.parts.entries()) {
       const chunk = partChunk(project, tracks, part.id)[0];
       expect(chunk.channel).toBe(i + 1);
     }
   });
 
   it('keyswitches: velocity 100, only on change, always ahead of the note, ending before it starts', () => {
-    for (const part of PROFILE.parts) {
+    for (const part of PROFILE_SEP.parts) {
       const chunk = partChunk(project, tracks, part.id)[0];
       const ks = chunk.notes.filter((n) => n.pitch < part.lowestPlayable);
       const playing = chunk.notes.filter((n) => n.pitch >= part.lowestPlayable);
@@ -210,7 +213,7 @@ describe('profile export (dorian, cinematic take 1)', () => {
       expect(ks.map((k) => k.startTick)).toEqual(expected.map((e) => e.start));
       for (const e of expected) {
         const k = ks.find((x) => x.pitch === e.key && x.startTick === e.start)!;
-        expect(k.velocity).toBe(PROFILE.keyswitchVelocity);
+        expect(k.velocity).toBe(PROFILE_SEP.keyswitchVelocity);
         if (e.trigger.startTick > 0) expect(k.startTick).toBeLessThan(e.trigger.startTick); // always ahead
         expect(k.startTick + k.durationTicks).toBeLessThanOrEqual(e.trigger.startTick); // ends before it starts
       }
@@ -237,9 +240,9 @@ describe('profile export (dorian, cinematic take 1)', () => {
   });
 
   it('round-trip parse shows the keyswitches, the CC lanes and one channel per part', () => {
-    const parsed = parseMidiFile(buildMergedMidi(project, tracks, PROFILE));
+    const parsed = parseMidiFile(buildMergedMidi(project, tracks, PROFILE_SEP));
     const byName = Object.fromEntries(parsed.tracks.map((t) => [t.name, t]));
-    for (const part of PROFILE.parts) {
+    for (const part of PROFILE_SEP.parts) {
       const t = byName[part.patch];
       expect(t).toBeTruthy();
       expect(t.channel).toBe(part.channel);
@@ -250,7 +253,7 @@ describe('profile export (dorian, cinematic take 1)', () => {
   });
 
   it('per-part files: the cellosBasses track splits into two files, one per part', () => {
-    const files = buildPerTrackMidi(project, tracks, PROFILE);
+    const files = buildPerTrackMidi(project, tracks, PROFILE_SEP);
     const names = files.map((f) => f.fileName);
     expect(names.filter((n) => n.includes('Cello Ensemble') || n.includes('Bass Ensemble'))).toEqual([
       expect.stringContaining('Cello Ensemble'),
@@ -333,6 +336,58 @@ describe('profile options', () => {
     expect(chunk.notes.filter((n) => n.pitch >= 55).length).toBe(trackOf(project, 'violins1').notes.filter((n) => n.pitch >= 55).length);
     expect(ks.some((n) => n.pitch === keyNameToMidi('G0', CONV))).toBe(false);
     expect(ks.some((n) => n.pitch === keyNameToMidi('A0', CONV))).toBe(true);
+  });
+});
+
+/* ---------------- cbLayer: omit (Phase 6 item 0) ---------------- */
+describe('cbLayer omit (default): no Bass part, no Cb-layer notes in the export', () => {
+  const { project } = composeTake(BASE(), 'ensemble.cinematic', 1);
+  const tracks = instTracks(project);
+  const beforeJson = JSON.stringify(project);
+
+  it('the shipped profile (omit) creates no Bass chunk and drops the cb notes everywhere', () => {
+    const cb = trackOf(project, 'cellosBasses');
+    expect(cb.notes.filter((n) => n.layer === 'cb').length).toBeGreaterThan(0);
+    const chunks = chunksForTrack(project, cb, PROFILE);
+    expect(chunks.map((c) => c.name)).toEqual(['Cello Ensemble']); // no Bass Ensemble chunk
+    expect(chunks[0].notes.some((n) => n.layer === 'cb')).toBe(false);
+    // every exported cello note is an unmarked note; the layer notes are gone entirely
+    expect(chunks[0].notes.filter((n) => n.pitch >= 28).length).toBe(cb.notes.filter((n) => n.layer !== 'cb').length);
+    expect(chunks[0].channel).toBe(4);
+  });
+
+  it('merged + per-part outputs have no Bass Ensemble track/file', () => {
+    const merged = parseMidiFile(buildMergedMidi(project, tracks, PROFILE));
+    expect(merged.tracks.some((t) => t.name === 'Bass Ensemble')).toBe(false);
+    expect(merged.tracks.some((t) => t.name === 'Cello Ensemble')).toBe(true);
+    const names = buildPerTrackMidi(project, tracks, PROFILE).map((f) => f.fileName);
+    expect(names.some((n) => n.includes('Bass Ensemble'))).toBe(false);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it('a profile document without cbLayer defaults to omit; the validator stays clean', () => {
+    const noFlag = JSON.parse(JSON.stringify(uviDoc())) as Record<string, unknown>;
+    delete noFlag.cbLayer;
+    expect(validateExportProfile(noFlag)).toEqual([]);
+    const parsed = parseExportProfile(noFlag);
+    expect(parsed.cbLayer).toBe('omit');
+    const chunks = chunksForTrack(project, trackOf(project, 'cellosBasses'), parsed);
+    expect(chunks.map((c) => c.name)).toEqual(['Cello Ensemble']);
+  });
+
+  it('the validator rejects a bad cbLayer; the export still never touches the project', () => {
+    const bad = JSON.parse(JSON.stringify(uviDoc())) as Record<string, unknown>;
+    bad.cbLayer = 'split';
+    expect(validateExportProfile(bad).some((e) => e.includes('cbLayer'))).toBe(true);
+    buildMergedMidi(project, tracks, PROFILE);
+    buildPerTrackMidi(project, tracks, PROFILE);
+    expect(JSON.stringify(project)).toBe(beforeJson);
+  });
+
+  it('the no-profile export stays byte-identical to the golden capture', () => {
+    const goldenDir = new URL('./golden/', import.meta.url);
+    const merged = buildMergedMidi(project, tracks);
+    expect(Buffer.compare(Buffer.from(merged), readFileSync(new URL('dorian-cinematic-merged.mid', goldenDir)))).toBe(0);
   });
 });
 

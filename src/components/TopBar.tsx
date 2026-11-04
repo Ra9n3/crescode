@@ -239,6 +239,7 @@ export function TopBar() {
         <IconButton size="sm" icon={I.record} tip="Record — not available: Crescode generates MIDI, it does not record" disabled />
         <IconButton size="sm" icon={I.repeat} tip={loop ? 'Loop on (selected section or whole song)' : 'Loop off — loops the selected section or whole song'} onClick={() => set({ loop: !loop })} active={loop} activeColor="var(--c-info)" />
         <IconButton size="sm" icon={I.metronome} tip={metronome ? 'Metronome on' : 'Metronome off'} onClick={() => set({ metronome: !metronome })} active={metronome} activeColor="var(--c-warn)" />
+        {/* The preview A/B control lives in the status bar (this bar must stay within narrow-window bounds). */}
       </div>
 
       {/* Auto-scroll mode lives in the status bar (kept the top bar within narrow-window bounds); transport preferences in Settings. */}

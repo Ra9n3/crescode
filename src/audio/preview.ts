@@ -5,9 +5,15 @@
  */
 import { barTicks, beatOffsets, projectEndTick, ticksToSeconds } from '../shared/schema/meter';
 import { PPQ, isInstrumentTrack, type Project, type Track } from '../shared/schema/types';
+import { cc1At, ccLaneOf, ccValueAt, expressionEvents, expressionGain, planTrackNotes, voiceDetune, voiceParams, type PreviewMode, type VoiceParams } from './mapping';
 
 export interface Level { peak: number; rms: number }
 type Ctx = BaseAudioContext;
+
+/** Equal-power crossfade halves (sqrt shapes): overlapping legato notes sum
+ *  to ~unity through the overlap. */
+const SQRT_ATTACK: readonly (readonly [number, number])[] = [[0.25, 0.5], [0.5, 0.707], [0.75, 0.866], [1, 1]];
+const SQRT_RELEASE: readonly (readonly [number, number])[] = [[0.25, 0.866], [0.5, 0.707], [0.75, 0.5], [1, 0]];
 
 const noiseCache = new WeakMap<Ctx, AudioBuffer>();
 function noise(ctx: Ctx): AudioBuffer {
@@ -24,9 +30,13 @@ function noise(ctx: Ctx): AudioBuffer {
 
 const mtof = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
+/** The expressive extras a voice can carry (Phase 6): the pure mapping's
+ *  parameters + the deterministic ensemble detune. Absent = today's sound. */
+export interface ExpressiveVoice { params: VoiceParams; detuneCents: number }
+
 /** Plays one preview-sound note. Returns a stopper for clean Stop. */
-export function playVoice(ctx: Ctx, dest: AudioNode, track: Pick<Track, 'family' | 'role'>, pitch: number, velocity: number, t0: number, dur: number): (when: number) => void {
-  const v = Math.pow(velocity / 127, 1.6) * 0.32;
+export function playVoice(ctx: Ctx, dest: AudioNode, track: Pick<Track, 'family' | 'role'>, pitch: number, velocity: number, t0: number, dur: number, x?: ExpressiveVoice): (when: number) => void {
+  const v = Math.pow(velocity / 127, 1.6) * 0.32 * (x ? x.params.dynamic : 1);
   const env = ctx.createGain();
   env.gain.value = 0;
   env.connect(dest);
@@ -47,6 +57,13 @@ export function playVoice(ctx: Ctx, dest: AudioNode, track: Pick<Track, 'family'
     const n = ctx.createBufferSource(); n.buffer = noise(ctx); n.loop = true;
     const flt = ctx.createBiquadFilter(); flt.type = filterType; flt.frequency.value = freq; flt.Q.value = q;
     n.connect(flt); flt.connect(env); srcs.push(n);
+  };
+  const makeStopper = (): ((when: number) => void) => (when: number) => {
+    try {
+      env.gain.cancelScheduledValues(when);
+      env.gain.setTargetAtTime(0, when, 0.015);
+      for (const s of srcs) s.stop(when + 0.08);
+    } catch { /* already stopped */ }
   };
 
   if (track.family === 'Percussion') {
@@ -76,8 +93,11 @@ export function playVoice(ctx: Ctx, dest: AudioNode, track: Pick<Track, 'family'
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.connect(env);
     let attack = 0.05;
     if (track.family === 'Strings') {
-      lp.frequency.value = Math.min(6000, 900 + f * 3); lp.Q.value = 0.5;
-      osc('sawtooth', f, -7, 0.5, lp); osc('sawtooth', f, 7, 0.5, lp); attack = 0.09; release = 0.3;
+      const d = x ? x.detuneCents : 0; // D9 ensemble detune, preview only
+      const f0 = Math.min(6000, 900 + f * 3);
+      lp.frequency.value = x ? Math.min(8000, f0 * x.params.bright) : f0; // CC1 brightness
+      lp.Q.value = 0.5;
+      osc('sawtooth', f, -7 + d, 0.5, lp); osc('sawtooth', f, 7 + d, 0.5, lp); attack = 0.09; release = 0.3;
     } else if (track.family === 'Brass') {
       lp.frequency.setValueAtTime(400, t0); lp.frequency.linearRampToValueAtTime(Math.min(5000, f * 5 + 800 * (velocity / 127)), t0 + 0.08);
       osc('sawtooth', f, 0, 0.8, lp); osc('square', f / 2, 0, 0.15, lp); attack = 0.04; release = 0.18;
@@ -85,21 +105,47 @@ export function playVoice(ctx: Ctx, dest: AudioNode, track: Pick<Track, 'family'
       lp.frequency.value = Math.min(7000, f * 4);
       osc('triangle', f, 0, 0.9, lp); osc('sine', f * 2, 0, 0.12, lp); attack = 0.03; release = 0.12;
     }
+    if (x && !x.params.legacy) {
+      // Phase 6 item 2 — the articulation envelope replaces the legacy shape.
+      const p = x.params;
+      attack = p.attack;
+      release = p.release;
+      const body = p.capSec !== null ? Math.min(dur, p.capSec) : dur;
+      const end = t0 + body;
+      env.gain.setValueAtTime(0, t0);
+      if (p.attackShape === 'sqrt') {
+        for (const [k, y] of SQRT_ATTACK) env.gain.linearRampToValueAtTime(v * p.accent * y, t0 + p.attack * k);
+      } else {
+        env.gain.linearRampToValueAtTime(v * p.accent, t0 + p.attack);
+      }
+      if (p.decayTauSec !== null) {
+        env.gain.setTargetAtTime(0, t0 + p.attack + 0.004, p.decayTauSec); // pizz: decays regardless of length
+      } else {
+        env.gain.setTargetAtTime(v * p.sustainLevel, t0 + p.attack + 0.004, p.accent !== 1 ? 0.09 : 0.2); // marcato bump decays to sustain
+      }
+      if (p.trem) {
+        const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = p.trem.rateHz;
+        const lg = ctx.createGain(); lg.gain.value = p.trem.depth * v;
+        lfo.connect(lg); lg.connect(env.gain); srcs.push(lfo); // AM ±depth over the held note
+      }
+      if (p.attackShape === 'sqrt') {
+        env.gain.setValueAtTime(v * p.sustainLevel, end);
+        for (const [k, y] of SQRT_RELEASE) env.gain.linearRampToValueAtTime(v * p.sustainLevel * y, end + p.release * k);
+      } else {
+        env.gain.setTargetAtTime(0, end, p.release / 4);
+      }
+      for (const s of srcs) { s.start(t0); s.stop(end + p.release * 1.5 + 0.05); }
+      return makeStopper();
+    }
     env.gain.setValueAtTime(0, t0); env.gain.linearRampToValueAtTime(v, t0 + attack); env.gain.setTargetAtTime(v * 0.85, t0 + attack, 0.2);
   }
   const end = t0 + dur;
   env.gain.setTargetAtTime(0, end, release / 4);
   for (const s of srcs) { s.start(t0); s.stop(end + release * 1.5 + 0.05); }
-  return (when: number) => {
-    try {
-      env.gain.cancelScheduledValues(when);
-      env.gain.setTargetAtTime(0, when, 0.015);
-      for (const s of srcs) s.stop(when + 0.08);
-    } catch { /* already stopped */ }
-  };
+  return makeStopper();
 }
 
-interface Strip { gain: GainNode; pan: StereoPannerNode; analyser: AnalyserNode }
+interface Strip { gain: GainNode; pan: StereoPannerNode; analyser: AnalyserNode; expr: GainNode }
 /** One anchored mapping ctxTime → tick at a fixed tempo. A tempo change
  *  during playback pushes a new segment instead of skewing the timeline. */
 interface Segment { ctxTime: number; tick: number; bpm: number }
@@ -118,6 +164,7 @@ class PreviewEngine {
   private getProject: () => Project = () => { throw new Error('not bound'); };
   private loopRange: () => [number, number] | null = () => null;
   private metronomeOn: () => boolean = () => false;
+  private mode: () => PreviewMode = () => 'expressive';
   private onEnded: () => void = () => {};
   frozen = new Map<string, { buffer: AudioBuffer; hash: string }>();
   refBuffer: AudioBuffer | null = null;
@@ -129,8 +176,9 @@ class PreviewEngine {
   sinkId = 'default';
   playing = false;
 
-  bind(o: { getProject: () => Project; loopRange: () => [number, number] | null; metronome: () => boolean; onEnded: () => void }) {
+  bind(o: { getProject: () => Project; loopRange: () => [number, number] | null; metronome: () => boolean; mode?: () => PreviewMode; onEnded: () => void }) {
     this.getProject = o.getProject; this.loopRange = o.loopRange; this.metronomeOn = o.metronome; this.onEnded = o.onEnded;
+    if (o.mode) this.mode = o.mode;
   }
 
   ensure(): AudioContext {
@@ -160,22 +208,28 @@ class PreviewEngine {
     if (!s) {
       const gain = ctx.createGain(); const pan = ctx.createStereoPanner(); const analyser = ctx.createAnalyser();
       analyser.fftSize = 512;
-      gain.connect(pan); pan.connect(analyser); analyser.connect(this.master!);
-      s = { gain, pan, analyser };
+      // expr carries the track's CC11 (scheduled automation); the mixer gain
+      // stays independent on top of it (CC7 folds into the mixer gain).
+      const expr = ctx.createGain();
+      expr.connect(gain); gain.connect(pan); pan.connect(analyser); analyser.connect(this.master!);
+      s = { gain, pan, analyser, expr };
       this.strips.set(trackId, s);
     }
     return s;
   }
 
-  /** Applies volume / pan / mute / solo / master. Preview only. */
+  /** Applies volume / pan / mute / solo / master — plus the track's static
+   *  CC7 level in expressive mode (a plain multiplier on the mixer gain). */
   applyMixer(p: Project) {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
+    const expressive = this.mode() === 'expressive';
     const anySolo = p.tracks.some((x) => x.soloed);
     for (const tr of p.tracks) {
       if (tr.family === 'Structure') continue;
       const s = this.strip(tr.id);
-      const g = tr.muted || (anySolo && !tr.soloed) ? 0 : tr.volume;
+      const cc7 = expressive ? (ccValueAt(ccLaneOf(tr, 7), this.cursor) ?? 127) / 127 : 1;
+      const g = (tr.muted || (anySolo && !tr.soloed) ? 0 : tr.volume) * cc7;
       s.gain.gain.setTargetAtTime(g, t, 0.015);
       s.pan.pan.setTargetAtTime(tr.pan, t, 0.015);
     }
@@ -214,15 +268,30 @@ class PreviewEngine {
     const ctx = this.ensure();
     this.stop(true);
     const p = this.getProject();
+    this.cursor = fromTick;
     this.applyMixer(p);
     this.playing = true;
     const t0 = ctx.currentTime + 0.08;
     this.segments = [{ ctxTime: t0, tick: fromTick, bpm: p.bpm }];
-    this.cursor = fromTick;
+    this.primeExpression(p, fromTick, t0);
     this.startBuffers(t0, fromTick);
     this.timer = window.setInterval(() => this.schedule(), 25);
     this.schedule();
     this.startLevels();
+  }
+
+  /** Sets every strip's expression gain to the CC11 value AT the play
+   *  position (starting mid-piece carries the right level), or 1 in simple
+   *  mode — the switch must never leave stale automation behind. */
+  private primeExpression(p: Project, fromTick: number, when: number) {
+    const expressive = this.mode() === 'expressive';
+    const ctx = this.ctx!;
+    for (const tr of p.tracks) {
+      if (!isInstrumentTrack(tr)) continue;
+      const g = this.strip(tr.id).expr.gain;
+      g.cancelScheduledValues(ctx.currentTime);
+      g.setValueAtTime(expressive ? expressionGain(ccValueAt(ccLaneOf(tr, 11), fromTick)) : 1, when);
+    }
   }
 
   private startBuffers(when: number, tick: number) {
@@ -283,14 +352,20 @@ class PreviewEngine {
   private scheduleRange(p: Project, from: number, to: number, seg: Segment, tps: number) {
     const ctx = this.ctx!;
     const at = (tick: number) => seg.ctxTime + (tick - seg.tick) / tps;
+    const expressive = this.mode() === 'expressive';
     for (const tr of p.tracks) {
       if (!isInstrumentTrack(tr) || (tr.frozen && this.frozen.has(tr.id))) continue;
-      const dest = this.strip(tr.id).gain;
-      for (const n of tr.notes) {
+      const s = this.strip(tr.id);
+      const dest = expressive ? s.expr : s.gain;
+      if (expressive) this.scheduleCc(tr, s.expr, from, to, at);
+      for (const n of planTrackNotes(tr, expressive ? 'expressive' : 'simple')) {
         if (n.startTick >= from && n.startTick < to) {
           const when = Math.max(ctx.currentTime, at(n.startTick));
           const dur = n.durationTicks / tps;
-          this.voices.push({ stop: playVoice(ctx, dest, tr, n.pitch, n.velocity, when, dur), end: when + dur + 2.5 });
+          const x = expressive
+            ? { params: voiceParams(n, tr, { cc1: cc1At(tr, n.startTick) }), detuneCents: voiceDetune(n, tr) }
+            : undefined;
+          this.voices.push({ stop: playVoice(ctx, dest, tr, n.pitch, n.velocity, when, dur, x), end: when + dur + 2.5 });
         }
       }
     }
@@ -303,6 +378,19 @@ class PreviewEngine {
           if (tick >= from && tick < to) this.click(at(tick), i === 0);
         });
       }
+    }
+  }
+
+  /** The track's CC11 as expression-gain events inside the window: the exact
+   *  held value at the window start, then one event per coalesced lane point
+   *  in (from, to). Tick → seconds through the segment anchor — the same
+   *  conversion the notes use. */
+  private scheduleCc(tr: Track, expr: GainNode, from: number, to: number, at: (tick: number) => number) {
+    const events = expressionEvents(tr);
+    if (!events.length) return;
+    expr.gain.setValueAtTime(expressionGain(ccValueAt(ccLaneOf(tr, 11), from)), Math.max(this.ctx!.currentTime, at(from)));
+    for (const e of events) {
+      if (e.tick > from && e.tick < to) expr.gain.setValueAtTime(expressionGain(e.value), at(e.tick));
     }
   }
 
@@ -379,18 +467,32 @@ class PreviewEngine {
 
   /* ---------- freeze (offline render; non-realtime is correct here) ---------- */
   async freeze(p: Project, track: Track, onProgress: (f: number) => void): Promise<void> {
+    const mode = this.mode();
     const sr = 44100;
     const endSec = ticksToSeconds(projectEndTick(p), p.bpm) + 3;
     const off = new OfflineAudioContext(2, Math.ceil(endSec * sr), sr);
     const tps = (p.bpm * PPQ) / 60;
-    for (const n of track.notes) playVoice(off, off.destination, track, n.pitch, n.velocity, n.startTick / tps, n.durationTicks / tps);
+    let dest: AudioNode = off.destination;
+    if (mode === 'expressive') {
+      // the frozen buffer bakes the track's expression in: one gain driven by
+      // the whole CC11 lane (the offline clock is the constant-bpm one the
+      // notes use)
+      const expr = off.createGain(); expr.connect(off.destination);
+      expr.gain.value = expressionGain(ccValueAt(ccLaneOf(track, 11), 0));
+      for (const e of expressionEvents(track)) expr.gain.setValueAtTime(expressionGain(e.value), e.tick / tps);
+      dest = expr;
+    }
+    for (const n of planTrackNotes(track, mode)) {
+      const params = mode === 'expressive' ? voiceParams(n, track, { cc1: cc1At(track, n.startTick) }) : null;
+      playVoice(off, dest, track, n.pitch, n.velocity, n.startTick / tps, n.durationTicks / tps, params ? { params, detuneCents: voiceDetune(n, track) } : undefined);
+    }
     const steps = 10;
     for (let i = 1; i < steps; i++) {
       const t = (endSec * i) / steps;
       off.suspend(Math.round(t * 128) / 128).then(() => { onProgress(i / steps); void off.resume(); }).catch(() => undefined);
     }
     const buffer = await off.startRendering();
-    this.frozen.set(track.id, { buffer, hash: freezeHash(track) });
+    this.frozen.set(track.id, { buffer, hash: freezeHash(track, mode) });
     onProgress(1);
   }
   unfreeze(trackId: string) { this.frozen.delete(trackId); }
@@ -398,6 +500,6 @@ class PreviewEngine {
   frozenBytes(): number { let b = 0; for (const f of this.frozen.values()) b += f.buffer.length * f.buffer.numberOfChannels * 4; return b; }
 }
 
-export const freezeHash = (t: Track) => `${t.notes.length}:${t.notes.reduce((h, n) => (h * 31 + n.pitch * 7 + n.startTick + n.durationTicks * 3 + n.velocity) % 1e9, 7)}`;
+export const freezeHash = (t: Track, mode: PreviewMode = 'simple') => `${mode}:${t.notes.length}:${t.notes.reduce((h, n) => (h * 31 + n.pitch * 7 + n.startTick + n.durationTicks * 3 + n.velocity) % 1e9, 7)}`;
 
 export const preview = new PreviewEngine();

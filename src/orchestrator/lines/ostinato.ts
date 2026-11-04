@@ -10,8 +10,10 @@
  *
  * Note lengths: the trailer clips its notes under 0.25 s through the TEMPO
  * MAP (never a flat bpm); every other texture plays a short but not clipped
- * length (a detached share of its step). Deterministic per (inputs, take,
- * span).
+ * length (a detached share of its step). Phase 4.8: the texture's RHYTHM
+ * CELL (a 4-step mask, tiled) removes steps from the grid — the cells only
+ * ever thin the pattern, so the gating and calm-down contracts above keep
+ * holding. Deterministic per (inputs, take, span).
  */
 import { mulberry32, hashString } from '../../engine/generate';
 import { orchestrationSeedFor } from '../spine';
@@ -66,6 +68,9 @@ export interface OstinatoInput {
   stepTicks: number;
   /** The take-seeded pattern shape. */
   shape: OstinatoShape;
+  /** The texture's rhythm cell (Phase 4.8): a 4-step mask tiled over the
+   *  grid; a 0 step rests. Defaults to the straight grid. */
+  cell?: readonly (0 | 1)[];
   /** Interlocking: the lower track runs half a step late, never the same rhythm. */
   interlock: boolean;
   /** Trailer only: clip notes under 0.25 s; otherwise short but not clipped. */
@@ -91,6 +96,7 @@ const nearestPitch = (pc: number, low: number, high: number, mid: number, ceilin
 
 export function ostinatoNotes(input: OstinatoInput): Note[][] {
   const { tempoMap, startTick, endTick, tones, project, spanIndex, tracks, velocity, stepTicks, shape, interlock, clipShort, articulation, ceilingPitch } = input;
+  const cell = input.cell ?? [1, 1, 1, 1];
   if (!tones.length || endTick <= startTick) return tracks.map(() => []);
   const step = Math.max(MIN_STEP_TICKS, Math.floor(stepTicks));
   const dur = clipShort
@@ -124,6 +130,7 @@ export function ostinatoNotes(input: OstinatoInput): Note[][] {
     const offset = interlock && ti > 0 ? half : 0;
     const map = new Map<number, number>();
     for (let i = 0, t = gridStart + offset; t < endTick; t += step, i++) {
+      if (!cell[i % cell.length]) continue; // the rhythm cell rests on this step (4.8)
       const pitch = nearestPitch(pcAt(i), track.low, track.high, mid, ceilingPitch);
       if (!Number.isNaN(pitch)) map.set(i, pitch);
     }

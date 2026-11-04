@@ -44,6 +44,7 @@ import { assignStringLayers, stringLayerForBar, textureForType, sectionTypeNameA
 import { motifLine } from './lines/motif';
 import { counterlineLine } from './lines/counterline';
 import { ostinatoNotes, TREMOLO_STEP_TICKS, SHORT_NOTE_SECONDS, rateTicks } from './lines/ostinato';
+import { OSTINATO_CELLS } from './conductor/layers';
 import { beatOffsets, beatTicks, isCompound } from '../shared/schema/meter';
 import { secondsToTicks } from './spine';
 
@@ -465,6 +466,7 @@ export const stringsModule: SectionModule = {
                 velocity,
                 stepTicks: rateTicks(ctx.project.timeSignature, tex.style.rate),
                 shape: tex.style.shape,
+                cell: OSTINATO_CELLS[tex.style.cell],
                 interlock: tex.style.interlock,
                 clipShort: tex.style.clippedShort,
                 articulation: tex.style.ostArticulation,

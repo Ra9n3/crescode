@@ -52,6 +52,24 @@ export type OstinatoRate = 'eighths' | 'sixteenths';
 /** Pattern shape, seeded per take: repeated note, chord-tone arpeggio, root-fifth. */
 export type OstinatoShape = 'repeat' | 'arpeggio' | 'rootFifth';
 
+/**
+ * Rhythm cells (Phase 4.8): the ostinato no longer runs a uniform grid —
+ * per take (and per section type, like the rest of the style) a CELL is
+ * drawn: a 4-step mask over the texture's rate grid, tiled through the bar.
+ * All cells keep the downbeat-sounding straight pattern available to the
+ * trailer, whose style pins 'straight' (the trailer IS the full 16th grid).
+ * The cells only ever REMOVE onsets, so every 4.6 gating and calm-down
+ * contract keeps holding; the CC and humanize layers read the notes, so
+ * they follow the cells automatically.
+ */
+export type OstinatoCellId = 'straight' | 'lift3' | 'skip2' | 'dactyl';
+export const OSTINATO_CELLS: Record<OstinatoCellId, readonly (0 | 1)[]> = {
+  straight: [1, 1, 1, 1], // the plain grid (every step)
+  lift3: [1, 1, 0, 1], // lifts the third step of each half-bar
+  skip2: [1, 0, 1, 1], // skips the offbeat after each downbeat
+  dactyl: [1, 1, 0, 0], // long-short rest — the calmest, half density
+};
+
 /** The render style a texture hands the strings renderer. */
 export interface TextureStyle {
   rate: OstinatoRate;
@@ -61,6 +79,8 @@ export interface TextureStyle {
   /** Trailer only: notes clipped under 0.25 s. Otherwise short but not clipped. */
   clippedShort: boolean;
   shape: OstinatoShape;
+  /** The drawn rhythm cell (Phase 4.8): a 4-step mask tiled over the rate grid. */
+  cell: OstinatoCellId;
   /** Bars into the section before the ostinato enters (1–2, seeded). */
   enterAfter: 1 | 2;
   /** Symphony: cellosBasses pizz-pulse (true) vs sustained bass (false). */
@@ -80,6 +100,7 @@ const baseStyle = (over: Partial<TextureStyle>): TextureStyle => ({
   ostArticulation: 'spiccato',
   clippedShort: false,
   shape: 'arpeggio',
+  cell: 'straight',
   enterAfter: 1,
   bassPizz: false,
   ...over,
@@ -149,7 +170,7 @@ const CINEMATIC_PALETTE: PaletteDef[] = [
   {
     id: 'trailer', weight: CINEMATIC_TEXTURE_WEIGHTS.trailer,
     plan: { violins1: 'lead', violins2: 'ostinato', violas: 'ostinato', cellosBasses: 'bass' },
-    style: { rate: 'sixteenths', ostArticulation: 'spiccato', clippedShort: true },
+    style: { rate: 'sixteenths', ostArticulation: 'spiccato', clippedShort: true, cell: 'straight' },
   },
 ];
 
@@ -186,6 +207,7 @@ const PALETTES: Record<string, PaletteDef[]> = {
 };
 
 const SHAPES: OstinatoShape[] = ['repeat', 'arpeggio', 'rootFifth'];
+const CELLS = Object.keys(OSTINATO_CELLS) as OstinatoCellId[];
 
 /** Per-context memo: the draw is pure, but `orchestrationSeedFor` serializes
  *  the musical inputs — cache the (rare) resolution per context object. */
@@ -216,8 +238,9 @@ function drawTexture(ctx: OrchestratorContext, typeKey: string): Texture {
   const shape = SHAPES[Math.floor(rng() * SHAPES.length)];
   const enterAfter: 1 | 2 = rng() < 0.5 ? 1 : 2;
   const ost: OstTrack = rng() < 0.5 ? 'violins2' : 'violas';
+  const cell = CELLS[Math.floor(rng() * CELLS.length)]; // Phase 4.8: the rhythm cell
   const plan = typeof chosen.plan === 'function' ? chosen.plan(ost) : chosen.plan;
-  return { id: chosen.id, plan, style: baseStyle({ shape, enterAfter, ...chosen.style }) };
+  return { id: chosen.id, plan, style: baseStyle({ shape, enterAfter, cell, ...chosen.style }) };
 }
 
 /** The texture drawn for one section type on this take. Deterministic per

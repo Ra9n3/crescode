@@ -240,7 +240,9 @@ describe('Phase 4.6 (3): ostinato calm-down (three-chorus cinematic, takes 0..39
         r.project.tracks.find((tr) => tr.role === role)!.notes.filter((n) => isOstNote(n.articulation) && n.startTick >= (bar - 1) * BT && n.startTick < bar * BT).map((n) => n.startTick).sort((a, b) => a - b);
       const v2 = onsets('violins2');
       const vla = onsets('violas');
-      expect(v2.length).toBeGreaterThan(4);
+      // Phase 4.8: the drawn rhythm cell can thin the bar to half density
+      // (dactyl), so a full bar of the interlock carries >= 4 onsets
+      expect(v2.length).toBeGreaterThanOrEqual(4);
       expect(vla.length).toBe(v2.length);
       // Phase 5d humanize: each track's notes shift by its own section-base +
       // jitter (violins +5..18 ms), so the half-rate offset keeps a small

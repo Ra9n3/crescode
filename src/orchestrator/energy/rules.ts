@@ -32,6 +32,7 @@ import type { EnsembleTemplate, EnsembleRule } from '../../shared/schema/ensembl
 import { chordSpans, type ResolvedChord } from '../spine';
 import { chordTones } from '../voicing/chordTones';
 import type { ConductorPlan, FillWindow } from '../conductor';
+import { humanizeHeadTicks } from '../expression/timing';
 
 export interface RuleFinding {
   /** Which rule spoke: a template rule type, 'energy', or 'maxLayers'. */
@@ -58,10 +59,9 @@ const overlaps = (a: Note, b: Note) => a.startTick < b.startTick + b.durationTic
 /** Octave-doubling instances: two notes an octave (or more, by 12s) apart,
  *  sounding together. Different tracks always count; the same track counts
  *  too (D2: the Cb+Vc octave inside `cellosBasses` is still doubling). */
-/** The head humanize may add to a string attack (Phase 5d): the audit reads
- *  the written-for grid position this many ticks earlier too. Bounds the
- *  28 ms cellosBasses maximum through any sane tempo. */
-export const HUMANIZE_HEAD_TICKS = 60;
+// Phase 5d/5.1.3: the head humanize may add to a string attack is read
+// through the tempo map at the position being checked — see
+// expression/timing.ts (the old flat 60-tick constant is gone).
 
 function octaveDoublings(notes: RoleNote[]): { tick: number; a: RoleNote; b: RoleNote }[] {
   const out: { tick: number; a: RoleNote; b: RoleNote }[] = [];
@@ -134,11 +134,13 @@ function checkOctaveDoubling(p: Project, template: EnsembleTemplate, rule: Ensem
     return null;
   };
   const voicesAt = (tick: number): number => {
+    // Phase 5d/5.1.3: a humanized attack may start up to one humanize head
+    // (tempo-map ticks at this position) after its written tick — it was
+    // still written FOR this tick
+    const head = humanizeHeadTicks(p.tempoMap, tick);
     let count = 0;
     for (const rn of notes) {
-      // Phase 5d: a humanized attack may start up to HUMANIZE_HEAD_TICKS
-      // after its written tick — it was still written FOR this tick
-      if (rn.note.startTick > tick + HUMANIZE_HEAD_TICKS) break; // sorted by start
+      if (rn.note.startTick > tick + head) break; // sorted by start
       if (rn.note.startTick + rn.note.durationTicks > tick) count++;
     }
     return count;
@@ -155,10 +157,13 @@ function checkOctaveDoubling(p: Project, template: EnsembleTemplate, rule: Ensem
   // grid position the notes were written for. The audit reads the written-for
   // position — the pair's EARLIEST start — and one head earlier too: a
   // doubling exempt there is exempt here.
-  const exemptAt = (d: { tick: number; a: RoleNote; b: RoleNote }, pitch: number): boolean =>
-    forcedDoubling(d.tick, pitch) || forcedDoubling(d.tick - HUMANIZE_HEAD_TICKS, pitch);
+  const exemptAt = (d: { tick: number; a: RoleNote; b: RoleNote }, pitch: number): boolean => {
+    const head = humanizeHeadTicks(p.tempoMap, d.tick);
+    return forcedDoubling(d.tick, pitch) || forcedDoubling(d.tick - head, pitch);
+  };
   const climaxAt = (tick: number): boolean => {
-    for (const t of [tick, tick - HUMANIZE_HEAD_TICKS]) {
+    const head = humanizeHeadTicks(p.tempoMap, tick);
+    for (const t of [tick, tick - head]) {
       const w = energyAtTick(report, t);
       if (w && w.energy >= (energyThreshold ?? 1) - 1e-9) return true;
     }

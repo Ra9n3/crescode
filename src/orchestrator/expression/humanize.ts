@@ -33,16 +33,15 @@ import { isInstrumentTrack, type Note, type Project } from '../../shared/schema/
 import type { EnsembleTemplate } from '../../shared/schema/ensembleTemplate';
 import { maxMeanVelocityFor } from '../energy';
 import { msToTicks, orchestrationSeedFor, ticksToMs, type SpineSection } from '../spine';
+import { BASS_TIMING_MS, CB_FOLLOW_MAX_MS, TIMING_JITTER_MS, VIOLIN_TIMING_MS } from './timing';
+
+// The timing constants live in expression/timing.ts next to the tempo-map
+// humanize head (Phase 5.1.3) so the audit and the tests read ONE source;
+// re-exported here for the established import path.
+export { BASS_TIMING_MS, CB_FOLLOW_MAX_MS, TIMING_JITTER_MS, VIOLIN_TIMING_MS } from './timing';
 
 /* ---------------- named constants ---------------- */
 
-/** Timing ranges in ms (positive only): [min, max] per role group. */
-export const VIOLIN_TIMING_MS: readonly [number, number] = [5, 18];
-export const BASS_TIMING_MS: readonly [number, number] = [12, 28];
-/** Per-note jitter around the section base (ms). */
-export const TIMING_JITTER_MS = 4;
-/** Cb doubles trail their cello partner by 1..CB_FOLLOW_MAX_MS ms. */
-export const CB_FOLLOW_MAX_MS = 3;
 /** Small velocity jitter (plain units on the 1..127 scale). */
 export const VELOCITY_JITTER = 4;
 

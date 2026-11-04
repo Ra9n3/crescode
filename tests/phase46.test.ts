@@ -4,7 +4,7 @@ import threeChorus from '../fixtures/three-chorus-40bars.json';
 import { ENSEMBLE_BY_ID, resolveTemplate } from '../src/config/ensembles';
 import { composeAllTracks } from '../src/orchestrator/compose';
 import { measureEnergy } from '../src/orchestrator/energy';
-import { HUMANIZE_HEAD_TICKS } from '../src/orchestrator/energy/rules';
+import { humanizeHeadTicks } from '../src/orchestrator/expression/timing';
 import { chordSpans, sectionMap, energyCurve } from '../src/orchestrator/spine';
 import { sanitizeNotes } from '../src/engine/generate';
 import { textureForType, CINEMATIC_TEXTURE_WEIGHTS, CHAMBER_TEXTURE_WEIGHTS, HYBRID_TEXTURE_WEIGHTS, SONATA_TEXTURE_WEIGHTS, SYMPHONY_TEXTURE_WEIGHTS } from '../src/orchestrator/conductor/layers';
@@ -246,7 +246,7 @@ describe('Phase 4.6 (3): ostinato calm-down (three-chorus cinematic, takes 0..39
       // jitter (violins +5..18 ms), so the half-rate offset keeps a small
       // envelope instead of the exact 240 — the rhythms still never coincide
       // (the interlock gap stays far above the note length).
-      for (let i = 0; i < v2.length; i++) expect(Math.abs(vla[i] - v2[i] - 240)).toBeLessThanOrEqual(HUMANIZE_HEAD_TICKS);
+      for (let i = 0; i < v2.length; i++) expect(Math.abs(vla[i] - v2[i] - 240)).toBeLessThanOrEqual(humanizeHeadTicks(r.project.tempoMap, v2[i]));
       checked++;
     }
     expect(checked).toBeGreaterThanOrEqual(1);

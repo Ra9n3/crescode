@@ -74,6 +74,19 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   // Phase 4.6: which texture each section type drew this take (the plan report)
   const typeOrder = [...new Set(ctx.sections.map((s) => sectionTypeKeyOf(s.name)))];
   ctx.lines.reports.push(`textures (take ${orchestration.take}): ${typeOrder.map((t) => `${t}=${textureForType(ctx, t).id}`).join(', ')}`);
+  // Phase 4.8: the drawn ostinato style per section type — cell/contour/
+  // accent/density, plus the two-track pairing where the texture has one
+  const OST_TEX_IDS = new Set(['singleOstinato', 'interlockingOstinato', 'pizzPulse', 'trailer']);
+  const styleLine = typeOrder
+    .map((t) => {
+      const tex = textureForType(ctx, t);
+      if (!OST_TEX_IDS.has(tex.id)) return null;
+      const s = tex.style;
+      return `${t}=${s.cell}/${s.contour}/${s.accent}/${s.density}${s.pairing !== 'unison' ? `/${s.pairing}` : ''}`;
+    })
+    .filter(Boolean)
+    .join(', ');
+  if (styleLine) ctx.lines.reports.push(`ostinato style (take ${orchestration.take}): ${styleLine}`);
   // the conductor's breaths ride into the strings plans per track (3a)
   const plans = stringsModule.roles(ctx).map((pl) => ({
     ...pl,

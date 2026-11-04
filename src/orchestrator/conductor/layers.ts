@@ -55,19 +55,100 @@ export type OstinatoShape = 'repeat' | 'arpeggio' | 'rootFifth';
 /**
  * Rhythm cells (Phase 4.8): the ostinato no longer runs a uniform grid —
  * per take (and per section type, like the rest of the style) a CELL is
- * drawn: a 4-step mask over the texture's rate grid, tiled through the bar.
- * All cells keep the downbeat-sounding straight pattern available to the
- * trailer, whose style pins 'straight' (the trailer IS the full 16th grid).
- * The cells only ever REMOVE onsets, so every 4.6 gating and calm-down
- * contract keeps holding; the CC and humanize layers read the notes, so
- * they follow the cells automatically.
+ * drawn: a meter-aware onset pattern over the FELT BEATS (simple meters
+ * divide a beat into 2 or 4 slots, compound meters into 3), so every onset
+ * lands on a felt-beat subdivision in 4/4, 3/4 and 6/8 alike. The slot math
+ * lives in lines/ostinato.ts (cellGrid); this is the vocabulary + weights.
+ *
+ *   straight    — every 8th (the trailer's 16th rate turns it into the full
+ *                 16th grid: the trailer pins 'straight', it IS that grid);
+ *   syncopated  — 3+3+2 over the bar's 8th slots (3/4: 3+3; 6/8: the dotted
+ *                 beat downbeats);
+ *   gallop      — 8th + two 16ths per felt beat (compound: the ternary lilt
+ *                 8th–rest–8th); only single-track ostinato textures draw
+ *                 it — two galloping tracks would double past the 4.6
+ *                 calm-down bound (≤ half the trailer's per-bar count);
+ *   offBeat     — the "and" of every felt beat (compound: the middle 8th);
+ *   sparse      — 2 per beat group with rests (group downbeat + last slot;
+ *                 a lone last beat in odd meters: its downbeat only).
+ *
+ * The default stays calm ('straight', the heaviest weight); 16th GRID only
+ * in the trailer — the gallop's two 16th pickups are part of its cell shape,
+ * not a rate. The CC and humanize layers read the notes, so they follow the
+ * cells automatically.
  */
-export type OstinatoCellId = 'straight' | 'lift3' | 'skip2' | 'dactyl';
-export const OSTINATO_CELLS: Record<OstinatoCellId, readonly (0 | 1)[]> = {
-  straight: [1, 1, 1, 1], // the plain grid (every step)
-  lift3: [1, 1, 0, 1], // lifts the third step of each half-bar
-  skip2: [1, 0, 1, 1], // skips the offbeat after each downbeat
-  dactyl: [1, 1, 0, 0], // long-short rest — the calmest, half density
+export type OstinatoCellId = 'straight' | 'syncopated' | 'gallop' | 'offBeat' | 'sparse';
+export const OSTINATO_CELL_WEIGHTS: Record<OstinatoCellId, number> = {
+  straight: 30, // the calm default, the heaviest draw
+  syncopated: 20,
+  gallop: 12, // the busiest calm cell — rarest
+  offBeat: 18,
+  sparse: 20,
+};
+/** Cells the interlocking texture may draw: no gallop (see above). */
+export const INTERLOCK_CELL_IDS: readonly OstinatoCellId[] = ['straight', 'syncopated', 'offBeat', 'sparse'];
+
+/**
+ * Contour (Phase 4.8): how the pitch walks across the bar's sounding
+ * onsets — the shape (repeat/arpeggio/rootFifth) still picks the chord-tone
+ * PC per onset, the contour picks the REGISTER:
+ *   ascending  — each note above the last, wrapping to the bottom;
+ *   descending — each note below the last, wrapping to the top;
+ *   pingPong   — strict zigzag (up, down, up, …), falling back over the
+ *                window edge;
+ *   pedal      — a fixed low pedal note alternating with a moving upper
+ *                chord tone.
+ * All contours stay on chord tones minus the leading tone and under the
+ * lead's ceiling — they only re-walk the same vocabulary.
+ */
+export type OstinatoContourId = 'ascending' | 'descending' | 'pingPong' | 'pedal';
+export const OSTINATO_CONTOUR_WEIGHTS: Record<OstinatoContourId, number> = {
+  ascending: 25,
+  descending: 25,
+  pingPong: 25,
+  pedal: 25,
+};
+
+/**
+ * Accent shape (Phase 4.8): where the velocity accent sits inside the cell
+ * — on the cell's downbeat (the bar's first onset), on the off-beat slots,
+ * or flat. The boost rises to the window's governor cap, never past it.
+ */
+export type OstinatoAccentId = 'downbeat' | 'offBeat' | 'flat';
+export const OSTINATO_ACCENT_WEIGHTS: Record<OstinatoAccentId, number> = {
+  downbeat: 40,
+  offBeat: 30,
+  flat: 30,
+};
+
+/**
+ * Density curve (Phase 4.8): how a two-track ostinato thins and fills
+ * across a section — never a fixed on/off. Per bar the texture compares the
+ * bar's arc target against the SECTION's own arc range midpoint: 'rise'
+ * runs full (two tracks) on the high half and thin (one track) below, so a
+ * rising arc sounds thin→full and a dip thins the texture; 'dip' is the
+ * reverse curve (full on the low half, thin at the peak). Single-track
+ * ostinato textures draw it too but have nothing to thin — they report it.
+ */
+export type OstinatoDensityId = 'rise' | 'dip';
+export const OSTINATO_DENSITY_WEIGHTS: Record<OstinatoDensityId, number> = {
+  rise: 55,
+  dip: 45,
+};
+
+/**
+ * Two-track pairing (Phase 4.8): how V2 and Vla share the ostinato —
+ *   interlock — the existing half-step offset, the rhythms never coincide;
+ *   hocket    — across-bar call/response: V2 calls on even section bars,
+ *               the viola answers on odd ones, same grid, no offset.
+ * The pairing is drawn for every texture but applied only where the style
+ * is interlocked (the two-track texture); single-track textures and the
+ * trailer (its own pinned unison drive) report 'unison'.
+ */
+export type OstinatoPairingId = 'interlock' | 'hocket' | 'unison';
+export const OSTINATO_PAIRING_WEIGHTS: Record<Exclude<OstinatoPairingId, 'unison'>, number> = {
+  interlock: 55,
+  hocket: 45,
 };
 
 /** The render style a texture hands the strings renderer. */
@@ -79,8 +160,17 @@ export interface TextureStyle {
   /** Trailer only: notes clipped under 0.25 s. Otherwise short but not clipped. */
   clippedShort: boolean;
   shape: OstinatoShape;
-  /** The drawn rhythm cell (Phase 4.8): a 4-step mask tiled over the rate grid. */
+  /** The drawn rhythm cell (Phase 4.8): meter-aware, over the felt beats. */
   cell: OstinatoCellId;
+  /** The drawn contour (Phase 4.8): the register walk across the bar's onsets. */
+  contour: OstinatoContourId;
+  /** The drawn accent shape (Phase 4.8): cell downbeat, off-beats or flat. */
+  accent: OstinatoAccentId;
+  /** The drawn density curve (Phase 4.8): arc-tracked thin/full per bar. */
+  density: OstinatoDensityId;
+  /** The drawn two-track pairing (Phase 4.8): interlock vs hocket; 'unison'
+   *  for single-track textures and the trailer. */
+  pairing: OstinatoPairingId;
   /** Bars into the section before the ostinato enters (1–2, seeded). */
   enterAfter: 1 | 2;
   /** Symphony: cellosBasses pizz-pulse (true) vs sustained bass (false). */
@@ -100,7 +190,11 @@ const baseStyle = (over: Partial<TextureStyle>): TextureStyle => ({
   ostArticulation: 'spiccato',
   clippedShort: false,
   shape: 'arpeggio',
-  cell: 'straight',
+  cell: 'straight', // the calm default
+  contour: 'ascending',
+  accent: 'flat',
+  density: 'rise',
+  pairing: 'unison',
   enterAfter: 1,
   bassPizz: false,
   ...over,
@@ -207,7 +301,20 @@ const PALETTES: Record<string, PaletteDef[]> = {
 };
 
 const SHAPES: OstinatoShape[] = ['repeat', 'arpeggio', 'rootFifth'];
-const CELLS = Object.keys(OSTINATO_CELLS) as OstinatoCellId[];
+
+/** One weighted draw over a named-weights table (Phase 4.8 style draws).
+ *  `allowed` narrows the table (the interlocking texture draws no gallop). */
+function drawWeighted<T extends string>(rng: () => number, weights: Record<T, number>, allowed?: readonly T[]): T {
+  const keys = (allowed ?? (Object.keys(weights) as T[]));
+  const total = keys.reduce((a, k) => a + weights[k], 0);
+  let roll = rng() * total;
+  for (const k of keys) {
+    roll -= weights[k];
+    if (roll < 0) return k;
+  }
+  return keys[keys.length - 1];
+}
+export { drawWeighted };
 
 /** Per-context memo: the draw is pure, but `orchestrationSeedFor` serializes
  *  the musical inputs — cache the (rare) resolution per context object. */
@@ -234,13 +341,35 @@ function drawTexture(ctx: OrchestratorContext, typeKey: string): Texture {
     roll -= e.weight;
     if (roll < 0) { chosen = e; break; }
   }
-  // seeded style draws — fixed order, independent of the texture picked
+  // seeded style draws — fixed order, independent of the texture picked;
+  // positions 1–4 predate 4.8's extra draws, so every earlier measured
+  // frequency is unchanged (the cell draw stays 4th, its vocabulary grew)
   const shape = SHAPES[Math.floor(rng() * SHAPES.length)];
   const enterAfter: 1 | 2 = rng() < 0.5 ? 1 : 2;
   const ost: OstTrack = rng() < 0.5 ? 'violins2' : 'violas';
-  const cell = CELLS[Math.floor(rng() * CELLS.length)]; // Phase 4.8: the rhythm cell
+  const cellAllow = chosen.id === 'interlockingOstinato' ? INTERLOCK_CELL_IDS : undefined;
+  const cell = drawWeighted(rng, OSTINATO_CELL_WEIGHTS, cellAllow); // 4th: the rhythm cell (4.8)
+  const contour = drawWeighted(rng, OSTINATO_CONTOUR_WEIGHTS); // 5th: the contour (4.8)
+  const accent = drawWeighted(rng, OSTINATO_ACCENT_WEIGHTS); // 6th: the accent shape (4.8)
+  const density = drawWeighted(rng, OSTINATO_DENSITY_WEIGHTS); // 7th: the density curve (4.8)
+  const pairing = drawWeighted(rng, OSTINATO_PAIRING_WEIGHTS); // 8th: interlock vs hocket (4.8)
   const plan = typeof chosen.plan === 'function' ? chosen.plan(ost) : chosen.plan;
-  return { id: chosen.id, plan, style: baseStyle({ shape, enterAfter, cell, ...chosen.style }) };
+  return {
+    id: chosen.id,
+    plan,
+    style: baseStyle({
+      shape,
+      enterAfter,
+      cell,
+      contour,
+      accent,
+      density,
+      // the pairing applies only to the two-track texture; everything else
+      // reports its native state (single track, or the trailer's unison drive)
+      pairing: chosen.id === 'interlockingOstinato' ? pairing : 'unison',
+      ...chosen.style,
+    }),
+  };
 }
 
 /** The texture drawn for one section type on this take. Deterministic per

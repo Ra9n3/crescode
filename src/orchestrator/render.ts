@@ -43,8 +43,7 @@ import type { LayerPlan, OrchestratorContext, SectionModule, SectionPatch, Strin
 import { assignStringLayers, stringLayerForBar, textureForType, sectionTypeNameAtBar, tuneCarrierForBar } from './conductor/layers';
 import { motifLine } from './lines/motif';
 import { counterlineLine } from './lines/counterline';
-import { ostinatoNotes, TREMOLO_STEP_TICKS, SHORT_NOTE_SECONDS, rateTicks } from './lines/ostinato';
-import { OSTINATO_CELLS } from './conductor/layers';
+import { ostinatoNotes, TREMOLO_STEP_TICKS, SHORT_NOTE_SECONDS } from './lines/ostinato';
 import { beatOffsets, beatTicks, isCompound } from '../shared/schema/meter';
 import { secondsToTicks } from './spine';
 
@@ -435,17 +434,50 @@ export const stringsModule: SectionModule = {
             } else if (plan.layer === 'counterline' && lines.counter?.trackId === trackId && !fellBack) {
               writeLineNotes(notesByTrackId[trackId], lines.counter.notes, s, e, velocity);
             } else if (plan.layer === 'ostinato') {
-              // Phase 4e: chord tones on the texture's rate grid (8ths by
-              // default, 16ths only for the trailer — 4.6); both ostinato
-              // tracks are drawn in ONE call so the lower voice stays under
-              // the upper. The leading tone is never an ostinato tone: two
-              // ostinato voices (or an ostinato voice over the bass) must not
-              // double it. 4.6: the pulse stays UNDER the tune — its ceiling
-              // is the lead's lowest pitch sounding in this window (the DP's
-              // V1 voice on a fallback span).
+              // Phase 4e: chord tones on the drawn rhythm cell (4.8: meter-
+              // aware, over the felt beats — 8ths by default, the full 16th
+              // grid only for the trailer — 4.6); both ostinato tracks are
+              // drawn in ONE call so the lower voice stays under the upper.
+              // The leading tone is never an ostinato tone: two ostinato
+              // voices (or an ostinato voice over the bass) must not double
+              // it. 4.6: the pulse stays UNDER the tune — its ceiling is the
+              // lead's lowest pitch sounding in this window (the DP's V1
+              // voice on a fallback span).
+              // Phase 4.8: the two-track texture pairs its tracks — interlock
+              // (the half-slot offset) or across-bar call/response (hocket:
+              // V2 calls on even section bars, the viola answers on odd) —
+              // and the drawn density curve thins it to ONE track on the low
+              // ('rise') or high ('dip') half of the section's own arc range;
+              // the contour walks the register and the accent shape rides
+              // the window's governor cap.
               const ltPc = leadingTonePcOf(ctx.project.key, scalePitchClasses(ctx.project.key, ctx.project.mode));
               const ordered = [...plan.voiceTrackIds].reverse(); // top first
               const tex = textureForType(ctx, sectionTypeNameAtBar(ctx, bar));
+              const style = tex.style;
+              const secHere = ctx.sections.find((x) => bar >= x.startBar && bar < x.startBar + x.lengthBars);
+              if (style.interlock) {
+                if (style.pairing === 'hocket') {
+                  // hocket: exactly one track sounds per bar (V2 on even
+                  // section bars, the viola on odd), same grid, no offset
+                  const parity = (bar - (secHere?.startBar ?? bar)) % 2;
+                  if (trackId !== (parity === 0 ? ordered[0] : ordered[1])) continue;
+                } else {
+                  // density curve: full (two tracks) on the high half of the
+                  // section's own arc range ('rise'), the reverse on 'dip';
+                  // thin = the upper track alone
+                  let lo = Infinity;
+                  let hi = -Infinity;
+                  for (let b = (secHere?.startBar ?? bar); b < (secHere?.startBar ?? bar) + (secHere?.lengthBars ?? 0); b++) {
+                    const t = ctx.arc?.[b - 1]?.target ?? 0;
+                    lo = Math.min(lo, t);
+                    hi = Math.max(hi, t);
+                  }
+                  const thr = (lo + hi) / 2;
+                  const target = ctx.arc?.[bar - 1]?.target ?? 0;
+                  const full = style.density === 'rise' ? target >= thr : target <= thr;
+                  if (!full && trackId === ordered[1]) continue;
+                }
+              }
               const leadPitches = lines.leads.flatMap((l) => l.notes).filter((n) => n.startTick < e && n.startTick + n.durationTicks > s).map((n) => n.pitch);
               const v1Voice = voiceIndex.get(ctx.project.tracks.find((t) => t.role === 'violins1')?.id ?? '');
               const ceilingPitch = leadPitches.length && !fellBack
@@ -464,12 +496,15 @@ export const stringsModule: SectionModule = {
                   return { low: t.lowestNote, high: t.highestNote, comfortable: prof ? [Math.max(t.lowestNote, Math.min(t.highestNote, prof.comfortable[0])), Math.max(t.lowestNote, Math.min(t.highestNote, prof.comfortable[1]))] as [number, number] : [t.lowestNote, t.highestNote] as [number, number] };
                 }),
                 velocity,
-                stepTicks: rateTicks(ctx.project.timeSignature, tex.style.rate),
-                shape: tex.style.shape,
-                cell: OSTINATO_CELLS[tex.style.cell],
-                interlock: tex.style.interlock,
-                clipShort: tex.style.clippedShort,
-                articulation: tex.style.ostArticulation,
+                velocityCap: cap,
+                rate: style.rate,
+                cell: style.cell,
+                contour: style.contour,
+                accent: style.accent,
+                shape: style.shape,
+                interlock: style.interlock && style.pairing !== 'hocket',
+                clipShort: style.clippedShort,
+                articulation: style.ostArticulation,
                 ceilingPitch,
               });
               const idx = ordered.indexOf(trackId);

@@ -8,6 +8,8 @@ import { humanizeHeadTicks } from '../src/orchestrator/expression/timing';
 import { chordSpans, sectionMap, energyCurve } from '../src/orchestrator/spine';
 import { sanitizeNotes } from '../src/engine/generate';
 import { textureForType, CINEMATIC_TEXTURE_WEIGHTS, CHAMBER_TEXTURE_WEIGHTS, HYBRID_TEXTURE_WEIGHTS, SONATA_TEXTURE_WEIGHTS, SYMPHONY_TEXTURE_WEIGHTS } from '../src/orchestrator/conductor/layers';
+import { cellGrid } from '../src/orchestrator/lines/ostinato';
+import { beatTicks } from '../src/shared/schema/meter';
 import { projectEndTick, projectFromFixture, validateProject, type Project } from '../src/shared/schema';
 
 /**
@@ -227,32 +229,61 @@ describe('Phase 4.6 (3): ostinato calm-down (three-chorus cinematic, takes 0..39
     console.log(`4.6 ostinato notes/chorus-bar: trailer max ${trailerMax} (${trailer.map((r) => r.take).join(',')}), calm takes max ${Math.max(...calm.map((r) => r.chorusMax))} (16th trailer vs 8th textures)`);
   });
 
-  it('interlocking textures offset the two tracks by half the rate — never the same rhythm', () => {
-    let checked = 0;
+  it('interlocking textures: the half-slot offset on a both-tracks bar, or the hocket alternation (4.8)', () => {
+    let interlocked = 0;
+    let hocketed = 0;
     for (const r of runs) {
       if (r.chorus !== 'interlockingOstinato') continue;
       const ctx = textureCtx(r.project);
       const style = textureForType(ctx, 'chorus').style;
       expect(style.interlock).toBe(true);
-      // the first bar where the ostinato actually runs (it enters 1-2 bars in)
-      const bar = 5 + style.enterAfter;
-      const onsets = (role: string) =>
+      const CHORUSES = [5, 17, 29];
+      const onsets = (role: string, bar: number) =>
         r.project.tracks.find((tr) => tr.role === role)!.notes.filter((n) => isOstNote(n.articulation) && n.startTick >= (bar - 1) * BT && n.startTick < bar * BT).map((n) => n.startTick).sort((a, b) => a - b);
-      const v2 = onsets('violins2');
-      const vla = onsets('violas');
-      // Phase 4.8: the drawn rhythm cell can thin the bar to half density
-      // (dactyl), so a full bar of the interlock carries >= 4 onsets
-      expect(v2.length).toBeGreaterThanOrEqual(4);
-      expect(vla.length).toBe(v2.length);
-      // Phase 5d humanize: each track's notes shift by its own section-base +
-      // jitter (violins +5..18 ms), so the half-rate offset keeps a small
-      // envelope instead of the exact 240 — the rhythms still never coincide
-      // (the interlock gap stays far above the note length).
-      for (let i = 0; i < v2.length; i++) expect(Math.abs(vla[i] - v2[i] - 240)).toBeLessThanOrEqual(humanizeHeadTicks(r.project.tempoMap, v2[i]));
-      checked++;
+      if (style.pairing === 'hocket') {
+        // Phase 4.8: across-bar call/response — exactly one track per bar,
+        // V2 on even section bars, the viola answering on odd ones
+        hocketed++;
+        for (const c of CHORUSES) {
+          for (let i = 1; i < 7; i++) {
+            const bar = c + i;
+            const v2 = onsets('violins2', bar).length;
+            const vla = onsets('violas', bar).length;
+            if (v2 === 0 && vla === 0) continue; // gated bar (4.6)
+            expect(v2 === 0 || vla === 0).toBe(true); // the hocket never doubles
+            if ((bar - c) % 2 === 0) expect(v2).toBeGreaterThan(0);
+            else expect(vla).toBeGreaterThan(0);
+          }
+        }
+      } else {
+        // Phase 4.8 density curve: thin bars leave only the upper track —
+        // check the half-slot offset on the first bar where BOTH sound
+        interlocked++;
+        const grid = cellGrid(r.project.timeSignature, style.cell, style.rate);
+        const half = Math.floor(Math.floor(beatTicks(r.project.timeSignature) / grid.perBeat) / 2);
+        let checked = false;
+        for (const c of CHORUSES) {
+          for (let i = 1; i < 7 && !checked; i++) {
+            const bar = c + i;
+            const v2 = onsets('violins2', bar);
+            const vla = onsets('violas', bar);
+            if (!v2.length || !vla.length) continue;
+            // the drawn cell can thin the bar (syncopated = 3 per bar)
+            expect(v2.length).toBeGreaterThanOrEqual(3);
+            expect(vla.length).toBe(v2.length);
+            // Phase 5d humanize: each track's notes shift by its own
+            // section-base + jitter (violins +5..18 ms), so the half-slot
+            // offset keeps a small envelope instead of the exact ticks — the
+            // rhythms still never coincide.
+            for (let k = 0; k < v2.length; k++) expect(Math.abs(vla[k] - v2[k] - half)).toBeLessThanOrEqual(humanizeHeadTicks(r.project.tempoMap, v2[k]));
+            checked = true;
+          }
+        }
+        expect(checked).toBe(true);
+      }
     }
-    expect(checked).toBeGreaterThanOrEqual(1);
-    console.log(`4.6 interlock verified on ${checked} take(s): Vla = V2 onsets + 240 ticks, disjoint rhythms`);
+    expect(interlocked + hocketed).toBeGreaterThanOrEqual(1);
+    console.log(`4.6/4.8 interlock verified on ${interlocked} interlocked + ${hocketed} hocketed take(s): half-slot offset / across-bar call-response`);
   });
 
   it('report: ostinato notes per template (dorian, take 1)', () => {

@@ -113,13 +113,22 @@ function pitchForDegree(degree: number, scale: number[], anchor: number): number
   return anchor + 12 * oct + (((pc - tonic) + 12) % 12);
 }
 
-/** The nearest degree (walking the scale) whose pitch class is a chord tone. */
-function degreeOntoChordTone(degree: number, scale: number[], tonePcs: ReadonlySet<number>): number {
-  for (let d = 0; d <= scale.length; d++) {
-    for (const dir of d === 0 ? [1] : [1, -1]) {
-      const cand = degree + d * dir;
-      const pc = ((scale[(((cand % scale.length) + scale.length) % scale.length)] % 12) + 12) % 12;
-      if (tonePcs.has(pc)) return cand;
+/** The nearest degree (walking the scale) whose pitch class is a chord tone.
+ *  Phase 5b: the search preserves the interval's DIRECTION — `dir` is the
+ *  sign of the intended move (0 = none, the line's first note). The walk's
+ *  own degree wins when it is already a chord tone; otherwise the
+ *  same-direction candidates are searched first (nearest first, bounded by
+ *  the scale walk), and only when the direction holds no chord tone at all
+ *  does the search fall back to the opposite direction. A rising step can
+ *  therefore never snap downward (nor collapse to a repeat), and vice
+ *  versa. */
+function degreeOntoChordTone(degree: number, scale: number[], tonePcs: ReadonlySet<number>, dir: number): number {
+  const pcOf = (cand: number): number => ((scale[(((cand % scale.length) + scale.length) % scale.length)] % 12) + 12) % 12;
+  if (tonePcs.has(pcOf(degree))) return degree; // already a chord tone: nothing to snap
+  for (const dd of dir < 0 ? [-1, 1] : [1, -1]) {
+    for (let d = 1; d <= scale.length; d++) {
+      const cand = degree + d * dd;
+      if (tonePcs.has(pcOf(cand))) return cand;
     }
   }
   return degree;
@@ -179,6 +188,10 @@ export function motifLine(input: MotifInput): Note[] {
 
     const firstLeadBar = leadBarsHere[0];
     const secNotes: Note[] = [];
+    // 5b: the direction of the previous note's move, carried across the
+    // section's cells so chord-tone snapping can preserve it (null = the
+    // section's first onset has no interval to preserve).
+    let prevDegree: number | null = null;
 
     for (const bar of leadBarsHere) {
       if ((bar - firstLeadBar) % cell.bars !== 0) continue; // cells repeat from the first lead bar
@@ -196,7 +209,7 @@ export function motifLine(input: MotifInput): Note[] {
         const inBarBeat = ((beatIdx % beatsPerBar) + beatsPerBar) % beatsPerBar;
         const strong = onBeat && (inBarBeat === 0 || (simple && inBarBeat * 2 === beatsPerBar));
         const tones = strong && chord ? new Set(chordTones(chord.parsed).tones.map((t) => t.pc)) : null;
-        if (tones) degree = degreeOntoChordTone(degree, scale, tones);
+        if (tones) degree = degreeOntoChordTone(degree, scale, tones, prevDegree === null ? 0 : Math.sign(degree - prevDegree));
         // settle into the comfortable window by WALKING the scale — never an
         // octave flip, which would jump the register mid-line
         let pitch = pitchForDegree(degree, scale, anchor);
@@ -204,13 +217,21 @@ export function motifLine(input: MotifInput): Note[] {
         while (pitch > comfortable[1] && guard++ < 2 * scale.length) { degree -= 1; pitch = pitchForDegree(degree, scale, anchor); }
         while (pitch < comfortable[0] && guard++ < 4 * scale.length) { degree += 1; pitch = pitchForDegree(degree, scale, anchor); }
         if (tones) {
-          // the settle may have walked off the chord tone: re-snap inside the window
-          let fixed: number | null = null;
-          for (let d = 0; d <= scale.length && fixed === null; d++) {
-            for (const dir of d === 0 ? [0] : [1, -1]) {
-              const p = pitchForDegree(degree + d * dir, scale, anchor);
-              const pc = ((scale[(((degree + d * dir) % scale.length) + scale.length) % scale.length] % 12) + 12) % 12;
-              if (p >= comfortable[0] && p <= comfortable[1] && tones.has(pc)) { fixed = p; degree += d * dir; break; }
+          // the settle may have walked off the chord tone: re-snap inside the
+          // window, still preserving the move's direction (5b) — the walk's
+          // own degree first, then same-direction near→far, opposite last
+          const dir = prevDegree === null ? 0 : Math.sign(degree - prevDegree);
+          const pcOf = (cand: number): number => ((scale[(((cand % scale.length) + scale.length) % scale.length)] % 12) + 12) % 12;
+          const fits = (cand: number): boolean => {
+            const p = pitchForDegree(cand, scale, anchor);
+            return p >= comfortable[0] && p <= comfortable[1] && tones.has(pcOf(cand));
+          };
+          let fixed: number | null = fits(degree) ? pitchForDegree(degree, scale, anchor) : null;
+          if (fixed === null) {
+            for (const dd of dir < 0 ? [-1, 1] : [1, -1]) {
+              for (let d = 1; d <= scale.length && fixed === null; d++) {
+                if (fits(degree + d * dd)) { fixed = pitchForDegree(degree + d * dd, scale, anchor); degree += d * dd; }
+              }
             }
           }
           if (fixed === null) return; // the window cannot hold a chord tone here: rest instead
@@ -221,6 +242,7 @@ export function motifLine(input: MotifInput): Note[] {
         let dur = (nextOnset - onsetBeats) * beat;
         if (dev === 'augmentation') dur *= 2;
         secNotes.push({ pitch, startTick: tick, durationTicks: Math.round(dur), velocity: 80, articulation: LEAD_ARTICULATION });
+        prevDegree = degree;
       });
     }
     if (dev === 'statement' && secNotes.length) statementMaxPitch = Math.max(...secNotes.map((n) => n.pitch));

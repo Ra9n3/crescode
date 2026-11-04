@@ -6,6 +6,7 @@ import { composeAllTracks } from '../src/orchestrator/compose';
 import { measureEnergy } from '../src/orchestrator/energy';
 import { BASS_TIMING_MS, CB_FOLLOW_MAX_MS, VIOLIN_TIMING_MS } from '../src/orchestrator/expression/humanize';
 import { humanizeHeadTicks } from '../src/orchestrator/expression/timing';
+import { CC_BASELINE_LIFT, CC1_ARC_RANGE } from '../src/orchestrator/expression/cc';
 import { stringsModule, stringVoiceTracks, prepareStrings, maybeLayerCellosBasses } from '../src/orchestrator/render';
 import { conduct } from '../src/orchestrator/conductor';
 import { chordSpans, sectionMap, energyCurve, orchestrationSeedFor, ticksToMs } from '../src/orchestrator/spine';
@@ -239,5 +240,77 @@ describe('Phase 5.1.3: the 5e matrix re-run at 60 and 180 BPM (6 templates × 3 
     }
     console.log(`5.1.3 offsets per track through each tempo map (ms | ticks):\n${lines.join('\n')}`);
     expect(lines.length).toBeGreaterThan(40);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* 5.1.1 — baseline CC: the lanes cover the whole piece                 */
+/* ------------------------------------------------------------------ */
+
+describe('Phase 5.1.1: baseline CC coverage (both fixtures, all six templates)', () => {
+  const fixtures: [string, () => Project][] = [['dorian 16-bar', BASE], ['three-chorus 40-bar', THREE]];
+
+  it('CC1/CC11/CC7 start at tick 0 and CC1/CC11 close at the project end, on every composed track', () => {
+    for (const [fxName, mk] of fixtures) {
+      for (const templateId of TEMPLATES) {
+        const { project } = composeTake(mk(), templateId, 0);
+        const end = projectEndTick(project);
+        for (const t of project.tracks.filter((x) => x.family === 'Strings' && x.notes.length)) {
+          for (const cc of [1, 11, 7]) {
+            const lane = laneOf(t, cc);
+            expect(lane, `${fxName} ${templateId} ${t.name} CC${cc}`).toBeTruthy();
+            expect(lane!.points[0].tick, `${fxName} ${templateId} ${t.name} CC${cc} first tick`).toBe(0);
+          }
+          expect(laneOf(t, 1)!.points[laneOf(t, 1)!.points.length - 1].tick, `${fxName} ${templateId} ${t.name} CC1 last tick`).toBe(end);
+          expect(laneOf(t, 11)!.points[laneOf(t, 11)!.points.length - 1].tick, `${fxName} ${templateId} ${t.name} CC11 last tick`).toBe(end);
+        }
+      }
+    }
+  });
+
+  it('no undefined stretch: the CC1/CC11 value is defined at every bar tick, and the baseline keeps CC11 >= CC1 over texture bars', () => {
+    for (const [fxName, mk] of fixtures) {
+      for (const templateId of TEMPLATES) {
+        const { project, result } = composeTake(mk(), templateId, 0);
+        const end = projectEndTick(project);
+        const btBar = end / Math.max(1, result.plan.bars.length);
+        const clampMax = ENSEMBLE_BY_ID.get(templateId)!.budget.energyClamp[1];
+        for (const t of project.tracks.filter((x) => x.family === 'Strings' && x.notes.length)) {
+          const l1 = laneOf(t, 1)!;
+          const l11 = laneOf(t, 11)!;
+          const valueAt = (lane: CcLane, tick: number): number => {
+            let v = lane.points[0].value;
+            for (const p of lane.points) { if (p.tick <= tick) v = p.value; else break; }
+            return v;
+          };
+          for (const bar of result.plan.bars) {
+            const tick = (bar.bar - 1) * btBar;
+            expect(Number.isFinite(valueAt(l1, tick)), `${fxName} ${templateId} ${t.name} bar ${bar.bar} CC1 defined`).toBe(true);
+            expect(Number.isFinite(valueAt(l11, tick)), `${fxName} ${templateId} ${t.name} bar ${bar.bar} CC11 defined`).toBe(true);
+          }
+          // wherever the track plays no line content (ostinato/pizz/tremolo
+          // bars and rests) the baseline holds and CC11 sits above CC1 there
+          const floor1 = CC1_ARC_RANGE[0] + (CC1_ARC_RANGE[1] - CC1_ARC_RANGE[0]) * 0.5 * 0.5; // the calmest baseline point
+          for (const bar of result.plan.bars) {
+            const tick = (bar.bar - 1) * btBar;
+            const kindHasLine = t.notes.some((n) => n.startTick < bar.endTick && n.startTick + n.durationTicks > tick
+              && n.articulation !== 'spiccato' && n.articulation !== 'pizz' && n.articulation !== 'tremolo');
+            if (kindHasLine) continue;
+            expect(valueAt(l1, tick), `${fxName} ${templateId} ${t.name} bar ${bar.bar} baseline band`).toBeGreaterThanOrEqual(floor1 - 1);
+            expect(valueAt(l11, tick), `${fxName} ${templateId} ${t.name} bar ${bar.bar} CC11 above CC1`).toBeGreaterThanOrEqual(valueAt(l1, tick));
+          }
+          void clampMax;
+        }
+      }
+    }
+  });
+
+  it('the baseline lift constant keeps CC11 above CC1 across the whole baseline energy band', () => {
+    // CC11 - CC1 on the baseline = (30 - 38) + (66 - 46) * level + lift; with
+    // level in [0.25, 0.5] the lift of 6 keeps the gap in [3, 8] — strictly above
+    for (const level of [0.25, 0.35, 0.5]) {
+      const gap = (30 - 38) + (66 - 46) * level + CC_BASELINE_LIFT;
+      expect(gap).toBeGreaterThan(0);
+    }
   });
 });

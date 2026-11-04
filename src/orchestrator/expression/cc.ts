@@ -1,18 +1,23 @@
 /**
- * CC generation (Phase 5c). Builds the CC lanes for every string track the
- * orchestrator writes, FROM the per-take texture plan: the notes'
- * articulations classify each bar (ostinato/pizz, tremolo, legato line), so
- * a texture that hands the tune to another voice moves the arcs with it and
- * a pizz/ostinato texture never gets expressive legato automation.
+ * CC generation (Phase 5c; full-piece baseline coverage Phase 5.1.1). Builds
+ * the CC lanes for every string track the orchestrator writes, FROM the
+ * per-take texture plan: the notes' articulations classify each bar
+ * (ostinato/pizz, tremolo, legato line), so a texture that hands the tune to
+ * another voice moves the arcs with it and a pizz/ostinato texture never
+ * gets expressive legato automation.
  *
- *   - CC1 + CC11  one phrase arc per phrase (PHRASE_BARS-bar chunks aligned
- *                 to the section start): a raised-cosine rise to the
- *                 phrase's highest-energy bar, easing off after it, scaled
- *                 by the bar's arc energy. CC11 spans a slightly wider
- *                 range than CC1. Skipped for phrases a track plays
- *                 entirely as ostinato/pizz. Handoff bars need no special
- *                 case: each carrier's own track carries the arch, so the
- *                 arc follows the current lead carrier by construction.
+ *   - CC1 + CC11  the lane covers the WHOLE piece: it starts at tick 0 and
+ *                 ends at the project end, and every bar holds a defined
+ *                 level. Line bars ride one phrase arch per phrase
+ *                 (PHRASE_BARS-bar chunks aligned to the section start): a
+ *                 raised-cosine rise to the phrase's highest-energy bar,
+ *                 easing off after it, scaled by the bar's arc energy.
+ *                 Ostinato/pizz/tremolo stretches and rests hold a FLAT
+ *                 level derived from the bar's arc energy instead (5.1.1) —
+ *                 CC11 slightly above CC1 there. Handoff bars need no
+ *                 special case: each carrier's own track carries the arch,
+ *                 so the arc follows the current lead carrier by
+ *                 construction.
  *   - CC7         ONE static point at tick 0 (balance only).
  *   - CC74        short seeded spikes on phrase-start downbeats and on the
  *                 first tremolo/ostinato onset of each bar (attack colour).
@@ -59,6 +64,11 @@ export const S_CURVE_MS: readonly [number, number] = [40, 80];
 export const S_CURVE_POINTS = 5;
 /** How far above the lane floor the S-curve tops out (on the CC11 scale). */
 export const S_CURVE_DIP = 24;
+/** The flat baseline held over ostinato/pizz/tremolo stretches and rests
+ *  (5.1.1): the arch's calm mid level, scaled by the bar's arc energy, plus
+ *  a small lift that keeps CC11 slightly above CC1 on the baseline. */
+export const CC_BASELINE_ARCH = 0.5;
+export const CC_BASELINE_LIFT = 6;
 
 /** The bar kind a track plays, read from its notes' articulations in one bar. */
 export type BarKind = 'ostinato' | 'tremolo' | 'line';
@@ -178,20 +188,36 @@ export function buildCcLanes(input: CcBuildInput): Record<string, CcLane[]> {
     const sorted = [...notes].sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
     const kindAt = (b: number) => barKindOf(sorted, (b - 1) * btBar, b * btBar);
 
-    // --- phrase arcs (CC1 + CC11); skipped for all-ostinato/pizz phrases ---
+    // --- CC1 + CC11: the lane covers the whole piece (5.1.1) ---
+    // Line bars ride the phrase arch exactly as before; every other bar —
+    // ostinato/pizz/tremolo stretches and rests — holds a flat level derived
+    // from the bar's arc energy (CC11 slightly above CC1 there). The lane
+    // starts at tick 0 and closes at the project end: no stretch where the
+    // lane is undefined.
     const cc1: CcPoint[] = [];
     const cc11: CcPoint[] = [];
+    const archAt = new Map<number, number>(); // bar → normalized arch level in [0, 1]
     for (const sec of sections) {
       for (const ph of phrasesOf(sec)) {
         const kinds = Array.from({ length: ph.to - ph.from }, (_, i) => kindAt(ph.from + i));
         if (!kinds.some((k) => k !== null)) continue; // the track rests through the phrase
-        if (kinds.every((k) => k === 'ostinato')) continue; // no expression arcs over a pizz/ostinato phrase
-        const soundingBars = new Set(kinds.map((k, i) => (k !== null ? ph.from + i : -1)).filter((b) => b > 0));
-        for (const [lane, range] of [[cc1, CC1_ARC_RANGE], [cc11, CC11_ARC_RANGE]] as [CcPoint[], readonly [number, number]][]) {
-          lane.push(...phraseArc(ph.from, ph.to, btBar, arc, clampMax, range).filter((p) => soundingBars.has(Math.floor(p.tick / btBar) + 1)));
+        if (!kinds.some((k) => k === 'line')) continue; // a pure texture stretch: baseline only
+        const shape = phraseArc(ph.from, ph.to, btBar, arc, clampMax, [0, 1]);
+        for (let i = 0; i < shape.length; i++) {
+          if (kindAt(ph.from + i) === 'line') archAt.set(ph.from + i, shape[i].value);
         }
       }
     }
+    for (let b = 1; b <= bars; b++) {
+      const arch = archAt.get(b);
+      const energy = clampMax > 0 ? (arc[b - 1]?.target ?? 0) / clampMax : 0;
+      const level = arch ?? CC_BASELINE_ARCH * (0.5 + 0.5 * energy);
+      cc1.push({ tick: (b - 1) * btBar, value: CC1_ARC_RANGE[0] + (CC1_ARC_RANGE[1] - CC1_ARC_RANGE[0]) * level });
+      cc11.push({ tick: (b - 1) * btBar, value: CC11_ARC_RANGE[0] + (CC11_ARC_RANGE[1] - CC11_ARC_RANGE[0]) * level + (arch === undefined ? CC_BASELINE_LIFT : 0) });
+    }
+    // close the lanes at the project end so the level is defined through the last tick
+    cc1.push({ tick: endTick, value: cc1[cc1.length - 1].value });
+    cc11.push({ tick: endTick, value: cc11[cc11.length - 1].value });
 
     // --- CC68: 127 over legato passages, 0 elsewhere ---
     const cc68: CcPoint[] = [];

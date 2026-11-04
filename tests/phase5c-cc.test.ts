@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import fixture from '../fixtures/dorian-16bars.json';
 import threeChorus from '../fixtures/three-chorus-40bars.json';
 import { composeAllTracks } from '../src/orchestrator/compose';
-import { CC1_ARC_RANGE, CC11_ARC_RANGE } from '../src/orchestrator/expression/cc';
+import { CC1_ARC_RANGE, CC11_ARC_RANGE, CC_BASELINE_ARCH, CC_BASELINE_LIFT, barKindOf } from '../src/orchestrator/expression/cc';
 import { humanizeHeadTicks } from '../src/orchestrator/expression/timing';
+import { ENSEMBLE_BY_ID } from '../src/config/ensembles';
 import { MAX_CC_POINTS_PER_LANE, PPQ, type CcLane, type Project, type Track } from '../src/shared/schema/types';
 import { projectFromFixture } from '../src/shared/schema';
 
@@ -103,12 +104,44 @@ describe('Phase 5c (1): lane validity + CC7 + ranges (dorian, all six templates)
     expect(CC11_ARC_RANGE[1] - CC11_ARC_RANGE[0]).toBeGreaterThan(CC1_ARC_RANGE[1] - CC1_ARC_RANGE[0]);
   });
 
-  it('the phrase arcs actually arch: every CC1 lane rises from its floor and returns below half the range', () => {
-    for (const { project } of runs) {
+  it('5.1.1: the arch lifts line bars above the baseline band; pure texture stretches hold the flat baseline', () => {
+    const bt = 3840;
+    const valueAt = (lane: CcLane, tick: number): number => {
+      let v = lane.points[0].value;
+      for (const p of lane.points) { if (p.tick <= tick) v = p.value; else break; }
+      return v;
+    };
+    for (const { id, project, result } of runs) {
+      const clampMax = ENSEMBLE_BY_ID.get(id)!.budget.energyClamp[1];
+      const baseline = (b: number, range: readonly [number, number], lift: number): number => {
+        const e = Math.min(1, (result.plan.bars[b - 1]?.energyTarget ?? 0) / clampMax);
+        return range[0] + (range[1] - range[0]) * CC_BASELINE_ARCH * (0.5 + 0.5 * e) + lift;
+      };
       for (const t of soundingStrings(project)) {
-        const pts = laneOf(t, 1)!.points;
-        expect(Math.max(...pts.map((p) => p.value))).toBeGreaterThan(CC1_ARC_RANGE[0] + 8); // it rises
-        expect(Math.min(...pts.map((p) => p.value))).toBeLessThanOrEqual(CC1_ARC_RANGE[0] + 6); // …and eases back
+        const l1 = laneOf(t, 1)!;
+        const l11 = laneOf(t, 11)!;
+        const lineBars: number[] = [];
+        const otherBars: number[] = [];
+        for (let b = 1; b <= 16; b++) {
+          (barKindOf(t.notes, (b - 1) * bt, b * bt) === 'line' ? lineBars : otherBars).push(b);
+        }
+        if (lineBars.length) {
+          // the phrase arch actually lifts: some line bar rides above every
+          // baseline point on the lane (arch factor 1 vs the calm 0.5 share)
+          const baseMax = Math.max(...[...lineBars, ...otherBars].map((b) => baseline(b, CC1_ARC_RANGE, 0)));
+          const archMax = Math.max(...lineBars.map((b) => valueAt(l1, (b - 1) * bt)));
+          expect(archMax, `${id} ${t.name}`).toBeGreaterThan(baseMax + 2);
+        } else {
+          // a pure texture stretch: the lane IS the flat baseline, energy-scaled,
+          // and CC11 holds slightly above CC1 there
+          for (let b = 1; b <= 16; b++) {
+            const v1 = valueAt(l1, (b - 1) * bt);
+            const v11 = valueAt(l11, (b - 1) * bt);
+            expect(Math.abs(v1 - baseline(b, CC1_ARC_RANGE, 0)), `${id} ${t.name} bar ${b} CC1`).toBeLessThanOrEqual(1);
+            expect(Math.abs(v11 - baseline(b, CC11_ARC_RANGE, CC_BASELINE_LIFT)), `${id} ${t.name} bar ${b} CC11`).toBeLessThanOrEqual(1);
+            expect(v11, `${id} ${t.name} bar ${b} CC11 above CC1`).toBeGreaterThanOrEqual(v1);
+          }
+        }
       }
     }
   });
@@ -158,7 +191,7 @@ describe('Phase 5c (2): CC68 legato windows + no expressive CC on ostinato/pizz 
       expect(t.notes.every((n) => n.articulation === 'spiccato')).toBe(true); // the texture is all-ostinato on this track
       expect(laneOf(t, 68), `${t.name} CC68`).toBeUndefined();
       expect(hasSCluster(laneOf(t, 11)), `${t.name} S-curve`).toBe(false);
-      expect(laneOf(t, 1)).toBeTruthy(); // arcs may still ride the pulses
+      expect(laneOf(t, 1)).toBeTruthy(); // a defined CC1 lane still rides the pulses (the 5.1.1 baseline)
     }
     const v1 = project.tracks.find((t) => t.role === 'violins1')!;
     expect(v1.notes.some((n) => n.articulation === 'legato')).toBe(true);

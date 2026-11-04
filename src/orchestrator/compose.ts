@@ -24,6 +24,7 @@ import { textureForType, sectionTypeKeyOf } from './conductor/layers';
 import { conduct, type ConductorPlan } from './conductor';
 import { governPadVelocities } from './energy/mix';
 import { buildCcLanes } from './expression/cc';
+import { humanizeStrings } from './expression/humanize';
 import type { OrchestratorContext } from './module';
 
 export interface ComposeOptions {
@@ -119,6 +120,32 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   const rosterRoles = new Set(
     (template ? template.roster.map((r) => r.role) : project.tracks.filter((t) => isInstrumentTrack(t) && isInBand(t.role, ensemble, template)).map((t) => t.role)),
   );
+  governPadVelocities({
+    project,
+    template,
+    rosterRoles,
+    padNotes: new Map(stringsTrackIds.map((id) => [id, notesByTrackId[id]])),
+    otherNotes: ruleTracks
+      .filter((t) => !stringsTrackIds.includes(t.id))
+      .map((t) => ({ role: t.role, notes: t.notes })),
+  });
+
+  // Phase 5d: humanize the strings — POSITIVE section-correlated timing
+  // offsets (start only, ends kept), a small velocity jitter that never
+  // lifts a note above its windows' governor cap, Cb doubles trailing their
+  // cello partner. The mix governor then re-runs over the humanized notes
+  // so measureEnergy still cannot exceed the clamp, and the CC lanes (5c)
+  // are built on the final humanized score.
+  const humanized = humanizeStrings({
+    project: ctx.project,
+    template,
+    sections: ctx.sections,
+    notesByTrackId,
+    otherNotes: ruleTracks
+      .filter((t) => !stringsTrackIds.includes(t.id))
+      .map((t) => ({ role: t.role, notes: t.notes })),
+  });
+  for (const [id, notes] of Object.entries(humanized)) notesByTrackId[id] = notes;
   governPadVelocities({
     project,
     template,

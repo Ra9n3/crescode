@@ -8,6 +8,7 @@ import { leadingTonePcOf } from '../src/orchestrator/voicing/voiceLead';
 import { TREMOLO_STEP_TICKS, subdivisionTicks, SHORT_NOTE_SECONDS } from '../src/orchestrator/lines/ostinato';
 import { secondsToTicks, sectionMap, energyCurve } from '../src/orchestrator/spine';
 import { prepareStrings } from '../src/orchestrator/render';
+import { HUMANIZE_HEAD_TICKS } from '../src/orchestrator/energy/rules';
 import { scalePitchClasses } from '../src/shared/schema/modes';
 import { projectFromFixture, type Project } from '../src/shared/schema';
 
@@ -55,7 +56,9 @@ describe('cinematic preset (4e): ostinato + measured tremolo', () => {
     for (const n of [...v2, ...vla]) {
       expect(n.articulation).toBe('spiccato');
       expect(n.durationTicks).toBeLessThan(shortCap); // spiccato length, under 0.25 s
-      expect(n.startTick % step).toBe(0); // on the finest regular subdivision grid
+      // Phase 5d: humanized attacks enter late — the note sits at most one
+      // humanize head past its subdivision-grid tick
+      expect(n.startTick % step).toBeLessThanOrEqual(HUMANIZE_HEAD_TICKS);
       const chord = spans.find((s) => n.startTick >= s.startTick && n.startTick < s.endTick)!;
       const tones = new Set(chordTones(chord.parsed).tones.map((t) => t.pc));
       expect(tones.has(((n.pitch % 12) + 12) % 12)).toBe(true); // chord tones…
@@ -106,25 +109,31 @@ describe('cinematic preset (4e): ostinato + measured tremolo', () => {
 
     const v1 = track(composedProject, 'violins1').notes;
     const tremolo = v1.filter((n) => n.articulation === 'tremolo');
-    const key = (n: { startTick: number; pitch: number }) => `${n.startTick}:${n.pitch}`;
-    const tremoloKeys = new Set(tremolo.map(key));
+    // Phase 5d: tremolo notes take the section base WITHOUT per-note jitter,
+    // so each lead note's repeat group shifts RIGIDLY by at most one head.
+    const groupOf = (ln: { startTick: number; durationTicks: number; pitch: number }) =>
+      tremolo.filter((n) => n.pitch === ln.pitch && n.startTick >= ln.startTick && n.startTick < ln.startTick + ln.durationTicks + HUMANIZE_HEAD_TICKS)
+        .sort((a, b) => a.startTick - b.startTick);
     let checked = 0;
     for (const ln of lines.lead!.notes) {
       const bar = Math.floor(ln.startTick / BT) + 1;
       if (!tremoloBars.has(bar) || inFallback(ln.startTick)) continue;
-      // the first repeat lands ON the motif pitch at the motif onset
-      expect(tremoloKeys.has(key(ln))).toBe(true);
-      // every repeat inside this lead note holds the lead note's pitch
-      const group = tremolo.filter((n) => n.startTick >= ln.startTick && n.startTick < ln.startTick + ln.durationTicks);
+      // the first repeat lands ON the motif pitch at (or a humanize head
+      // after) the motif onset
+      const group = groupOf(ln);
       expect(group.length).toBeGreaterThan(0);
+      expect(group[0].startTick).toBeGreaterThanOrEqual(ln.startTick);
+      expect(group[0].startTick).toBeLessThanOrEqual(ln.startTick + HUMANIZE_HEAD_TICKS);
+      // the repeats hold the lead note's pitch and keep the measured step
       for (const n of group) expect(n.pitch).toBe(ln.pitch);
+      for (let i = 1; i < group.length; i++) expect(group[i].startTick - group[i - 1].startTick).toBe(TREMOLO_STEP_TICKS);
       checked++;
     }
     expect(checked).toBeGreaterThan(10); // the chorus tune really is the motif
-    // the repeats never bleed across a lead-note boundary (fallback repeats stand in for the DP)
+    // the repeats never bleed across a lead-note boundary (rigid shift ≤ head)
     for (const n of tremolo) {
       if (inFallback(n.startTick)) continue;
-      const host = lines.lead!.notes.find((ln) => n.startTick >= ln.startTick && n.startTick < ln.startTick + ln.durationTicks);
+      const host = lines.lead!.notes.find((ln) => n.startTick >= ln.startTick && n.startTick < ln.startTick + ln.durationTicks + HUMANIZE_HEAD_TICKS);
       expect(host).toBeTruthy();
     }
     // and the count is reported
@@ -159,7 +168,9 @@ describe('symphony preset (4e): cellosBasses pizz-pulse', () => {
     expect(cb.length).toBeGreaterThan(10);
     for (const n of cb) {
       expect(n.articulation).toBe('pizz');
-      expect([0, 2 * 960]).toContain(n.startTick % BT); // beats 1 and 3 in 4/4
+      // beats 1 and 3 in 4/4 — humanized attacks may sit up to one head late
+      const off = n.startTick % BT;
+      expect(off <= HUMANIZE_HEAD_TICKS || (off >= 2 * 960 && off <= 2 * 960 + HUMANIZE_HEAD_TICKS)).toBe(true);
       expect(n.durationTicks).toBeLessThan(960);
     }
     console.log(`symphony pizz-pulse verified on take ${take}`);
@@ -190,7 +201,9 @@ describe('Vocal Backing preset (4e): wide legato only', () => {
     for (const role of ['violins2', 'violas', 'cellosBasses']) {
       for (const n of track(project, role).notes) {
         expect(n.articulation).toBe('legato');
-        expect(n.durationTicks).toBeGreaterThanOrEqual(480); // nothing shorter than an eighth
+        // nothing shorter than an eighth as WRITTEN — humanize trims the
+        // attack head only (start moves, end kept)
+        expect(n.durationTicks).toBeGreaterThanOrEqual(480 - HUMANIZE_HEAD_TICKS);
       }
     }
   });
@@ -209,9 +222,11 @@ describe('Vc+Cb layering (4f, per note since 4.5): octave below where policy and
     const total = Number(m[2]);
     console.log(`Phase 4.5 report (symphony · dorian): ${report}`);
     expect(total).toBeGreaterThan(0);
-    // every doubled note has its octave partner; every note stays in the hard range
-    const pairs = new Set(cb.notes.map((n) => `${n.startTick}:${n.pitch}`));
-    const isDouble = (n: { startTick: number; pitch: number }) => pairs.has(`${n.startTick}:${n.pitch + 12}`);
+    // every doubled note has its octave partner (the Cb trails its cello
+    // partner by a humanize follow of a few ms — match within the head);
+    // every note stays in the hard range
+    const isDouble = (n: { startTick: number; pitch: number }) =>
+      cb.notes.some((m) => m.pitch === n.pitch + 12 && m.startTick >= n.startTick - HUMANIZE_HEAD_TICKS && m.startTick <= n.startTick);
     expect(cb.notes.filter(isDouble).length).toBe(doubled);
     for (const n of cb.notes) {
       expect(n.pitch).toBeGreaterThanOrEqual(cb.lowestNote);
@@ -234,7 +249,7 @@ describe('Vc+Cb layering (4f, per note since 4.5): octave below where policy and
     const project = { ...p, tracks: composed.tracks } as Project;
     const cb = track(project, 'cellosBasses');
     const report = composed.reports.find((r) => r.startsWith('Vc+Cb layering (ensemble.cinematic)'))!;
-    const doubledNotes = cb.notes.filter((n) => cb.notes.some((m) => m !== n && m.startTick === n.startTick && m.pitch === n.pitch + 12));
+    const doubledNotes = cb.notes.filter((n) => cb.notes.some((m) => m !== n && m.pitch === n.pitch + 12 && m.startTick >= n.startTick - HUMANIZE_HEAD_TICKS && m.startTick <= n.startTick));
     const lt = ltPcOf(project);
     expect(lt).toBe(11); // B in C Ionian
     for (const n of doubledNotes) expect(((n.pitch % 12) + 12) % 12).not.toBe(lt); // the hard rule wins per note

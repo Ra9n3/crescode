@@ -3,6 +3,7 @@ import fixture from '../fixtures/dorian-16bars.json';
 import threeChorus from '../fixtures/three-chorus-40bars.json';
 import { composeAllTracks } from '../src/orchestrator/compose';
 import { CC1_ARC_RANGE, CC11_ARC_RANGE } from '../src/orchestrator/expression/cc';
+import { HUMANIZE_HEAD_TICKS } from '../src/orchestrator/energy/rules';
 import { MAX_CC_POINTS_PER_LANE, PPQ, type CcLane, type Project, type Track } from '../src/shared/schema/types';
 import { projectFromFixture } from '../src/shared/schema';
 
@@ -132,8 +133,11 @@ describe('Phase 5c (2): CC68 legato windows + no expressive CC on ostinato/pizz 
       const sounding = v1.notes.filter((n) => n.startTick <= tick && tick < n.startTick + n.durationTicks);
       const value = valueAt(tick);
       if (sounding.length === 0) {
-        // over rests the lane may close a run (0) but must never read 127
-        expect(value).toBeLessThan(127);
+        // over rests the lane may close a run (0) but must never read 127 —
+        // except inside a humanize head before a legato note's (late) attack
+        const imminentLegato = v1.notes.some((n) => n.articulation === 'legato'
+          && n.startTick > tick && n.startTick - tick <= HUMANIZE_HEAD_TICKS);
+        if (!imminentLegato) expect(value).toBeLessThan(127);
         continue;
       }
       if (value === 127) {

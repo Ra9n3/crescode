@@ -58,6 +58,11 @@ const overlaps = (a: Note, b: Note) => a.startTick < b.startTick + b.durationTic
 /** Octave-doubling instances: two notes an octave (or more, by 12s) apart,
  *  sounding together. Different tracks always count; the same track counts
  *  too (D2: the Cb+Vc octave inside `cellosBasses` is still doubling). */
+/** The head humanize may add to a string attack (Phase 5d): the audit reads
+ *  the written-for grid position this many ticks earlier too. Bounds the
+ *  28 ms cellosBasses maximum through any sane tempo. */
+export const HUMANIZE_HEAD_TICKS = 60;
+
 function octaveDoublings(notes: RoleNote[]): { tick: number; a: RoleNote; b: RoleNote }[] {
   const out: { tick: number; a: RoleNote; b: RoleNote }[] = [];
   for (let i = 0; i < notes.length; i++) {
@@ -131,7 +136,9 @@ function checkOctaveDoubling(p: Project, template: EnsembleTemplate, rule: Ensem
   const voicesAt = (tick: number): number => {
     let count = 0;
     for (const rn of notes) {
-      if (rn.note.startTick > tick) break; // sorted by start
+      // Phase 5d: a humanized attack may start up to HUMANIZE_HEAD_TICKS
+      // after its written tick — it was still written FOR this tick
+      if (rn.note.startTick > tick + HUMANIZE_HEAD_TICKS) break; // sorted by start
       if (rn.note.startTick + rn.note.durationTicks > tick) count++;
     }
     return count;
@@ -143,6 +150,20 @@ function checkOctaveDoubling(p: Project, template: EnsembleTemplate, rule: Ensem
     const doubledPc = ((pitch % 12) + 12) % 12;
     return tonePcs.includes(doubledPc) && voicesAt(tick) > tonePcs.length;
   };
+  // Phase 5d: the orchestrator humanizes string attacks LATE by up to a few
+  // dozen ticks (start only), so a pair's max(start) tick can sit past the
+  // grid position the notes were written for. The audit reads the written-for
+  // position — the pair's EARLIEST start — and one head earlier too: a
+  // doubling exempt there is exempt here.
+  const exemptAt = (d: { tick: number; a: RoleNote; b: RoleNote }, pitch: number): boolean =>
+    forcedDoubling(d.tick, pitch) || forcedDoubling(d.tick - HUMANIZE_HEAD_TICKS, pitch);
+  const climaxAt = (tick: number): boolean => {
+    for (const t of [tick, tick - HUMANIZE_HEAD_TICKS]) {
+      const w = energyAtTick(report, t);
+      if (w && w.energy >= (energyThreshold ?? 1) - 1e-9) return true;
+    }
+    return false;
+  };
   // climaxOnly only: one instrument voicing a single chord event in blocks
   // (same track, same onset, chord tones) is a register choice, not a layer.
   const blockChordVoicing = (pair: { tick: number; a: RoleNote; b: RoleNote }): boolean =>
@@ -153,12 +174,12 @@ function checkOctaveDoubling(p: Project, template: EnsembleTemplate, rule: Ensem
     chordTones(chordAt(pair.tick)!.parsed).tones.some((t) => t.pc === ((pair.a.note.pitch % 12) + 12) % 12);
 
   for (const d of doublings) {
-    if (forcedDoubling(d.tick, d.a.note.pitch)) continue; // D10 exemption
+    if (exemptAt(d, d.a.note.pitch)) continue; // D10 exemption, humanize-aware
     if (blockChordVoicing(d)) continue; // one event, one instrument, chord tones
     if (policy === 'climaxOnly') {
       const w = energyAtTick(report, d.tick);
       const e = w?.energy ?? 0;
-      if (w && e >= (energyThreshold ?? 1) - 1e-9) continue; // inside a climax: allowed
+      if (climaxAt(d.tick)) continue; // inside a climax: allowed (head-aware reading below)
       findings.push({
         rule: 'octaveDoubling', severity: 'soft', tick: d.tick,
         message: `${d.a.role} + ${d.b.role} an octave apart at energy ${e.toFixed(3)} < climax threshold ${energyThreshold} (bar ${w?.bar ?? '?'})`,

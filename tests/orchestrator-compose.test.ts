@@ -3,6 +3,7 @@ import fixture from '../fixtures/dorian-16bars.json';
 import { ENSEMBLE_BY_ID } from '../src/config/ensembles';
 import { composeAllTracks } from '../src/orchestrator/compose';
 import { measureEnergy } from '../src/orchestrator/energy';
+import { HUMANIZE_HEAD_TICKS } from '../src/orchestrator/energy/rules';
 import { chordSpans } from '../src/engine/generate';
 import { sanitizeNotes } from '../src/engine/generate';
 import { useStore } from '../src/store/store';
@@ -209,10 +210,11 @@ describe('Compose All through the orchestrator: property sweep', () => {
       expect(n.articulation).toBe('pizz');
       expect(n.durationTicks).toBeLessThan(960);
     }
-    // …while chamber keeps the sustained bass
+    // …while chamber keeps the sustained bass (humanize only trims the head
+    // of an attack — Phase 5d bounds that trim by HUMANIZE_HEAD_TICKS)
     const { project: chamber } = compose('ensemble.chamber', {}, { seed: 11 });
     for (const n of track(chamber, 'cellosBasses').notes) {
-      expect(n.durationTicks).toBeGreaterThanOrEqual(960);
+      expect(n.durationTicks).toBeGreaterThanOrEqual(960 - HUMANIZE_HEAD_TICKS);
     }
   });
 
@@ -222,9 +224,13 @@ describe('Compose All through the orchestrator: property sweep', () => {
       const flutes = track(project, 'flutes').notes;
       expect(flutes.length).toBeGreaterThan(0);
       // every flute entrance doubles a Violins I entrance (the strings module's
-      // top line, +12 before sanitization — sanitize never moves startTicks)
-      const vln1Starts = new Set(track(project, 'violins1').notes.map((n) => n.startTick));
-      for (const n of flutes) expect(vln1Starts.has(n.startTick)).toBe(true);
+      // top line, +12 before sanitization). Phase 5d humanizes the STRING
+      // attacks late (start only, ≤ HUMANIZE_HEAD_TICKS), so the un-humanized
+      // flute lands at or slightly before the V1 note's written start.
+      const v1 = track(project, 'violins1').notes;
+      for (const n of flutes) {
+        expect(v1.some((m) => n.startTick >= m.startTick - HUMANIZE_HEAD_TICKS && n.startTick <= m.startTick)).toBe(true);
+      }
     }
   });
 });
@@ -278,7 +284,10 @@ describe('golden: fixtures/dorian-16bars.json (half-bar chords, C/E and G/B bass
     expect(first.length).toBeGreaterThan(0);
     // takes may re-attack a span at its midpoint; the notes must COVER it
     expect(Math.max(...first.map((n) => n.startTick + n.durationTicks))).toBe(3840);
-    expect(Math.min(...first.map((n) => n.startTick))).toBe(0);
+    // Phase 5d: humanized attacks enter late (start only, ≤ the head); the
+    // SPAN END is still covered exactly and the gap stays a rest
+    expect(Math.min(...first.map((n) => n.startTick))).toBeGreaterThanOrEqual(0);
+    expect(Math.min(...first.map((n) => n.startTick))).toBeLessThanOrEqual(HUMANIZE_HEAD_TICKS);
     const half = cb.filter((n) => n.startTick >= 5760);
     expect(half.length).toBeGreaterThan(0);
     expect(Math.max(...half.map((n) => n.startTick + n.durationTicks))).toBe(5760 + 1920);

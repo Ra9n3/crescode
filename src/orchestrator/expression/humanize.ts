@@ -142,13 +142,18 @@ export function humanizeStrings(input: HumanizeInput): Record<string, Note[]> {
     const range = isBass ? BASS_TIMING_MS : VIOLIN_TIMING_MS;
 
     const sorted = [...notes].sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
-    // Cb doubles: a note whose +12 partner starts at the same tick (the 4.5
-    // layering copies its partner's start and duration)
+    // Cb doubles: the 4.5 layering marks its doubles `layer: 'cb'` — when the
+    // field is present it is the exact read. Notes written before the field
+    // existed fall back to the geometric +12-same-start match (the layering
+    // copies its partner's start).
+    const hasLayerField = sorted.some((n) => n.layer !== undefined);
     const isDouble = new Set<Note>();
     const partnerOf = new Map<Note, Note>();
     if (isBass) {
       for (const n of sorted) {
-        const partner = sorted.find((m) => m !== n && m.pitch === n.pitch + 12 && m.startTick === n.startTick);
+        const isCb = hasLayerField ? n.layer === 'cb' : undefined;
+        if (hasLayerField && !isCb) continue;
+        const partner = sorted.find((m) => m !== n && (isCb === undefined || m.layer !== 'cb') && m.pitch === n.pitch + 12 && m.startTick === n.startTick);
         if (partner) { isDouble.add(n); partnerOf.set(n, partner); }
       }
     }

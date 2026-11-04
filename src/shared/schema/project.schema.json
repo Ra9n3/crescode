@@ -61,7 +61,8 @@
       "properties": {
         "pitch": { "type": "integer", "minimum": 0, "maximum": 127 }, "startTick": { "type": "integer", "minimum": 0 }, "durationTicks": { "type": "integer", "minimum": 1 }, "velocity": { "type": "integer", "minimum": 1, "maximum": 127 },
         "articulation": { "enum": ["legato", "detache", "marcato", "staccato", "spiccato", "pizz", "tremolo", "portato", "sulTasto", "sulPont", "conSord"] },
-        "bow": { "enum": ["down", "up"] }
+        "bow": { "enum": ["down", "up"] },
+        "layer": { "enum": ["cb"], "description": "The Vc+Cb layering marks its Cb-doubled notes; export profiles split the cellosBasses track by it." }
       }
     },
     "orchestration": {

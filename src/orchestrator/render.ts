@@ -594,7 +594,9 @@ export function maybeLayerCellosBasses(ctx: OrchestratorContext, notesByTrackId:
   for (const n of notes) {
     if (lt !== null && ((n.pitch % 12) + 12) % 12 === lt) { onLeadingTone++; continue; } // never double the leading tone
     if (n.pitch - 12 < track.lowestNote) { underRange++; continue; } // skip only the notes that would fall below
-    doubles.push({ ...n, pitch: n.pitch - 12 });
+    // the 'cb' layer mark is export-facing data (export profiles split the
+    // track by it); the preview synth and the validators treat it as a passthrough
+    doubles.push({ ...n, pitch: n.pitch - 12, layer: 'cb' });
   }
   if (doubles.length) {
     notesByTrackId[cbId] = [...notes, ...doubles].sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);

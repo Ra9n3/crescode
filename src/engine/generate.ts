@@ -338,11 +338,12 @@ function pickPitches(spec: PitchSpec, track: Track, ev: Event, chord: ResolvedCh
  * output for old code paths.
  */
 export const carryNoteFields = (n: Note) =>
-  (n.articulation === undefined && n.bow === undefined
+  (n.articulation === undefined && n.bow === undefined && n.layer === undefined
     ? {}
     : {
         ...(n.articulation !== undefined ? { articulation: n.articulation } : {}),
         ...(n.bow !== undefined ? { bow: n.bow } : {}),
+        ...(n.layer !== undefined ? { layer: n.layer } : {}),
       });
 
 export function sanitizeNotes(notes: Note[], lo: number, hi: number, endTick: number): Note[] {

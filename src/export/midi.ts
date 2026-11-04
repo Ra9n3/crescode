@@ -1,11 +1,19 @@
 /**
  * MIDI export (Type 1, 960 PPQ) using the `midi-file` library.
  * Mixer state (volume/pan/mute/solo) and routing are intentionally ignored.
+ *
+ * Phase 5.5: an optional export profile rewrites the instrument tracks into
+ * profile PARTS (patch name, own channel, keyswitch notes ahead of every
+ * articulation change, filtered CC lanes, transposition, sampled-tremolo
+ * merge). Without a profile the writers are byte-identical to the plain
+ * export; the profile never touches the project — keyswitches exist only in
+ * the exported file.
  */
 import { parseMidi, writeMidi, type MidiData, type MidiEvent } from 'midi-file';
 import { barTicks, projectEndTick } from '../shared/schema/meter';
 import { MODES } from '../shared/schema/modes';
 import { PPQ, isInstrumentTrack, type CcLane, type Note, type Project, type Track } from '../shared/schema/types';
+import { chunksForTrack, type ExportProfile } from './profile';
 
 type Abs = MidiEvent & { abs: number; order: number };
 
@@ -94,14 +102,15 @@ export function exportableTracks(p: Project, mode: 'all' | 'selected' | 'unlocke
   return p.tracks.filter((t) => isInstrumentTrack(t) && (mode === 'all' || (mode === 'selected' ? selected.includes(t.id) : !t.locked)));
 }
 
-/** Single Type-1 file: conductor track + one track per instrument. */
-export function buildMergedMidi(p: Project, tracks: Track[]): Uint8Array {
+/** Single Type-1 file: conductor track + one track per instrument (per profile part when a profile is given). */
+export function buildMergedMidi(p: Project, tracks: Track[], profile: ExportProfile | null = null): Uint8Array {
   const end = projectEndTick(p);
+  const chunks = tracks.flatMap((t) => chunksForTrack(p, t, profile));
   const data: MidiData = {
-    header: { format: 1, numTracks: tracks.length + 1, ticksPerBeat: PPQ },
+    header: { format: 1, numTracks: chunks.length + 1, ticksPerBeat: PPQ },
     tracks: [
       finalize([nameEvent(p.name || 'Crescode'), ...conductorEvents(p, true)], end),
-      ...tracks.map((t) => finalize([nameEvent(t.name), ...ccEvents(t.cc, t.midiChannel, end), ...noteEvents(t.notes, t.midiChannel, end)], end)),
+      ...chunks.map((c) => finalize([nameEvent(c.name), ...ccEvents(c.cc, c.channel, end), ...noteEvents(c.notes, c.channel, end)], end)),
     ],
   };
   return new Uint8Array(writeMidi(data));
@@ -113,19 +122,21 @@ export function perTrackFileName(p: Project, t: Track): string {
   return `${String(idx).padStart(2, '0')} ${safe}.mid`;
 }
 
-/** One Type-1 file per instrument; each has tempo/time/key and ends at the project end tick. */
-export function buildPerTrackMidi(p: Project, tracks: Track[]): { fileName: string; data: Uint8Array }[] {
+/** One Type-1 file per instrument (per profile part when a profile is given); each has tempo/time/key and ends at the project end tick. */
+export function buildPerTrackMidi(p: Project, tracks: Track[], profile: ExportProfile | null = null): { fileName: string; data: Uint8Array }[] {
   const end = projectEndTick(p);
-  return tracks.map((t) => ({
-    fileName: perTrackFileName(p, t),
-    data: new Uint8Array(writeMidi({
-      header: { format: 1, numTracks: 2, ticksPerBeat: PPQ },
-      tracks: [
-        finalize([nameEvent(t.name), ...conductorEvents(p, true)], end),
-        finalize([nameEvent(t.name), ...ccEvents(t.cc, t.midiChannel, end), ...noteEvents(t.notes, t.midiChannel, end)], end),
-      ],
+  return tracks.flatMap((t) =>
+    chunksForTrack(p, t, profile).map((c) => ({
+      fileName: perTrackFileName(p, { ...t, name: c.name }),
+      data: new Uint8Array(writeMidi({
+        header: { format: 1, numTracks: 2, ticksPerBeat: PPQ },
+        tracks: [
+          finalize([nameEvent(c.name), ...conductorEvents(p, true)], end),
+          finalize([nameEvent(c.name), ...ccEvents(c.cc, c.channel, end), ...noteEvents(c.notes, c.channel, end)], end),
+        ],
+      })),
     })),
-  }));
+  );
 }
 
 export interface ParsedCcEvent { cc: number; tick: number; value: number }

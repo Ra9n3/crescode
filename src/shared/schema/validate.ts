@@ -166,6 +166,9 @@ export function validateProject(input: unknown): ValidationResult {
       if (n.bow !== undefined && n.bow !== 'down' && n.bow !== 'up') {
         err(`${np}.bow`, `${nm}: bow must be "down" or "up" (got ${JSON.stringify(n.bow)})`);
       }
+      if (n.layer !== undefined && n.layer !== 'cb') {
+        err(`${np}.layer`, `${nm}: layer must be "cb" (got ${JSON.stringify(n.layer)})`);
+      }
       if (isInt(n.startTick) && isInt(n.durationTicks) && n.startTick + n.durationTicks > endTick) err(np, `${nm}: note at tick ${n.startTick} extends past the project end (tick ${endTick})`);
       if (errors.length > before) reported++;
     });

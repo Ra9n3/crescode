@@ -1,0 +1,119 @@
+{
+  "id": "uvi-orchestral-suite",
+  "name": "UVI Orchestral Suite — string ensembles",
+  "description": "One part per UVI Orchestral Suite string-ensemble patch. Keyswitch names follow the manual's pitchConvention. The cellosBasses track splits by note layer: unmarked notes play the Cello Ensemble, the layer:'cb' doubles play the Bass Ensemble.",
+  "pitchConvention": "C3=60",
+  "keyswitchVelocity": 100,
+  "parts": [
+    {
+      "id": "violins1",
+      "patch": "Violins 1 Ensemble",
+      "channel": 1,
+      "source": { "role": "violins1" },
+      "lowestPlayable": 55,
+      "keyswitches": { "sustain": "C0", "legato": "D0", "marcato": "A0", "pizz": "F0", "spiccato": "D1", "tremolo": "G0" },
+      "fallback": {
+        "detache": ["sustain"],
+        "portato": ["sustain"],
+        "sulTasto": ["sustain"],
+        "sulPont": ["sustain"],
+        "conSord": ["sustain"]
+      },
+      "transposeSemitones": 0,
+      "keyswitchLeadMs": 30,
+      "keyswitchLengthMs": 60,
+      "tremoloMode": "sampled",
+      "ccEnabled": { "1": true, "7": true, "11": true, "68": false, "74": false }
+    },
+    {
+      "id": "violins2",
+      "patch": "Violins 2 Ensemble",
+      "channel": 2,
+      "source": { "role": "violins2" },
+      "lowestPlayable": 55,
+      "keyswitches": { "sustain": "C1", "legato": "D1", "marcato": "A1", "pizz": "F1", "spiccato": "D2", "tremolo": "G1" },
+      "fallback": {
+        "detache": ["sustain"],
+        "portato": ["sustain"],
+        "sulTasto": ["sustain"],
+        "sulPont": ["sustain"],
+        "conSord": ["sustain"]
+      },
+      "transposeSemitones": 0,
+      "keyswitchLeadMs": 30,
+      "keyswitchLengthMs": 60,
+      "tremoloMode": "sampled",
+      "ccEnabled": { "1": true, "7": true, "11": true, "68": false, "74": false }
+    },
+    {
+      "id": "violas",
+      "patch": "Viola Ensemble",
+      "channel": 3,
+      "source": { "role": "violas" },
+      "lowestPlayable": 48,
+      "keyswitches": { "sustain": "C0", "legato": "D0", "marcato": "A0", "pizz": "F0", "spiccato": "C#1", "tremolo": "G0" },
+      "fallback": {
+        "detache": ["sustain"],
+        "portato": ["sustain"],
+        "sulTasto": ["sustain"],
+        "sulPont": ["sustain"],
+        "conSord": ["sustain"]
+      },
+      "transposeSemitones": 0,
+      "keyswitchLeadMs": 30,
+      "keyswitchLengthMs": 60,
+      "tremoloMode": "sampled",
+      "ccEnabled": { "1": true, "7": true, "11": true, "68": false, "74": false }
+    },
+    {
+      "id": "cello",
+      "patch": "Cello Ensemble",
+      "channel": 4,
+      "source": { "role": "cellosBasses", "layer": null },
+      "lowestPlayable": 28,
+      "keyswitches": { "sustain": "C-1", "legato": "D-1", "marcato": "A-1", "pizz": "E-1", "tremolo": "G-1" },
+      "fallback": {
+        "detache": ["sustain"],
+        "portato": ["sustain"],
+        "sulTasto": ["sustain"],
+        "sulPont": ["sustain"],
+        "conSord": ["sustain"],
+        "staccato": ["marcato"],
+        "spiccato": ["marcato"]
+      },
+      "transposeSemitones": 0,
+      "keyswitchLeadMs": 30,
+      "keyswitchLengthMs": 60,
+      "tremoloMode": "sampled",
+      "ccEnabled": { "1": true, "7": true, "11": true, "68": false, "74": false }
+    },
+    {
+      "id": "bass",
+      "patch": "Bass Ensemble",
+      "channel": 5,
+      "source": { "role": "cellosBasses", "layer": "cb" },
+      "lowestPlayable": 28,
+      "keyswitches": { "sustain": "C-1", "legato": "D-1", "marcato": "A-1", "pizz": "F-1", "tremolo": "G-1" },
+      "fallback": {
+        "detache": ["sustain"],
+        "portato": ["sustain"],
+        "sulTasto": ["sustain"],
+        "sulPont": ["sustain"],
+        "conSord": ["sustain"],
+        "staccato": ["marcato"],
+        "spiccato": ["marcato"]
+      },
+      "transposeSemitones": 0,
+      "keyswitchLeadMs": 30,
+      "keyswitchLengthMs": 60,
+      "tremoloMode": "sampled",
+      "ccEnabled": { "1": true, "7": true, "11": true, "68": false, "74": false }
+    }
+  ],
+  "unverified": [
+    "parts[1].keyswitches.spiccato (D2, read from a small manual image)",
+    "parts[2].keyswitches.spiccato (C#1, read from a small manual image)",
+    "parts[3].keyswitches.marcato (A-1, read from a small manual image)",
+    "parts[4].transposeSemitones (default 0)"
+  ]
+}

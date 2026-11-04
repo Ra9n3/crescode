@@ -39,6 +39,10 @@ export interface Note {
   /** Optional performance data — old projects and fixtures have none. */
   articulation?: Articulation;
   bow?: 'down' | 'up';
+  /** The Vc+Cb layering step (Phase 4.5) marks its Cb-doubled notes 'cb'.
+   *  Additive, optional: export profiles split the cellosBasses track by it
+   *  (layer 'cb' → the bass part, everything else → the cello part). */
+  layer?: 'cb';
 }
 
 /** One automation point on a CC lane. Ticks are absolute, values 0–127. */

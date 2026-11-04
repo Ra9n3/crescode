@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { create } from 'zustand';
 import { useStore } from '../store/store';
 import { buildMergedMidi, buildPerTrackMidi, exportableTracks, parseMidiFile } from '../export/midi';
+import { EXPORT_PROFILES } from '../export/profiles';
 import { exportJson, getRecent, openProjectText, pickFile, saveFile, saveFilesToFolder, saveProject } from '../lib/files';
 import { BAND_ROLES, freshEnsemble, INSTRUMENTS, isInstrumentTrack, isInBand, noteName, PERCUSSION_FIXED_NOTES, projectBars } from '../shared/schema';
 import { ENSEMBLE_BY_ID } from '../config/ensembles';
@@ -45,6 +46,11 @@ function ExportDialog() {
   const [mode, setMode] = useState<'all' | 'selected' | 'unlocked'>('all');
   const [picked, setPicked] = useState<string[]>(() => (s.selectedTrackIds.length ? s.selectedTrackIds : inst.map((t) => t.id)));
   const [report, setReport] = useState<string | null>(null);
+  // export profile: 'none' keeps the plain export byte-identical; a profile
+  // rewrites the string parts for its target library (keyswitches live only
+  // in the exported file — the project is never mutated)
+  const [profileId, setProfileId] = useState<string>('none');
+  const chosenProfile = EXPORT_PROFILES.find((e) => e.id === profileId)?.profile ?? null;
   const tracks = exportableTracks(p, mode, picked);
   const close = () => s.set({ modal: null });
 
@@ -57,18 +63,18 @@ function ExportDialog() {
     }
     if (!tracks.length) { s.toast('warn', 'No tracks selected for export'); return; }
     if (fmt === 'midi') {
-      const data = buildMergedMidi(p, tracks);
+      const data = buildMergedMidi(p, tracks, chosenProfile);
       const n = await saveFile(`${p.name || 'Crescode'}.mid`, data as BlobPart, 'audio/midi', 'mid');
       if (!n) return;
       const parsed = parseMidiFile(data);
       const count = parsed.tracks.reduce((a, t) => a + t.notes.length, 0);
-      setReport(`Wrote ${n}: Type ${parsed.format}, ${parsed.ppq} PPQ, ${parsed.bpm} BPM, ${parsed.tracks.length - 1} instrument tracks + conductor, ${count} notes, ${projectBars(p)} bars, markers: ${parsed.markers.map((m) => m.text).join(', ') || 'none'}.`);
+      setReport(`Wrote ${n}: Type ${parsed.format}, ${parsed.ppq} PPQ, ${parsed.bpm} BPM, ${parsed.tracks.length - 1} instrument tracks + conductor, ${count} notes, ${projectBars(p)} bars, markers: ${parsed.markers.map((m) => m.text).join(', ') || 'none'}${chosenProfile ? `. Profile: ${chosenProfile.name}.` : ''}`);
       s.toast('success', `Exported ${n}`);
     } else {
-      const files = buildPerTrackMidi(p, tracks);
+      const files = buildPerTrackMidi(p, tracks, chosenProfile);
       const where = await saveFilesToFolder(files);
       if (!where) return;
-      setReport(`Wrote ${files.length} files to ${where}: ${files.map((f) => f.fileName).join(', ')}. All end at bar ${projectBars(p) + 1}.`);
+      setReport(`Wrote ${files.length} files to ${where}: ${files.map((f) => f.fileName).join(', ')}. All end at bar ${projectBars(p) + 1}.${chosenProfile ? ` Profile: ${chosenProfile.name}.` : ''}`);
       s.toast('success', `Exported ${files.length} MIDI files`);
     }
   };
@@ -99,6 +105,20 @@ function ExportDialog() {
       </div>
       {fmt !== 'json' && (
         <>
+          {EXPORT_PROFILES.length > 0 && (
+            <div className="mb-3 flex items-center gap-2 text-xs">
+              <span className="text-[var(--c-textMute)]">Profile</span>
+              <Select
+                value={profileId}
+                options={[{ value: 'none', label: 'None (plain MIDI)' }, ...EXPORT_PROFILES.map((e) => ({ value: e.id, label: e.name }))]}
+                onChange={setProfileId}
+                tip="Rewrite the export for a sample library: a keyswitch ahead of every articulation change, one channel per part, the profile's CC lanes and octave. The project is never modified — keyswitches live only in the exported file."
+                testId="export-profile"
+                mono
+              />
+              {chosenProfile && <span className="text-[10px] leading-tight text-[var(--c-textMute)]">keyswitches + per-part channels; project untouched</span>}
+            </div>
+          )}
           <div className="mb-2 flex items-center gap-3 text-xs">
             <span className="text-[var(--c-textMute)]">Tracks</span>
             {(['all', 'selected', 'unlocked'] as const).map((m) => (

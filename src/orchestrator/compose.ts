@@ -23,6 +23,7 @@ import { stringsModule, stringVoiceTracks, prepareStrings, maybeLayerCellosBasse
 import { textureForType, sectionTypeKeyOf } from './conductor/layers';
 import { conduct, type ConductorPlan } from './conductor';
 import { governPadVelocities } from './energy/mix';
+import { buildCcLanes } from './expression/cc';
 import type { OrchestratorContext } from './module';
 
 export interface ComposeOptions {
@@ -128,12 +129,38 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
       .map((t) => ({ role: t.role, notes: t.notes })),
   });
 
+  // Phase 5c: CC lanes for the strings the orchestrator wrote — phrase arcs
+  // (CC1/CC11), CC7 balance, CC74 spikes, CC68 legato windows, soft-entry
+  // S-curves. Only in-band unlocked string tracks appear in notesByTrackId,
+  // so locked and out-of-band tracks never get CC here.
+  const ccByTrackId = buildCcLanes({
+    project: ctx.project,
+    template,
+    sections: ctx.sections,
+    arc,
+    notesByTrackId: Object.fromEntries(stringsTrackIds.map((id) => [id, notesByTrackId[id] ?? []])),
+    carrierByBar: ctx.lines!.carrierByBar,
+  });
+  const ccSummary = stringsTrackIds
+    .map((id) => {
+      const lanes = ccByTrackId[id];
+      if (!lanes) return null;
+      const name = project.tracks.find((t) => t.id === id)?.name ?? id;
+      return `${name} ${lanes.length}L/${lanes.reduce((a, l) => a + l.points.length, 0)}P`;
+    })
+    .filter(Boolean)
+    .join(', ');
+  if (ccSummary) ctx.lines!.reports.push(`cc (take ${orchestration.take}): ${ccSummary}`);
+
   const stringsNotes = new Map(stringsTrackIds.map((id) => [id, notesByTrackId[id]]));
   const tracks = project.tracks.map((t) => {
     if (!isInstrumentTrack(t)) return t;
     if (t.locked) return t; // lock wins
     if (!isInBand(t.role, ensemble, template)) return t; // out of band: untouched
-    if (stringsNotes.has(t.id)) return { ...t, notes: stringsNotes.get(t.id)! };
+    if (stringsNotes.has(t.id)) {
+      const cc = ccByTrackId[t.id];
+      return { ...t, notes: stringsNotes.get(t.id)!, ...(cc ? { cc } : {}) };
+    }
     const gen = ruleTracks.find((r) => r.id === t.id);
     return gen ? { ...t, notes: gen.notes } : t;
   });

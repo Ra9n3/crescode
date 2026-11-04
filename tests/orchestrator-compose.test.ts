@@ -192,8 +192,18 @@ describe('Compose All through the orchestrator: property sweep', () => {
     expect(track(project, 'horns').notes.length).toBeGreaterThan(0);
     expect(track(project, 'trumpets').notes.length).toBeGreaterThan(0);
     expect(track(project, 'timpani').notes.length).toBeGreaterThan(0);
-    // symphony cellosBasses is the pizz-pulse layer (4e): short notes on strong beats
-    const cb = track(project, 'cellosBasses').notes;
+    // symphony cellosBasses carries the pizz-pulse TEXTURE (4e): in a take
+    // whose every section type drew a pizz-bass texture, the Cb is all
+    // short strong-beat pizz notes (4.6: the pizz vs sustained axis is
+    // per drawn texture, so the pin scans for an all-pizz take)
+    let pizzTake: Project | null = null;
+    for (let t = 0; t < 24 && !pizzTake; t++) {
+      const { project: p, result } = compose('ensemble.symphony', { orchestration: { take: t } }, { seed: 11 });
+      const tex = result.reports.find((r) => r.startsWith('textures'))!;
+      if (tex.includes('PizzBass') && !tex.includes('SustainedBass')) pizzTake = p;
+    }
+    expect(pizzTake).toBeTruthy();
+    const cb = track(pizzTake!, 'cellosBasses').notes;
     expect(cb.length).toBeGreaterThan(0);
     for (const n of cb) {
       expect(n.articulation).toBe('pizz');

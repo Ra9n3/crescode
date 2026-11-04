@@ -20,8 +20,28 @@ const compose = (templateId: string | null) => {
 
 const track = (p: Project, role: string) => p.tracks.find((t) => t.role === role)!;
 
+/** The textures a compose drew, from its report line: { verse: 'quartet', … }. */
+const texturesOf = (result: ReturnType<typeof composeAllTracks>): Record<string, string> => {
+  const line = result.reports.find((r) => r.startsWith('textures'))!;
+  return Object.fromEntries(line.split(': ')[1].split(', ').map((kv) => kv.split('='))) as Record<string, string>;
+};
+
+/** Scan takes for one where every drawn texture matches `want` (4.6: the
+ *  palettes are take-seeded — pinned presets assert on a take that drew them). */
+const composeWithTextures = (templateId: string, want: Record<string, string>, maxTakes = 24) => {
+  for (let t = 0; t < maxTakes; t++) {
+    const p = BASE();
+    p.ensemble = { templateId, overrides: {}, pins: {} };
+    p.orchestration = { take: t };
+    const result = composeAllTracks(p, { seed: 11 });
+    const tex = texturesOf(result);
+    if (Object.entries(want).every(([k, v]) => tex[k] === v)) return { project: { ...p, tracks: result.tracks } as Project, result, take: result.orchestration.take, tex };
+  }
+  throw new Error(`no take in 0..${maxTakes - 1} drew ${JSON.stringify(want)} for ${templateId}`);
+};
+
 describe('conductor: per-bar layer plan (3a)', () => {
-  it('uses the shared layer vocabulary and gives every string track exactly one role per bar (4a)', () => {
+  it('uses the shared layer vocabulary and gives every string track exactly one role per bar (4a, 4.6 palettes)', () => {
     expect(LAYER_VOCABULARY).toContain('lead');
     expect(LAYER_VOCABULARY).toContain('pad');
     expect(LAYER_VOCABULARY).toContain('fill');
@@ -29,7 +49,6 @@ describe('conductor: per-bar layer plan (3a)', () => {
     expect(result.plan.bars).toHaveLength(16);
     const voiceIds = project.tracks.filter((t) => t.family === 'Strings').map((t) => t.id).sort();
     for (const bar of result.plan.bars) {
-      expect(bar.layers.map((l) => l.layer).sort()).toEqual(['bass', 'counterline', 'lead', 'pad']); // the chamber preset
       // one track = one role per bar: the voice tracks partition exactly
       const ids = bar.layers.flatMap((l) => l.trackIds).sort();
       expect(new Set(ids).size).toBe(ids.length);
@@ -40,15 +59,39 @@ describe('conductor: per-bar layer plan (3a)', () => {
     expect(result.plan.maxLayers).toBe(5);
     expect(result.plan.octaveDoublingPolicy).toBe('climaxOnly');
     expect(result.plan.unannotatedRoles).toEqual(['piano']); // in band, owned by the rules generator
+    // the drawn texture holds for the whole section type: every Verse bar and
+    // every Chorus bar carries the same layer set
+    const tex = texturesOf(result);
+    const slotsOf = (bar: number) => result.plan.bars[bar - 1].layers.map((l) => l.layer).sort().join('+');
+    const verseSlots = [...new Set(result.plan.bars.slice(0, 8).map((_, i) => slotsOf(i + 1)))];
+    const chorusSlots = [...new Set(result.plan.bars.slice(8).map((_, i) => slotsOf(i + 9)))];
+    expect(verseSlots).toHaveLength(1);
+    expect(chorusSlots).toHaveLength(1);
+    console.log(`chamber take ${result.orchestration.take} textures: ${JSON.stringify(tex)} → verse ${verseSlots[0]}, chorus ${chorusSlots[0]}`);
+    // the documented quartet preset still exists in the palette and lands whole
+    const quartet = composeWithTextures('ensemble.chamber', { verse: 'quartet', chorus: 'quartet' });
+    for (const bar of quartet.result.plan.bars) {
+      expect(bar.layers.map((l) => l.layer).sort()).toEqual(['bass', 'counterline', 'lead', 'pad']);
+    }
   });
 
-  it('presets assign the documented roles per bar (4a): cinematic switches V1 by arc energy', () => {
+  it('presets assign the documented roles per bar (4a/4.6): the plan matches the drawn texture, cinematic switches V1 by arc energy', () => {
     const sym = compose('ensemble.symphony');
-    expect(sym.result.plan.bars[2].layers.map((l) => l.layer).sort()).toEqual(['bass', 'lead', 'pad']);
+    expect(sym.result.plan.bars[2].layers.map((l) => l.layer).sort()).toEqual(['bass', 'lead', 'pad']); // every symphony texture: a lead, pads, bass
     const cine = compose('ensemble.cinematic');
-    // chorus bars (arc ≥ 0.65) put V1 on tremolo; verse bars keep the lead
-    expect(cine.result.plan.bars[9].layers.map((l) => l.layer).sort()).toEqual(['bass', 'ostinato', 'tremolo']);
-    expect(cine.result.plan.bars[1].layers.map((l) => l.layer).sort()).toEqual(['bass', 'lead', 'ostinato']);
+    const cineTex = texturesOf(cine.result);
+    const ostSlot = (tex: string, withTune: 'lead' | 'tremolo'): string[] =>
+      (tex === 'tremoloBed'
+        ? ['bass', withTune]
+        : tex === 'leadPadBed'
+          ? ['bass', 'pad', withTune]
+          : tex === 'singleOstinato' || tex === 'pizzPulse'
+            ? ['bass', 'ostinato', 'pad', withTune]
+            : ['bass', 'ostinato', withTune]).sort(); // interlockingOstinato | trailer: both inner tracks ostinate
+    // chorus bars (arc ≥ 0.65) put V1 on tremolo; the inner tracks follow the drawn chorus texture
+    expect(cine.result.plan.bars[9].layers.map((l) => l.layer).sort()).toEqual(ostSlot(cineTex.chorus, 'tremolo'));
+    expect(cine.result.plan.bars[1].layers.map((l) => l.layer).sort()).toEqual(ostSlot(cineTex.verse, 'lead'));
+    console.log(`cinematic take ${cine.result.orchestration.take} textures: ${JSON.stringify(cineTex)}`);
     const vb = compose('ensemble.vocalbacking');
     for (const bar of vb.result.plan.bars) expect(bar.layers.map((l) => l.layer)).toEqual(['pad']); // wide legato only
     // intro-like sections never carry a lead — the motif arrives with the first phrase
@@ -57,7 +100,10 @@ describe('conductor: per-bar layer plan (3a)', () => {
     ip.ensemble = { templateId: 'ensemble.chamber', overrides: {}, pins: {} };
     const intro = composeAllTracks(ip, { seed: 11 });
     expect(intro.plan.bars[0].layers.map((l) => l.layer).sort()).toEqual(['bass', 'pad']);
-    expect(intro.plan.bars[6].layers.map((l) => l.layer).sort()).toEqual(['bass', 'counterline', 'lead', 'pad']);
+    const introTex = texturesOf(intro);
+    expect(intro.plan.bars[6].layers.map((l) => l.layer).sort()).toEqual(
+      introTex.verse === 'quartet' ? ['bass', 'counterline', 'lead', 'pad'] : ['bass', 'lead', 'pad'], // v2Handoff also reads lead+pad
+    );
   });
 
   it('fillGating breaths: the resting parts rest on each non-final section\u2019s last bar, \u2265 minGapTicks, fills registered', () => {
@@ -177,18 +223,24 @@ describe('checker from the annotation (3b): maxLayers + fillGating replace their
 
   it('a violating plan is caught: too many layers in a bar', () => {
     const { result } = compose('ensemble.chamber');
-    const bad: ConductorPlan = {
+    const budget = ENSEMBLE_BY_ID.get('ensemble.chamber')!.budget.maxLayers;
+    const pad: ConductorPlan = {
       ...result.plan,
       bars: result.plan.bars.map((b, i) =>
         i === 0
-          ? { ...b, layers: [...b.layers, { layer: 'tremolo' as const, trackIds: b.layers[0].trackIds, source: 'strings' as const }, { layer: 'fill' as const, trackIds: b.layers[0].trackIds, source: 'strings' as const }] }
+          ? {
+              ...b,
+              // pad the bar past its budget regardless of the drawn texture
+              layers: [...b.layers, ...['tremolo', 'fill', 'stab'].map((layer) => ({ layer: layer as 'tremolo', trackIds: b.layers[0].trackIds, source: 'strings' as const }))].slice(0, budget + 1),
+            }
           : b,
       ),
     };
-    const findings = checkTemplateRules(BASE(), ENSEMBLE_BY_ID.get('ensemble.chamber')!, bad).filter((f) => f.rule === 'maxLayers');
+    expect(pad.bars[0].layers.length).toBe(budget + 1);
+    const findings = checkTemplateRules(BASE(), ENSEMBLE_BY_ID.get('ensemble.chamber')!, pad).filter((f) => f.rule === 'maxLayers');
     expect(findings).toHaveLength(1);
     expect(findings[0].severity).toBe('hard');
-    expect(findings[0].message).toMatch(/6 concurrent layers .* exceed the budget 5/);
+    expect(findings[0].message).toMatch(new RegExp(`${budget + 1} concurrent layers .* exceed the budget ${budget}`));
   });
 
   it('a violating plan is caught: a fill with no resting parts around it', () => {

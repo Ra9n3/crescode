@@ -40,11 +40,11 @@ import { chordTones } from './voicing/chordTones';
 import { leadingTonePcOf, voiceLead, type VoicedChord, type VoiceFix, type VoiceSpec, type VoicingChord } from './voicing/voiceLead';
 import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
 import type { LayerPlan, OrchestratorContext, SectionModule, SectionPatch, StringsLayer } from './module';
-import { assignStringLayers, stringLayerForBar } from './conductor/layers';
+import { assignStringLayers, stringLayerForBar, textureForType, sectionTypeNameAtBar, tuneCarrierForBar } from './conductor/layers';
 import { motifLine } from './lines/motif';
 import { counterlineLine } from './lines/counterline';
-import { ostinatoNotes, TREMOLO_STEP_TICKS, SHORT_NOTE_SECONDS } from './lines/ostinato';
-import { beatOffsets, isCompound } from '../shared/schema/meter';
+import { ostinatoNotes, TREMOLO_STEP_TICKS, SHORT_NOTE_SECONDS, rateTicks } from './lines/ostinato';
+import { beatOffsets, beatTicks, isCompound } from '../shared/schema/meter';
 import { secondsToTicks } from './spine';
 
 const MODULE_ID = 'strings';
@@ -103,8 +103,15 @@ function effectiveTemplate(ctx: OrchestratorContext): { rosterLength: number; cl
 export interface StringLines {
   /** The per-bar per-track layer assignment (the renderer's truth). */
   assignment: { bar: number; byTrack: Record<string, StringsLayer> }[];
-  /** The lead motif and the track that carries it (null when none). */
+  /** The lead motif and the track that carries it (null when none).
+   *  Phase 4.6: the PRIMARY carrier — the topmost track that carries the
+   *  tune anywhere in the take. Handoff textures may move the tune to
+   *  another track in some section types; every carrier is in `leads`. */
   lead: { trackId: string; notes: Note[] } | null;
+  /** Every tune carrier of this take (4.6), one motif line each. */
+  leads: { trackId: string; notes: Note[] }[];
+  /** The tune carrier per bar (index bar−1; null = no lead this bar). */
+  carrierByBar: (string | null)[];
   /** The counterline and its track (null when no track carries it). */
   counter: { trackId: string; notes: Note[] } | null;
   /** Span ids whose fixed lines had to be dropped: they render as pure pad. */
@@ -129,35 +136,45 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
   const assignment = assignStringLayers(ctx);
   const reports: string[] = [];
 
-  // the lead and counterline tracks: the topmost voice carrying the role.
-  // Phase 4.5: a cinematic 'tremolo' bar still carries the LEAD — the tune is
-  // rendered as measured repeats there — so the lead track and its bars count
-  // both layers ('tremolo' is only ever assigned to the lead track).
+  // the counterline track: the topmost voice carrying the role.
   const barsWithLayer = (trackId: string, layer: StringsLayer) =>
     assignment.bars.filter((b) => b.byTrack[trackId] === layer).length;
-  const isTuneLayer = (l: StringsLayer | undefined): boolean => l === 'lead' || l === 'tremolo';
-  const leadTrack = [...voices].reverse().find((v) => assignment.bars.some((b) => isTuneLayer(b.byTrack[v.id]))) ?? null;
   const counterTrack = [...voices].reverse().find((v) => barsWithLayer(v.id, 'counterline') > 0) ?? null;
-
-  const leadBars = new Set(assignment.bars.filter((b) => leadTrack && isTuneLayer(b.byTrack[leadTrack.id])).map((b) => b.bar));
-  const counterBars = new Set(assignment.bars.filter((b) => counterTrack && b.byTrack[counterTrack.id] === 'counterline').map((b) => b.bar));
   const comfyOf = (trackId: string): [number, number] => {
     const t = ctx.project.tracks.find((x) => x.id === trackId)!;
     const prof = STRING_PROFILE_BY_ROLE.get(t.role);
     return prof ? [Math.max(t.lowestNote, Math.min(t.highestNote, prof.comfortable[0])), Math.max(t.lowestNote, Math.min(t.highestNote, prof.comfortable[1]))] : [t.lowestNote, t.highestNote];
   };
 
-  const leadNotes = leadTrack
-    ? motifLine({ project: ctx.project, spans: ctx.spans, sections: ctx.sections, leadBars, comfortable: comfyOf(leadTrack.id), take })
-    : [];
+  // Phase 4.6: the tune carrier per bar comes from the drawn texture — a
+  // handoff texture moves the lead to V2/Vla/Cb for whole section types.
+  // Each carrier gets its own motif line over ITS bars (the same take seed,
+  // so a handed-off chorus states the same cell in the new voice's window).
+  const carrierByBar = assignment.bars.map((b) => tuneCarrierForBar(ctx, b.bar));
+  const carrierBars = new Map<string, number[]>();
+  assignment.bars.forEach((b, i) => {
+    const c = carrierByBar[i];
+    if (!c) return;
+    const arr = carrierBars.get(c);
+    if (arr) arr.push(b.bar);
+    else carrierBars.set(c, [b.bar]);
+  });
+  const leads = [...carrierBars.entries()]
+    .map(([trackId, bars]) => ({
+      trackId,
+      notes: motifLine({ project: ctx.project, spans: ctx.spans, sections: ctx.sections, leadBars: new Set(bars), comfortable: comfyOf(trackId), take }),
+    }))
+    .filter((l) => l.notes.length);
+  const lead = [...voices].reverse().map((v) => leads.find((l) => l.trackId === v.id)).find((x) => x) ?? null; // topmost carrier
+  const counterBars = new Set(assignment.bars.filter((b) => counterTrack && b.byTrack[counterTrack.id] === 'counterline').map((b) => b.bar));
+
   const counterNotes = counterTrack
     ? counterlineLine({
-        project: ctx.project, spans: ctx.spans, counterBars, lead: leadNotes,
+        project: ctx.project, spans: ctx.spans, counterBars, lead: lead?.notes ?? [],
         comfortable: comfyOf(counterTrack.id), take,
         leadingTonePc: leadingTonePcOf(ctx.project.key, scalePitchClasses(ctx.project.key, ctx.project.mode)),
       })
     : [];
-  const lead = leadTrack && leadNotes.length ? { trackId: leadTrack.id, notes: leadNotes } : null;
   const counter = counterTrack && counterNotes.length ? { trackId: counterTrack.id, notes: counterNotes } : null;
 
   // per-span fixes: a voice is fixed to the line's lowest pitch across the
@@ -176,11 +193,10 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
     const overlapping = notes.filter((n) => n.startTick < s.endTick && n.startTick + n.durationTicks > s.startTick);
     return overlapping.length ? Math.min(...overlapping.map((n) => n.pitch)) : null;
   };
-  const fixFor = (trackId: string | undefined, layers: StringsLayer[], line: Note[] | null, s: { startTick: number; endTick: number }): VoiceFix | undefined => {
+  const fixFor = (trackId: string | undefined, planned: (bar: number) => boolean, line: Note[] | null, s: { startTick: number; endTick: number }): VoiceFix | undefined => {
     if (!trackId) return undefined;
     const barsHere = spanBars(s);
-    const plannedHere = barsHere.some((b) => layers.includes(assignment.bars[b - 1]?.byTrack[trackId]));
-    if (!plannedHere) return undefined;
+    if (!barsHere.some(planned)) return undefined;
     if (!line) return { kind: 'rest' };
     const mp = minPitchOver(line, s);
     return mp === null ? { kind: 'rest' } : { kind: 'pitch', pitch: mp };
@@ -194,8 +210,12 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
   const pending = new Map<string, (VoiceFix | undefined)[]>();
   for (const s of ctx.spans) {
     const arr: (VoiceFix | undefined)[] = new Array(voices.length).fill(undefined);
-    if (lead) arr[voiceIndex.get(lead.trackId)!] = fixFor(lead.trackId, ['lead', 'tremolo'], lead.notes, s);
-    if (counter) arr[voiceIndex.get(counter.trackId)!] = fixFor(counter.trackId, ['counterline'], counter.notes, s);
+    for (const l of leads) {
+      // the carrier is planned wherever THE TEXTURE gives it the tune (the
+      // layer may read 'tremolo' on the cinematic threshold bars)
+      arr[voiceIndex.get(l.trackId)!] = fixFor(l.trackId, (b) => carrierByBar[b - 1] === l.trackId, l.notes, s);
+    }
+    if (counter) arr[voiceIndex.get(counter.trackId)!] = fixFor(counter.trackId, (b) => assignment.bars[b - 1]?.byTrack[counter.trackId] === 'counterline', counter.notes, s);
     if (arr.some((x) => x !== undefined)) pending.set(s.id, arr);
   }
 
@@ -205,7 +225,7 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
   const linePcsBySpan = new Map<string, Set<number>>();
   for (const s of ctx.spans) {
     const pcs = new Set<number>();
-    for (const line of [lead?.notes, counter?.notes]) {
+    for (const line of [...leads.map((l) => l.notes), counter?.notes]) {
       if (!line) continue;
       for (const n of line) {
         if (n.startTick < s.endTick && n.startTick + n.durationTicks > s.startTick) pcs.add(((n.pitch % 12) + 12) % 12);
@@ -278,6 +298,8 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
   return {
     assignment: assignment.bars,
     lead,
+    leads,
+    carrierByBar,
     counter,
     fallbackSpanIds: new Set(fallbacks),
     voiced,
@@ -372,33 +394,62 @@ export const stringsModule: SectionModule = {
 
       const b0 = Math.max(1, Math.floor(start0 / btBar) + 1);
       const b1 = Math.min(bars, Math.floor((end0 - 1) / btBar) + 1);
+      const beat = beatTicks(ctx.project.timeSignature);
+      const lastSectionStart = ctx.sections.length ? Math.max(...ctx.sections.map((x) => x.startBar)) : 1;
       for (let bar = b0; bar <= b1; bar++) {
         const ps = Math.max(start0, (bar - 1) * btBar);
         const pe = Math.min(end0, bar * btBar);
         if (pe - ps < minDuration) continue;
+        // Phase 4.6: the ostinato's per-bar shape — it does NOT run through
+        // every bar of a section: it enters 1–2 bars in (the texture's
+        // seeded draw), drops out for the section's pre-change dip bar, and
+        // rests on the last beat of every 4th bar of the section.
+        let ostWin: [number, number] | null = null;
+        if (plan.layer === 'ostinato') {
+          const sec = ctx.sections.find((x) => bar >= x.startBar && bar < x.startBar + x.lengthBars);
+          const tex = textureForType(ctx, sectionTypeNameAtBar(ctx, bar));
+          const into = sec ? bar - sec.startBar : 0;
+          const dipBar = !!sec && bar === sec.startBar + sec.lengthBars - 1 && sec.startBar < lastSectionStart;
+          if (into >= tex.style.enterAfter && !dipBar) {
+            const end = (into + 1) % 4 === 0 ? Math.min(pe, (bar - 1) * btBar + btBar - beat) : pe;
+            if (end > ps) ostWin = [ps, end];
+          }
+        }
         for (const trackId of plan.voiceTrackIds) {
           if (stringLayerForBar(ctx, bar, trackId) !== plan.layer) continue; // another plan carries this bar
+          if (plan.layer === 'ostinato' && !ostWin) continue; // gated bar (4.6): the ostinato rests, it is not a pad
           const vi = voiceIndex.get(trackId);
           const dpPitch = vi !== undefined ? vc.pitches[vi] : null;
           // conductor breaths (3a): the track rests inside its breath windows,
-          // so the piece is cut around them before any note is written
-          const windows = subtractBreaths([ps, pe], plan.breathByTrack?.[trackId] ?? []);
+          // so the piece is cut around them before any note is written. The
+          // ostinato's window is pre-clipped by its per-bar gating (4.6).
+          const windows = subtractBreaths(ostWin ?? [ps, pe], plan.breathByTrack?.[trackId] ?? []);
           for (const [s, e] of windows) {
             const len = e - s;
             if (len < minDuration) continue;
             const velocity = Math.max(1, Math.min(127, Math.round(1 + (cap - 1) * targetOf(s, e))));
-            if (plan.layer === 'lead' && lines.lead?.trackId === trackId && !fellBack) {
-              writeLineNotes(notesByTrackId[trackId], lines.lead.notes, s, e, velocity);
+            const carrierHere = lines.leads.find((l) => l.trackId === trackId);
+            if (plan.layer === 'lead' && carrierHere && !fellBack) {
+              writeLineNotes(notesByTrackId[trackId], carrierHere.notes, s, e, velocity);
             } else if (plan.layer === 'counterline' && lines.counter?.trackId === trackId && !fellBack) {
               writeLineNotes(notesByTrackId[trackId], lines.counter.notes, s, e, velocity);
             } else if (plan.layer === 'ostinato') {
-              // Phase 4e: chord tones at the finest regular beat subdivision —
-              // both ostinato tracks are drawn in ONE call so the lower voice
-              // stays under the upper; each track takes its own slice. The
-              // leading tone is never an ostinato tone: two ostinato voices
-              // (or an ostinato voice over the bass) must not double it.
+              // Phase 4e: chord tones on the texture's rate grid (8ths by
+              // default, 16ths only for the trailer — 4.6); both ostinato
+              // tracks are drawn in ONE call so the lower voice stays under
+              // the upper. The leading tone is never an ostinato tone: two
+              // ostinato voices (or an ostinato voice over the bass) must not
+              // double it. 4.6: the pulse stays UNDER the tune — its ceiling
+              // is the lead's lowest pitch sounding in this window (the DP's
+              // V1 voice on a fallback span).
               const ltPc = leadingTonePcOf(ctx.project.key, scalePitchClasses(ctx.project.key, ctx.project.mode));
               const ordered = [...plan.voiceTrackIds].reverse(); // top first
+              const tex = textureForType(ctx, sectionTypeNameAtBar(ctx, bar));
+              const leadPitches = lines.leads.flatMap((l) => l.notes).filter((n) => n.startTick < e && n.startTick + n.durationTicks > s).map((n) => n.pitch);
+              const v1Voice = voiceIndex.get(ctx.project.tracks.find((t) => t.role === 'violins1')?.id ?? '');
+              const ceilingPitch = leadPitches.length && !fellBack
+                ? Math.min(...leadPitches)
+                : v1Voice !== undefined ? vc.pitches[v1Voice] : null;
               const perTrack = ostinatoNotes({
                 ts: ctx.project.timeSignature,
                 tempoMap: ctx.project.tempoMap,
@@ -412,6 +463,12 @@ export const stringsModule: SectionModule = {
                   return { low: t.lowestNote, high: t.highestNote, comfortable: prof ? [Math.max(t.lowestNote, Math.min(t.highestNote, prof.comfortable[0])), Math.max(t.lowestNote, Math.min(t.highestNote, prof.comfortable[1]))] as [number, number] : [t.lowestNote, t.highestNote] as [number, number] };
                 }),
                 velocity,
+                stepTicks: rateTicks(ctx.project.timeSignature, tex.style.rate),
+                shape: tex.style.shape,
+                interlock: tex.style.interlock,
+                clipShort: tex.style.clippedShort,
+                articulation: tex.style.ostArticulation,
+                ceilingPitch,
               });
               const idx = ordered.indexOf(trackId);
               notesByTrackId[trackId].push(...(perTrack[idx] ?? []));
@@ -421,8 +478,10 @@ export const stringsModule: SectionModule = {
               // each lead note is subdivided at TREMOLO_STEP_TICKS and the
               // first repeat lands ON the motif pitch at the motif onset, so
               // the chorus keeps its tune. A fallback span (or a missing
-              // line) repeats the DP's pitch — never silence.
-              const leadHere = lines.lead && lines.lead.trackId === trackId && !fellBack ? lines.lead.notes : null;
+              // line) repeats the DP's pitch — never silence. On the 4.6
+              // tremolo-bed texture the non-carrier tracks repeat their DP
+              // pitch: a shimmering bed under the tune.
+              const leadHere = carrierHere && !fellBack ? carrierHere.notes : null;
               if (leadHere) {
                 for (const n of leadHere) {
                   const ns = Math.max(n.startTick, s);
@@ -437,8 +496,9 @@ export const stringsModule: SectionModule = {
                   notesByTrackId[trackId].push({ pitch: dpPitch, startTick: t, durationTicks: Math.min(TREMOLO_STEP_TICKS, e - t), velocity, articulation: 'tremolo' });
                 }
               }
-            } else if (plan.layer === 'bass' && ctx.template?.id === 'ensemble.symphony') {
+            } else if (plan.layer === 'bass' && ctx.template?.id === 'ensemble.symphony' && textureForType(ctx, sectionTypeNameAtBar(ctx, bar)).style.bassPizz) {
               // Phase 4e: pizz-pulse on the strong beats under pads and lines
+              // (4.6: only in the textures whose Cb axis is pizz, not sustained)
               if (dpPitch === null) continue;
               const offsets = beatOffsets(ctx.project.timeSignature);
               const nBeats = offsets.length;
@@ -452,7 +512,7 @@ export const stringsModule: SectionModule = {
                 notesByTrackId[trackId].push({ pitch: dpPitch, startTick: t, durationTicks: Math.min(shortTicks, e - t), velocity, articulation: 'pizz' });
               });
             } else if (dpPitch !== null) {
-              // pad / bass (sustained outside the symphony pizz preset)
+              // pad / bass (sustained outside the symphony pizz textures)
               pushDPNote(notesByTrackId[trackId], dpPitch, s, e, velocity, reattack);
             }
           }

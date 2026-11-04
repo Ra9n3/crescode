@@ -22,13 +22,32 @@ const track = (p: Project, role: string) => p.tracks.find((t) => t.role === role
 const BT = 3840; // 4/4 bar at 960 PPQ
 
 describe('cinematic preset (4e): ostinato + measured tremolo', () => {
-  const { project, result } = compose('ensemble.cinematic');
+  /** 4.6: the ostinato style is part of the drawn texture. The trailer
+   *  texture (V2+Vla 16th spiccato, both tracks) is the only 16th one —
+   *  scan takes for one whose Chorus drew it and pin the 4e contract there. */
+  const composeTrailerChorus = () => {
+    for (let t = 0; t < 40; t++) {
+      const p = BASE();
+      p.ensemble = { templateId: 'ensemble.cinematic', overrides: {}, pins: {} };
+      p.orchestration = { take: t };
+      const composed = composeAllTracks(p, { seed: 11 });
+      const tex = Object.fromEntries(composed.reports.find((r) => r.startsWith('textures'))!.split(': ')[1].split(', ').map((kv) => kv.split('='))) as Record<string, string>;
+      if (tex.chorus === 'trailer') {
+        return { project: { ...p, tracks: composed.tracks } as Project, result: composed, tex, take: composed.orchestration.take };
+      }
+    }
+    throw new Error('no take in 0..39 drew a trailer chorus');
+  };
+
+  const { project, result, tex, take } = composeTrailerChorus();
   const spans = chordSpans(project);
   const step = subdivisionTicks({ numerator: 4, denominator: 4 });
+  const CHORUS_FROM = 8 * BT; // the dorian fixture's Chorus starts at bar 9
 
-  it('V2 + Vla play chord tones on the subdivision grid, spiccato-length, viola under V2', () => {
-    const v2 = track(project, 'violins2').notes;
-    const vla = track(project, 'violas').notes;
+  it('V2 + Vla play chord tones on the subdivision grid, spiccato-length, viola under V2 (trailer chorus)', () => {
+    expect(tex.chorus).toBe('trailer');
+    const v2 = track(project, 'violins2').notes.filter((n) => n.startTick >= CHORUS_FROM);
+    const vla = track(project, 'violas').notes.filter((n) => n.startTick >= CHORUS_FROM);
     expect(v2.length).toBeGreaterThan(50);
     expect(vla.length).toBeGreaterThan(50);
     const lt = leadingTonePcOf(project.key, scalePitchClasses(project.key, project.mode));
@@ -48,6 +67,7 @@ describe('cinematic preset (4e): ostinato + measured tremolo', () => {
         if (a.startTick === b.startTick) expect(b.pitch).toBeLessThan(a.pitch);
       }
     }
+    console.log(`Phase 4e report (4.6 trailer take ${take}, textures ${JSON.stringify(tex)}): cinematic V2+Vla chorus ostinato ${v2.length}+${vla.length} notes (rate ${step} ticks)`);
     void result;
   });
 
@@ -117,8 +137,24 @@ describe('cinematic preset (4e): ostinato + measured tremolo', () => {
 });
 
 describe('symphony preset (4e): cellosBasses pizz-pulse', () => {
-  const { project } = compose('ensemble.symphony');
-  it('short pizz notes on the strong beats (1 and 3), nothing else', () => {
+  /** 4.6: the Cb axis (pizz vs sustained) is part of the drawn texture —
+   *  scan takes for one whose every section type drew a pizz-bass texture. */
+  const composeAllPizz = () => {
+    for (let t = 0; t < 24; t++) {
+      const p = BASE();
+      p.ensemble = { templateId: 'ensemble.symphony', overrides: {}, pins: {} };
+      p.orchestration = { take: t };
+      const composed = composeAllTracks(p, { seed: 11 });
+      const tex = Object.fromEntries(composed.reports.find((r) => r.startsWith('textures'))!.split(': ')[1].split(', ').map((kv) => kv.split('='))) as Record<string, string>;
+      if (Object.values(tex).every((v) => v.endsWith('PizzBass'))) {
+        return { project: { ...p, tracks: composed.tracks } as Project, take: composed.orchestration.take };
+      }
+    }
+    throw new Error('no take drew an all-pizz-bass symphony plan');
+  };
+
+  it('short pizz notes on the strong beats (1 and 3), nothing else, in an all-pizz take', () => {
+    const { project, take } = composeAllPizz();
     const cb = track(project, 'cellosBasses').notes;
     expect(cb.length).toBeGreaterThan(10);
     for (const n of cb) {
@@ -126,6 +162,25 @@ describe('symphony preset (4e): cellosBasses pizz-pulse', () => {
       expect([0, 2 * 960]).toContain(n.startTick % BT); // beats 1 and 3 in 4/4
       expect(n.durationTicks).toBeLessThan(960);
     }
+    console.log(`symphony pizz-pulse verified on take ${take}`);
+  });
+
+  it('the sustained-bass textures really are sustained: no pizz in the cellosBasses (4.6 axis)', () => {
+    let seen = false;
+    for (let t = 0; t < 24 && !seen; t++) {
+      const p = BASE();
+      p.ensemble = { templateId: 'ensemble.symphony', overrides: {}, pins: {} };
+      p.orchestration = { take: t };
+      const composed = composeAllTracks(p, { seed: 11 });
+      const tex = Object.fromEntries(composed.reports.find((r) => r.startsWith('textures'))!.split(': ')[1].split(', ').map((kv) => kv.split('='))) as Record<string, string>;
+      if (Object.values(tex).every((v) => v.endsWith('SustainedBass'))) {
+        seen = true;
+        for (const n of track({ ...p, tracks: composed.tracks } as Project, 'cellosBasses').notes) {
+          expect(n.articulation).toBe('legato');
+        }
+      }
+    }
+    expect(seen).toBe(true); // the sustained axis exists in the palette and lands
   });
 });
 

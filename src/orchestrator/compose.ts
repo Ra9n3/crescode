@@ -20,6 +20,7 @@ import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
 import { resolveTemplate } from '../config/ensembles';
 import { chordSpans, sectionMap, orchestrationSeedFor, energyCurve } from './spine';
 import { stringsModule, stringVoiceTracks, prepareStrings, maybeLayerCellosBasses } from './render';
+import { textureForType, sectionTypeKeyOf } from './conductor/layers';
 import { conduct, type ConductorPlan } from './conductor';
 import { governPadVelocities } from './energy/mix';
 import type { OrchestratorContext } from './module';
@@ -67,6 +68,9 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   // Phase 4b: prepare the lines (motif + counterline + constrained voicing)
   // once per compose — the per-section render calls slice the result
   ctx.lines = prepareStrings(ctx, orchestration.take);
+  // Phase 4.6: which texture each section type drew this take (the plan report)
+  const typeOrder = [...new Set(ctx.sections.map((s) => sectionTypeKeyOf(s.name)))];
+  ctx.lines.reports.push(`textures (take ${orchestration.take}): ${typeOrder.map((t) => `${t}=${textureForType(ctx, t).id}`).join(', ')}`);
   // the conductor's breaths ride into the strings plans per track (3a)
   const plans = stringsModule.roles(ctx).map((pl) => ({
     ...pl,

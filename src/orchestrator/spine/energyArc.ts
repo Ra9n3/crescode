@@ -13,7 +13,10 @@
  *     the clamp max and rises linearly to 100% of the clamp by its last bar
  *     before the final taper (never clipped flat to the clamp) — while every
  *     other section caps at PEAK_RESERVE of the clamp, so exactly one section
- *     ever owns the top of the dynamic range.
+ *     ever owns the top of the dynamic range. Phase 5a: the non-peak choruses
+ *     do not sit on that reserve together — they STAIRCASE across the song,
+ *     the first at CHORUS_STAIRCASE_OPEN of the clamp and the last non-peak
+ *     chorus at CHORUS_STAIRCASE_TOP, linear in between.
  *
  * Per-take variation (3d) is seeded per D8: the shape parameters (build
  * strength, dip depth, taper lengths) are drawn from a stream derived from
@@ -64,6 +67,16 @@ export const PEAK_RESERVE = 0.88;
  * The peak is shaped, never clipped flat to the clamp.
  */
 export const PEAK_OPEN = 0.85;
+
+/**
+ * Chorus staircase (Phase 5a): the non-peak choruses ramp across the song
+ * instead of all capping at PEAK_RESERVE. With n chorus-like sections before
+ * the peak, the first caps at CHORUS_STAIRCASE_OPEN of the clamp max and the
+ * last non-peak chorus at CHORUS_STAIRCASE_TOP, linear in between (a single
+ * non-peak chorus sits at the top share). The peak itself is unchanged.
+ */
+export const CHORUS_STAIRCASE_OPEN = 0.70;
+export const CHORUS_STAIRCASE_TOP = 0.85;
 
 /**
  * The peak section: the last chorus-like section by start bar, else the last
@@ -169,6 +182,20 @@ export function energyCurve(p: Project, sections: SpineSection[], take: number, 
       }
       const cap = PEAK_RESERVE * clampMax;
       for (const b of out) if (b.sectionId !== peak.id) b.target = Math.min(b.target, cap);
+      // Phase 5a staircase: the non-peak choruses ramp toward the peak — the
+      // first at CHORUS_STAIRCASE_OPEN of the clamp, the last non-peak chorus
+      // at CHORUS_STAIRCASE_TOP, linear in between (tighter than the reserve
+      // cap above, so this is the binding cap for every non-peak chorus).
+      const chorusSecs = [...sections]
+        .sort((a, b) => a.startBar - b.startBar)
+        .filter((s) => CHORUS_LIKE.test(s.name.trim().toLowerCase()) && s.id !== peak.id);
+      chorusSecs.forEach((sec, k) => {
+        const share = chorusSecs.length > 1
+          ? CHORUS_STAIRCASE_OPEN + ((CHORUS_STAIRCASE_TOP - CHORUS_STAIRCASE_OPEN) * k) / (chorusSecs.length - 1)
+          : CHORUS_STAIRCASE_TOP;
+        const chorusCap = share * clampMax;
+        for (const b of out) if (b.sectionId === sec.id) b.target = Math.min(b.target, chorusCap);
+      });
       for (const b of out) if (b.nearSilence) b.target = 0;
     }
   }

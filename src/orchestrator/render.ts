@@ -115,6 +115,10 @@ export interface StringLines {
   carrierByBar: (string | null)[];
   /** The counterline and its track (null when no track carries it). */
   counter: { trackId: string; notes: Note[] } | null;
+  /** Phase 7/8: the soli-lead carrier's own line over its bars (only where
+   *  the texture line has no notes there). Rides beside the DP — it never
+   *  feeds the voicing fixes or the pad's pc constraints. */
+  soliLineByTrackId: Record<string, Note[]>;
   /** Span ids whose fixed lines had to be dropped: they render as pure pad. */
   fallbackSpanIds: Set<string>;
   /** The DP's voicing, one entry per chord span, voices in voiceTrackIds order. */
@@ -136,24 +140,26 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
   const voiceIndex = new Map(voiceTrackIds.map((id, i) => [id, i]));
   const assignment = assignStringLayers(ctx);
   const reports: string[] = [];
-
-  // the counterline track: the topmost voice carrying the role.
-  const barsWithLayer = (trackId: string, layer: StringsLayer) =>
-    assignment.bars.filter((b) => b.byTrack[trackId] === layer).length;
-  const counterTrack = [...voices].reverse().find((v) => barsWithLayer(v.id, 'counterline') > 0) ?? null;
+  // Phase 8: the counterline is drawn over the PURE TEXTURE counterline bars
+  // — identical with and without the moments — and the moment bars override
+  // the RENDERING through their layer (unison/tacet/imitation), exactly the
+  // imitation pattern (generate as usual, swap the bars' notes afterwards).
+  // The moment-aware assignment still owns the rendered layer plan below.
+  const textureAssignment = assignStringLayers(ctx, true);
+  const counterTrack = [...voices].reverse().find((v) => textureAssignment.bars.filter((b) => b.byTrack[v.id] === 'counterline').length > 0) ?? null;
   const comfyOf = (trackId: string): [number, number] => {
     const t = ctx.project.tracks.find((x) => x.id === trackId)!;
     const prof = STRING_PROFILE_BY_ROLE.get(t.role);
     return prof ? [Math.max(t.lowestNote, Math.min(t.highestNote, prof.comfortable[0])), Math.max(t.lowestNote, Math.min(t.highestNote, prof.comfortable[1]))] : [t.lowestNote, t.highestNote];
   };
 
-  // Phase 4.6: the tune carrier per bar comes from the drawn texture — a
-  // handoff texture moves the lead to V2/Vla/Cb for whole section types.
-  // Each carrier gets its own motif line over ITS bars (the same take seed,
-  // so a handed-off chorus states the same cell in the new voice's window).
-  const carrierByBar = assignment.bars.map((b) => tuneCarrierForBar(ctx, b.bar));
+  // Phase 8: ONE carrier map — the PURE TEXTURE plan. The moments render ON
+  // top of it (the soli carrier's own line is built separately below), so the
+  // voicing, the lines and the doubles outside the moment bars stay byte-
+  // identical to a no-moments take.
+  const carrierByBar = textureAssignment.bars.map((b) => tuneCarrierForBar(ctx, b.bar, true));
   const carrierBars = new Map<string, number[]>();
-  assignment.bars.forEach((b, i) => {
+  textureAssignment.bars.forEach((b, i) => {
     const c = carrierByBar[i];
     if (!c) return;
     const arr = carrierBars.get(c);
@@ -167,8 +173,24 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
     }))
     .filter((l) => l.notes.length);
   const lead = [...voices].reverse().map((v) => leads.find((l) => l.trackId === v.id)).find((x) => x) ?? null; // topmost carrier
-  const counterBars = new Set(assignment.bars.filter((b) => counterTrack && b.byTrack[counterTrack.id] === 'counterline').map((b) => b.bar));
 
+  // Phase 7/8: the soli-lead carrier's line over ITS bars — built only when
+  // the texture line has no notes there (a soli on bars the carrier does not
+  // carry in the texture; when it does, the texture line IS the motif the
+  // soli plays). Rides beside the DP like the div2 line: it never feeds the
+  // voicing fixes or the pad's pc constraints, so the DP never sees it.
+  const soliLineByTrackId: Record<string, Note[]> = {};
+  for (const m of ctx.moments ?? []) {
+    if (m.kind !== 'soli' || m.flavor !== 'lead' || !m.carrierTrackId) continue;
+    const entry = leads.find((l) => l.trackId === m.carrierTrackId);
+    if (entry?.notes.some((n) => n.startTick < m.endTick && n.startTick + n.durationTicks > m.startTick)) continue;
+    const bars: number[] = [];
+    for (let b = m.startBar; b <= m.endBar; b++) bars.push(b);
+    const notes = motifLine({ project: ctx.project, spans: ctx.spans, sections: ctx.sections, leadBars: new Set(bars), comfortable: comfyOf(m.carrierTrackId), take });
+    if (notes.length) soliLineByTrackId[m.carrierTrackId] = [...(soliLineByTrackId[m.carrierTrackId] ?? []), ...notes];
+  }
+
+  const counterBars = new Set(textureAssignment.bars.filter((b) => counterTrack && b.byTrack[counterTrack.id] === 'counterline').map((b) => b.bar));
   const counterNotes = counterTrack
     ? counterlineLine({
         project: ctx.project, spans: ctx.spans, counterBars, lead: lead?.notes ?? [],
@@ -176,7 +198,10 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
         leadingTonePc: leadingTonePcOf(ctx.project.key, scalePitchClasses(ctx.project.key, ctx.project.mode)),
       })
     : [];
-  const counter = counterTrack && counterNotes.length ? { trackId: counterTrack.id, notes: counterNotes } : null;
+
+  // the DP's carrier/counterline fixes and the pad's pc constraints all read
+  // this pure texture plan — identical with and without the moments
+  const textureCounter = counterTrack && counterNotes.length ? { trackId: counterTrack.id, notes: counterNotes } : null;
 
   // per-span fixes: a voice is fixed to the line's lowest pitch across the
   // span (the DP's other voices must fit strictly under it), or rests when
@@ -203,14 +228,9 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
     return mp === null ? { kind: 'rest' } : { kind: 'pitch', pitch: mp };
   };
 
-  // Phase 7: soli-lead carriers do NOT pin DP fixes — their bars render from
-  // the motif line directly (the moment branch), so the voicing outside the
-  // moment's bars stays byte-identical to a no-moments take.
-  const isSoliCarrier = (trackId: string, bars: number[]): boolean =>
-    bars.length > 0 && bars.every((b) => {
-      const m = momentForBar(ctx.moments, b);
-      return m?.kind === 'soli' && m.flavor === 'lead' && m.carrierTrackId === trackId;
-    });
+  // Phase 7: soli-lead carriers render their bars from the motif line
+  // directly (the moment branch), never from the DP — the DP itself never
+  // sees the moment (Phase 8: its fixes read the pure texture plan above).
 
   // which spans fell back: every span whose constraints had to be dropped —
   // detected by DELETION, never by the final voicing coincidentally matching
@@ -221,14 +241,12 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
   for (const s of ctx.spans) {
     const arr: (VoiceFix | undefined)[] = new Array(voices.length).fill(undefined);
     for (const l of leads) {
-      // the carrier is planned wherever THE TEXTURE gives it the tune (the
-      // layer may read 'tremolo' on the cinematic threshold bars) — except a
-      // soli carrier (Phase 7): its bars render from the line, not the DP
-      const carrierBarsHere = assignment.bars.filter((b) => carrierByBar[b.bar - 1] === l.trackId).map((b) => b.bar);
-      if (isSoliCarrier(l.trackId, carrierBarsHere)) continue;
+      // the carrier is pinned wherever the pure TEXTURE gives it the tune —
+      // the moments annotate beside the voicing (Phase 8): the fix set is
+      // identical with and without them, so the DP never moves for a moment
       arr[voiceIndex.get(l.trackId)!] = fixFor(l.trackId, (b) => carrierByBar[b - 1] === l.trackId, l.notes, s);
     }
-    if (counter) arr[voiceIndex.get(counter.trackId)!] = fixFor(counter.trackId, (b) => assignment.bars[b - 1]?.byTrack[counter.trackId] === 'counterline', counter.notes, s);
+    if (textureCounter) arr[voiceIndex.get(textureCounter.trackId)!] = fixFor(textureCounter.trackId, (b) => textureAssignment.bars[b - 1]?.byTrack[textureCounter.trackId] === 'counterline', textureCounter.notes, s);
     if (arr.some((x) => x !== undefined)) pending.set(s.id, arr);
   }
 
@@ -238,7 +256,10 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
   const linePcsBySpan = new Map<string, Set<number>>();
   for (const s of ctx.spans) {
     const pcs = new Set<number>();
-    for (const line of [...leads.map((l) => l.notes), counter?.notes]) {
+    // Phase 8: the pad's voicing constraints read the pure TEXTURE lines
+    // (the texture leads + the free counterline) — identical with and without
+    // the moments, so the DP path never moves for a moment
+    for (const line of [...leads.map((l) => l.notes), textureCounter?.notes]) {
       if (!line) continue;
       for (const n of line) {
         if (n.startTick < s.endTick && n.startTick + n.durationTicks > s.startTick) pcs.add(((n.pitch % 12) + 12) % 12);
@@ -376,6 +397,7 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
     lead,
     leads,
     carrierByBar,
+    soliLineByTrackId,
     counter: counterTrack && counterFinal.length ? { trackId: counterTrack.id, notes: counterFinal } : null,
     fallbackSpanIds: new Set(fallbacks),
     voiced,
@@ -535,7 +557,13 @@ export const stringsModule: SectionModule = {
             const len = e - s;
             if (len < minDuration) continue;
             const velocity = Math.max(1, Math.min(127, Math.round(1 + (cap - 1) * targetOf(s, e))));
-            const carrierHere = lines.leads.find((l) => l.trackId === trackId);
+            // the soli-lead carrier plays its own line over the moment's bars
+            // (Phase 8: built beside the DP — see prepareStrings); every other
+            // carrier reads the texture line
+            const soliMoment = momentForBar(ctx.moments, bar);
+            const carrierHere = soliMoment?.kind === 'soli' && soliMoment.flavor === 'lead' && soliMoment.carrierTrackId === trackId && lines.soliLineByTrackId[trackId]
+              ? { trackId, notes: lines.soliLineByTrackId[trackId] }
+              : lines.leads.find((l) => l.trackId === trackId);
             if (plan.layer === 'tutti') {
               // Phase 7: the whole section hits one chord on the downbeat —
               // marcato accent, then the drawn shape inside the bar (hold:

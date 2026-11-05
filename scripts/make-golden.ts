@@ -18,7 +18,7 @@ const compose = (fixtureFile: string, templateId: string, take: number): Project
   const project: Project = projectFromFixture(JSON.parse(readFileSync(fixtureFile, 'utf8')));
   project.ensemble = { templateId, overrides: {}, pins: {} };
   project.orchestration = { take };
-  const result = composeAllTracks(project, { seed: 11 });
+  const result = composeAllTracks(project, { seed: 11, moments: false });
   return { ...project, tracks: result.tracks, orchestration: result.orchestration } as Project;
 };
 

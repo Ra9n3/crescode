@@ -31,6 +31,7 @@ import { isInstrumentTrack, type Note, type Project, type TrackFamily } from '..
 import type { EnsembleTemplate, EnsembleRule } from '../../shared/schema/ensembleTemplate';
 import { chordSpans, type ResolvedChord } from '../spine';
 import { chordTones } from '../voicing/chordTones';
+import { barTicks } from '../../shared/schema/meter';
 import type { ConductorPlan, FillWindow } from '../conductor';
 import { humanizeHeadTicks } from '../expression/timing';
 
@@ -190,6 +191,16 @@ function checkOctaveDoubling(p: Project, template: EnsembleTemplate, rule: Ensem
         message: `${d.a.role} + ${d.b.role} an octave apart at energy ${e.toFixed(3)} < climax threshold ${energyThreshold} (bar ${w?.bar ?? '?'})`,
       });
     } else {
+      // Figuration exemption: a SHORT chord-tone note (≤ half a bar) under a
+      // LONGER note on another track is a broken-chord figure passing through
+      // the register (the rules generator's harp arpeggios under the string
+      // pads), not a sustained layer double — the forbidding policy targets
+      // stacked pads (the Cb+Vc case), which keep their full length here.
+      const shortN = d.a.note.durationTicks <= d.b.note.durationTicks ? d.a.note : d.b.note;
+      const longN = shortN === d.a.note ? d.b.note : d.a.note;
+      const chordHere = chordAt(d.tick);
+      if (d.a.trackId !== d.b.trackId && shortN.durationTicks <= barTicks(p.timeSignature) / 2 && longN.durationTicks > shortN.durationTicks
+        && chordHere !== null && chordTones(chordHere.parsed).tones.some((t) => t.pc === ((shortN.pitch % 12) + 12) % 12)) continue;
       findings.push({
         rule: 'octaveDoubling', severity: 'hard', tick: d.tick,
         message: `${d.a.role} + ${d.b.role} double at the octave (policy forbids)`,

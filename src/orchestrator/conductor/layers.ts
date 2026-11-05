@@ -387,12 +387,17 @@ export function textureForType(ctx: OrchestratorContext, typeName: string): Text
 
 /** The track carrying the tune in this bar (the drawn texture's lead role,
  *  or null in lead-free sections — the motif arrives with the first phrase).
- *  Phase 7: a soli moment's carrier carries the tune for its bars. */
-export function tuneCarrierForBar(ctx: OrchestratorContext, bar: number): string | null {
+ *  Phase 7: a soli moment's carrier carries the tune for its bars.
+ *  `ignoreMoments` reads the pure texture plan (the DP's voicing fixes use
+ *  it, so the voicing outside the moment's bars stays byte-identical to a
+ *  no-moments take — Phase 8). */
+export function tuneCarrierForBar(ctx: OrchestratorContext, bar: number, ignoreMoments = false): string | null {
   const sec = ctx.sections.find((s) => bar >= s.startBar && bar < s.startBar + s.lengthBars);
   if (!sec || LEAD_FREE_SECTIONS.test(sec.name.trim().toLowerCase())) return null;
-  const moment = ctx.moments?.find((m) => bar >= m.startBar && bar <= m.endBar);
-  if (moment && moment.kind === 'soli' && moment.flavor === 'lead') return moment.carrierTrackId ?? null;
+  if (!ignoreMoments) {
+    const moment = ctx.moments?.find((m) => bar >= m.startBar && bar <= m.endBar);
+    if (moment && moment.kind === 'soli' && moment.flavor === 'lead') return moment.carrierTrackId ?? null;
+  }
   const tex = textureForType(ctx, sectionTypeNameAtBar(ctx, bar));
   const role = Object.keys(tex.plan).find((r) => tex.plan[r] === 'lead');
   if (!role) return null;
@@ -435,15 +440,17 @@ export function stringLayerForBar(ctx: OrchestratorContext, bar: number, trackId
   return thresholded; // divisi: the texture layer stands; the second line rides beside it
 }
 
-/** The whole assignment, bar by bar: trackId → layer. Deterministic. */
-export function assignStringLayers(ctx: OrchestratorContext): { bars: { bar: number; byTrack: Record<string, StringsLayer> }[] } {
+/** The whole assignment, bar by bar: trackId → layer. Deterministic.
+ *  `ignoreMoments` reads the pure texture plan (the DP's voicing fixes use
+ *  it — the moments annotate beside it, never inside the voicing). */
+export function assignStringLayers(ctx: OrchestratorContext, ignoreMoments = false): { bars: { bar: number; byTrack: Record<string, StringsLayer> }[] } {
   const voices = stringVoiceTracks(ctx);
   const bars = ctx.arc?.length ?? 0;
   const out: { bar: number; byTrack: Record<string, StringsLayer> }[] = [];
   for (let bar = 1; bar <= bars; bar++) {
     const byTrack: Record<string, StringsLayer> = {};
     for (const v of voices) {
-      const layer = stringLayerForBar(ctx, bar, v.id);
+      const layer = stringLayerForBar(ctx, bar, v.id, ignoreMoments);
       if (layer) byTrack[v.id] = layer;
     }
     out.push({ bar, byTrack });

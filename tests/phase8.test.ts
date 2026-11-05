@@ -1,0 +1,267 @@
+import { describe, expect, it } from 'vitest';
+import threeChorus from '../fixtures/three-chorus-40bars.json';
+import dorian from '../fixtures/dorian-16bars.json';
+import { composeAllTracks } from '../src/orchestrator/compose';
+import { checkTemplateRules } from '../src/orchestrator/energy';
+import { projectFromFixture, validateProject, type Note, type Project, type Track } from '../src/shared/schema';
+import { resolveTemplate } from '../src/config/ensembles';
+import { sanitizeNotes } from '../src/engine/generate';
+import { chunksForTrack, mergeTremoloGroups, TREMOLO_GROUP_MAX_STEP_TICKS, resolveArticulationKeyFor } from '../src/export/profile';
+import { EXPORT_PROFILES } from '../src/export/profiles';
+import { planTrackNotes } from '../src/audio/mapping';
+
+/**
+ * Phase 8 — post-moments hardening, four answers:
+ *   1. the vocalbacking hard findings are a FALSE POSITIVE (a short chord-tone
+ *      figuration note under a longer sustained note is not a layer double):
+ *      the checker exempts exactly that shape, so all six templates × takes 1–10
+ *      report ZERO hard findings; the exemption is pinned narrow by unit tests.
+ *   2. divisi in exports (UVI profile): keyswitches unduplicated/misplaced-free,
+ *      the per-pitch tremolo merge keeps both divisi lines, cbLayer 'omit' and
+ *      the range guard drop nothing, the preview plans both lines.
+ *   3. soft findings (overlapAvoid, octaveDoubling climaxOnly) do not RISE with
+ *      moments on (pinned ≤ the moments:false counts; numbers printed).
+ *   4. humanize/legato jitter is seeded PER NOTE (track, start, pitch) and the
+ *      legato overlap PER JOIN, so every note outside the moment bars is
+ *      byte-identical to the moments:false run.
+ */
+const TEMPLATES = ['ensemble.symphony', 'ensemble.chamber', 'ensemble.cinematic', 'ensemble.sonata', 'ensemble.vocalbacking', 'ensemble.hybridstudio'];
+const PROFILE = EXPORT_PROFILES[0].profile;
+const THREE = (): Project => projectFromFixture(JSON.parse(JSON.stringify(threeChorus)));
+const DORIAN = (): Project => projectFromFixture(JSON.parse(JSON.stringify(dorian)));
+
+const composeTake = (base: Project, templateId: string, take: number, moments = true) => {
+  const p = base;
+  p.ensemble = { templateId, overrides: {}, pins: {} };
+  p.orchestration = { take };
+  const result = composeAllTracks(p, { seed: 11, moments });
+  return { project: { ...p, tracks: result.tracks, orchestration: result.orchestration } as Project, result };
+};
+
+const noteSig = (n: Note): string =>
+  JSON.stringify([n.pitch, n.startTick, n.durationTicks, n.velocity, n.articulation ?? null, (n as { layer?: string }).layer ?? null]);
+
+describe('Phase 8: 1 — the vocalbacking hard findings (figuration exemption)', () => {
+  it('zero hard findings across all six templates × takes 1–10 (three-chorus) and 1–6 (dorian)', () => {
+    const lines: string[] = [];
+    for (const templateId of TEMPLATES) {
+      for (const [fixN, fix] of [['three', THREE], ['dorian', DORIAN]] as const) {
+        const takes = fixN === 'three' ? 10 : 6;
+        for (let take = 1; take <= takes; take++) {
+          const { project, result } = composeTake(fix(), templateId, take, true);
+          const findings = checkTemplateRules(project, resolveTemplate({ templateId, overrides: {}, pins: {} })!, result.plan);
+          const hard = findings.filter((f) => f.severity === 'hard');
+          expect(hard, `${templateId} ${fixN} t${take}: ${hard.map((f) => `${f.rule}@${f.tick} ${f.message}`).join(' | ')}`).toHaveLength(0);
+          expect(validateProject(JSON.parse(JSON.stringify(project))).ok, `${templateId} ${fixN} t${take} validates`).toBe(true);
+        }
+      }
+      lines.push(templateId);
+    }
+    console.log(`PHASE8 hard findings: 0 across ${lines.length} templates × all takes (figuration exemption active)`);
+  }, 600000);
+
+  it('the exemption is narrow: long+long still hard, short non-chord-tone still hard, same-track still hard', () => {
+    // built on the composed vocalbacking take 1: overwrite two tracks' notes
+    // and silence the rest of the roster (so the D10 forced-doubling
+    // exemption — voices outnumbering the chord's tones — cannot kick in)
+    const { project } = composeTake(THREE(), 'ensemble.vocalbacking', 1, false);
+    const template = resolveTemplate({ templateId: 'ensemble.vocalbacking', overrides: {}, pins: {} })!;
+    for (const role of ['violins1', 'violas', 'cellosBasses', 'piano']) {
+      const t = project.tracks.find((x) => x.role === role)! as Track;
+      t.notes = [];
+    }
+    const setNotes = (role: string, notes: Note[]) => {
+      const t = project.tracks.find((x) => x.role === role)! as Track;
+      t.notes = notes;
+    };
+    const n = (pitch: number, start: number, dur: number): Note => ({ pitch, startTick: start, durationTicks: dur, velocity: 64 });
+
+    // long pad + long pad an octave apart (the Cb+Vc class): HARD
+    setNotes('violins2', [n(81, 0, 3840)]);
+    setNotes('harp', [n(69, 0, 3840)]);
+    expect(checkTemplateRules(project, template).some((f) => f.rule === 'octaveDoubling' && f.severity === 'hard')).toBe(true);
+
+    // short chord-tone figuration under the same long pad: EXEMPT
+    setNotes('harp', [n(69, 0, 456), n(72, 480, 456)]);
+    expect(checkTemplateRules(project, template).filter((f) => f.rule === 'octaveDoubling')).toHaveLength(0);
+
+    // TWO short notes an octave apart (two figurations colliding): still HARD —
+    // the exemption needs one sustained side (longer than the short note)
+    setNotes('violins2', [n(81, 0, 456)]);
+    setNotes('harp', [n(69, 0, 456)]);
+    const bothShort = checkTemplateRules(project, template).filter((f) => f.rule === 'octaveDoubling');
+    expect(bothShort.length).toBe(1);
+    expect(bothShort[0].severity).toBe('hard');
+
+    // same track, short vs long (the Cb+Vc inside one track): still HARD
+    setNotes('harp', []);
+    setNotes('violins2', [n(81, 0, 456), n(69, 0, 3840)]);
+    expect(checkTemplateRules(project, template).some((f) => f.rule === 'octaveDoubling' && f.severity === 'hard')).toBe(true);
+  });
+});
+
+describe('Phase 8: 4 — per-note seeding: notes outside moment bars are byte-identical', () => {
+  it('every note whose end does not reach into a moment bar is identical to the moments:false run (6 templates × takes 1–10)', () => {
+    let checked = 0;
+    for (const templateId of TEMPLATES) {
+      for (let take = 1; take <= 10; take++) {
+        const withM = composeTake(THREE(), templateId, take, true);
+        const withoutM = composeTake(THREE(), templateId, take, false);
+        const covered = new Set<number>();
+        for (const m of withM.result.plan.moments) for (let b = m.startBar; b <= m.endBar; b++) covered.add(b);
+        const btBar = 3840;
+        const inMoment = (tick: number) => covered.has(Math.floor(tick / btBar) + 1);
+        for (const t of withM.project.tracks) {
+          const other = withoutM.project.tracks.find((x) => x.id === t.id);
+          if (!other) continue;
+          const bNotes = other.notes.filter((n) => !inMoment(n.startTick));
+          const bByKey = new Map(bNotes.map((n) => [`${n.pitch}@${n.startTick}`, n]));
+          for (const n of t.notes) {
+            if (inMoment(n.startTick)) continue;
+            const o = bByKey.get(`${n.pitch}@${n.startTick}`);
+            // a note whose written end reaches into a moment bar may join into
+            // the moment's entry (the bow-change crossfade) — its TAIL is part
+            // of rendering the moment; everything else is byte-identical
+            const tailIntoMoment = inMoment(n.startTick + n.durationTicks);
+            expect(o, `${templateId} t${take} ${t.id} ${n.pitch}@${n.startTick} appears from nowhere`).toBeDefined();
+            if (o && !tailIntoMoment) {
+              expect(noteSig(n), `${templateId} t${take} ${t.id} ${n.pitch}@${n.startTick}`).toBe(noteSig(o));
+              checked++;
+            }
+          }
+        }
+      }
+    }
+    console.log(`PHASE8 jitter identity: ${checked} notes outside moment bars byte-identical to the moments:false runs`);
+    expect(checked).toBeGreaterThan(40000);
+  }, 300000);
+
+  it('humanize jitter is a pure function of (track, start, pitch): identical inputs, identical offsets', () => {
+    // two runs of the SAME take compose byte-identically (the per-note hash)
+    const a = composeTake(THREE(), 'ensemble.cinematic', 3, true);
+    const b = composeTake(THREE(), 'ensemble.cinematic', 3, true);
+    expect(JSON.stringify(a.project.tracks.map((t) => t.notes))).toBe(JSON.stringify(b.project.tracks.map((t) => t.notes)));
+  });
+});
+
+describe('Phase 8: 2 — divisi in exports (UVI profile)', () => {
+  const foundDivisi: { templateId: string; take: number; run: ReturnType<typeof composeTake> }[] = [];
+  for (const templateId of ['ensemble.cinematic', 'ensemble.symphony']) {
+    for (let take = 1; take <= 10; take++) {
+      const run = composeTake(THREE(), templateId, take, true);
+      if (run.result.plan.moments.some((m) => m.kind === 'divisi')) foundDivisi.push({ templateId, take, run });
+    }
+  }
+  expect(foundDivisi.length, 'the cinematic+symphony takes contain divisi moments').toBeGreaterThan(0);
+
+  it('keyswitches are not duplicated, end before their triggers, and match the emit-on-change rules — divisi parts included', () => {
+    for (const { templateId, take, run } of foundDivisi) {
+      const divis = run.result.plan.moments.filter((m) => m.kind === 'divisi');
+      for (const m of divis) {
+        const track = run.project.tracks.find((t) => t.id === (m as { divTrackId?: string }).divTrackId)!;
+        const part = PROFILE.parts.find((pp) => pp.source.role === track.role && pp.source.layer !== 'cb')!;
+        const chunk = chunksForTrack(run.project, track, PROFILE).find((c) => c.channel === part.channel)!;
+        const ks = chunk.notes.filter((n) => n.pitch < part.lowestPlayable);
+        const keys = new Set<string>();
+        for (const k of ks) {
+          expect(keys.has(`${k.pitch}:${k.startTick}`), `${templateId} t${take} duplicate keyswitch ${k.pitch}@${k.startTick}`).toBe(false);
+          keys.add(`${k.pitch}:${k.startTick}`);
+          expect(k.startTick + k.durationTicks, `${templateId} t${take} keyswitch ${k.pitch}@${k.startTick} ends after its trigger`).toBeLessThanOrEqual(chunk.notes.find((n) => n.pitch >= part.lowestPlayable && n.startTick >= k.startTick + k.durationTicks - 1)!.startTick);
+        }
+        // the emit-on-change prediction over the part's merged notes
+        const mergedOnly = chunk.notes.filter((n) => n.pitch >= part.lowestPlayable).sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
+        let current: number | null = null;
+        let predicted = 0;
+        for (const nn of mergedOnly) {
+          const key = resolveArticulationKeyFor(part, nn.articulation ?? 'sustain', PROFILE.pitchConvention);
+          if (key === null) continue;
+          if (current !== key) { predicted++; current = key; }
+        }
+        expect(ks.length, `${templateId} t${take} ${part.id} keyswitch count ${ks.length} != emit-on-change ${predicted}`).toBe(predicted);
+      }
+    }
+  }, 300000);
+
+  it('the range guard and cbLayer omit drop nothing: every div2 note reaches the export chunk and survives sanitize', () => {
+    for (const { templateId, take, run } of foundDivisi) {
+      for (const m of run.result.plan.moments.filter((mm) => mm.kind === 'divisi')) {
+        const track = run.project.tracks.find((t) => t.id === (m as { divTrackId?: string }).divTrackId)!;
+        const part = PROFILE.parts.find((pp) => pp.source.role === track.role && pp.source.layer !== 'cb')!;
+        const chunk = chunksForTrack(run.project, track, PROFILE).find((c) => c.channel === part.channel)!;
+        const div2 = track.notes.filter((n) => n.layer === 'div2');
+        expect(div2.length, `${templateId} t${take} has div2 notes`).toBeGreaterThan(0);
+        const covered = (d: Note): boolean =>
+          chunk.notes.some((mm) => mm.pitch === d.pitch && mm.startTick <= d.startTick && mm.startTick + mm.durationTicks >= d.startTick + d.durationTicks);
+        for (const d of div2) {
+          expect(d.pitch >= track.lowestNote && d.pitch <= track.highestNote, `${templateId} t${take} div2 ${d.pitch} inside the track range`).toBe(true);
+          expect(covered(d), `${templateId} t${take} div2 ${d.pitch}@${d.startTick} in the ${part.id} chunk (cbLayer ${PROFILE.cbLayer})`).toBe(true);
+        }
+        expect(sanitizeNotes(track.notes, track.lowestNote, track.highestNote, 99999999)).toEqual(track.notes);
+      }
+    }
+  }, 300000);
+
+  it('the tremolo merge keeps the two divisi lines separate (per-pitch groups, no cross-pitch gluing)', () => {
+    for (const { templateId, take, run } of foundDivisi) {
+      for (const m of run.result.plan.moments.filter((mm) => mm.kind === 'divisi')) {
+        const track = run.project.tracks.find((t) => t.id === (m as { divTrackId?: string }).divTrackId)!;
+        const inMoment = (n: Note) => n.startTick < (m as { endTick: number }).endTick && n.startTick + n.durationTicks > (m as { startTick: number }).startTick;
+        const trem = track.notes.filter((n) => n.articulation === 'tremolo' && inMoment(n));
+        const pitches = new Set(trem.map((n) => n.pitch));
+        if (pitches.size < 2) continue; // pad divisi: no simultaneous repeat lines here
+        const merged = mergeTremoloGroups(track.notes.filter(inMoment));
+        // every original pitch survives the merge; no merged note spans two pitches (per construction)
+        const mergedPitches = new Set(merged.map((n) => n.pitch));
+        for (const pitch of pitches) expect(mergedPitches.has(pitch), `${templateId} t${take} tremolo pitch ${pitch} survives`).toBe(true);
+        // per-pitch group count == the independent per-pitch merge
+        for (const pitch of pitches) {
+          const line = trem.filter((n) => n.pitch === pitch).sort((a, b) => a.startTick - b.startTick);
+          let groups = 1;
+          for (let i = 1; i < line.length; i++) if (line[i].startTick - line[i - 1].startTick > TREMOLO_GROUP_MAX_STEP_TICKS) groups++;
+          const mergedLine = merged.filter((n) => n.pitch === pitch);
+          expect(mergedLine.length, `${templateId} t${take} pitch ${pitch}: ${mergedLine.length} merged groups != ${groups}`).toBe(groups);
+        }
+        console.log(`PHASE8 tremolo divisi ${templateId} t${take}: ${pitches.size} simultaneous pitches merge independently`);
+      }
+    }
+  }, 300000);
+
+  it('the preview plans both lines: every div2 note sounds (repeats may ride merged AM spans)', () => {
+    for (const { templateId, take, run } of foundDivisi) {
+      for (const m of run.result.plan.moments.filter((mm) => mm.kind === 'divisi')) {
+        const track = run.project.tracks.find((t) => t.id === (m as { divTrackId?: string }).divTrackId)!;
+        const plan = planTrackNotes(track, 'expressive');
+        const covered = (d: Note): boolean =>
+          plan.some((mm) => mm.pitch === d.pitch && mm.startTick <= d.startTick && mm.startTick + mm.durationTicks >= d.startTick + d.durationTicks);
+        for (const d of track.notes.filter((n) => n.layer === 'div2')) {
+          expect(covered(d), `${templateId} t${take} preview plans div2 ${d.pitch}@${d.startTick}`).toBe(true);
+        }
+      }
+    }
+  }, 300000);
+});
+
+describe('Phase 8: 3 — soft findings do not rise with moments on', () => {
+  it('overlapAvoid and octaveDoubling-climaxOnly counts (moments on) ≤ the moments:false counts', () => {
+    const tally = (moments: boolean) => {
+      let oa = 0, co = 0;
+      for (const templateId of TEMPLATES) {
+        for (const [fixN, fix] of [['three', THREE], ['dorian', DORIAN]] as const) {
+          const takes = fixN === 'three' ? 10 : 6;
+          for (let take = 1; take <= takes; take++) {
+            const { project, result } = composeTake(fix(), templateId, take, moments);
+            const findings = checkTemplateRules(project, resolveTemplate({ templateId, overrides: {}, pins: {} })!, result.plan);
+            oa += findings.filter((f) => f.rule === 'overlapAvoid').length;
+            co += findings.filter((f) => f.rule === 'octaveDoubling' && f.severity === 'soft').length;
+          }
+        }
+      }
+      return { oa, co };
+    };
+    const on = tally(true);
+    const off = tally(false);
+    console.log(`PHASE8 soft findings (moments on vs off): overlapAvoid ${on.oa} vs ${off.oa} (Δ${on.oa - off.oa}), climaxOnly ${on.co} vs ${off.co} (Δ${on.co - off.co})`);
+    expect(on.oa, 'overlapAvoid does not rise with moments').toBeLessThanOrEqual(off.oa);
+    expect(on.co, 'climaxOnly does not rise with moments').toBeLessThanOrEqual(off.co);
+  }, 600000);
+});

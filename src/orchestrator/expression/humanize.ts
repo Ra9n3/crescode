@@ -13,6 +13,13 @@
  * Tremolo notes take the section base WITHOUT per-note jitter (measured
  * repeats stay mechanical) and keep their velocity.
  *
+ * Seeding (per note): the per-note timing/velocity jitter and the Cb follow
+ * are hashed from the note's OWN identity (track, start, pitch) — never from
+ * a sequential stream. The draws are therefore independent of which OTHER
+ * notes exist, so a note outside the moment bars jitters identically whether
+ * the run planned moments or not (Phase 8). The per-section bases stay on
+ * the take stream: the section list never depends on the notes.
+ *
  * Velocity — a small seeded jitter (±VELOCITY_JITTER) that never lifts a
  * note above the governor cap for its windows: the cap is read from the
  * sounding-role count of every beat window the (shifted) note touches, the
@@ -62,6 +69,12 @@ const msToTicksAt = (ms: number, at: number, tempoMap: Project['tempoMap']): num
   return msToTicks(baseMs + ms, tempoMap) - msToTicks(baseMs, tempoMap);
 };
 
+/** The per-note jitter stream: hashed from the note's own identity (track,
+ *  position, pitch) so a note's jitter never depends on which other notes
+ *  exist (moments reorder nothing). */
+const noteRng = (salt: string, trackId: string, n: Note): () => number =>
+  mulberry32((hashString(`${salt}:${trackId}:${n.startTick}:${n.pitch}`) ^ 0x9e3779b9) >>> 0);
+
 /**
  * Humanizes the handed-in string notes. Pure: returns NEW note arrays (the
  * input maps are not mutated), deterministic per (inputs, take).
@@ -75,8 +88,9 @@ export function humanizeStrings(input: HumanizeInput): Record<string, Note[]> {
   const clampMax = template?.budget.energyClamp[1] ?? 1;
   const rosterSize = Math.max(1, template?.roster.length ?? 1);
 
-  // the take stream: one draw order — sections × groups, then notes in
-  // track/section/start order — everything derives from it deterministically
+  // the take stream: per-section base offsets only — the note draws are
+  // per-note hashes (see the header), so the base draws are the ONLY stream
+  // positions and they never depend on the notes
   const rng = mulberry32((orchestrationSeedFor(project, project.orchestration) ^ Math.imul(hashString('humanize'), 0x85ebca6b)) >>> 0);
 
   // per-section base offsets (ms): drawn so base ± jitter stays inside the range
@@ -165,7 +179,7 @@ export function humanizeStrings(input: HumanizeInput): Record<string, Note[]> {
       const sec = sectionOfTick(n.startTick);
       const base = isBass ? baseBass.get(sec.index)! : baseViolins.get(sec.index)!;
       const tremolo = n.articulation === 'tremolo';
-      const jitter = tremolo ? 0 : (rng() * 2 - 1) * TIMING_JITTER_MS;
+      const jitter = tremolo ? 0 : (noteRng('crescode:humanize-timing', trackId, n)() * 2 - 1) * TIMING_JITTER_MS;
       offsetMs.set(n, Math.min(range[1], Math.max(range[0], base + jitter)));
     }
     for (const n of sorted) {
@@ -173,7 +187,7 @@ export function humanizeStrings(input: HumanizeInput): Record<string, Note[]> {
       const partner = partnerOf.get(n)!;
       const sec = sectionOfTick(n.startTick);
       const base = baseBass.get(sec.index)!;
-      const follow = 1 + rng() * (CB_FOLLOW_MAX_MS - 1);
+      const follow = 1 + noteRng('crescode:humanize-cb', trackId, n)() * (CB_FOLLOW_MAX_MS - 1);
       const partnerOffset = offsetMs.get(partner);
       offsetMs.set(n, partnerOffset !== undefined
         ? partnerOffset + follow
@@ -190,7 +204,7 @@ export function humanizeStrings(input: HumanizeInput): Record<string, Note[]> {
       let velocity = n.velocity;
       if (!tremolo) {
         const cap = capFor(start, origEnd);
-        velocity = Math.max(1, Math.min(cap, Math.round(n.velocity + (rng() * 2 - 1) * VELOCITY_JITTER)));
+        velocity = Math.max(1, Math.min(cap, Math.round(n.velocity + (noteRng('crescode:humanize-vel', trackId, n)() * 2 - 1) * VELOCITY_JITTER)));
       }
       return { ...n, startTick: start, durationTicks: Math.max(1, origEnd - start), velocity };
     });

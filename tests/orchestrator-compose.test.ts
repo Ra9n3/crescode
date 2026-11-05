@@ -17,7 +17,7 @@ const TEMPLATE_IDS = ['ensemble.symphony', 'ensemble.chamber', 'ensemble.cinemat
 
 const BASE = (): Project => projectFromFixture(JSON.parse(JSON.stringify(fixture)));
 
-const compose = (templateId: string | null, over: Partial<Project> = {}, opts = { seed: 11 }): { project: Project; result: ReturnType<typeof composeAllTracks> } => {
+const compose = (templateId: string | null, over: Partial<Project> = {}, opts = { seed: 11, moments: false }): { project: Project; result: ReturnType<typeof composeAllTracks> } => {
   const p = { ...BASE(), ...over };
   p.ensemble = { templateId, overrides: over.ensemble?.overrides ?? {}, pins: {} };
   if (over.orchestration) p.orchestration = over.orchestration;
@@ -58,7 +58,7 @@ describe('Compose All through the orchestrator: property sweep', () => {
     for (const key of KEYS) {
       for (const mode of MODES) {
         it(`${template.name} · key ${key} · ${mode}: green end to end`, () => {
-          const { project, result } = compose(templateId, { key, mode }, { seed: 11 });
+          const { project, result } = compose(templateId, { key, mode }, { seed: 11, moments: false });
           expect(result.orchestration.take).toBe(1);
 
           // validateProject passes on the whole composed document
@@ -126,19 +126,19 @@ describe('Compose All through the orchestrator: property sweep', () => {
   }
 
   it('deterministic for (inputs, take): composing twice is byte-identical', () => {
-    const a = compose('ensemble.symphony', { orchestration: { take: 4 } }, { seed: 11 });
-    const b = compose('ensemble.symphony', { orchestration: { take: 4 } }, { seed: 11 });
+    const a = compose('ensemble.symphony', { orchestration: { take: 4 } }, { seed: 11, moments: false });
+    const b = compose('ensemble.symphony', { orchestration: { take: 4 } }, { seed: 11, moments: false });
     expect(JSON.stringify(a.project.tracks)).toBe(JSON.stringify(b.project.tracks));
   });
 
   it('a different take yields a different score', () => {
-    const takes = [0, 1, 2, 3, 4, 5].map((t) => compose('ensemble.chamber', { orchestration: { take: t } }, { seed: 11 }));
+    const takes = [0, 1, 2, 3, 4, 5].map((t) => compose('ensemble.chamber', { orchestration: { take: t } }, { seed: 11, moments: false }));
     const dumps = takes.map((c) => JSON.stringify(bandStringTracks(c.project).map((t) => t.notes)));
     expect(new Set(dumps).size).toBe(dumps.length); // all six takes differ
   });
 
   it('D11 take variety: ≥40% of spans differ in PITCHES between neighbouring takes, hard rules intact', () => {
-    const takes = [0, 1, 2, 3, 4, 5].map((t) => compose('ensemble.chamber', { orchestration: { take: t } }, { seed: 11 }));
+    const takes = [0, 1, 2, 3, 4, 5].map((t) => compose('ensemble.chamber', { orchestration: { take: t } }, { seed: 11, moments: false }));
 
     // per-span sounding pitch multiset per take
     const spans = chordSpans(takes[0].project);
@@ -186,7 +186,7 @@ describe('Compose All through the orchestrator: property sweep', () => {
     }
 
     // same take stays byte-identical
-    const again = compose('ensemble.chamber', { orchestration: { take: 3 } }, { seed: 11 });
+    const again = compose('ensemble.chamber', { orchestration: { take: 3 } }, { seed: 11, moments: false });
     expect(JSON.stringify(bandStringTracks(again.project).map((t) => t.notes)))
       .toBe(JSON.stringify(bandStringTracks(takes[3].project).map((t) => t.notes)));
   });
@@ -210,7 +210,7 @@ describe('Compose All through the orchestrator: property sweep', () => {
   });
 
   it('non-string families still come from the rules generator', () => {
-    const { project } = compose('ensemble.symphony', {}, { seed: 11 });
+    const { project } = compose('ensemble.symphony', {}, { seed: 11, moments: false });
     // piano is NOT in the symphony roster — untouched is correct; these are:
     expect(track(project, 'horns').notes.length).toBeGreaterThan(0);
     expect(track(project, 'trumpets').notes.length).toBeGreaterThan(0);
@@ -221,7 +221,7 @@ describe('Compose All through the orchestrator: property sweep', () => {
     // per drawn texture, so the pin scans for an all-pizz take)
     let pizzTake: Project | null = null;
     for (let t = 0; t < 24 && !pizzTake; t++) {
-      const { project: p, result } = compose('ensemble.symphony', { orchestration: { take: t } }, { seed: 11 });
+      const { project: p, result } = compose('ensemble.symphony', { orchestration: { take: t } }, { seed: 11, moments: false });
       const tex = result.reports.find((r) => r.startsWith('textures'))!;
       if (tex.includes('PizzBass') && !tex.includes('SustainedBass')) pizzTake = p;
     }
@@ -234,7 +234,7 @@ describe('Compose All through the orchestrator: property sweep', () => {
     }
     // …while chamber keeps the sustained bass (humanize only trims the head
     // of an attack — Phase 5d bounds that trim by the tempo-map humanize head)
-    const { project: chamber } = compose('ensemble.chamber', {}, { seed: 11 });
+    const { project: chamber } = compose('ensemble.chamber', {}, { seed: 11, moments: false });
     for (const n of track(chamber, 'cellosBasses').notes) {
       expect(n.durationTicks).toBeGreaterThanOrEqual(960 - humanizeHeadTicks(chamber.tempoMap, n.startTick));
     }
@@ -242,7 +242,7 @@ describe('Compose All through the orchestrator: property sweep', () => {
 
   it('D9 compose order: strings render first, so doubling parts double what they wrote', () => {
     for (const templateId of ['ensemble.symphony', 'ensemble.cinematic']) {
-      const { project } = compose(templateId, {}, { seed: 11 });
+      const { project } = compose(templateId, {}, { seed: 11, moments: false });
       const flutes = track(project, 'flutes').notes;
       expect(flutes.length).toBeGreaterThan(0);
       // every flute entrance doubles a Violins I entrance (the strings module's
@@ -259,7 +259,7 @@ describe('Compose All through the orchestrator: property sweep', () => {
 
 describe('golden: fixtures/dorian-16bars.json (half-bar chords, C/E and G/B bass)', () => {
   it('the bass voice sings every chord’s bass pitch class — slash basses included', () => {
-    const { project, result } = compose('ensemble.chamber', {}, { seed: 11 });
+    const { project, result } = compose('ensemble.chamber', {}, { seed: 11, moments: false });
     const spans = chordSpans(project);
     const cb = track(project, 'cellosBasses').notes;
     expect(cb.length).toBeGreaterThan(0);
@@ -283,7 +283,7 @@ describe('golden: fixtures/dorian-16bars.json (half-bar chords, C/E and G/B bass
   it('per-template listening map (notes per track) lands in a sane band', () => {
     const map: Record<string, Record<string, number>> = {};
     for (const templateId of TEMPLATE_IDS) {
-      const { project } = compose(templateId, {}, { seed: 11 });
+      const { project } = compose(templateId, {}, { seed: 11, moments: false });
       const template = ENSEMBLE_BY_ID.get(templateId)!;
       const energy = measureEnergy(project, template);
       expect(energy.max).toBeLessThanOrEqual(template.budget.energyClamp[1] + 1e-9);
@@ -302,7 +302,7 @@ describe('golden: fixtures/dorian-16bars.json (half-bar chords, C/E and G/B bass
       { id: 'g2', symbol: 'C', startTick: 5760, durationTicks: 1920 }, // half bar after a 1-beat gap
     ];
     p.sections = [];
-    const { project } = compose('ensemble.sonata', { chords: p.chords, sections: [] }, { seed: 11 });
+    const { project } = compose('ensemble.sonata', { chords: p.chords, sections: [] }, { seed: 11, moments: false });
     const cb = track(project, 'cellosBasses').notes;
     const first = cb.filter((n) => n.startTick >= 0 && n.startTick < 3840);
     expect(first.length).toBeGreaterThan(0);
@@ -334,7 +334,7 @@ describe('Vocal Backing preset (spec §7.7)', () => {
   };
 
   it('keeps the vocal zone free, never writes under an eighth, and keeps triads complete', () => {
-    const { project, result } = compose('ensemble.vocalbacking', {}, { seed: 11 });
+    const { project, result } = compose('ensemble.vocalbacking', {}, { seed: 11, moments: false });
     for (const t of bandStringTracks(project)) {
       expect(t.notes.length).toBeGreaterThan(0);
       for (const n of t.notes) {
@@ -360,7 +360,7 @@ describe('Vocal Backing preset (spec §7.7)', () => {
   it('a chord shorter than an eighth becomes a rest, not a stub', () => {
     const p = triadProject();
     p.chords.push({ id: 't5', symbol: 'Dm', startTick: 15360, durationTicks: 240 }); // under an eighth
-    const { project } = compose('ensemble.vocalbacking', { chords: p.chords }, { seed: 11 });
+    const { project } = compose('ensemble.vocalbacking', { chords: p.chords }, { seed: 11, moments: false });
     for (const t of bandStringTracks(project)) {
       expect(t.notes.some((n) => n.startTick === 15360)).toBe(false);
     }

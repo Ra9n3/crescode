@@ -27,7 +27,7 @@ const THREE = (): Project => projectFromFixture(JSON.parse(JSON.stringify(threeC
 const composeTake = (project: Project, templateId: string, take: number) => {
   project.ensemble = { templateId, overrides: {}, pins: {} };
   project.orchestration = { take };
-  const result = composeAllTracks(project, { seed: 11 });
+  const result = composeAllTracks(project, { seed: 11, moments: false });
   return { project: { ...project, tracks: result.tracks } as Project, result };
 };
 
@@ -243,7 +243,7 @@ describe('Phase 5c (3): scope + determinism + point budget', () => {
     const p2 = BASE();
     p2.ensemble = { templateId: 'ensemble.cinematic', overrides: { violins2: 'out' }, pins: {} };
     p2.orchestration = { take: 0 };
-    const r2 = composeAllTracks(p2, { seed: 11 });
+    const r2 = composeAllTracks(p2, { seed: 11, moments: false });
     const v2After = r2.tracks.find((t) => t.role === 'violins2')!;
     expect(v2After.notes).toEqual(v2.notes);
     expect(v2After.cc).toBeUndefined();

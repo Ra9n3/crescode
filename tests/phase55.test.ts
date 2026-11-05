@@ -36,7 +36,7 @@ const THREE = (): Project => projectFromFixture(JSON.parse(JSON.stringify(threeC
 const composeTake = (project: Project, templateId: string, take: number) => {
   project.ensemble = { templateId, overrides: {}, pins: {} };
   project.orchestration = { take };
-  const result = composeAllTracks(project, { seed: 11 });
+  const result = composeAllTracks(project, { seed: 11, moments: false });
   return { project: { ...project, tracks: result.tracks, orchestration: result.orchestration } as Project, result };
 };
 

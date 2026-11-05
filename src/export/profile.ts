@@ -311,27 +311,37 @@ export const TREMOLO_GROUP_MAX_STEP_TICKS = 240;
  * Merges the measured tremolo repeats into sustained notes, in the export
  * only. A group is consecutive repeats of one pitch (spacing ≤ the repeat
  * step); the merged note spans the first start to the last end and keeps
- * the first repeat's velocity (the arc value at the group's onset).
+ * the first repeat's velocity (the arc value at the group's onset). Groups
+ * are built PER PITCH (Phase 7): a part may carry two divisi lines, whose
+ * repeats interleave in time — grouping per pitch merges each line
+ * independently and leaves single-voice parts byte-identical.
  */
 export function mergeTremoloGroups(notes: Note[]): Note[] {
   const sorted = [...notes].sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
   const out: Note[] = [];
-  let i = 0;
-  while (i < sorted.length) {
-    const first = sorted[i];
-    if (first.articulation !== 'tremolo') { out.push(first); i++; continue; }
-    let last = first;
-    let j = i + 1;
-    while (j < sorted.length) {
-      const m = sorted[j];
-      if (m.articulation === 'tremolo' && m.pitch === last.pitch && m.startTick - last.startTick <= TREMOLO_GROUP_MAX_STEP_TICKS) { last = m; j++; }
-      else break;
-    }
-    if (j === i + 1) out.push(first);
-    else out.push({ pitch: first.pitch, startTick: first.startTick, durationTicks: Math.max(1, last.startTick + last.durationTicks - first.startTick), velocity: first.velocity });
-    i = j;
+  const passthrough = (n: Note) => out.push(n);
+  // one merge stream per pitch class+octave: a divisi part's two lines never share a pitch
+  const byPitch = new Map<number, Note[]>();
+  for (const n of sorted) {
+    if (n.articulation !== 'tremolo') { passthrough(n); continue; }
+    const list = byPitch.get(n.pitch) ?? [];
+    list.push(n);
+    byPitch.set(n.pitch, list);
   }
-  return out;
+  for (const [, list] of [...byPitch.entries()].sort((a, b) => a[0] - b[0])) {
+    let i = 0;
+    while (i < list.length) {
+      const first = list[i];
+      let last = first;
+      let j = i + 1;
+      while (j < list.length && list[j].startTick - last.startTick <= TREMOLO_GROUP_MAX_STEP_TICKS) { last = list[j]; j++; }
+      if (j === i + 1) passthrough(first);
+      else passthrough({ pitch: first.pitch, startTick: first.startTick, durationTicks: Math.max(1, last.startTick + last.durationTicks - first.startTick), velocity: first.velocity });
+      i = j;
+    }
+  }
+  // restore the time order the writer (and the keyswitch pass) expect
+  return out.sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
 }
 
 /** ms → ticks as a DURATION at tick `at`, through the project's tempo map. */

@@ -24,6 +24,7 @@
 import { hashString, mulberry32 } from '../../engine/generate';
 import { barTicks, projectBars } from '../../shared/schema/meter';
 import type { Note, Project } from '../../shared/schema/types';
+import { resolveTemplate } from '../../config/ensembles';
 import { msToTicks, orchestrationSeedFor, ticksToMs, type SpineSection } from '../spine';
 import { humanizeHeadTicks } from './timing';
 
@@ -47,6 +48,16 @@ export function overlapLegato(input: LegatoInput): Record<string, Note[]> {
   const bars = projectBars(project);
   const endTick = bars * btBar;
   const rng = mulberry32((orchestrationSeedFor(project, project.orchestration) ^ Math.imul(hashString('legato'), 0x85ebca6b)) >>> 0);
+
+  // Phase 7: under a doubling-forbidding policy the crossfade must not
+  // create a transient octave/unison pair with another track's note — the
+  // extension is skipped for that note (the voicing itself never doubles,
+  // so only the overlap could). 'allowed' templates are byte-identical.
+  const template = resolveTemplate(project.ensemble);
+  const forbidOctaves = !!template && template.rules.some((r) => r.type === 'octaveDoubling' && (r.params as { policy?: string }).policy !== 'allowed');
+  const otherNotes = forbidOctaves
+    ? Object.values(notesByTrackId).flat()
+    : [];
 
   const sortedSections = [...sections].sort((a, b) => a.startBar - b.startBar);
   const sectionEndOf = (tick: number): number => {
@@ -94,6 +105,14 @@ export function overlapLegato(input: LegatoInput): Record<string, Note[]> {
         && !isDoubleOf(u, m) && !isDoubleOf(u, n)
         && u.startTick < target && u.startTick + u.durationTicks > nEnd);
       if (blocked) continue;
+      // and under a forbidding policy, no cross-track octave/unison in the
+      // extended tail (the transient crossfade would read as a layer double)
+      if (forbidOctaves) {
+        const octClash = otherNotes.some((u) => u !== n
+          && u.startTick < target && u.startTick + u.durationTicks > nEnd
+          && Math.abs(u.pitch - n.pitch) % 12 === 0);
+        if (octClash) continue;
+      }
       extendTo.set(n, target);
     }
 

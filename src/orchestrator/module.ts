@@ -9,6 +9,7 @@ import type { Note, Project, TrackFamily, ProjectEnsemble } from '../shared/sche
 import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
 import type { ResolvedChord, SpineSection, ArcBar } from './spine';
 import type { StringLines } from './render';
+import type { MomentPlan } from './conductor/moments';
 
 export interface OrchestratorContext {
   project: Project;
@@ -22,11 +23,20 @@ export interface OrchestratorContext {
   /** The prepared lines (Phase 4b): motif, counterline, constrained voicing.
    *  An in-memory annotation of the compose run — never persisted. */
   lines?: StringLines;
+  /** The take's moments (Phase 7), planned by the conductor before rendering.
+   *  An in-memory annotation — never persisted; only the bars a moment
+   *  covers may deviate from the texture plan. */
+  moments?: MomentPlan[];
 }
 
 /** The string layer vocabulary the orchestrator renders today (Phase 4a) —
- *  a subset of the shared layer vocabulary from the ensemble-template schema. */
-export type StringsLayer = 'lead' | 'counterline' | 'pad' | 'ostinato' | 'tremolo' | 'bass';
+ *  a subset of the shared layer vocabulary from the ensemble-template schema.
+ *  Phase 7 adds the moment layers: 'tacet' (a true silence — everything
+ *  unlisted is pad, this is the one way to be silent), 'tutti' (the whole
+ *  section hits one chord) and 'unison' (every voice plays the lead's line,
+ *  spread by octave). The moment layers only ever appear on the bars a
+ *  moment covers. */
+export type StringsLayer = 'lead' | 'counterline' | 'pad' | 'ostinato' | 'tremolo' | 'bass' | 'tacet' | 'tutti' | 'unison';
 
 /** One layer one section. Phase 4 renders pad, lead, counterline, ostinato,
  *  tremolo and bass layers. */

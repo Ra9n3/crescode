@@ -159,7 +159,7 @@ describe('Phase 5.1.3: the 5e matrix re-run at 60 and 180 BPM (6 templates × 3 
     }
     expect(cells).toBe(108);
     console.log(`5.1.3 matrix: ${cells} cells (6 templates × 3 key/modes × takes 0..2 × {60, 180} BPM) all green`);
-  });
+  }, 60000); // the matrix now composes WITH moments (Phase 7) — a little heavier, same invariants
 
   it('every cell: determinism — the same take composes byte-identically at both tempos', () => {
     for (const c of combos.filter((x) => x.take === 0)) {

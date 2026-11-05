@@ -58,7 +58,11 @@ export interface VoicingChord {
   linePcs?: ReadonlySet<number>;
 }
 
-export type VoiceFix = { kind: 'pitch'; pitch: number } | { kind: 'rest' };
+export type VoiceFix = { kind: 'pitch'; pitch: number } | { kind: 'rest' } | { kind: 'below'; pitch: number };
+// 'below' (Phase 7 moments): the voice must sound on a chord tone STRICTLY
+// BELOW `pitch` AND of a DIFFERENT pitch class — a true second line under
+// its pinned parent, never an octave double of it. Existing callers never
+// pass it; without it behaviour is byte-identical.
 
 export interface VoicingOptions {
   forbidOctaveDoubling: boolean;
@@ -296,6 +300,10 @@ export function voiceLead(chords: VoicingChord[], voices: VoiceSpec[], opts: Voi
         return [{ pitch: fix.pitch, staticCost: 0, fixed: true }];
       }
       const c = voiceCandidates(v, freeAllowedPcs, chord.ct.bassPc, opts, chordLeans[i], mustDouble, forbiddenPcs);
+      if (fix?.kind === 'below') {
+        const under = c.filter((x) => x.pitch < fix.pitch && x.pitch % 12 !== fix.pitch % 12);
+        return under.length ? under : null;
+      }
       return c.length ? c : null;
     });
 

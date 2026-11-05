@@ -16,7 +16,7 @@ const BASE = (): Project => projectFromFixture(JSON.parse(JSON.stringify(fixture
 const compose = (templateId: string) => {
   const p = BASE();
   p.ensemble = { templateId, overrides: {}, pins: {} };
-  const result = composeAllTracks(p, { seed: 11 });
+  const result = composeAllTracks(p, { seed: 11, moments: false });
   return { project: { ...p, tracks: result.tracks }, result };
 };
 const track = (p: Project, role: string) => p.tracks.find((t) => t.role === role)!;
@@ -31,7 +31,7 @@ describe('cinematic preset (4e): ostinato + measured tremolo', () => {
       const p = BASE();
       p.ensemble = { templateId: 'ensemble.cinematic', overrides: {}, pins: {} };
       p.orchestration = { take: t };
-      const composed = composeAllTracks(p, { seed: 11 });
+      const composed = composeAllTracks(p, { seed: 11, moments: false });
       const tex = Object.fromEntries(composed.reports.find((r) => r.startsWith('textures'))!.split(': ')[1].split(', ').map((kv) => kv.split('='))) as Record<string, string>;
       if (tex.chorus === 'trailer') {
         return { project: { ...p, tracks: composed.tracks } as Project, result: composed, tex, take: composed.orchestration.take };
@@ -94,7 +94,7 @@ describe('cinematic preset (4e): ostinato + measured tremolo', () => {
     // rebuild the same prepared lines (deterministic) to know the motif and the fallbacks
     const p = BASE();
     p.ensemble = { templateId: 'ensemble.cinematic', overrides: {}, pins: {} };
-    const composed = composeAllTracks(p, { seed: 11 });
+    const composed = composeAllTracks(p, { seed: 11, moments: false });
     const composedProject = { ...p, tracks: composed.tracks };
     const template = resolveTemplate(p.ensemble)!;
     const arc = energyCurve(composedProject, sectionMap(composedProject), 1, template, true);
@@ -154,7 +154,7 @@ describe('symphony preset (4e): cellosBasses pizz-pulse', () => {
       const p = BASE();
       p.ensemble = { templateId: 'ensemble.symphony', overrides: {}, pins: {} };
       p.orchestration = { take: t };
-      const composed = composeAllTracks(p, { seed: 11 });
+      const composed = composeAllTracks(p, { seed: 11, moments: false });
       const tex = Object.fromEntries(composed.reports.find((r) => r.startsWith('textures'))!.split(': ')[1].split(', ').map((kv) => kv.split('='))) as Record<string, string>;
       if (Object.values(tex).every((v) => v.endsWith('PizzBass'))) {
         return { project: { ...p, tracks: composed.tracks } as Project, take: composed.orchestration.take };
@@ -184,7 +184,7 @@ describe('symphony preset (4e): cellosBasses pizz-pulse', () => {
       const p = BASE();
       p.ensemble = { templateId: 'ensemble.symphony', overrides: {}, pins: {} };
       p.orchestration = { take: t };
-      const composed = composeAllTracks(p, { seed: 11 });
+      const composed = composeAllTracks(p, { seed: 11, moments: false });
       const tex = Object.fromEntries(composed.reports.find((r) => r.startsWith('textures'))!.split(': ')[1].split(', ').map((kv) => kv.split('='))) as Record<string, string>;
       if (Object.values(tex).every((v) => v.endsWith('SustainedBass'))) {
         seen = true;
@@ -247,7 +247,7 @@ describe('Vc+Cb layering (4f, per note since 4.5): octave below where policy and
     p.key = 0; // C
     p.mode = 'Ionian';
     p.ensemble = { templateId: 'ensemble.cinematic', overrides: {}, pins: {} };
-    const composed = composeAllTracks(p, { seed: 11 });
+    const composed = composeAllTracks(p, { seed: 11, moments: false });
     const project = { ...p, tracks: composed.tracks } as Project;
     const cb = track(project, 'cellosBasses');
     const report = composed.reports.find((r) => r.startsWith('Vc+Cb layering (ensemble.cinematic)'))!;

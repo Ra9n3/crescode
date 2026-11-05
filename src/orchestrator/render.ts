@@ -41,6 +41,7 @@ import { leadingTonePcOf, voiceLead, type VoicedChord, type VoiceFix, type Voice
 import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
 import type { LayerPlan, OrchestratorContext, SectionModule, SectionPatch, StringsLayer } from './module';
 import { assignStringLayers, stringLayerForBar, textureForType, sectionTypeNameAtBar, tuneCarrierForBar } from './conductor/layers';
+import { momentForBar, imitationAnswer, resolveDivisiSpans, type MomentPlan, type MomentSpanPitch } from './conductor/moments';
 import { motifLine } from './lines/motif';
 import { counterlineLine } from './lines/counterline';
 import { ostinatoNotes, TREMOLO_STEP_TICKS, SHORT_NOTE_SECONDS } from './lines/ostinato';
@@ -202,6 +203,15 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
     return mp === null ? { kind: 'rest' } : { kind: 'pitch', pitch: mp };
   };
 
+  // Phase 7: soli-lead carriers do NOT pin DP fixes — their bars render from
+  // the motif line directly (the moment branch), so the voicing outside the
+  // moment's bars stays byte-identical to a no-moments take.
+  const isSoliCarrier = (trackId: string, bars: number[]): boolean =>
+    bars.length > 0 && bars.every((b) => {
+      const m = momentForBar(ctx.moments, b);
+      return m?.kind === 'soli' && m.flavor === 'lead' && m.carrierTrackId === trackId;
+    });
+
   // which spans fell back: every span whose constraints had to be dropped —
   // detected by DELETION, never by the final voicing coincidentally matching
   // (a free lead voice can land on the demanded pitch without the DP having
@@ -212,7 +222,10 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
     const arr: (VoiceFix | undefined)[] = new Array(voices.length).fill(undefined);
     for (const l of leads) {
       // the carrier is planned wherever THE TEXTURE gives it the tune (the
-      // layer may read 'tremolo' on the cinematic threshold bars)
+      // layer may read 'tremolo' on the cinematic threshold bars) — except a
+      // soli carrier (Phase 7): its bars render from the line, not the DP
+      const carrierBarsHere = assignment.bars.filter((b) => carrierByBar[b.bar - 1] === l.trackId).map((b) => b.bar);
+      if (isSoliCarrier(l.trackId, carrierBarsHere)) continue;
       arr[voiceIndex.get(l.trackId)!] = fixFor(l.trackId, (b) => carrierByBar[b - 1] === l.trackId, l.notes, s);
     }
     if (counter) arr[voiceIndex.get(counter.trackId)!] = fixFor(counter.trackId, (b) => assignment.bars[b - 1]?.byTrack[counter.trackId] === 'counterline', counter.notes, s);
@@ -295,12 +308,75 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
 
   if (fallbacks.length) reports.push(`lines: ${fallbacks.length} chord span(s) fell back to the pad voicing (the fixed lead/counterline left no feasible tuple)`);
 
+  // Phase 7: imitation answers replace the FREE counterline on their bars —
+  // the free line was generated as usual above (its stream and the DP fixes
+  // are untouched), the answer rides its own construction, and the bars'
+  // notes swap afterwards.
+  let counterFinal = counterNotes;
+  const imitationMoments = (ctx.moments ?? []).filter((m) => m.kind === 'imitation' && m.answerTrackId === counterTrack?.id && m.leadTrackId && m.delayTicks && m.transpose);
+  if (counterTrack && imitationMoments.length) {
+    const replaced: Note[] = [];
+    const covered = new Set<number>();
+    for (const m of imitationMoments as MomentPlan[]) {
+      const answerTrack = ctx.project.tracks.find((t) => t.id === m.answerTrackId);
+      const leadLineAll = leads.find((l) => l.trackId === m.leadTrackId);
+      // the answer replays material the lead sings in THIS section only —
+      // the motif line spans every occurrence of the section type, and
+      // notes before the section are not audible here
+      const secHere = ctx.sections.find((s) => m.startTick >= s.startTick && m.startTick < s.endTick);
+      const leadLine = leadLineAll
+        ? { trackId: leadLineAll.trackId, notes: leadLineAll.notes.filter((n) => n.startTick >= (secHere?.startTick ?? 0) && n.startTick < (secHere?.endTick ?? Infinity)) }
+        : undefined;
+      if (!answerTrack || !leadLine || !leadLine.notes.length) continue;
+      replaced.push(...imitationAnswer({
+        project: ctx.project, spans: ctx.spans, lead: leadLine.notes, answerTrack,
+        startTick: m.startTick, endTick: m.endTick, delayTicks: m.delayTicks!, mode: m.transpose!, take,
+      }));
+      for (let b = m.startBar; b <= m.endBar; b++) covered.add(b);
+    }
+    if (covered.size) {
+      counterFinal = [...counterNotes.filter((n) => !covered.has(barOf(n.startTick))), ...replaced]
+        .sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
+      reports.push(`imitation: ${covered.size} bar(s) answered the lead in ${ctx.project.tracks.find((t) => t.id === counterTrack.id)?.name ?? counterTrack.id}`);
+    }
+  }
+
+  // Phase 7: resolve the divisi second lines — a scoped run of THE voicing
+  // DP with the part contributing TWO voices (parent pinned, second line on
+  // a distinct chord tone strictly below). The main run above is untouched:
+  // voicings outside the moment's bars stay byte-identical.
+  for (const m of ctx.moments ?? []) {
+    if (m.kind !== 'divisi' || !m.divTrackId) continue;
+    const divTrack = ctx.project.tracks.find((t) => t.id === m.divTrackId);
+    const vi = voiceIndex.get(m.divTrackId);
+    if (!divTrack || vi === undefined) continue;
+    const parentPitches: { startTick: number; endTick: number; pitch: number }[] = [];
+    for (const s of ctx.spans) {
+      const start = Math.max(s.startTick, m.startTick);
+      const end = Math.min(s.endTick, m.endTick);
+      if (end - start < 1) continue;
+      const p = voiced.find((x) => x.id === s.id)?.pitches[vi];
+      if (p === null || p === undefined) continue;
+      parentPitches.push({ startTick: start, endTick: end, pitch: p });
+    }
+    m.divSpans = resolveDivisiSpans(ctx.project, ctx.spans, m, divTrack, parentPitches);
+    if (m.divSpans.length) {
+      reports.push(`divisi: ${ctx.project.tracks.find((t) => t.id === m.divTrackId)?.name ?? m.divTrackId} splits for ${m.endBar - m.startBar + 1} bar(s) (${m.divSpans.length} span(s))`);
+    } else {
+      // no distinct chord tone fit below the parent anywhere in the moment:
+      // the moment is dropped (the texture plays on, unchanged) and reported
+      const i = ctx.moments!.indexOf(m);
+      if (i >= 0) ctx.moments!.splice(i, 1);
+      reports.push(`divisi: dropped — no distinct chord tone fit under ${ctx.project.tracks.find((t) => t.id === m.divTrackId)?.name ?? m.divTrackId}'s line`);
+    }
+  }
+
   return {
     assignment: assignment.bars,
     lead,
     leads,
     carrierByBar,
-    counter,
+    counter: counterTrack && counterFinal.length ? { trackId: counterTrack.id, notes: counterFinal } : null,
     fallbackSpanIds: new Set(fallbacks),
     voiced,
     voiceTrackIds,
@@ -324,7 +400,7 @@ export const stringsModule: SectionModule = {
       for (let b = sec.startBar; b < sec.startBar + sec.lengthBars; b++) {
         for (const v of voices) {
           const l = stringLayerForBar(ctx, b, v.id);
-          if (!l) continue;
+          if (!l || l === 'tacet') continue; // tacet: the soli moment's true silence
           const arr = byLayer.get(l);
           if (!arr) byLayer.set(l, [v.id]);
           else if (!arr.includes(v.id)) arr.push(v.id); // unique track ids across the section's bars
@@ -351,6 +427,12 @@ export const stringsModule: SectionModule = {
       const t = ctx.arc ? arcTargetAt(ctx.arc, Math.floor((start + end) / 2)) : sectionEnergyTarget(section.name);
       return Math.min(clampMax, Math.max(0, t));
     };
+    // Phase 7: moment notes are capped at the WHOLE-ROSTER sounding cap —
+    // the most conservative bound, so the hard clamp holds no matter what
+    // else sounds in the hit/unison windows — and shaped INSIDE the arc.
+    const capAll = maxMeanVelocityFor(rosterLength, clamp[1], rosterLength);
+    const momentVelocity = (start: number, end: number): number =>
+      Math.max(1, Math.min(capAll, Math.round(1 + (capAll - 1) * targetOf(start, end))));
 
     // Take phrasing: which chord spans the pad RE-ATTACKS (split at the
     // midpoint) instead of sustaining through. Same take → same mask.
@@ -378,6 +460,31 @@ export const stringsModule: SectionModule = {
         const st = Math.max(n.startTick, s);
         const en = Math.min(n.startTick + n.durationTicks, e);
         sink.push({ pitch: n.pitch, startTick: st, durationTicks: en - st, velocity, articulation: n.articulation ?? 'legato' });
+      }
+    };
+    // Phase 7: the divisi second line for one track in one window (empty
+    // outside a divisi moment's bars). Pads write one sustained div2 note
+    // per chord span; tremolo beds tile the repeats like the parent line.
+    const div2SpansIn = (trackId: string, s: number, e: number): MomentSpanPitch[] => {
+      const moment = momentForBar(ctx.moments, Math.floor(s / btBar) + 1);
+      if (!moment || moment.kind !== 'divisi' || moment.divTrackId !== trackId || !moment.divSpans) return [];
+      return moment.divSpans.filter((sp) => sp.startTick < e && sp.endTick > s);
+    };
+    const writeDiv2Pad = (sink: Note[], trackId: string, s: number, e: number, velocity: number) => {
+      for (const sp of div2SpansIn(trackId, s, e)) {
+        const st = Math.max(sp.startTick, s);
+        const en = Math.min(sp.endTick, e);
+        if (en - st < 1) continue;
+        sink.push({ pitch: sp.pitch, startTick: st, durationTicks: en - st, velocity, articulation: 'legato', layer: 'div2' });
+      }
+    };
+    const writeDiv2Tremolo = (sink: Note[], trackId: string, s: number, e: number, velocity: number) => {
+      for (const sp of div2SpansIn(trackId, s, e)) {
+        const st = Math.max(sp.startTick, s);
+        const en = Math.min(sp.endTick, e);
+        for (let t = st; t < en; t += TREMOLO_STEP_TICKS) {
+          sink.push({ pitch: sp.pitch, startTick: t, durationTicks: Math.min(TREMOLO_STEP_TICKS, en - t), velocity, articulation: 'tremolo', layer: 'div2' });
+        }
       }
     };
 
@@ -429,6 +536,48 @@ export const stringsModule: SectionModule = {
             if (len < minDuration) continue;
             const velocity = Math.max(1, Math.min(127, Math.round(1 + (cap - 1) * targetOf(s, e))));
             const carrierHere = lines.leads.find((l) => l.trackId === trackId);
+            if (plan.layer === 'tutti') {
+              // Phase 7: the whole section hits one chord on the downbeat —
+              // marcato accent, then the drawn shape inside the bar (hold:
+              // sustain through; decay: two beats; breath: one beat then rest).
+              const moment = momentForBar(ctx.moments, bar);
+              const downbeat = (bar - 1) * btBar;
+              if (moment?.kind === 'tutti' && s <= downbeat && downbeat < e && dpPitch !== null) {
+                const hitStart = Math.max(s, downbeat);
+                const hitLen = moment.shape === 'breath' ? beat : moment.shape === 'decay' ? beat * 2 : pe - downbeat;
+                notesByTrackId[trackId].push({ pitch: dpPitch, startTick: hitStart, durationTicks: Math.max(1, Math.min(hitLen, e - hitStart)), velocity: momentVelocity(downbeat, pe), articulation: 'marcato' });
+              }
+              continue; // the moment bar carries only the hit
+            }
+            if (plan.layer === 'unison') {
+              // Phase 7: monophony — every voice plays the lead's line,
+              // spread by octave (the drawn tight/wide map), notes that do
+              // not fit a part's range moved by octave, never dropped. The
+              // leading tone is NEVER doubled (the hard rule wins over the
+              // moment, as with the Cb layering): every voice but the
+              // carrier opens where the lead crosses the leading tone.
+              const moment = momentForBar(ctx.moments, bar);
+              const line = moment?.kind === 'unison' ? lines.leads.find((l) => l.trackId === moment.carrierTrackId) : undefined;
+              if (moment?.kind === 'unison' && line) {
+                const track = ctx.project.tracks.find((t) => t.id === trackId);
+                const offset = moment.offsetByRole?.[track?.role ?? ''] ?? 0;
+                const ltPcU = leadingTonePcOf(ctx.project.key, scalePitchClasses(ctx.project.key, ctx.project.mode));
+                for (const n of line.notes) {
+                  if (n.startTick >= e || n.startTick + n.durationTicks <= s) continue;
+                  if (trackId !== moment.carrierTrackId && ltPcU !== null && ((n.pitch % 12) + 12) % 12 === ltPcU) continue;
+                  let pitch = n.pitch + offset;
+                  if (track) {
+                    while (pitch > track.highestNote && pitch - 12 >= track.lowestNote) pitch -= 12;
+                    while (pitch < track.lowestNote && pitch + 12 <= track.highestNote) pitch += 12;
+                    pitch = Math.min(track.highestNote, Math.max(track.lowestNote, pitch));
+                  }
+                  const st = Math.max(n.startTick, s);
+                  const en = Math.min(n.startTick + n.durationTicks, e);
+                  notesByTrackId[trackId].push({ pitch, startTick: st, durationTicks: en - st, velocity: momentVelocity(s, e), articulation: n.articulation ?? 'legato' });
+                }
+              }
+              continue;
+            }
             if (plan.layer === 'lead' && carrierHere && !fellBack) {
               writeLineNotes(notesByTrackId[trackId], carrierHere.notes, s, e, velocity);
             } else if (plan.layer === 'counterline' && lines.counter?.trackId === trackId && !fellBack) {
@@ -517,8 +666,12 @@ export const stringsModule: SectionModule = {
               // the chorus keeps its tune. A fallback span (or a missing
               // line) repeats the DP's pitch — never silence. On the 4.6
               // tremolo-bed texture the non-carrier tracks repeat their DP
-              // pitch: a shimmering bed under the tune.
-              const leadHere = carrierHere && !fellBack ? carrierHere.notes : null;
+              // pitch: a shimmering bed under the tune. Phase 7: the carrier
+              // check is BAR-SCOPED — a track that carries the tune somewhere
+              // else in the take (a handoff, a soli) must not mute its own
+              // tremolo beds here.
+              const isCarrierThisBar = lines.carrierByBar[bar - 1] === trackId;
+              const leadHere = isCarrierThisBar && carrierHere && !fellBack ? carrierHere.notes : null;
               if (leadHere) {
                 for (const n of leadHere) {
                   const ns = Math.max(n.startTick, s);
@@ -533,6 +686,7 @@ export const stringsModule: SectionModule = {
                   notesByTrackId[trackId].push({ pitch: dpPitch, startTick: t, durationTicks: Math.min(TREMOLO_STEP_TICKS, e - t), velocity, articulation: 'tremolo' });
                 }
               }
+              writeDiv2Tremolo(notesByTrackId[trackId], trackId, s, e, velocity);
             } else if (plan.layer === 'bass' && ctx.template?.id === 'ensemble.symphony' && textureForType(ctx, sectionTypeNameAtBar(ctx, bar)).style.bassPizz) {
               // Phase 4e: pizz-pulse on the strong beats under pads and lines
               // (4.6: only in the textures whose Cb axis is pizz, not sustained)
@@ -551,6 +705,7 @@ export const stringsModule: SectionModule = {
             } else if (dpPitch !== null) {
               // pad / bass (sustained outside the symphony pizz textures)
               pushDPNote(notesByTrackId[trackId], dpPitch, s, e, velocity, reattack);
+              writeDiv2Pad(notesByTrackId[trackId], trackId, s, e, velocity);
             }
           }
         }
@@ -591,7 +746,9 @@ export function maybeLayerCellosBasses(ctx: OrchestratorContext, notesByTrackId:
   const doubles: Note[] = [];
   let underRange = 0;
   let onLeadingTone = 0;
+  let onDivisi = 0;
   for (const n of notes) {
+    if (n.layer === 'div2') { onDivisi++; continue; } // the divisi second line stays undoubled: Vc keeps 2 voices + the one Cb
     if (lt !== null && ((n.pitch % 12) + 12) % 12 === lt) { onLeadingTone++; continue; } // never double the leading tone
     if (n.pitch - 12 < track.lowestNote) { underRange++; continue; } // skip only the notes that would fall below
     // the 'cb' layer mark is export-facing data (export profiles split the
@@ -604,6 +761,7 @@ export function maybeLayerCellosBasses(ctx: OrchestratorContext, notesByTrackId:
   const skips = [
     underRange ? `${underRange} under the track's low ${noteName(track.lowestNote)}` : null,
     onLeadingTone ? `${onLeadingTone} on the leading tone` : null,
+    onDivisi ? `${onDivisi} divisi second-line notes (left undoubled)` : null,
   ].filter(Boolean).join(', ');
   ctx.lines?.reports.push(`Vc+Cb layering (${template.id}): ${doubles.length}/${notes.length} notes doubled an octave below${skips ? ` (skipped: ${skips})` : ''}`);
 }

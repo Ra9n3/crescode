@@ -41,8 +41,10 @@ export interface Note {
   bow?: 'down' | 'up';
   /** The Vc+Cb layering step (Phase 4.5) marks its Cb-doubled notes 'cb'.
    *  Additive, optional: export profiles split the cellosBasses track by it
-   *  (layer 'cb' → the bass part, everything else → the cello part). */
-  layer?: 'cb';
+   *  (layer 'cb' → the bass part, everything else → the cello part).
+   *  'div2' (Phase 7 moments) marks the SECOND line of a divisi moment —
+   *  it exports with its parent part/channel and is never Cb-doubled. */
+  layer?: 'cb' | 'div2';
 }
 
 /** One automation point on a CC lane. Ticks are absolute, values 0–127. */

@@ -385,19 +385,28 @@ export function textureForType(ctx: OrchestratorContext, typeName: string): Text
   return tex;
 }
 
-/** The track carrying the tune in this bar (the drawn texture's lead role),
- *  or null in lead-free sections — the motif arrives with the first phrase. */
+/** The track carrying the tune in this bar (the drawn texture's lead role,
+ *  or null in lead-free sections — the motif arrives with the first phrase).
+ *  Phase 7: a soli moment's carrier carries the tune for its bars. */
 export function tuneCarrierForBar(ctx: OrchestratorContext, bar: number): string | null {
   const sec = ctx.sections.find((s) => bar >= s.startBar && bar < s.startBar + s.lengthBars);
   if (!sec || LEAD_FREE_SECTIONS.test(sec.name.trim().toLowerCase())) return null;
+  const moment = ctx.moments?.find((m) => bar >= m.startBar && bar <= m.endBar);
+  if (moment && moment.kind === 'soli' && moment.flavor === 'lead') return moment.carrierTrackId ?? null;
   const tex = textureForType(ctx, sectionTypeNameAtBar(ctx, bar));
   const role = Object.keys(tex.plan).find((r) => tex.plan[r] === 'lead');
   if (!role) return null;
   return stringVoiceTracks(ctx).find((t) => t.role === role)?.id ?? null;
 }
 
-/** The layer one string track plays in one bar (null = it is not in the band plan). */
-export function stringLayerForBar(ctx: OrchestratorContext, bar: number, trackId: string): StringsLayer | null {
+/** The layer one string track plays in one bar (null = it is not in the band plan).
+ *  Phase 7: a moment covering the bar overrides the texture's plan for that
+ *  bar only — tutti (the whole section hits), unison (every voice on the
+ *  lead's line), soli (one carrier, everyone else tacet), imitation (the
+ *  answer voice takes the counterline). Divisi keeps the texture layer; the
+ *  renderer reads the moment's second line separately. `ignoreMoments`
+ *  reads the pure texture plan (the conductor's bar annotation uses it). */
+export function stringLayerForBar(ctx: OrchestratorContext, bar: number, trackId: string, ignoreMoments = false): StringsLayer | null {
   const voices = stringVoiceTracks(ctx);
   const track = voices.find((t) => t.id === trackId);
   if (!track) return null;
@@ -408,12 +417,22 @@ export function stringLayerForBar(ctx: OrchestratorContext, bar: number, trackId
   const base = tex.plan[track.role] ?? 'pad'; // the texture keeps this role on pad (or no texture at all)
 
   if ((base === 'lead' || base === 'counterline') && inLeadFreeSection) return 'pad';
-  if (base === 'lead' && track.role === 'violins1' && ctx.template?.id === 'ensemble.cinematic') {
-    // the tune stays readable: above the threshold it renders as measured tremolo
-    const target = ctx.arc?.[bar - 1]?.target ?? 0;
-    return target >= TREMOLO_ENERGY_THRESHOLD ? 'tremolo' : 'lead';
+  const thresholded = base === 'lead' && track.role === 'violins1' && ctx.template?.id === 'ensemble.cinematic'
+    ? // the tune stays readable: above the threshold it renders as measured tremolo
+      ((ctx.arc?.[bar - 1]?.target ?? 0) >= TREMOLO_ENERGY_THRESHOLD ? 'tremolo' : 'lead')
+    : base;
+
+  if (ignoreMoments) return thresholded;
+  const moment = ctx.moments?.find((m) => bar >= m.startBar && bar <= m.endBar);
+  if (!moment) return thresholded;
+  if (moment.kind === 'tutti') return 'tutti';
+  if (moment.kind === 'unison') return 'unison';
+  if (moment.kind === 'soli') {
+    if (moment.flavor === 'lead') return trackId === moment.carrierTrackId ? 'lead' : 'tacet';
+    return trackId === moment.carrierTrackId ? 'bass' : 'tacet'; // the bass holds alone
   }
-  return base;
+  if (moment.kind === 'imitation') return trackId === moment.answerTrackId ? 'counterline' : thresholded;
+  return thresholded; // divisi: the texture layer stands; the second line rides beside it
 }
 
 /** The whole assignment, bar by bar: trackId → layer. Deterministic. */
@@ -432,12 +451,13 @@ export function assignStringLayers(ctx: OrchestratorContext): { bars: { bar: num
   return { bars: out };
 }
 
-/** Group one bar's assignment into the plan's layer slots (bass → top order kept). */
-export function layerSlotsForBar(ctx: OrchestratorContext, bar: number): { layer: StringsLayer; trackIds: string[] }[] {
+/** Group one bar's assignment into the plan's layer slots (bass → top order kept).
+ *  Reads the pure TEXTURE plan: the moments annotate beside it (BarPlan.moment). */
+export function layerSlotsForBar(ctx: OrchestratorContext, bar: number): { layer: Exclude<StringsLayer, 'tacet' | 'tutti' | 'unison'>; trackIds: string[] }[] {
   const voices = stringVoiceTracks(ctx);
-  const slots: { layer: StringsLayer; trackIds: string[] }[] = [];
+  const slots: { layer: Exclude<StringsLayer, 'tacet' | 'tutti' | 'unison'>; trackIds: string[] }[] = [];
   for (const v of voices) {
-    const layer = stringLayerForBar(ctx, bar, v.id);
+    const layer = stringLayerForBar(ctx, bar, v.id, true) as Exclude<StringsLayer, 'tacet' | 'tutti' | 'unison'> | null;
     if (!layer) continue;
     const slot = slots.find((s) => s.layer === layer);
     if (slot) slot.trackIds.push(v.id);

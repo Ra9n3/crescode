@@ -23,6 +23,9 @@ import { stringsModule, stringVoiceTracks, prepareStrings, maybeLayerCellosBasse
 import { textureForType, sectionTypeKeyOf } from './conductor/layers';
 import { conduct, type ConductorPlan } from './conductor';
 import { governPadVelocities } from './energy/mix';
+import { maxMeanVelocityFor } from './energy';
+import { chordTones } from './voicing/chordTones';
+import { barTicks, beatTicks } from '../shared/schema/meter';
 import { buildCcLanes } from './expression/cc';
 import { humanizeStrings } from './expression/humanize';
 import { overlapLegato } from './expression/legato';
@@ -32,6 +35,9 @@ export interface ComposeOptions {
   seed: number;
   density?: number;
   humanize?: boolean;
+  /** Phase 7: plan moments (default true). Tests disable them to pin that
+   *  the texture draws are untouched outside moment bars. */
+  moments?: boolean;
 }
 
 export interface ComposeResult {
@@ -67,7 +73,7 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   // to silence (locked lanes are never written either way).
   const arc = energyCurve(project, ctx.sections, orchestration.take, template, template !== null && voiceTracks.length > 0);
   ctx.arc = arc;
-  const plan = conduct(ctx, arc);
+  const plan = conduct(ctx, arc, options.moments !== false);
   // Phase 4b: prepare the lines (motif + counterline + constrained voicing)
   // once per compose — the per-section render calls slice the result
   ctx.lines = prepareStrings(ctx, orchestration.take);
@@ -126,6 +132,49 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     excludeRoles: [...new Set(voiceTracks.map((t) => t.role))],
     roleNotes,
   });
+
+  // Phase 7: the tutti moment's hit for the families the strings module does
+  // not write. The moment is defined over the ROSTER (participantRoles);
+  // strings are only the first participants (they hit via the renderer from
+  // their DP pitch). One chord — the span's bass/root pitch class, octave-
+  // fitted or the fixed note for unpitched parts — marcato accent, then the
+  // drawn shape. Velocity sits under the WHOLE-ROSTER cap, so the hard
+  // clamp holds no matter what else sounds in the window.
+  const btBarC = barTicks(project.timeSignature);
+  const beatC = beatTicks(project.timeSignature);
+  const clampMaxC = template?.budget.energyClamp[1] ?? 1;
+  const rosterSizeC = Math.max(1, template?.roster.length ?? 1);
+  const capAllC = maxMeanVelocityFor(rosterSizeC, clampMaxC, rosterSizeC);
+  for (const m of plan.moments) {
+    if (m.kind !== 'tutti' || !m.participantRoles) continue;
+    const downbeat = (m.startBar - 1) * btBarC;
+    const span = ctx.spans.find((s) => s.startTick <= downbeat && downbeat < s.endTick) ?? ctx.spans[0];
+    if (!span) continue;
+    const rootPc = ((chordTones(span.parsed).bassPc % 12) + 12) % 12;
+    const E = Math.min(clampMaxC, Math.max(0, arc[m.startBar - 1]?.target ?? 0));
+    const velocity = Math.max(1, Math.min(capAllC, Math.round(1 + (capAllC - 1) * E)));
+    const hitLen = m.shape === 'breath' ? beatC : m.shape === 'decay' ? beatC * 2 : btBarC;
+    const roles = new Set(m.participantRoles);
+    // writable = in-band unlocked non-string roster tracks (the strings hit
+    // via the renderer; locked and out-of-band tracks are never touched)
+    const writableIds = new Set(
+      project.tracks
+        .filter((t) => isInstrumentTrack(t) && !t.locked && roles.has(t.role) && !stringsTrackIds.includes(t.id)
+          && isInBand(t.role, project.ensemble!, template))
+        .map((t) => t.id),
+    );
+    for (const t of ruleTracks) {
+      if (!writableIds.has(t.id)) continue;
+      let pitch: number;
+      if (t.highestNote - t.lowestNote < 12) {
+        pitch = t.lowestNote; // unpitched/fixed parts hit their own note
+      } else {
+        pitch = t.lowestNote + (((rootPc - t.lowestNote) % 12) + 12) % 12;
+        while (pitch > t.highestNote) pitch -= 12;
+      }
+      t.notes.push({ pitch, startTick: downbeat, durationTicks: hitLen, velocity, articulation: 'marcato' });
+    }
+  }
 
   // Mixed-window governor: the pads' own cap bounds strings-only windows, but
   // real windows mix pads with the rules generator's output. Re-check every

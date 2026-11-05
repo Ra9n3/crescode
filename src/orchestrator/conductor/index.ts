@@ -28,6 +28,8 @@ import { isInBand } from '../../shared/schema/band';
 import type { OrchestratorContext } from '../module';
 import { stringVoiceTracks, sectionEnergyTarget } from '../render';
 import { layerSlotsForBar } from './layers';
+import { textureForType } from './layers';
+import { planMoments, type MomentPlan } from './moments';
 
 /** The shared layer vocabulary (ensemble-template.schema.json §budget). */
 export const LAYER_VOCABULARY = [
@@ -54,6 +56,9 @@ export interface BarPlan {
   layers: LayerSlot[];
   /** The arc's target energy for this bar (0..1; flat per-section table until the arc lands). */
   energyTarget: number;
+  /** The moment covering this bar, if any (Phase 7) — beside the texture
+   *  layers, which keep showing what the texture itself planned. */
+  moment?: { kind: MomentPlan['kind']; startBar: number; endBar: number };
 }
 
 /** A window in which the named string parts deliberately REST. */
@@ -88,6 +93,9 @@ export interface ConductorPlan {
   fills: FillWindow[];
   /** In-band roles the orchestrator does not annotate yet (no family module). */
   unannotatedRoles: string[];
+  /** The take's moments (Phase 7) — planned here, rendered beside the
+   *  textures. In-memory only; never persisted. */
+  moments: MomentPlan[];
 }
 
 export function octaveDoublingPolicyOf(template: EnsembleTemplate | null): ConductorPlan['octaveDoublingPolicy'] {
@@ -101,8 +109,10 @@ const matchesTarget = (target: string, role: string, family: TrackFamily): boole
 
 /** Build the per-bar plan for the project. Pure: same context → same plan.
  *  The arc (Phase 3c) supplies per-bar energy targets and the pre-Chorus
- *  near-silence bar; without one the flat per-section table stands in. */
-export function conduct(ctx: OrchestratorContext, arc?: ArcBar[]): ConductorPlan {
+ *  near-silence bar; without one the flat per-section table stands in.
+ *  Phase 7: `withMoments` (default true) plans the take's moments; tests
+ *  pass false to pin that everything outside moment bars is unchanged. */
+export function conduct(ctx: OrchestratorContext, arc?: ArcBar[], withMoments = true): ConductorPlan {
   const template = ctx.template;
   const voices = stringVoiceTracks(ctx);
   const voiceIds = voices.map((t) => t.id);
@@ -186,6 +196,31 @@ export function conduct(ctx: OrchestratorContext, arc?: ArcBar[]): ConductorPlan
     }
   }
 
+  // Phase 7: the take's moments — planned AFTER the breaths (a soli may sit
+  // right after one) and BEFORE rendering, on their own salted stream so the
+  // texture draws stay untouched. The plan rides beside the textures; only
+  // the bars a moment covers may deviate from the layer plan above.
+  const moments: MomentPlan[] = withMoments
+    ? planMoments({
+        project: ctx.project,
+        template,
+        sections: ctx.sections,
+        spans: ctx.spans,
+        arc: arc ?? [],
+        breaths,
+        texturePlanOf: (typeName) => textureForType(ctx, typeName).plan as Partial<Record<string, string>>,
+        stringTracks: voices,
+        take: ctx.project.orchestration?.take ?? 0,
+      })
+    : [];
+  ctx.moments = moments;
+  const momentByBar = new Map<number, MomentPlan>();
+  for (const m of moments) for (let b = m.startBar; b <= m.endBar; b++) momentByBar.set(b, m);
+  for (const bp of barPlans) {
+    const m = momentByBar.get(bp.bar);
+    if (m) bp.moment = { kind: m.kind, startBar: m.startBar, endBar: m.endBar };
+  }
+
   // Hard contract: the plan never exceeds maxLayers (trivially true with one
   // layer today — the guard is the contract later phases must keep), and no
   // doubling layer slots exist when the band's policy forbids them.
@@ -208,6 +243,7 @@ export function conduct(ctx: OrchestratorContext, arc?: ArcBar[]): ConductorPlan
     breaths,
     fills,
     unannotatedRoles,
+    moments,
   };
 }
 

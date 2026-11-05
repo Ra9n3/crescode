@@ -26,8 +26,8 @@ import { freshEnsemble } from '../../shared/schema/band';
 import { drawWeighted, sectionTypeNameAtBar, textureForType } from '../conductor/layers';
 import type { OrchestratorContext } from '../module';
 import {
-  BRASS_LEAD_WEIGHTS, BRASS_PROFILES, TRUMPET_ROLE_WEIGHTS, brassTrackOf,
-  levelForNorm, type BrassLevel, type BrassPart, type TrumpetRole,
+  BRASS_LEAD_WEIGHTS, BRASS_PROFILES, CHORUS_TRUMPET_ROLES, TRUMPET_ROLE_WEIGHTS, brassTrackOf,
+  isChorusType, levelForNorm, type BrassLevel, type BrassPart, type TrumpetRole,
 } from './profile';
 
 export type BrassVoiceKind =
@@ -148,7 +148,14 @@ export function planBrass(ctx: OrchestratorContext): BrassPlan {
   if (roster.includes('trumpets')) {
     for (const sec of sections) {
       const key = secTypeKey(sec.name);
-      if (trumpetRoleByType[key] === undefined) trumpetRoleByType[key] = drawWeighted(rng, TRUMPET_ROLE_WEIGHTS);
+      if (trumpetRoleByType[key] === undefined) {
+        // one draw per section type either way — the stream positions of the
+        // other types are untouched; a chorus-type entry is a fanfare or a
+        // stab (the swell stays a non-chorus role, §13.3 chorus relief)
+        trumpetRoleByType[key] = isChorusType(sec.name)
+          ? drawWeighted(rng, TRUMPET_ROLE_WEIGHTS, CHORUS_TRUMPET_ROLES)
+          : drawWeighted(rng, TRUMPET_ROLE_WEIGHTS);
+      }
     }
   }
 
@@ -168,6 +175,8 @@ export function planBrass(ctx: OrchestratorContext): BrassPlan {
     const ordinaryVoices: Partial<Record<BrassPart, BrassVoiceKind>> = {};
     const secHere = sections.find((s) => bar >= s.startBar && bar < s.startBar + s.lengthBars);
     const typeKey = secTypeKey(secHere?.name ?? '*');
+    // §13.3 chorus relief: chorus-type bars read the lowered gates
+    const inChorus = isChorusType(secHere?.name);
     const isTrailer = textureForType(ctx, sectionTypeNameAtBar(ctx, bar)).id === 'trailer';
     const moment = moments.find(
       (m) => bar >= m.startBar && bar <= m.endBar && (m.kind === 'tutti' || m.kind === 'unison' || m.kind === 'soli'),
@@ -178,12 +187,18 @@ export function planBrass(ctx: OrchestratorContext): BrassPlan {
       if (level === 'off') return undefined;
       if (p === 'horns') return isTrailer ? 'ostinato' : 'pad';
       if (p === 'trombones') {
-        if (level === 'low') return undefined;
+        // chorus relief: the guide tones hold through the whole chorus,
+        // from the low gate up (base gates elsewhere)
+        if (level === 'low') return inChorus ? 'guide' : undefined;
         if (isTrailer) return 'guide'; // trombones never take the ostinato cell
         return level === 'high' || level === 'peak' ? 'lowDouble' : 'guide';
       }
       if (p === 'trumpets') {
-        if (level === 'low' || level === 'mid') return undefined;
+        // chorus relief: the trumpets ride their drawn fanfare/stab from the
+        // mid gate up, so they enter at the chorus start — not only near the
+        // peak (base high gate elsewhere; the peak choir is unchanged)
+        if (level === 'low') return undefined;
+        if (level === 'mid' && !inChorus) return undefined;
         if (isTrailer) return 'ostinato';
         return trumpetRoleByType[typeKey] ?? 'fanfare';
       }
@@ -239,7 +254,7 @@ export function planBrass(ctx: OrchestratorContext): BrassPlan {
       .filter(([, k]) => k !== undefined)
       .map(([p, k]) => `${p}:${k}`)
       .join(',') || 'rest';
-  reports.push(`brass (take ${take}): gates 0.30/0.55/0.75/0.90 of clamp ${clampMax}; lead ${leads.map((l) => `${l.startBar}-${l.endBar}`).join(',') || 'none'}`);
+  reports.push(`brass (take ${take}): gates 0.30/0.55/0.75/0.90 of clamp ${clampMax}, chorus relief trombones ≥0.30 trumpets ≥0.55 (fanfare|stab entries); lead ${leads.map((l) => `${l.startBar}-${l.endBar}`).join(',') || 'none'}`);
   const firstBars = barPlans.filter((b) => Object.values(b.voices).some((v) => v !== undefined)).slice(0, 12);
   if (firstBars.length) reports.push(`brass plan (take ${take}): ${firstBars.map((b) => `b${b.bar}[${b.level}] ${kindLabel(b)}`).join(' | ')}`);
 

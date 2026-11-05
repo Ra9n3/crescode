@@ -14,7 +14,7 @@ import { resolveTemplate } from '../src/config/ensembles';
 
 import { secondsToTicks } from '../src/orchestrator/spine';
 import { humanizeHeadTicks } from '../src/orchestrator/expression/timing';
-import { BRASS_GATES, BRASS_PROFILES, type BrassPart } from '../src/orchestrator/brass/profile';
+import { BRASS_CHORUS_GATES, BRASS_CHORUS_LIKE, BRASS_GATES, BRASS_PROFILES, type BrassPart } from '../src/orchestrator/brass/profile';
 
 /**
  * Phase 8 — brass: the brass module beside the strings. Pinned here: the
@@ -173,7 +173,7 @@ describe('Phase 8: phrase caps and rhythm floors', () => {
 /* ---------------- 4+5. gates and entrances ------------------------------- */
 
 describe('Phase 8: gates and prepared entrances', () => {
-  it('trumpets and trombones never (re-)enter below their gate; the level gates follow the arc fractions', () => {
+  it('trumpets and trombones never (re-)enter below their gate; the level gates follow the arc fractions (chorus relief: the lowered chorus gates inside chorus-type sections, Phase 8.3)', () => {
     for (const run of brassSurvey) {
       const plan = run.result.plan.brass;
       for (const role of ['trumpets', 'trombones'] as const) {
@@ -181,11 +181,17 @@ describe('Phase 8: gates and prepared entrances', () => {
         for (const b of plan.bars) {
           const kind = b.voices[role];
           if (kind !== undefined && prevKind === undefined && b.bar > 1) {
-            const gate = role === 'trumpets' ? BRASS_GATES.high : BRASS_GATES.mid;
+            // chorus-type bars read the lowered relief gates (§13.3), every
+            // other bar the base gates
+            const sec = run.project.sections.find((s) => b.bar >= s.startBar && b.bar < s.startBar + s.lengthBars);
+            const chorus = BRASS_CHORUS_LIKE.test((sec?.name ?? '').trim().toLowerCase());
+            const gate = role === 'trumpets'
+              ? (chorus ? BRASS_CHORUS_GATES.trumpets : BRASS_GATES.high)
+              : (chorus ? BRASS_CHORUS_GATES.trombones : BRASS_GATES.mid);
             // moment/lead kinds carry their own placement contract
             const momentKind = kind === 'tutti' || kind === 'unison' || kind === 'soli' || kind === 'lead' || kind === 'leadDouble';
             if (!momentKind) {
-              expect(b.norm >= gate, `${run.templateId} ${run.fixture} t${run.take} ${role} enters at b${b.bar} below its gate (norm ${b.norm.toFixed(2)})`).toBe(true);
+              expect(b.norm >= gate, `${run.templateId} ${run.fixture} t${run.take} ${role} enters at b${b.bar} below its ${chorus ? 'chorus ' : ''}gate (norm ${b.norm.toFixed(2)})`).toBe(true);
             }
           }
           prevKind = kind;

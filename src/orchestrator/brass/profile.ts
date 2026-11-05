@@ -48,6 +48,30 @@ export type BrassLevel = 'off' | 'low' | 'mid' | 'high' | 'peak';
 export const levelForNorm = (norm: number): BrassLevel =>
   norm >= BRASS_GATES.peak ? 'peak' : norm >= BRASS_GATES.high ? 'high' : norm >= BRASS_GATES.mid ? 'mid' : norm >= BRASS_GATES.low ? 'low' : 'off';
 
+/**
+ * §13.3 chorus relief (Phase 8.3): a chorus-type section must never sound
+ * thinner than a verse of the same piece. The chorus staircase caps (spine
+ * Phase 5a: 0.70–0.85 of the clamp for the non-peak choruses) sit at or
+ * below the high gate, which left whole choruses — the first one on every
+ * take — under the trumpets' gate with only the horns and the trombone
+ * guide tones sounding. In chorus-type sections the gates therefore lower:
+ * the trombones sound from the LOW gate and the trumpets from the MID gate,
+ * entering at the chorus start through a fanfare or a stab (never a swell —
+ * the entry is a gesture, not a bed). The peak keeps the full choir and the
+ * tuba (tuba stays peak-only), the entrance rule and the hard clamp are
+ * untouched, and non-chorus sections keep the base gates. The pattern is
+ * the same chorus-like match the spine's peak selection uses
+ * (/chorus|refrain|hook|drop/) — kept here as data so the brass module
+ * stays self-contained.
+ */
+export const BRASS_CHORUS_LIKE = /chorus|refrain|hook|drop/;
+/** The lowered gates INSIDE chorus-type sections (fractions of the clamp max). */
+export const BRASS_CHORUS_GATES = { trombones: BRASS_GATES.low, trumpets: BRASS_GATES.mid } as const;
+/** The trumpets' chorus-entry roles: the drawn role for a chorus-type
+ *  section is restricted to these (the swell stays a non-chorus role). */
+export const CHORUS_TRUMPET_ROLES: readonly TrumpetRole[] = ['fanfare', 'stab'];
+export const isChorusType = (name: string | undefined): boolean => BRASS_CHORUS_LIKE.test((name ?? '').trim().toLowerCase());
+
 /** Outside the sweet spot a part plays only above this fraction (§13.2). */
 export const OUT_OF_SWEET_GATE = BRASS_GATES.high;
 

@@ -311,10 +311,10 @@ chords, no self-doubling, no divisi. The old rules generator voiced horns
 and trombones as 2–3-voice block pads (the reason the checker needed its
 block-chord exemption); the module replaces that with section writing where
 the choir covers harmony across tracks (horn pad + trombone guide tone +
-tuba bass line). The Phase 7 `div2` relaxation stays strings-only: without
-a brass export profile there is no honest way to carry a second brass line
-through keyswitches/parts, and every audit assumption (D2, legato joins,
-CC bar kinds) holds unchanged.
+tuba bass line). The Phase 7 `div2` relaxation stays strings-only by design
+(one voice per brass track — the brass parts export one line each through
+their own channels since the Phase 8.1 profile), and every audit assumption
+(D2, legato joins, CC bar kinds) holds unchanged.
 
 ### 13.2 Zones, ceilings, caps (MIDI, sounding)
 
@@ -409,9 +409,12 @@ and reported by the audit as a soft finding (`brassParallels`).
 
 Articulations are stored as data on the notes — `sustain`, `legato`,
 `marcato`, `staccato` — never as keyswitches in the project. The UVI
-Orchestral Suite profile maps no brass part, so brass exports exactly as
-they would without a profile (the profile machinery passes unmapped parts
-through untouched).
+Orchestral Suite profile maps the four brass parts since Phase 8.1 (one
+part each on the channels after the strings, red-zone `keyswitchZone` +
+`playableLow` per part; the export's red-zone guard drops non-keyswitch
+notes below a part's playableLow — export only). Before that phase it
+mapped no brass part, so brass exported exactly as it would without a
+profile (the profile machinery passes unmapped parts through untouched).
 
 ### 13.8 Determinism and isolation
 

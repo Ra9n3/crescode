@@ -1,7 +1,7 @@
 {
   "id": "uvi-orchestral-suite",
-  "name": "UVI Orchestral Suite — string ensembles",
-  "description": "One part per UVI Orchestral Suite string-ensemble patch. Keyswitch names follow the manual's pitchConvention. cbLayer omit (the default) leaves the Cb octave doubles out of the export entirely — the Cello Ensemble carries the cellosBasses track and no Bass part or file is created; 'separate' gives the layer:'cb' doubles their own Bass Ensemble part on its own channel/file.",
+  "name": "UVI Orchestral Suite — string + brass ensembles",
+  "description": "One part per UVI Orchestral Suite ensemble patch (strings and, since Phase 8.1, the four Falcon brass patches Crescode writes). Keyswitch names follow the manual's pitchConvention; keyswitchZone is the patch's red zone (silent keys / keyswitch keys, MIDI sounding) and playableLow the patch's lowest playable note — in a profile export any non-keyswitch note below playableLow is dropped (it would trigger a keyswitch or sit in a silent gap); the project itself is never touched. cbLayer omit (the default) leaves the Cb octave doubles out of the export entirely — the Cello Ensemble carries the cellosBasses track and no Bass part or file is created; 'separate' gives the layer:'cb' doubles their own Bass Ensemble part on its own channel/file. Brass parts use the 4-horn layer only; the 8-horn and Xtra layers are ignored.",
   "pitchConvention": "C3=60",
   "keyswitchVelocity": 100,
   "cbLayer": "omit",
@@ -12,6 +12,8 @@
       "channel": 1,
       "source": { "role": "violins1" },
       "lowestPlayable": 55,
+      "keyswitchZone": { "low": 24, "high": 38 },
+      "playableLow": 48,
       "keyswitches": { "sustain": "C0", "legato": "D0", "marcato": "A0", "pizz": "F0", "spiccato": "D1", "tremolo": "G0" },
       "fallback": {
         "detache": ["sustain"],
@@ -32,6 +34,8 @@
       "channel": 2,
       "source": { "role": "violins2" },
       "lowestPlayable": 55,
+      "keyswitchZone": { "low": 36, "high": 50 },
+      "playableLow": 60,
       "keyswitches": { "sustain": "C1", "legato": "D1", "marcato": "A1", "pizz": "F1", "spiccato": "D2", "tremolo": "G1" },
       "fallback": {
         "detache": ["sustain"],
@@ -52,6 +56,8 @@
       "channel": 3,
       "source": { "role": "violas" },
       "lowestPlayable": 48,
+      "keyswitchZone": { "low": 24, "high": 47 },
+      "playableLow": 48,
       "keyswitches": { "sustain": "C0", "legato": "D0", "marcato": "A0", "pizz": "F0", "spiccato": "C#1", "tremolo": "G0" },
       "fallback": {
         "detache": ["sustain"],
@@ -72,6 +78,8 @@
       "channel": 4,
       "source": { "role": "cellosBasses", "layer": null },
       "lowestPlayable": 28,
+      "keyswitchZone": { "low": 12, "high": 24 },
+      "playableLow": 36,
       "keyswitches": { "sustain": "C-1", "legato": "D-1", "marcato": "A-1", "pizz": "E-1", "tremolo": "G-1" },
       "fallback": {
         "detache": ["sustain"],
@@ -94,6 +102,8 @@
       "channel": 5,
       "source": { "role": "cellosBasses", "layer": "cb" },
       "lowestPlayable": 28,
+      "keyswitchZone": { "low": 12, "high": 24 },
+      "playableLow": 28,
       "keyswitches": { "sustain": "C-1", "legato": "D-1", "marcato": "A-1", "pizz": "F-1", "tremolo": "G-1" },
       "fallback": {
         "detache": ["sustain"],
@@ -109,12 +119,122 @@
       "keyswitchLengthMs": 60,
       "tremoloMode": "sampled",
       "ccEnabled": { "1": true, "7": true, "11": true, "68": false, "74": false }
+    },
+    {
+      "id": "horns",
+      "patch": "French Horn Ensemble",
+      "channel": 6,
+      "source": { "role": "horns" },
+      "lowestPlayable": 35,
+      "keyswitchZone": { "low": 24, "high": 29 },
+      "playableLow": 35,
+      "keyswitches": { "sustain": "C0", "staccato": "C#0" },
+      "fallback": {
+        "marcato": ["staccato"],
+        "spiccato": ["staccato"],
+        "pizz": ["staccato"],
+        "legato": ["sustain"],
+        "tremolo": ["sustain"],
+        "detache": ["sustain"],
+        "portato": ["sustain"],
+        "sulTasto": ["sustain"],
+        "sulPont": ["sustain"],
+        "conSord": ["sustain"]
+      },
+      "transposeSemitones": 0,
+      "keyswitchLeadMs": 30,
+      "keyswitchLengthMs": 60,
+      "ccEnabled": { "1": true, "7": true, "11": true, "68": false, "74": false }
+    },
+    {
+      "id": "trombones",
+      "patch": "Trombone Ensemble",
+      "channel": 7,
+      "source": { "role": "trombones" },
+      "lowestPlayable": 36,
+      "keyswitchZone": { "low": 24, "high": 25 },
+      "playableLow": 36,
+      "keyswitches": { "sustain": "C0", "staccato": "C#0" },
+      "fallback": {
+        "marcato": ["staccato"],
+        "spiccato": ["staccato"],
+        "pizz": ["staccato"],
+        "legato": ["sustain"],
+        "tremolo": ["sustain"],
+        "detache": ["sustain"],
+        "portato": ["sustain"],
+        "sulTasto": ["sustain"],
+        "sulPont": ["sustain"],
+        "conSord": ["sustain"]
+      },
+      "transposeSemitones": 0,
+      "keyswitchLeadMs": 30,
+      "keyswitchLengthMs": 60,
+      "ccEnabled": { "1": true, "7": true, "11": true, "68": false, "74": false }
+    },
+    {
+      "id": "trumpets",
+      "patch": "Trumpet Ensemble",
+      "channel": 8,
+      "source": { "role": "trumpets" },
+      "lowestPlayable": 55,
+      "keyswitchZone": { "low": 48, "high": 52 },
+      "playableLow": 55,
+      "keyswitches": { "sustain": "C2", "accent": "D2", "staccato": "D#2" },
+      "fallback": {
+        "marcato": ["accent"],
+        "spiccato": ["staccato"],
+        "pizz": ["staccato"],
+        "legato": ["sustain"],
+        "tremolo": ["sustain"],
+        "detache": ["sustain"],
+        "portato": ["sustain"],
+        "sulTasto": ["sustain"],
+        "sulPont": ["sustain"],
+        "conSord": ["sustain"]
+      },
+      "transposeSemitones": 0,
+      "keyswitchLeadMs": 30,
+      "keyswitchLengthMs": 60,
+      "ccEnabled": { "1": true, "7": true, "11": true, "68": false, "74": false }
+    },
+    {
+      "id": "tuba",
+      "patch": "Tuba solo",
+      "channel": 9,
+      "source": { "role": "tuba" },
+      "lowestPlayable": 28,
+      "keyswitchZone": { "low": 24, "high": 25 },
+      "playableLow": 28,
+      "keyswitches": { "sustain": "C0", "staccato": "C#0" },
+      "fallback": {
+        "marcato": ["staccato"],
+        "spiccato": ["staccato"],
+        "pizz": ["staccato"],
+        "legato": ["sustain"],
+        "tremolo": ["sustain"],
+        "detache": ["sustain"],
+        "portato": ["sustain"],
+        "sulTasto": ["sustain"],
+        "sulPont": ["sustain"],
+        "conSord": ["sustain"]
+      },
+      "transposeSemitones": 0,
+      "keyswitchLeadMs": 30,
+      "keyswitchLengthMs": 60,
+      "ccEnabled": { "1": true, "7": true, "11": true, "68": false, "74": false }
     }
   ],
   "unverified": [
+    "parts[0].playableLow (C2=48, from the user's table, marked unverified there)",
     "parts[1].keyswitches.spiccato (D2, read from a small manual image)",
     "parts[2].keyswitches.spiccato (C#1, read from a small manual image)",
     "parts[3].keyswitches.marcato (A-1, read from a small manual image)",
-    "parts[4].transposeSemitones (default 0)"
+    "parts[4].transposeSemitones (default 0)",
+    "parts[4].keyswitchZone + playableLow (bass is not in the range table; zone C-1–C0 covers its keyswitches, playableLow = its lowestPlayable 28)",
+    "parts[5].transposeSemitones (default 0)",
+    "parts[6].transposeSemitones (default 0)",
+    "parts[7].transposeSemitones (default 0)",
+    "parts[8].transposeSemitones (default 0)"
   ]
 }

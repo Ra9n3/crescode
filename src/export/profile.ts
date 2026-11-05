@@ -12,6 +12,15 @@
  * profile the writers are byte-identical to the plain export. Everything is
  * deterministic: the transform is a pure function of (project, tracks,
  * profile).
+ *
+ * Phase 8.1: each part may declare its patch's `keyswitchZone` (the red
+ * zone of silent/keyswitch keys) and `playableLow` (the patch's lowest
+ * playable note). The validator checks every keyswitch against both; the
+ * export's red-zone guard drops any non-keyswitch note below playableLow
+ * (it would trigger a keyswitch or sit in a silent gap) — export only, the
+ * project is untouched. Keyswitch names may also describe patch-side
+ * articulations the project never writes (e.g. an accent patch key) as long
+ * as some fallback chain of the same part references them.
  */
 import { ARTICULATIONS, type CcLane, type Note, type Project, type Track } from '../shared/schema/types';
 import { msToTicks, ticksToMs } from '../orchestrator/spine';
@@ -86,6 +95,14 @@ export interface ProfilePart {
   source: ProfileSource;
   /** Sounding midi floor of the patch — every keyswitch key must sit below it. */
   lowestPlayable: number;
+  /** The patch's red zone (MIDI sounding): silent keys and keyswitch keys.
+   *  Every keyswitch key must lie inside [low, high]. Optional (a profile
+   *  without zones skips that check). */
+  keyswitchZone?: { low: number; high: number };
+  /** The patch's lowest playable note (MIDI sounding). The export's red-zone
+   *  guard drops any non-keyswitch note below it; the validator requires
+   *  every keyswitch key to sit below it. Optional (absent = no guard). */
+  playableLow?: number;
   /** articulation (or 'sustain') → key NAME under the profile's convention. */
   keyswitches: Record<string, string>;
   /** articulation → chain of articulation names to try, in order. */
@@ -170,6 +187,30 @@ export function validateExportProfile(doc: unknown): string[] {
     }
 
     if (!isInt(part.lowestPlayable) || part.lowestPlayable < 0 || part.lowestPlayable > 127) err(`${at}.lowestPlayable`, 'must be an integer 0–127');
+
+    // Phase 8.1: the red zone + playable floor (both optional)
+    let zone: { low: number; high: number } | null = null;
+    if (part.keyswitchZone !== undefined) {
+      const z = part.keyswitchZone as Record<string, unknown>;
+      if (typeof z !== 'object' || z === null || !isInt(z.low) || !isInt(z.high) || (z.low as number) < 0 || (z.high as number) > 127 || (z.low as number) > (z.high as number)) {
+        err(`${at}.keyswitchZone`, 'must be {low, high} integers 0–127 with low ≤ high');
+      } else zone = { low: z.low as number, high: z.high as number };
+    }
+    if (part.playableLow !== undefined && (!isInt(part.playableLow) || (part.playableLow as number) < 0 || (part.playableLow as number) > 127)) {
+      err(`${at}.playableLow`, 'must be an integer 0–127');
+    }
+
+    // Patch-side keyswitch names: a keyswitch table may describe articulations
+    // the project never writes (an accent patch key, say) when a fallback chain
+    // of the same part references them — pre-scan the chains for those names.
+    const chainRefs = new Set<string>();
+    const rawFb = part.fallback;
+    if (typeof rawFb === 'object' && rawFb !== null) {
+      for (const [, chain] of Object.entries(rawFb as Record<string, unknown>)) {
+        if (Array.isArray(chain)) for (const e of chain) if (typeof e === 'string') chainRefs.add(e);
+      }
+    }
+
     if (!isInt(part.transposeSemitones) || Math.abs(part.transposeSemitones) > 36) err(`${at}.transposeSemitones`, 'must be an integer within ±36');
     if (typeof part.keyswitchLeadMs !== 'number' || !(part.keyswitchLeadMs > 0)) err(`${at}.keyswitchLeadMs`, 'must be a number > 0');
     if (typeof part.keyswitchLengthMs !== 'number' || !(part.keyswitchLengthMs > 0)) err(`${at}.keyswitchLengthMs`, 'must be a number > 0');
@@ -179,12 +220,15 @@ export function validateExportProfile(doc: unknown): string[] {
     const ks = part.keyswitches;
     if (typeof ks !== 'object' || ks === null) { err(`${at}.keyswitches`, 'must be an object'); return; }
     const keyOf: Record<string, number> = {};
+    const keyNames = new Set(Object.keys(ks as Record<string, unknown>));
     for (const [art, keyName] of Object.entries(ks as Record<string, unknown>)) {
-      if (!PROFILE_ARTS.includes(art)) { err(`${at}.keyswitches.${art}`, `unknown articulation ${JSON.stringify(art)} (expected one of ${PROFILE_ARTS.join(', ')})`); continue; }
+      if (!PROFILE_ARTS.includes(art) && !chainRefs.has(art)) { err(`${at}.keyswitches.${art}`, `unknown articulation ${JSON.stringify(art)} (expected one of ${PROFILE_ARTS.join(', ')} or a name referenced by this part's fallback chains)`); continue; }
       if (typeof keyName !== 'string') { err(`${at}.keyswitches.${art}`, 'key must be a name like "C0"'); continue; }
       const midi = conv ? keyNameToMidi(keyName, d.pitchConvention as string) : null;
       if (midi === null) { err(`${at}.keyswitches.${art}`, `unparseable key name ${JSON.stringify(keyName)}`); continue; }
       if (isInt(part.lowestPlayable) && midi >= part.lowestPlayable) err(`${at}.keyswitches.${art}`, `key ${keyName} (${midi}) is inside the part's playable range (lowest playable ${part.lowestPlayable})`);
+      if (zone && (midi < zone.low || midi > zone.high)) err(`${at}.keyswitches.${art}`, `key ${keyName} (${midi}) lies outside the part's keyswitch zone [${zone.low}, ${zone.high}]`);
+      if (isInt(part.playableLow) && midi >= part.playableLow) err(`${at}.keyswitches.${art}`, `key ${keyName} (${midi}) is not below the part's playableLow (${part.playableLow})`);
       keyOf[art] = midi;
     }
 
@@ -194,8 +238,8 @@ export function validateExportProfile(doc: unknown): string[] {
       if (typeof fb !== 'object' || fb === null) { err(`${at}.fallback`, 'must be an object'); return; }
       for (const [art, chain] of Object.entries(fb as Record<string, unknown>)) {
         if (!ARTICULATIONS.includes(art as never)) { err(`${at}.fallback.${art}`, `unknown articulation ${JSON.stringify(art)}`); continue; }
-        if (!Array.isArray(chain) || !chain.length || !chain.every((e) => typeof e === 'string' && PROFILE_ARTS.includes(e))) {
-          err(`${at}.fallback.${art}`, 'must be a non-empty array of articulation names'); continue;
+        if (!Array.isArray(chain) || !chain.length || !chain.every((e) => typeof e === 'string' && (PROFILE_ARTS.includes(e) || keyNames.has(e)))) {
+          err(`${at}.fallback.${art}`, 'must be a non-empty array of articulation names (project articulations or this part\'s keyswitch names)'); continue;
         }
         const seen = new Set<string>([art]);
         for (const e of chain as string[]) {
@@ -247,6 +291,10 @@ export function parseExportProfile(doc: unknown): ExportProfile {
       channel: part.channel as number,
       source: { role: (part.source as Record<string, unknown>).role as string, ...((part.source as Record<string, unknown>).layer !== undefined ? { layer: (part.source as Record<string, unknown>).layer as 'cb' | null } : {}) },
       lowestPlayable: part.lowestPlayable as number,
+      ...((part as Record<string, unknown>).keyswitchZone !== undefined
+        ? { keyswitchZone: { low: ((part as Record<string, unknown>).keyswitchZone as { low: number }).low, high: ((part as Record<string, unknown>).keyswitchZone as { high: number }).high } }
+        : {}),
+      ...((part as Record<string, unknown>).playableLow !== undefined ? { playableLow: (part as Record<string, unknown>).playableLow as number } : {}),
       keyswitches: { ...(part.keyswitches as Record<string, string>) },
       fallback: Object.fromEntries(Object.entries((part.fallback as Record<string, string[]> | undefined) ?? {}).map(([k, v]) => [k, [...v]])),
       transposeSemitones: part.transposeSemitones as number,
@@ -395,8 +443,11 @@ const ccForPart = (cc: CcLane[] | undefined, enabled: Record<string, boolean>): 
  * cbLayer 'separate' the cellosBasses track splits by the note layer into
  * its cello and bass parts; with 'omit' (the default) the Cb-layer notes
  * are not exported at all and no Bass part exists. Each part is
- * transposed, tremolo-merged (sampled mode) and fronted by its
- * keyswitches. Notes that no part claims pass through unchanged.
+ * transposed, passed through the red-zone guard (Phase 8.1: non-keyswitch
+ * notes below the part's playableLow are dropped — they would trigger a
+ * keyswitch or sit in a silent gap; the project is untouched),
+ * tremolo-merged (sampled mode) and fronted by its keyswitches. Notes that
+ * no part claims pass through unchanged (no part, no known floor).
  */
 export function chunksForTrack(project: Project, track: Track, profile: ExportProfile | null): ExportChunk[] {
   // cbLayer 'omit' (the default): the Cb-layer notes are not exported at all —
@@ -410,18 +461,31 @@ export function chunksForTrack(project: Project, track: Track, profile: ExportPr
 
   const chunks: ExportChunk[] = [];
   const claimed = new Set<Note>();
+  let anyMatched = false;
   for (const part of parts) {
     const matched = visible.filter((n) => noteMatchesSource(n, part.source) && !claimed.has(n));
     for (const n of matched) claimed.add(n);
     if (!matched.length) continue;
+    anyMatched = true;
     const transposed = part.transposeSemitones
       ? matched.map((n) => ({ ...n, pitch: Math.max(0, Math.min(127, n.pitch + part.transposeSemitones)) }))
       : matched;
-    const merged = part.tremoloMode === 'sampled' ? mergeTremoloGroups(transposed) : transposed;
+    // Red-zone guard (Phase 8.1): the EXPORTED pitch is what would trigger a
+    // keyswitch, so the guard runs on the transposed notes, before the merge
+    // (a dropped repeat must not extend a tremolo group). Keyswitch notes are
+    // generated after the guard, so they are never dropped by it.
+    const guarded = part.playableLow === undefined ? transposed : transposed.filter((n) => n.pitch >= part.playableLow!);
+    if (!guarded.length) continue; // everything dropped: no part file at all
+    const merged = part.tremoloMode === 'sampled' ? mergeTremoloGroups(guarded) : guarded;
     const notes = [...keyswitchNotesFor(part, merged, project, profile), ...merged].sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
     chunks.push({ trackId: track.id, name: part.patch, channel: part.channel, notes, ...(ccForPart(track.cc, part.ccEnabled) !== undefined ? { cc: ccForPart(track.cc, part.ccEnabled)! } : {}) });
   }
   const rest = visible.filter((n) => !claimed.has(n));
   if (rest.length) chunks.push({ trackId: track.id, name: track.name, channel: track.midiChannel, notes: rest, ...(track.cc !== undefined ? { cc: track.cc } : {}) });
-  return chunks.length ? chunks : [passthrough()];
+  if (chunks.length) return chunks;
+  // Every matched note was guard-dropped: the track maps to a patch that
+  // cannot sound any of it — export nothing for it (a passthrough here would
+  // reintroduce exactly the notes the guard exists to drop). A track whose
+  // parts matched NOTHING is still unmapped: passthrough as before.
+  return anyMatched ? [] : [passthrough()];
 }

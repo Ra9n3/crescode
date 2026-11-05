@@ -182,7 +182,7 @@ describe('Phase 8: 2 — divisi in exports (UVI profile)', () => {
     }
   }, 300000);
 
-  it('the range guard and cbLayer omit drop nothing: every div2 note reaches the export chunk and survives sanitize', () => {
+  it('every div2 note AT OR ABOVE the part\'s playableLow reaches the export chunk; the sub-playableLow notes are red-zone-guard-dropped (Phase 8.1) and survive sanitize in the project', () => {
     for (const { templateId, take, run } of foundDivisi) {
       for (const m of run.result.plan.moments.filter((mm) => mm.kind === 'divisi')) {
         const track = run.project.tracks.find((t) => t.id === (m as { divTrackId?: string }).divTrackId)!;
@@ -192,9 +192,16 @@ describe('Phase 8: 2 — divisi in exports (UVI profile)', () => {
         expect(div2.length, `${templateId} t${take} has div2 notes`).toBeGreaterThan(0);
         const covered = (d: Note): boolean =>
           chunk.notes.some((mm) => mm.pitch === d.pitch && mm.startTick <= d.startTick && mm.startTick + mm.durationTicks >= d.startTick + d.durationTicks);
+        const floor = part.playableLow ?? 0;
         for (const d of div2) {
           expect(d.pitch >= track.lowestNote && d.pitch <= track.highestNote, `${templateId} t${take} div2 ${d.pitch} inside the track range`).toBe(true);
-          expect(covered(d), `${templateId} t${take} div2 ${d.pitch}@${d.startTick} in the ${part.id} chunk (cbLayer ${PROFILE.cbLayer})`).toBe(true);
+          if (d.pitch >= floor) {
+            expect(covered(d), `${templateId} t${take} div2 ${d.pitch}@${d.startTick} in the ${part.id} chunk (cbLayer ${PROFILE.cbLayer})`).toBe(true);
+          } else {
+            // Phase 8.1 red-zone guard: the patch cannot sound below its playableLow —
+            // the export drops the note (the project keeps it; reported in the phase report)
+            expect(covered(d), `${templateId} t${take} div2 ${d.pitch}@${d.startTick} below the ${part.id} playableLow ${floor} is guard-dropped`).toBe(false);
+          }
         }
         expect(sanitizeNotes(track.notes, track.lowestNote, track.highestNote, 99999999)).toEqual(track.notes);
       }

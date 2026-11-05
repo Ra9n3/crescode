@@ -98,13 +98,19 @@ describe('profile validator', () => {
     expect(errors.some((e) => e.includes('parts[1].channel') && e.includes('already used'))).toBe(true);
     expect(errors.some((e) => e.includes('parts[2]') && e.includes('does not resolve'))).toBe(true);
   });
-  it('keeps the UNVERIFIED markers: two spiccatos, cello marcato, bass transpose — pitchConvention confirmed', () => {
+  it('keeps the UNVERIFIED markers: the pre-8.1 four plus the 8.1 additions (violins1 playableLow, bass zone, brass transposes)', () => {
     const doc = uviDoc() as { unverified: string[] };
     expect(doc.unverified).toEqual([
+      'parts[0].playableLow (C2=48, from the user\'s table, marked unverified there)',
       'parts[1].keyswitches.spiccato (D2, read from a small manual image)',
       'parts[2].keyswitches.spiccato (C#1, read from a small manual image)',
       'parts[3].keyswitches.marcato (A-1, read from a small manual image)',
       'parts[4].transposeSemitones (default 0)',
+      'parts[4].keyswitchZone + playableLow (bass is not in the range table; zone C-1–C0 covers its keyswitches, playableLow = its lowestPlayable 28)',
+      'parts[5].transposeSemitones (default 0)',
+      'parts[6].transposeSemitones (default 0)',
+      'parts[7].transposeSemitones (default 0)',
+      'parts[8].transposeSemitones (default 0)',
     ]);
   });
 });
@@ -180,15 +186,19 @@ describe('profile export (dorian, cinematic take 1)', () => {
     const bass = partChunk(project, tracks, 'bass');
     expect(cello).toHaveLength(1);
     expect(bass).toHaveLength(1);
-    // every layer note lands in the bass part, every unmarked note in the cello part
+    // every layer note lands in the bass part; every unmarked note AT OR ABOVE
+    // the cello part's playableLow (36, Phase 8.1) lands in the cello part —
+    // the red-zone guard drops the sub-36 notes (the patch cannot sound them)
     const bassNotes = bass[0].notes.filter((n) => n.pitch >= 28);
     const celloNotes = cello[0].notes.filter((n) => n.pitch >= 28);
     expect(bassNotes.length).toBe(cbLayer.length);
-    expect(celloNotes.length).toBe(cbRest.length);
+    expect(celloNotes.length).toBe(cbRest.filter((n) => n.pitch >= 36).length);
+    expect(cbRest.some((n) => n.pitch < 36)).toBe(true); // the guard really dropped some
     expect(bass[0].channel).toBe(5);
     expect(cello[0].channel).toBe(4);
     for (const [i, part] of PROFILE_SEP.parts.entries()) {
       const chunk = partChunk(project, tracks, part.id)[0];
+      if (!chunk) continue; // a part whose source track is silent this take has no chunk (Phase 8.1: brass parts joined)
       expect(chunk.channel).toBe(i + 1);
     }
   });
@@ -196,6 +206,7 @@ describe('profile export (dorian, cinematic take 1)', () => {
   it('keyswitches: velocity 100, only on change, always ahead of the note, ending before it starts', () => {
     for (const part of PROFILE_SEP.parts) {
       const chunk = partChunk(project, tracks, part.id)[0];
+      if (!chunk) continue; // silent source track → no chunk (Phase 8.1: brass parts joined)
       const ks = chunk.notes.filter((n) => n.pitch < part.lowestPlayable);
       const playing = chunk.notes.filter((n) => n.pitch >= part.lowestPlayable);
       // recompute the expected keyswitch sequence from the playing notes
@@ -351,8 +362,10 @@ describe('cbLayer omit (default): no Bass part, no Cb-layer notes in the export'
     const chunks = chunksForTrack(project, cb, PROFILE);
     expect(chunks.map((c) => c.name)).toEqual(['Cello Ensemble']); // no Bass Ensemble chunk
     expect(chunks[0].notes.some((n) => n.layer === 'cb')).toBe(false);
-    // every exported cello note is an unmarked note; the layer notes are gone entirely
-    expect(chunks[0].notes.filter((n) => n.pitch >= 28).length).toBe(cb.notes.filter((n) => n.layer !== 'cb').length);
+    // every exported cello note is an unmarked note at or above the part's
+    // playableLow (36, Phase 8.1); the layer notes and the sub-36 notes are gone
+    expect(chunks[0].notes.filter((n) => n.pitch >= 28).length).toBe(cb.notes.filter((n) => n.layer !== 'cb' && n.pitch >= 36).length);
+    expect(chunks[0].notes.some((n) => n.pitch >= 28 && n.pitch < 36)).toBe(false);
     expect(chunks[0].channel).toBe(4);
   });
 
@@ -433,6 +446,8 @@ describe('schema discipline', () => {
     expect(cb.notes.filter((n) => n.layer === 'cb')).toHaveLength(0);
     const chunks = chunksForTrack(project, cb, PROFILE);
     expect(chunks.map((c) => c.name)).toEqual(['Cello Ensemble']); // no Bass Ensemble chunk at all
-    expect(chunks[0].notes.filter((n) => n.pitch >= 28).length).toBe(cb.notes.length);
+    // Phase 8.1: the red-zone guard drops the sub-playableLow (36) notes in the export
+    expect(chunks[0].notes.filter((n) => n.pitch >= 28).length).toBe(cb.notes.filter((n) => n.pitch >= 36).length);
+    expect(chunks[0].notes.some((n) => n.pitch >= 28 && n.pitch < 36)).toBe(false);
   });
 });

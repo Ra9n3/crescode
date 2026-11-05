@@ -29,6 +29,9 @@ import { barTicks, beatTicks } from '../shared/schema/meter';
 import { buildCcLanes } from './expression/cc';
 import { humanizeStrings } from './expression/humanize';
 import { overlapLegato } from './expression/legato';
+import { renderBrass, governBrassVelocities } from './brass/render';
+import { BRASS_PARTS } from './brass/profile';
+import { EMPTY_BRASS_PLAN } from './brass/plan';
 import type { OrchestratorContext } from './module';
 
 export interface ComposeOptions {
@@ -118,18 +121,22 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   // policy allows doubling and the range holds both — otherwise reported+skipped
   maybeLayerCellosBasses(ctx, notesByTrackId, stringsTrackIds);
 
-  // the rules generator covers every other family — strings excluded from
-  // its WRITING, but their rendered notes feed its doublings (D9)
+  // the rules generator covers every other family — strings AND brass are
+  // excluded from its WRITING (Phase 8: the brass module owns the template's
+  // brass roster), but the rendered strings still feed its doublings (D9)
   const roleNotes = Object.entries(notesByTrackId).map(([id, notes]) => ({
     role: project.tracks.find((t) => t.id === id)!.role,
     notes,
   }));
+  const brassRosterRoles = template
+    ? template.roster.filter((r) => (BRASS_PARTS as readonly string[]).includes(r.role)).map((r) => r.role)
+    : [];
   const ruleTracks = generate(project, {
     seed: options.seed,
     density: options.density,
     humanize: options.humanize,
     lockedTrackIds,
-    excludeRoles: [...new Set(voiceTracks.map((t) => t.role))],
+    excludeRoles: [...new Set([...voiceTracks.map((t) => t.role), ...brassRosterRoles])],
     roleNotes,
   });
 
@@ -176,10 +183,31 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     }
   }
 
+  // Phase 8: brass — the module realises the conductor's plan AFTER the
+  // generator and the tutti hits, so the two-pass velocity math sees every
+  // other family's notes: each brass note is capped by the governor bound of
+  // every beat window it touches, and the whole-roster cap shapes the
+  // moment notes. The generator no longer writes the template's brass.
+  const brassPlan = ctx.brassPlan ?? EMPTY_BRASS_PLAN;
+  const brassResult = renderBrass({
+    ctx,
+    plan: brassPlan,
+    stringsNotes: notesByTrackId,
+    ruleNotes: ruleTracks.filter((t) => !stringsTrackIds.includes(t.id)).map((t) => ({ role: t.role, notes: t.notes })),
+  });
+  const brassNotes = brassResult.notesByTrackId;
+  ctx.lines!.reports.push(...brassPlan.reports, ...brassResult.reports);
+  const brassOther = Object.entries(brassNotes).map(([id, notes]) => ({
+    role: project.tracks.find((t) => t.id === id)!.role,
+    notes,
+  }));
+
   // Mixed-window governor: the pads' own cap bounds strings-only windows, but
   // real windows mix pads with the rules generator's output. Re-check every
   // beat window and pull pad velocities down where the MIX would breach the
   // template's hard clamp (spec §6, Phase-2 acceptance). No band → no clamp.
+  // (Brass is not an input here — its notes are already governor-capped and
+  // the final brass safety pass below re-checks the clamp for them.)
   const rosterRoles = new Set(
     (template ? template.roster.map((r) => r.role) : project.tracks.filter((t) => isInstrumentTrack(t) && isInBand(t.role, ensemble, template)).map((t) => t.role)),
   );
@@ -228,6 +256,21 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
       .map((t) => ({ role: t.role, notes: t.notes })),
   });
 
+  // Phase 8: the final brass safety pass — over the FINAL notes (humanize/
+  // legato may have moved string attacks across window boundaries) lower
+  // BRASS ALONE where the mix would breach the hard clamp. Expected no-op.
+  if (template && brassOther.length) {
+    governBrassVelocities({
+      project: ctx.project,
+      template,
+      brass: brassOther,
+      otherNotes: [
+        ...ruleTracks.filter((t) => !stringsTrackIds.includes(t.id)).map((t) => ({ role: t.role, notes: t.notes })),
+        ...stringsTrackIds.map((id) => ({ role: project.tracks.find((t) => t.id === id)?.role ?? '', notes: notesByTrackId[id] ?? [] })),
+      ],
+    });
+  }
+
   // Phase 5c: CC lanes for the strings the orchestrator wrote — phrase arcs
   // (CC1/CC11), CC7 balance, CC74 spikes, CC68 legato windows, soft-entry
   // S-curves. Only in-band unlocked string tracks appear in notesByTrackId,
@@ -251,6 +294,30 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     .join(', ');
   if (ccSummary) ctx.lines!.reports.push(`cc (take ${orchestration.take}): ${ccSummary}`);
 
+  // Phase 8: brass CC lanes — the SAME generation the strings get (phrase
+  // arches on CC1/CC11, soft-entry S-curves into the prepared entrances,
+  // CC68/CC74/CC7), built from the final brass notes.
+  const brassCcByTrackId = Object.keys(brassNotes).length
+    ? buildCcLanes({
+        project: ctx.project,
+        template,
+        sections: ctx.sections,
+        arc,
+        notesByTrackId: brassNotes,
+        carrierByBar: ctx.lines!.carrierByBar,
+      })
+    : {};
+  const brassCcSummary = Object.keys(brassNotes)
+    .map((id) => {
+      const lanes = brassCcByTrackId[id];
+      if (!lanes) return null;
+      const name = project.tracks.find((t) => t.id === id)?.name ?? id;
+      return `${name} ${lanes.length}L/${lanes.reduce((a, l) => a + l.points.length, 0)}P`;
+    })
+    .filter(Boolean)
+    .join(', ');
+  if (brassCcSummary) ctx.lines!.reports.push(`brass cc (take ${orchestration.take}): ${brassCcSummary}`);
+
   const stringsNotes = new Map(stringsTrackIds.map((id) => [id, notesByTrackId[id]]));
   const tracks = project.tracks.map((t) => {
     if (!isInstrumentTrack(t)) return t;
@@ -259,6 +326,10 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     if (stringsNotes.has(t.id)) {
       const cc = ccByTrackId[t.id];
       return { ...t, notes: stringsNotes.get(t.id)!, ...(cc ? { cc } : {}) };
+    }
+    if (brassNotes[t.id] !== undefined) {
+      const cc = brassCcByTrackId[t.id];
+      return { ...t, notes: brassNotes[t.id], ...(cc ? { cc } : {}) };
     }
     const gen = ruleTracks.find((r) => r.id === t.id);
     return gen ? { ...t, notes: gen.notes } : t;

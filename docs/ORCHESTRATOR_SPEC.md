@@ -247,8 +247,9 @@ E2E: compose, play, open report.
 
 ## 11. Non-goals
 
-Mixing, EQ, pan, sample-library keyswitches, brass/woodwind/percussion
-modules (later), a score checker beyond `measureEnergy` + template rules.
+Mixing, EQ, pan, sample-library keyswitches, woodwind/percussion modules
+(later), a score checker beyond `measureEnergy` + template rules. (Brass
+moved out of this list in §13 — Phase 8 builds the brass module.)
 
 ## 12. Open items for the user
 
@@ -288,3 +289,159 @@ modules (later), a score checker beyond `measureEnergy` + template rules.
 §10 Add: sanitizeNotes preserves optional fields; old project files load
     unchanged; CC round-trips through export; the same inputs and take give
     byte-identical output; a different take gives different output.
+## 13. Brass (Phase 8 — the brass module)
+
+Brass joins the orchestrator as a family module beside the strings module
+(`src/orchestrator/brass/`): the strings render first, the rules generator
+covers winds/percussion/keys as before, and brass is written by its own
+planner + renderer between the two. Everything below is defined in MIDI
+numbers, sounding pitch (the note names in `ranges.ts` are written with
+C4=60; the app displays C3=60 — the MIDI numbers are the truth either way).
+
+### 13.1 Roster and voices per track
+
+Brass rosters (from the shipped templates): symphony and cinematic carry
+horns, trumpets, trombones, tuba; hybridstudio carries horns, trumpets,
+trombones (no tuba); chamber, sonata and vocalbacking carry none — for
+those three the brass module is silent and their output stays byte-identical
+(pinned against the moments-on baseline).
+
+Voices per track: ONE. A brass track carries a single line — no block
+chords, no self-doubling, no divisi. The old rules generator voiced horns
+and trombones as 2–3-voice block pads (the reason the checker needed its
+block-chord exemption); the module replaces that with section writing where
+the choir covers harmony across tracks (horn pad + trombone guide tone +
+tuba bass line). The Phase 7 `div2` relaxation stays strings-only: without
+a brass export profile there is no honest way to carry a second brass line
+through keyswitches/parts, and every audit assumption (D2, legato joins,
+CC bar kinds) holds unchanged.
+
+### 13.2 Zones, ceilings, caps (MIDI, sounding)
+
+| part | hard range (ranges.ts) | sweet spot (the module writes here) | soft-dynamic ceiling | phrase cap | rhythm floor |
+|---|---|---|---|---|---|
+| horns | 41–77 | 41–72 | no soft dynamics above 72 | ~10 s | quarters or slower, except trailer repeats |
+| trumpets | 52–84 | 58–77 | no soft dynamics above 77 | ~6 s | 16ths only in trailer repeats or fanfare repeats |
+| trombones | 40–77 | 53–70 | n/a | ~7 s | eighths or slower |
+| tuba | 26–65 | 41–53 | n/a | ~5 s | eighths or slower |
+
+Every sweet spot sits inside its hard range; the config ranges are the
+playable extremes, the sweet spots are the writing window. Phrase caps are
+measured in seconds through the tempo map; when a sustained stretch reaches
+the cap the part rests at least one beat before re-attacking (the breath
+mechanism, per-instrument through the cap lengths; the rest itself is one
+beat for every part).
+
+Outside the sweet spot a part plays only above the high energy fraction
+(§13.3) — in practice the module's roles all stay inside their sweet spots
+by construction, and the rule is armed as a guard.
+
+### 13.3 Gating by section target energy
+
+The bar's arc target, as a fraction of the template's clamp max, gates the
+choir (fractions chosen by the implementer, reported):
+
+- below 0.30 — no brass (the near-silence and thin bars stay thin);
+- LOW, ≥ 0.30 — horns only, soft pad;
+- MID, ≥ 0.55 — horns plus trombones as guide tones;
+- HIGH, ≥ 0.75 — trumpets join (fanfare, stab or swell role);
+- PEAK, ≥ 0.90 — the full choir, plus tuba on the bass line.
+
+No bar number is ever consulted — only the arc. Every brass ENTRANCE (the
+part's first bar after a whole silent bar) must follow a strictly
+lower-energy bar, mirroring the tutti anticipation rule.
+
+### 13.4 Roles by texture and energy
+
+- Horn pad (default presence): sustained chord tones in the mid register,
+  one note per chord span, quarters-or-slower re-articulation.
+- Trombone guide tones (MID+): one chord tone per span, voice-led smoothly,
+  kept off the horn pad's pitch class where the chord allows.
+- Trumpets (HIGH+): one role drawn per section type on the brass stream —
+  fanfare (the lead's rhythm on chord tones), marcato stabs (downbeats and
+  phrase ends, inside the lead's windowing gaps), or a chord-tone swell
+  (one sustained tone through the section's high stretch).
+- Low brass (HIGH+): trombones and (at PEAK) tuba double the cello line at
+  unison or an octave lower, octave-fitted into their sweet spots. Below
+  MIDI 48 any two simultaneous low voices (trombone/tuba/cello) that are
+  NOT in unison or octaves sit a 5th or wider apart.
+- Trailer ostinato: in the trailer texture horns and trumpets may repeat a
+  chord tone on the drawn ostinato rhythm cell; trombones and tuba never do.
+
+### 13.5 Prepared entrances and the brass lead
+
+Every brass entrance rides a CC1/CC11 crescendo built by the same CC
+generator the strings use (phrase arches, soft-entry S-curves), and follows
+a lower-energy bar (§13.3).
+
+Brass lead (PEAK only, rare, weighted — at most one per piece): the lead
+moves to the trumpets for 2–4 bars (capped by the trumpet phrase cap).
+The strings drop to pad for those bars — a rendering-level override beside
+the DP exactly like the Phase 7 moment layers, so the voicing outside those
+bars is untouched — and the lead's pitch ceiling moves with it: the motif
+is drawn in the trumpet sweet spot. The horns may double the brass lead an
+octave below where the band's octaveDoubling policy allows (D2), and the
+leading tone is never doubled across families. One lead at a time: no bar
+carries both a string lead and the brass lead.
+
+### 13.6 Moments (Phase 7 integration)
+
+- Tutti: the roster-wide hit now includes brass — each brass part hits the
+  chord's root pitch class octave-fitted into its sweet spot, marcato, with
+  the drawn hold/decay/breath shape, under the whole-roster velocity cap.
+- Unison: the horns join the strings' unison line at the octave that fits
+  their sweet spot, only where the octaveDoubling policy allows, leading
+  tone skipped; the strings' part of the moment is untouched.
+- Soli: a horn soli is allowed — horns join the lead-flavor carrier pool
+  when the template rosters them (rare by draw); the strings rest (tacet)
+  under it and the brass module renders the carrier line.
+- Divisi and imitation: NOT extended to brass (not cheap: the export
+  profile machinery and the counterline concepts are strings-shaped; no
+  brass profile exists). Reported, not built.
+
+### 13.7 Doubling, parallels, articulations
+
+A horn doubling a trumpet lead at the octave respects D2 (the band's
+octaveDoubling policy). The leading tone is never doubled across families.
+Parallel 5ths/octaves between the outer voices are penalized when brass
+pitches are chosen (a candidate-ranking penalty in the module's pickers)
+and reported by the audit as a soft finding (`brassParallels`).
+
+Articulations are stored as data on the notes — `sustain`, `legato`,
+`marcato`, `staccato` — never as keyswitches in the project. The UVI
+Orchestral Suite profile maps no brass part, so brass exports exactly as
+they would without a profile (the profile machinery passes unmapped parts
+through untouched).
+
+### 13.8 Determinism and isolation
+
+The brass planner draws on its OWN salted D8 stream (`hashString('brass')`
+over the (inputs, take) seed) — the texture draws, the moments stream and
+every existing draw are untouched. Brass notes are velocity-capped by the
+same governor bound the strings use, so the hard energy clamp can never be
+breached by a brass entrance; a final brass-only safety pass re-checks the
+windows after humanize/legato and lowers brass alone if anything moved.
+Locked and out-of-band brass tracks are never written. Output is a
+`sanitizeNotes` no-op and `validateProject` passes. One undo step per
+Compose All (the brass work happens inside `composeAllTracks`).
+
+### 13.9 Implementation notes (how §13 landed)
+
+- The phrase cap is a PART-level clock over sounding runs (any kind); the
+  moment gestures (tutti/unison/soli) neither consume nor obey it and the
+  brass lead starts a fresh phrase at its first note — this keeps the
+  ordinary line's clock byte-identical with and without the moments (the
+  draw-identity pin), at the cost of the rare gestures not counting toward
+  lip time.
+- A moment overriding a part's ordinary line ghost-runs the ordinary kind on
+  that bar: the cap clock, the voice-leading targets and the outer-voice
+  tracking advance exactly as they would without the moments.
+- The low brass doubling rides the CELLO line's own phrasing — no
+  independent cap clock; cello notes closer together than an eighth merge
+  into one held segment (the doubling never moves faster than eighths), and
+  a sub-48 pair against any other low voice (Cb doubles included, ± the
+  humanize head) that is not a unison/octave or a 5th+ opens the doubling.
+- The suppressed string pad on a brass-lead bar opens where its DP pitch
+  would double a leading tone another voice holds (a line fix can pin a
+  track to the line's LT note that only sounds at the span's tail, and the
+  previous span's forced bass LT can tail in through the legato join).

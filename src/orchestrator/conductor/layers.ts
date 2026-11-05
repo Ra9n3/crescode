@@ -388,6 +388,9 @@ export function textureForType(ctx: OrchestratorContext, typeName: string): Text
 /** The track carrying the tune in this bar (the drawn texture's lead role,
  *  or null in lead-free sections — the motif arrives with the first phrase).
  *  Phase 7: a soli moment's carrier carries the tune for its bars.
+ *  Phase 8: on a brass-lead bar the tune belongs to the brass — the strings'
+ *  carrier reads null (the pure-texture read, `ignoreMoments`, is untouched:
+ *  the DP's voicing fixes keep seeing the texture plan).
  *  `ignoreMoments` reads the pure texture plan (the DP's voicing fixes use
  *  it, so the voicing outside the moment's bars stays byte-identical to a
  *  no-moments take — Phase 8). */
@@ -395,6 +398,7 @@ export function tuneCarrierForBar(ctx: OrchestratorContext, bar: number, ignoreM
   const sec = ctx.sections.find((s) => bar >= s.startBar && bar < s.startBar + s.lengthBars);
   if (!sec || LEAD_FREE_SECTIONS.test(sec.name.trim().toLowerCase())) return null;
   if (!ignoreMoments) {
+    if (ctx.brassPlan?.leads.some((l) => bar >= l.startBar && bar <= l.endBar)) return null; // the brass owns the tune this bar
     const moment = ctx.moments?.find((m) => bar >= m.startBar && bar <= m.endBar);
     if (moment && moment.kind === 'soli' && moment.flavor === 'lead') return moment.carrierTrackId ?? null;
   }
@@ -409,8 +413,10 @@ export function tuneCarrierForBar(ctx: OrchestratorContext, bar: number, ignoreM
  *  bar only — tutti (the whole section hits), unison (every voice on the
  *  lead's line), soli (one carrier, everyone else tacet), imitation (the
  *  answer voice takes the counterline). Divisi keeps the texture layer; the
- *  renderer reads the moment's second line separately. `ignoreMoments`
- *  reads the pure texture plan (the conductor's bar annotation uses it). */
+ *  renderer reads the moment's second line separately. Phase 8: on a brass-
+ *  lead bar the strings drop to pad (the lead ceiling moves with it) — the
+ *  rendering-level override beside the DP, never inside the voicing.
+ *  `ignoreMoments` reads the pure texture plan (the conductor's bar annotation uses it). */
 export function stringLayerForBar(ctx: OrchestratorContext, bar: number, trackId: string, ignoreMoments = false): StringsLayer | null {
   const voices = stringVoiceTracks(ctx);
   const track = voices.find((t) => t.id === trackId);
@@ -428,6 +434,8 @@ export function stringLayerForBar(ctx: OrchestratorContext, bar: number, trackId
     : base;
 
   if (ignoreMoments) return thresholded;
+  // Phase 8: the brass lead owns the tune — every string voice drops to pad
+  if (ctx.brassPlan?.leads.some((l) => bar >= l.startBar && bar <= l.endBar)) return 'pad';
   const moment = ctx.moments?.find((m) => bar >= m.startBar && bar <= m.endBar);
   if (!moment) return thresholded;
   if (moment.kind === 'tutti') return 'tutti';

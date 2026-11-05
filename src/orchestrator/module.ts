@@ -10,6 +10,7 @@ import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
 import type { ResolvedChord, SpineSection, ArcBar } from './spine';
 import type { StringLines } from './render';
 import type { MomentPlan } from './conductor/moments';
+import type { BrassPlan } from './brass/plan';
 
 export interface OrchestratorContext {
   project: Project;
@@ -27,6 +28,10 @@ export interface OrchestratorContext {
    *  An in-memory annotation — never persisted; only the bars a moment
    *  covers may deviate from the texture plan. */
   moments?: MomentPlan[];
+  /** The brass plan (Phase 8), planned by the conductor after the moments.
+   *  An in-memory annotation — never persisted; the brass renderer realises
+   *  it after the rules generator. */
+  brassPlan?: BrassPlan;
 }
 
 /** The string layer vocabulary the orchestrator renders today (Phase 4a) —

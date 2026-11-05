@@ -36,6 +36,7 @@ import { isInBand } from '../shared/schema/band';
 import { maxMeanVelocityFor } from './energy';
 import { arcTargetAt, orchestrationSeedFor } from './spine';
 import { STRING_PROFILE_BY_ROLE, STRING_ROLES, VOCAL_ZONE, stringVoiceTracks } from './profiles/strings';
+import { BRASS_PROFILES } from './brass/profile';
 import { chordTones } from './voicing/chordTones';
 import { leadingTonePcOf, voiceLead, type VoicedChord, type VoiceFix, type VoiceSpec, type VoicingChord } from './voicing/voiceLead';
 import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
@@ -47,6 +48,7 @@ import { counterlineLine } from './lines/counterline';
 import { ostinatoNotes, TREMOLO_STEP_TICKS, SHORT_NOTE_SECONDS } from './lines/ostinato';
 import { beatOffsets, beatTicks, isCompound } from '../shared/schema/meter';
 import { secondsToTicks } from './spine';
+import { humanizeHeadTicks } from './expression/timing';
 
 const MODULE_ID = 'strings';
 
@@ -149,6 +151,10 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
   const counterTrack = [...voices].reverse().find((v) => textureAssignment.bars.filter((b) => b.byTrack[v.id] === 'counterline').length > 0) ?? null;
   const comfyOf = (trackId: string): [number, number] => {
     const t = ctx.project.tracks.find((x) => x.id === trackId)!;
+    // Phase 8: a brass carrier (the horn soli) draws its line in the brass
+    // sweet spot; strings keep their profile windows
+    const brass = BRASS_PROFILES[t?.role as keyof typeof BRASS_PROFILES];
+    if (t && brass) return [Math.max(t.lowestNote, brass.sweet[0]), Math.min(t.highestNote, brass.sweet[1])];
     const prof = STRING_PROFILE_BY_ROLE.get(t.role);
     return prof ? [Math.max(t.lowestNote, Math.min(t.highestNote, prof.comfortable[0])), Math.max(t.lowestNote, Math.min(t.highestNote, prof.comfortable[1]))] : [t.lowestNote, t.highestNote];
   };
@@ -465,6 +471,12 @@ export const stringsModule: SectionModule = {
 
     const btBar = barTicks(ctx.project.timeSignature);
     const bars = projectBars(ctx.project);
+    const brassLeadBars = new Set((ctx.brassPlan?.leads ?? []).flatMap((l) => {
+      const out: number[] = [];
+      for (let b = l.startBar; b <= l.endBar; b++) out.push(b);
+      return out;
+    }));
+    const ltPcRender = leadingTonePcOf(ctx.project.key, scalePitchClasses(ctx.project.key, ctx.project.mode));
 
     const pushDPNote = (sink: Note[], pitch: number, s: number, e: number, velocity: number, reattack: boolean) => {
       const len = e - s;
@@ -731,8 +743,21 @@ export const stringsModule: SectionModule = {
                 notesByTrackId[trackId].push({ pitch: dpPitch, startTick: t, durationTicks: Math.min(shortTicks, e - t), velocity, articulation: 'pizz' });
               });
             } else if (dpPitch !== null) {
-              // pad / bass (sustained outside the symphony pizz textures)
-              pushDPNote(notesByTrackId[trackId], dpPitch, s, e, velocity, reattack);
+              // pad / bass (sustained outside the symphony pizz textures).
+              // Phase 8: on a brass-lead bar the suppressed pad OPENS where
+              // its DP pitch would double a leading tone another voice holds
+              // — a line fix can pin a track to the line's LT note that only
+              // sounds at the span's tail, and the previous span's forced
+              // bass LT can tail in through the legato join. The hard rule
+              // wins over the pad, exactly like the Cb layering.
+              let padPitch: number | null = dpPitch;
+              if (ltPcRender !== null && ((dpPitch % 12) + 12) % 12 === ltPcRender && brassLeadBars.has(bar)) {
+                const head = humanizeHeadTicks(ctx.project.tempoMap, s);
+                const ltHeld = voiced.some((vc2) => vc2.startTick < e && vc2.endTick + head > s
+                  && vc2.pitches.some((p2) => p2 !== null && ((p2 % 12) + 12) % 12 === ltPcRender));
+                if (ltHeld) padPitch = null;
+              }
+              if (padPitch !== null) pushDPNote(notesByTrackId[trackId], padPitch, s, e, velocity, reattack);
               writeDiv2Pad(notesByTrackId[trackId], trackId, s, e, velocity);
             }
           }

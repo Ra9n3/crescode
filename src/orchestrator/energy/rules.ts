@@ -230,6 +230,54 @@ function checkMaxLayers(plan: ConductorPlan, template: EnsembleTemplate): RuleFi
 const matchesFamilyOrRole = (target: string, role: string, family: string): boolean =>
   target.toLowerCase() === family.toLowerCase() || target === role;
 
+const BRASS_AUDIT_ROLES: ReadonlySet<string> = new Set(['horns', 'trumpets', 'trombones', 'tuba']);
+
+/**
+ * brassParallels (Phase 8, spec §13.7): parallel 5ths/octaves between the
+ * BRASS outer voices across consecutive chord spans — both voices move and
+ * the interval class between them stays a 0 or a 7. Soft (report only); the
+ * planner ranks such candidates last when brass pitches are chosen. Off in
+ * the symmetric modes, like the voicer's own parallel checks (spec §7.3).
+ */
+function checkBrassParallels(p: Project, template: EnsembleTemplate): RuleFinding[] {
+  if (/whole tone|diminished|locrian/i.test(p.mode)) return [];
+  const roster = new Set(template.roster.map((r) => r.role));
+  const tracks = p.tracks.filter((t) => isInstrumentTrack(t) && BRASS_AUDIT_ROLES.has(t.role) && roster.has(t.role));
+  if (tracks.length < 2) return [];
+  const spans = chordSpans(p);
+  if (spans.length < 2) return [];
+  const btBar = barTicks(p.timeSignature);
+  const outerAt = (s: ResolvedChord): { top: number; bottom: number } | null => {
+    let top: number | null = null;
+    let bottom: number | null = null;
+    for (const t of tracks) {
+      for (const n of t.notes) {
+        if (n.startTick + n.durationTicks <= s.startTick || n.startTick >= s.endTick) continue;
+        if (top === null || n.pitch > top) top = n.pitch;
+        if (bottom === null || n.pitch < bottom) bottom = n.pitch;
+      }
+    }
+    return top !== null && bottom !== null && top !== bottom ? { top, bottom } : null;
+  };
+  const findings: RuleFinding[] = [];
+  let prev: { top: number; bottom: number } | null = null;
+  for (const s of spans) {
+    const cur = outerAt(s);
+    if (cur && prev) {
+      const ivPrev = (((prev.top - prev.bottom) % 12) + 12) % 12;
+      const ivCur = (((cur.top - cur.bottom) % 12) + 12) % 12;
+      if (cur.top !== prev.top && cur.bottom !== prev.bottom && ivPrev === ivCur && (ivCur === 0 || ivCur === 7)) {
+        findings.push({
+          rule: 'brassParallels', severity: 'soft', tick: s.startTick,
+          message: `brass outer voices move in parallel ${ivCur === 0 ? 'octaves' : 'fifths'} into bar ${Math.floor(s.startTick / btBar) + 1}`,
+        });
+      }
+    }
+    if (cur) prev = cur;
+  }
+  return findings;
+}
+
 /**
  * fillGating (3b): every fill window the plan reserves for this rule's actor
  * must sit inside a breath of the duringRestsOf parts that is at least
@@ -279,6 +327,9 @@ export function checkTemplateRules(p: Project, template: EnsembleTemplate, annot
       message: v.kind === 'aboveMax' ? v.message : `${v.message} (soft report — never padded, never failed)`,
     });
   }
+
+  // Phase 8: parallel 5ths/octaves between the brass outer voices (soft).
+  findings.push(...checkBrassParallels(p, template));
 
   for (const rule of template.rules) {
     switch (rule.type) {

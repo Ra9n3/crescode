@@ -31,6 +31,9 @@ export interface ReferenceAudio { path: string | null; offsetMs: number }
 export const ARTICULATIONS = [
   'legato', 'detache', 'marcato', 'staccato', 'spiccato', 'pizz',
   'tremolo', 'portato', 'sulTasto', 'sulPont', 'conSord',
+  // Phase 8 (brass): the plain sustained attack, stored as data (the preview
+  // mapping already had the sustain-family row; string pads write 'legato')
+  'sustain',
 ] as const;
 export type Articulation = (typeof ARTICULATIONS)[number];
 

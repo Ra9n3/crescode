@@ -30,6 +30,7 @@ import { stringVoiceTracks, sectionEnergyTarget } from '../render';
 import { layerSlotsForBar } from './layers';
 import { textureForType } from './layers';
 import { planMoments, type MomentPlan } from './moments';
+import { planBrass, planBrassLeads, brassRng, type BrassPlan } from '../brass/plan';
 
 /** The shared layer vocabulary (ensemble-template.schema.json §budget). */
 export const LAYER_VOCABULARY = [
@@ -96,6 +97,10 @@ export interface ConductorPlan {
   /** The take's moments (Phase 7) — planned here, rendered beside the
    *  textures. In-memory only; never persisted. */
   moments: MomentPlan[];
+  /** The take's brass plan (Phase 8) — planned here after the moments,
+   *  realised by the brass renderer after the rules generator. In-memory
+   *  only; never persisted. */
+  brass: BrassPlan;
 }
 
 export function octaveDoublingPolicyOf(template: EnsembleTemplate | null): ConductorPlan['octaveDoublingPolicy'] {
@@ -200,6 +205,13 @@ export function conduct(ctx: OrchestratorContext, arc?: ArcBar[], withMoments = 
   // right after one) and BEFORE rendering, on their own salted stream so the
   // texture draws stay untouched. The plan rides beside the textures; only
   // the bars a moment covers may deviate from the layer plan above.
+  // Phase 8: the brass lead is planned BEFORE the moments (it is
+  // moments-independent — the same spans with and without them) and the
+  // moments avoid its bars.
+  const brassLeadBars = new Set(
+    planBrassLeads(ctx.project, template, ctx.sections, arc ?? [], brassRng(ctx.project, ctx.project.orchestration?.take ?? 0))
+      .flatMap((l) => { const out: number[] = []; for (let b = l.startBar; b <= l.endBar; b++) out.push(b); return out; }),
+  );
   const moments: MomentPlan[] = withMoments
     ? planMoments({
         project: ctx.project,
@@ -211,6 +223,7 @@ export function conduct(ctx: OrchestratorContext, arc?: ArcBar[], withMoments = 
         texturePlanOf: (typeName) => textureForType(ctx, typeName).plan as Partial<Record<string, string>>,
         stringTracks: voices,
         take: ctx.project.orchestration?.take ?? 0,
+        brassLeadBars,
       })
     : [];
   ctx.moments = moments;
@@ -221,16 +234,28 @@ export function conduct(ctx: OrchestratorContext, arc?: ArcBar[], withMoments = 
     if (m) bp.moment = { kind: m.kind, startBar: m.startBar, endBar: m.endBar };
   }
 
+  // Phase 8: the brass plan — its OWN salted stream, planned after the
+  // moments (a brass lead never shares bars with one). The strings' layer
+  // suppression on brass-lead bars reads ctx.brassPlan.leads at render time.
+  const brass = planBrass(ctx);
+  ctx.brassPlan = brass;
+
   // Hard contract: the plan never exceeds maxLayers (trivially true with one
   // layer today — the guard is the contract later phases must keep), and no
   // doubling layer slots exist when the band's policy forbids them.
   const maxLayers = template?.budget.maxLayers ?? LAYER_VOCABULARY.length;
 
   const annotated = new Set(voiceIds);
+  // Phase 8: a brass role the brass plan actually annotates is no longer
+  // "unannotated" — the plan carries its per-bar kinds (plan.brass).
   const unannotatedRoles = [
     ...new Set(
       ctx.project.tracks
         .filter((t) => isInstrumentTrack(t) && !t.locked && !annotated.has(t.id) && isInBand(t.role, ctx.ensemble, template))
+        .filter((t) => {
+          const planned = brass.bars.some((b) => b.voices[t.role as keyof typeof b.voices] !== undefined);
+          return !planned;
+        })
         .map((t) => t.role),
     ),
   ].sort();
@@ -244,6 +269,7 @@ export function conduct(ctx: OrchestratorContext, arc?: ArcBar[], withMoments = 
     fills,
     unannotatedRoles,
     moments,
+    brass,
   };
 }
 

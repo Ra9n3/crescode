@@ -29,6 +29,7 @@ import { orchestrationSeedFor, type ArcBar, type ResolvedChord, type SpineSectio
 import { barTicks, beatTicks, projectBars } from '../../shared/schema/meter';
 import { scalePitchClasses } from '../../shared/schema/modes';
 import type { Note, OrchestrationState, Project, Track } from '../../shared/schema/types';
+import { isInBand } from '../../shared/schema/band';
 import type { EnsembleTemplate } from '../../shared/schema/ensembleTemplate';
 import { chordAt } from '../lines/motif';
 import { voiceLead, type VoicingChord, type VoiceFix, type VoiceSpec, type VoicingOptions } from '../voicing/voiceLead';
@@ -104,6 +105,10 @@ export interface MomentPlanInput {
   /** In-band unlocked string tracks, bass slot first. */
   stringTracks: Track[];
   take: number;
+  /** Phase 8: the brass lead's bars (when the template rosters brass) — no
+   *  moment may share a bar with the lead, whose placement is
+   *  moments-independent (planned first at the conductor). */
+  brassLeadBars?: ReadonlySet<number>;
 }
 
 const COUNT_WEIGHTS: Record<MomentKind, [number, number, number]> = {
@@ -141,6 +146,7 @@ export function planMoments(input: MomentPlanInput): MomentPlan[] {
   const bars = projectBars(project);
   const rng = mulberry32((orchestrationSeedFor(project, project.orchestration) ^ Math.imul(hashString('moments'), 0x85ebca6b)) >>> 0);
   const noGo = forbiddenBars(arc, bars);
+  for (const b of input.brassLeadBars ?? []) noGo.add(b);
   const takenBars = new Set<number>();
   const out: MomentPlan[] = [];
 
@@ -262,8 +268,17 @@ export function planMoments(input: MomentPlanInput): MomentPlan[] {
           if (flavor === 'bass') {
             carrierTrackId = (trackOfRole.get('cellosBasses') ?? stringTracks[0]).id;
           } else {
+            // Phase 8: a horn soli is allowed — horns join the pool when the
+            // template rosters them (the renderer hands the line to the brass
+            // module; the strings rest under it). Templates without brass
+            // keep the exact Phase 7 pool and draws (byte-identical moments).
             const pool = ['violas', 'cellosBasses', 'violins1'].map((r) => trackOfRole.get(r)).filter((t): t is Track => !!t);
-            carrierTrackId = (pool[Math.floor(rng() * pool.length)] ?? stringTracks[0]).id;
+            const hornInRoster = template.roster.some((r) => r.role === 'horns');
+            const hornTrack = hornInRoster
+              ? project.tracks.find((t) => t.role === 'horns' && !t.locked && isInBand(t.role, project.ensemble ?? { templateId: null, overrides: {}, pins: {} }, template))
+              : undefined;
+            const full = hornTrack ? [...pool, hornTrack] : pool;
+            carrierTrackId = (full[Math.floor(rng() * full.length)] ?? stringTracks[0]).id;
           }
           return {
             kind: 'soli', flavor, carrierTrackId,

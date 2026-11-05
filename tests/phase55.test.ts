@@ -21,14 +21,19 @@ import { projectFromFixture, validateProject, type Note, type Project } from '..
  * profile is DATA (src/export/profiles/uvi-orchestral-suite.json); the code
  * is generic machinery. Pins here: the pitch convention both ways, the
  * keyswitch emission rules (only on change, always ahead, project never
- * touched), the fallback chains, the layer:'cb' routing (cello vs bass
- * part), transposition, the sampled-tremolo merge, ccEnabled, the
- * no-profile byte identity (golden files), and the validator's rejections.
+ * touched), the fallback chains, the layer:'cb' routing (cello vs bass part)
+ * on a LEGACY combined track, transposition, the sampled-tremolo merge,
+ * ccEnabled, the no-profile byte identity (old-shape project vs the 8.1
+ * reference capture), and the validator's rejections. Phase 8.2: the shipped
+ * profile's cbLayer default is 'separate' (the user owns a Bass patch), the
+ * Bass part reads the project's own basses track, and the red-zone guard
+ * FOLDS sub-playableLow notes up by whole octaves instead of dropping them.
  */
 const PROFILE = EXPORT_PROFILES[0].profile;
-/** The shipped profile ships with cbLayer 'omit' (Phase 6 item 0); the 5.5
- *  bass-routing behaviour lives on under cbLayer 'separate'. */
+/** The shipped profile ships with cbLayer 'separate' (Phase 8.2 — the user
+ *  owns a Bass patch now); 'omit' stays for legacy combined tracks. */
 const PROFILE_SEP: ExportProfile = { ...JSON.parse(JSON.stringify(PROFILE)), cbLayer: 'separate' };
+const PROFILE_OMIT: ExportProfile = { ...JSON.parse(JSON.stringify(PROFILE)), cbLayer: 'omit' };
 const CONV = 'C3=60';
 const BASE = (): Project => projectFromFixture(JSON.parse(JSON.stringify(fixture)));
 const THREE = (): Project => projectFromFixture(JSON.parse(JSON.stringify(threeChorus)));
@@ -44,6 +49,23 @@ const instTracks = (p: Project) => exportableTracks(p, 'all');
 const trackOf = (p: Project, role: string) => p.tracks.find((t) => t.role === role)!;
 const partChunk = (p: Project, tracks: ReturnType<typeof instTracks>, partId: string, profile: ExportProfile = PROFILE_SEP) =>
   tracks.flatMap((t) => chunksForTrack(p, t, profile)).filter((c) => c.name === profile.parts.find((x) => x.id === partId)!.patch);
+
+/** The EXACT Phase 8.1 project: the fixture base with the golden-moments
+ *  capture's composed tracks (moments on, take 1) — the byte-identity
+ *  reference shape, and the combined-track shape the routing machinery reads. */
+const legacyProject = (short: string, fixTag: 'dorian' | 'three'): Project => {
+  const doc = fixTag === 'dorian' ? JSON.parse(JSON.stringify(fixture)) : JSON.parse(JSON.stringify(threeChorus));
+  const p: Project = projectFromFixture(doc);
+  p.ensemble = { templateId: `ensemble.${short}`, overrides: {}, pins: {} };
+  p.orchestration = { take: 1 };
+  const golden = JSON.parse(readFileSync(new URL(`./golden-moments/${short}-${fixTag}-t1.json`, import.meta.url), 'utf8'));
+  p.tracks = p.tracks.map((t) => {
+    const g = golden.tracks.find((x: { id: string }) => x.id === t.id);
+    if (!g) return t;
+    return { ...t, notes: g.notes, ...(g.cc !== undefined ? { cc: g.cc } : {}) };
+  });
+  return p;
+};
 
 /* ---------------- convention ---------------- */
 describe('pitch convention (C3=60)', () => {
@@ -98,15 +120,15 @@ describe('profile validator', () => {
     expect(errors.some((e) => e.includes('parts[1].channel') && e.includes('already used'))).toBe(true);
     expect(errors.some((e) => e.includes('parts[2]') && e.includes('does not resolve'))).toBe(true);
   });
-  it('keeps the UNVERIFIED markers: the pre-8.1 four plus the 8.1 additions (violins1 playableLow, bass zone, brass transposes)', () => {
+  it('keeps the UNVERIFIED markers: the pre-8.1 four plus the 8.1/8.2 additions', () => {
     const doc = uviDoc() as { unverified: string[] };
     expect(doc.unverified).toEqual([
       'parts[0].playableLow (C2=48, from the user\'s table, marked unverified there)',
       'parts[1].keyswitches.spiccato (D2, read from a small manual image)',
       'parts[2].keyswitches.spiccato (C#1, read from a small manual image)',
       'parts[3].keyswitches.marcato (A-1, read from a small manual image)',
+      'parts[3].keyswitchZone.high (35 — the user\'s table confirms the cello zone but marks its top unverified)',
       'parts[4].transposeSemitones (default 0)',
-      'parts[4].keyswitchZone + playableLow (bass is not in the range table; zone C-1–C0 covers its keyswitches, playableLow = its lowestPlayable 28)',
       'parts[5].transposeSemitones (default 0)',
       'parts[6].transposeSemitones (default 0)',
       'parts[7].transposeSemitones (default 0)',
@@ -154,13 +176,16 @@ describe('fallback chains', () => {
 });
 
 /* ---------------- layer:'cb' routing + keyswitches on a real export ---------------- */
-describe('profile export (dorian, cinematic take 1)', () => {
-  const { project } = composeTake(BASE(), 'ensemble.cinematic', 1);
+/* The project is the EXACT Phase 8.1 shape (the golden-moments tracks): a
+ * combined cellosBasses track with layer:'cb' doubles and sub-floor line
+ * notes — the shape the routing machinery has always read. */
+describe('profile export (dorian, cinematic take 1, legacy combined track)', () => {
+  const project = legacyProject('cinematic', 'dorian');
   const tracks = instTracks(project);
   const beforeJson = JSON.stringify(project);
 
-  it('no-profile export is byte-identical to the golden capture', () => {
-    const goldenDir = new URL('./golden/', import.meta.url);
+  it('no-profile export of the old-shape project is byte-identical to the 8.1 reference', () => {
+    const goldenDir = new URL('./golden82/', import.meta.url);
     const merged = buildMergedMidi(project, tracks);
     expect(Buffer.compare(Buffer.from(merged), readFileSync(new URL('dorian-cinematic-merged.mid', goldenDir)))).toBe(0);
     for (const f of buildPerTrackMidi(project, tracks)) {
@@ -186,14 +211,19 @@ describe('profile export (dorian, cinematic take 1)', () => {
     const bass = partChunk(project, tracks, 'bass');
     expect(cello).toHaveLength(1);
     expect(bass).toHaveLength(1);
-    // every layer note lands in the bass part; every unmarked note AT OR ABOVE
-    // the cello part's playableLow (36, Phase 8.1) lands in the cello part —
-    // the red-zone guard drops the sub-36 notes (the patch cannot sound them)
+    // every layer note lands in the bass part; EVERY unmarked note lands in
+    // the cello part — Phase 8.2 folds the sub-playableLow (36) notes up by
+    // whole octaves instead of dropping them
     const bassNotes = bass[0].notes.filter((n) => n.pitch >= 28);
     const celloNotes = cello[0].notes.filter((n) => n.pitch >= 28);
     expect(bassNotes.length).toBe(cbLayer.length);
-    expect(celloNotes.length).toBe(cbRest.filter((n) => n.pitch >= 36).length);
-    expect(cbRest.some((n) => n.pitch < 36)).toBe(true); // the guard really dropped some
+    expect(celloNotes.length).toBe(cbRest.length);
+    expect(cbRest.some((n) => n.pitch < 36)).toBe(true); // the fold really lifted some
+    expect(celloNotes.every((n) => n.pitch >= 36)).toBe(true);
+    for (const n of cbRest.filter((x) => x.pitch < 36)) {
+      const folded = celloNotes.find((m) => m.startTick === n.startTick && m.pitch > n.pitch && (m.pitch - n.pitch) % 12 === 0);
+      expect(folded, `sub-36 note ${n.pitch}@${n.startTick} folded up`).toBeTruthy();
+    }
     expect(bass[0].channel).toBe(5);
     expect(cello[0].channel).toBe(4);
     for (const [i, part] of PROFILE_SEP.parts.entries()) {
@@ -225,8 +255,11 @@ describe('profile export (dorian, cinematic take 1)', () => {
       for (const e of expected) {
         const k = ks.find((x) => x.pitch === e.key && x.startTick === e.start)!;
         expect(k.velocity).toBe(PROFILE_SEP.keyswitchVelocity);
-        if (e.trigger.startTick > 0) expect(k.startTick).toBeLessThan(e.trigger.startTick); // always ahead
-        expect(k.startTick + k.durationTicks).toBeLessThanOrEqual(e.trigger.startTick); // ends before it starts
+        if (e.trigger.startTick > 0) {
+          expect(k.startTick).toBeLessThan(e.trigger.startTick); // always ahead
+          expect(k.startTick + k.durationTicks).toBeLessThanOrEqual(e.trigger.startTick); // ends before it starts
+        }
+        // a trigger at tick 0 has no room for the lead: the switch still fires
       }
     }
   });
@@ -263,7 +296,7 @@ describe('profile export (dorian, cinematic take 1)', () => {
     expect(byName['Cello Ensemble'].cc.some((c) => c.cc === 7 && c.tick === 0 && c.value === 90)).toBe(true);
   });
 
-  it('per-part files: the cellosBasses track splits into two files, one per part', () => {
+  it('per-part files: the legacy combined track splits into two files, one per part', () => {
     const files = buildPerTrackMidi(project, tracks, PROFILE_SEP);
     const names = files.map((f) => f.fileName);
     expect(names.filter((n) => n.includes('Cello Ensemble') || n.includes('Bass Ensemble'))).toEqual([
@@ -350,42 +383,42 @@ describe('profile options', () => {
   });
 });
 
-/* ---------------- cbLayer: omit (Phase 6 item 0) ---------------- */
-describe('cbLayer omit (default): no Bass part, no Cb-layer notes in the export', () => {
-  const { project } = composeTake(BASE(), 'ensemble.cinematic', 1);
+/* ---------------- cbLayer: omit (legacy combined tracks) ---------------- */
+describe('cbLayer omit: no Bass part, no Cb-layer notes in the export', () => {
+  const project = legacyProject('cinematic', 'dorian');
   const tracks = instTracks(project);
   const beforeJson = JSON.stringify(project);
 
-  it('the shipped profile (omit) creates no Bass chunk and drops the cb notes everywhere', () => {
+  it('an omit profile creates no Bass chunk and drops the cb notes everywhere', () => {
     const cb = trackOf(project, 'cellosBasses');
     expect(cb.notes.filter((n) => n.layer === 'cb').length).toBeGreaterThan(0);
-    const chunks = chunksForTrack(project, cb, PROFILE);
+    const chunks = chunksForTrack(project, cb, PROFILE_OMIT);
     expect(chunks.map((c) => c.name)).toEqual(['Cello Ensemble']); // no Bass Ensemble chunk
     expect(chunks[0].notes.some((n) => n.layer === 'cb')).toBe(false);
-    // every exported cello note is an unmarked note at or above the part's
-    // playableLow (36, Phase 8.1); the layer notes and the sub-36 notes are gone
-    expect(chunks[0].notes.filter((n) => n.pitch >= 28).length).toBe(cb.notes.filter((n) => n.layer !== 'cb' && n.pitch >= 36).length);
+    // every exported cello note is an unmarked note, folded into the playable
+    // range (Phase 8.2) — the layer notes are gone
+    expect(chunks[0].notes.filter((n) => n.pitch >= 28).length).toBe(cb.notes.filter((n) => n.layer !== 'cb').length);
     expect(chunks[0].notes.some((n) => n.pitch >= 28 && n.pitch < 36)).toBe(false);
     expect(chunks[0].channel).toBe(4);
   });
 
   it('merged + per-part outputs have no Bass Ensemble track/file', () => {
-    const merged = parseMidiFile(buildMergedMidi(project, tracks, PROFILE));
+    const merged = parseMidiFile(buildMergedMidi(project, tracks, PROFILE_OMIT));
     expect(merged.tracks.some((t) => t.name === 'Bass Ensemble')).toBe(false);
     expect(merged.tracks.some((t) => t.name === 'Cello Ensemble')).toBe(true);
-    const names = buildPerTrackMidi(project, tracks, PROFILE).map((f) => f.fileName);
+    const names = buildPerTrackMidi(project, tracks, PROFILE_OMIT).map((f) => f.fileName);
     expect(names.some((n) => n.includes('Bass Ensemble'))).toBe(false);
     expect(new Set(names).size).toBe(names.length);
   });
 
-  it('a profile document without cbLayer defaults to omit; the validator stays clean', () => {
+  it('a profile document without cbLayer defaults to separate (Phase 8.2); the validator stays clean', () => {
     const noFlag = JSON.parse(JSON.stringify(uviDoc())) as Record<string, unknown>;
     delete noFlag.cbLayer;
     expect(validateExportProfile(noFlag)).toEqual([]);
     const parsed = parseExportProfile(noFlag);
-    expect(parsed.cbLayer).toBe('omit');
+    expect(parsed.cbLayer).toBe('separate');
     const chunks = chunksForTrack(project, trackOf(project, 'cellosBasses'), parsed);
-    expect(chunks.map((c) => c.name)).toEqual(['Cello Ensemble']);
+    expect(chunks.map((c) => c.name)).toEqual(['Cello Ensemble', 'Bass Ensemble']);
   });
 
   it('the validator rejects a bad cbLayer; the export still never touches the project', () => {
@@ -397,8 +430,8 @@ describe('cbLayer omit (default): no Bass part, no Cb-layer notes in the export'
     expect(JSON.stringify(project)).toBe(beforeJson);
   });
 
-  it('the no-profile export stays byte-identical to the golden capture', () => {
-    const goldenDir = new URL('./golden/', import.meta.url);
+  it('the no-profile export stays byte-identical to the 8.1 reference', () => {
+    const goldenDir = new URL('./golden82/', import.meta.url);
     const merged = buildMergedMidi(project, tracks);
     expect(Buffer.compare(Buffer.from(merged), readFileSync(new URL('dorian-cinematic-merged.mid', goldenDir)))).toBe(0);
   });
@@ -441,13 +474,15 @@ describe('schema discipline', () => {
     expect(Buffer.compare(Buffer.from(buildMergedMidi(project, tracks)), Buffer.from(buildMergedMidi(project, tracks)))).toBe(0);
   });
   it('a profile with no bass part (no cb notes) leaves the cello part carrying the whole track', () => {
-    const { project } = composeTake(BASE(), 'ensemble.chamber', 1); // octaveDoubling climaxOnly → no cb layer
+    const { project } = composeTake(BASE(), 'ensemble.chamber', 1); // octaveDoubling climaxOnly → no split, no cb layer
     const cb = trackOf(project, 'cellosBasses');
     expect(cb.notes.filter((n) => n.layer === 'cb')).toHaveLength(0);
+    expect(trackOf(project, 'basses')).toBeUndefined(); // chamber never splits
     const chunks = chunksForTrack(project, cb, PROFILE);
     expect(chunks.map((c) => c.name)).toEqual(['Cello Ensemble']); // no Bass Ensemble chunk at all
-    // Phase 8.1: the red-zone guard drops the sub-playableLow (36) notes in the export
-    expect(chunks[0].notes.filter((n) => n.pitch >= 28).length).toBe(cb.notes.filter((n) => n.pitch >= 36).length);
+    // Phase 8.2: every note exports — the sub-playableLow (36) notes folded
+    // up by whole octaves, the rest as written
+    expect(chunks[0].notes.filter((n) => n.pitch >= 28).length).toBe(cb.notes.length);
     expect(chunks[0].notes.some((n) => n.pitch >= 28 && n.pitch < 36)).toBe(false);
   });
 });

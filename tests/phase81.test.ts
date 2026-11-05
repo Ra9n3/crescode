@@ -9,7 +9,7 @@ import { EXPORT_PROFILES } from '../src/export/profiles';
 import {
   chunksForTrack, keyNameToMidi, keyswitchNotesFor, midiToKeyName,
   parseExportProfile, resolveArticulationKeyFor, validateExportProfile,
-  type ExportProfile, type ProfilePart,
+  type FoldStats, type ProfilePart,
 } from '../src/export/profile';
 import { msToTicks, ticksToMs } from '../src/orchestrator/spine';
 
@@ -104,15 +104,27 @@ describe('the brass parts in the shipped profile', () => {
         expect(midi, `${part.id}.${art} (${name}) below lowestPlayable`).toBeLessThan(part.lowestPlayable);
       }
     }
-    // the user's strings table, as fields
-    expect(partOf('cello').keyswitchZone).toEqual({ low: 12, high: 24 });
+    // the user's strings table, as fields (8.2: violins2 playableLow 53,
+    // the cello zone 12–35 with its top unverified, the bass 12–22 / 23)
+    expect(partOf('cello').keyswitchZone).toEqual({ low: 12, high: 35 });
     expect(partOf('violas').keyswitchZone).toEqual({ low: 24, high: 47 });
     expect(partOf('violins2').keyswitchZone).toEqual({ low: 36, high: 50 });
     expect(partOf('violins1').keyswitchZone).toEqual({ low: 24, high: 38 });
     expect(partOf('cello').playableLow).toBe(36);
     expect(partOf('violas').playableLow).toBe(48);
-    expect(partOf('violins2').playableLow).toBe(60);
+    expect(partOf('violins2').playableLow).toBe(53);
     expect(partOf('violins1').playableLow).toBe(48);
+    // Phase 8.2: the bass's real patch data (verified from the patch list)
+    expect(partOf('bass').keyswitchZone).toEqual({ low: 12, high: 22 });
+    expect(partOf('bass').playableLow).toBe(23);
+    expect(keyNameToMidi(partOf('bass').keyswitches.sustain, CONV)).toBe(12);
+    expect(keyNameToMidi(partOf('bass').keyswitches.legato, CONV)).toBe(14);
+    expect(keyNameToMidi(partOf('bass').keyswitches.pizz, CONV)).toBe(17);
+    expect(keyNameToMidi(partOf('bass').keyswitches.tremolo, CONV)).toBe(19);
+    expect(keyNameToMidi(partOf('bass').keyswitches.marcato, CONV)).toBe(21);
+    // the bass part reads the project's own basses track, with the legacy
+    // combined-track claim for old projects
+    expect(partOf('bass').source).toEqual({ role: 'basses', legacy: { role: 'cellosBasses', layer: 'cb' } });
   });
 
   it('brass defaults match the strings: cc 1/7/11 on, 68/74 off, transpose 0, no tremoloMode (not applicable for brass)', () => {
@@ -295,58 +307,95 @@ describe('red-zone guard (export only)', () => {
     return p;
   };
 
-  it('drops exactly the non-keyswitch notes below playableLow; keyswitches and the project survive', () => {
+  it('folds the sub-floor notes up by whole octaves instead of dropping; keyswitches and the project survive', () => {
     const before = JSON.stringify(composed.project);
     const p = injectSubFloorNotes(composed.project);
     expect(JSON.stringify(composed.project)).toBe(before); // the injection worked on a copy
     const tracks = instTracks(p);
     const horns = partOf('horns');
-    const hornChunk = chunksForTrack(p, tracks.find((t) => t.role === 'horns')!, PROFILE).find((c) => c.channel === horns.channel)!;
-    expect(hornChunk.notes.some((n) => n.pitch === 30)).toBe(false); // dropped
+    const stats: FoldStats = { folded: {}, droppedHardRange: {}, droppedDoubling: {} };
+    const hornChunk = chunksForTrack(p, tracks.find((t) => t.role === 'horns')!, PROFILE, stats).find((c) => c.channel === horns.channel)!;
+    expect(hornChunk.notes.some((n) => n.pitch === 30)).toBe(false); // folded up
+    expect(hornChunk.notes.some((n) => n.pitch === 42 && n.startTick === 19200), 'the horn note folded 30 → 42 (one octave into the playable range)').toBe(true);
     for (const [pitch, start] of [[41, 38400], [60, 57600]] as const) {
       expect(hornChunk.notes.some((n) => n.pitch === pitch && n.startTick === start), `injected ${pitch}@${start} kept`).toBe(true);
     }
+    expect(stats.folded.horns).toBe(1);
     const keys = new Set(Object.values(horns.keyswitches).map((n) => keyNameToMidi(n, CONV)!));
-    expect(hornChunk.notes.some((n) => keys.has(n.pitch)), 'keyswitches are never dropped').toBe(true);
-    // the no-profile export keeps everything; the project is untouched by both
+    expect(hornChunk.notes.some((n) => keys.has(n.pitch)), 'keyswitches are never folded').toBe(true);
+    // the no-profile export keeps everything as written; the project is untouched by both
     const plain = buildMergedMidi(p, tracks);
     const parsed = parseMidiFile(plain);
     const hornTrack = parsed.tracks.find((t) => t.notes.some((n) => n.pitch === 30));
-    expect(hornTrack, 'no-profile export keeps the sub-floor note').toBeDefined();
+    expect(hornTrack, 'no-profile export keeps the sub-floor note as written').toBeDefined();
     expect(JSON.stringify(p)).not.toBe(before); // p carries the injections
     expect(JSON.stringify(composed.project)).toBe(before); // …while the composed project never moved
     expect(validateProject(JSON.parse(JSON.stringify(composed.project))).ok).toBe(true);
-    // dropped notes never leak into a passthrough/rest chunk of the profile export
+    // every exported horn note sits in the playable range (folded or native)
     const merged = parseMidiFile(buildMergedMidi(p, tracks, PROFILE));
     const hornChunks = merged.tracks.filter((t) => t.channel === horns.channel);
     expect(hornChunks.every((t) => t.notes.every((n) => !keys.has(n.pitch) || n.velocity !== PROFILE.keyswitchVelocity ? n.pitch >= horns.playableLow! : true))).toBe(true);
   });
 
-  it('a part whose every note is below playableLow exports NOTHING (the passthrough would reintroduce the dropped notes)', () => {
+  it('a fold that would exceed the part\'s hard range (the source track\'s highestNote) is dropped', () => {
     const p = injectSubFloorNotes(composed.project);
     const tuba = p.tracks.find((t) => t.role === 'tuba')!;
-    tuba.notes = [{ pitch: 25, startTick: 0, durationTicks: 480, velocity: 80, articulation: 'sustain' }]; // only sub-floor notes
-    const chunks = chunksForTrack(p, tuba, PROFILE);
+    // the tuba note 25 folds to 37; narrow the track's hard top to 36 so the
+    // fold cannot land — the note is dropped and the part exports nothing
+    tuba.highestNote = 36;
+    tuba.notes = [{ pitch: 25, startTick: 0, durationTicks: 480, velocity: 80, articulation: 'sustain' }];
+    const stats: FoldStats = { folded: {}, droppedHardRange: {}, droppedDoubling: {} };
+    const chunks = chunksForTrack(p, tuba, PROFILE, stats);
     expect(chunks).toEqual([]);
+    expect(stats.droppedHardRange.tuba).toBe(1);
     const merged = parseMidiFile(buildMergedMidi(p, instTracks(p), PROFILE));
     expect(merged.tracks.some((t) => t.name === 'Tuba solo')).toBe(false);
   });
+
+  it('a sub-floor note whose fold lands inside the range exports (the tuba note folds, not drops)', () => {
+    const p = injectSubFloorNotes(composed.project);
+    const tuba = p.tracks.find((t) => t.role === 'tuba')!;
+    tuba.notes = [{ pitch: 25, startTick: 0, durationTicks: 480, velocity: 80, articulation: 'sustain' }, { pitch: 40, startTick: 960, durationTicks: 480, velocity: 80, articulation: 'sustain' }];
+    const stats: FoldStats = { folded: {}, droppedHardRange: {}, droppedDoubling: {} };
+    const chunks = chunksForTrack(p, tuba, PROFILE, stats);
+    expect(chunks).toHaveLength(1);
+    expect(stats.folded.tuba).toBe(1); // 25 → 37 (inside D1..F4)
+    expect(chunks[0].notes.some((n) => n.pitch === 37 && n.startTick === 0)).toBe(true);
+  });
 });
 
-/* ---------------- 8. no-profile export byte-identical to Phase 8 ---------------- */
-describe('no-profile export stays byte-identical to the Phase 8 golden capture', () => {
-  it('dorian cinematic take 1 (moments:false harness): merged + every per-track file', () => {
-    const { project } = composeTake(dorian, 'ensemble.cinematic', 1, false);
-    const goldenDir = new URL('./golden/', import.meta.url);
+/* ---------------- 8. no-profile export byte-identity on an OLD project ---- */
+/* The composes now split the cello desk (8.2), so the byte-identity pin reads
+ * an OLD-SHAPE project: the Phase 8.1 composed tracks reconstructed from the
+ * golden-moments capture, exported no-profile against the references captured
+ * at Phase 8.1 (tests/golden82). */
+const legacyProject = (short: string, fixTag: 'dorian' | 'three'): Project => {
+  const doc = fixTag === 'dorian' ? dorian : threeChorus;
+  const p: Project = projectFromFixture(JSON.parse(JSON.stringify(doc)));
+  p.ensemble = { templateId: `ensemble.${short}`, overrides: {}, pins: {} };
+  p.orchestration = { take: 1 };
+  const golden = JSON.parse(readFileSync(new URL(`./golden-moments/${short}-${fixTag}-t1.json`, import.meta.url), 'utf8'));
+  p.tracks = p.tracks.map((t) => {
+    const g = golden.tracks.find((x: { id: string }) => x.id === t.id);
+    if (!g) return t;
+    return { ...t, notes: g.notes, ...(g.cc !== undefined ? { cc: g.cc } : {}) };
+  });
+  return p;
+};
+
+describe('no-profile export stays byte-identical to the Phase 8.1 reference (old-shape project)', () => {
+  it('cinematic dorian take 1 (moments-on golden tracks): merged + every per-track file', () => {
+    const project = legacyProject('cinematic', 'dorian');
+    const goldenDir = new URL('./golden82/', import.meta.url);
     const tracks = instTracks(project);
     expect(Buffer.compare(Buffer.from(buildMergedMidi(project, tracks)), readFileSync(new URL('dorian-cinematic-merged.mid', goldenDir)))).toBe(0);
     for (const f of buildPerTrackMidi(project, tracks)) {
       expect(Buffer.compare(Buffer.from(f.data), readFileSync(new URL(`dorian-cinematic-per-${f.fileName}`, goldenDir)))).toBe(0);
     }
   });
-  it('three-chorus symphony take 1 (moments:false harness): merged + every per-track file', () => {
-    const { project } = composeTake(threeChorus, 'ensemble.symphony', 1, false);
-    const goldenDir = new URL('./golden/', import.meta.url);
+  it('symphony three take 1 (moments-on golden tracks): merged + every per-track file', () => {
+    const project = legacyProject('symphony', 'three');
+    const goldenDir = new URL('./golden82/', import.meta.url);
     const tracks = instTracks(project);
     expect(Buffer.compare(Buffer.from(buildMergedMidi(project, tracks)), readFileSync(new URL('three-symphony-merged.mid', goldenDir)))).toBe(0);
     for (const f of buildPerTrackMidi(project, tracks)) {

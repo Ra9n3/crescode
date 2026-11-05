@@ -139,6 +139,9 @@ describe('Phase 8: phrase caps and rhythm floors', () => {
         }
         if (runStart !== null) runs.push({ start: runStart, end: prevEnd });
         const cello = trackOf(run.project, 'cellosBasses').notes;
+        // Phase 8.2: the desk's Double Basses track is part of the cello line
+        // the low brass double (its sub-floor notes ride there)
+        const celloDesk = [...cello, ...(trackOf(run.project, 'basses')?.notes ?? [])];
         for (const r of runs) {
           const lenTicks = r.end - r.start;
           if (lenTicks <= capTicks) continue;
@@ -146,7 +149,7 @@ describe('Phase 8: phrase caps and rhythm floors', () => {
           // of an over-cap run must sit against a cello note (it doubles)
           const doubles = sorted
             .filter((n) => n.startTick >= r.start && n.startTick < r.end)
-            .every((n) => cello.some((c) => c.startTick < n.startTick + n.durationTicks && n.startTick < c.startTick + c.durationTicks));
+            .every((n) => celloDesk.some((c) => c.startTick < n.startTick + n.durationTicks && n.startTick < c.startTick + c.durationTicks));
           expect(doubles, `${run.templateId} ${run.fixture} t${run.take} ${role} over-cap run ${r.start}..${r.end} not doubling`).toBe(true);
         }
       }
@@ -218,8 +221,9 @@ describe('Phase 8: low-interval rule', () => {
   it('below MIDI 48 simultaneous low voices are unisons/octaves or a 5th or wider', () => {
     for (const run of brassSurvey) {
       const low: { role: string; n: Note }[] = [];
-      for (const role of ['trombones', 'tuba', 'cellosBasses']) {
+      for (const role of ['trombones', 'tuba', 'cellosBasses', 'basses'] as const) {
         const t = trackOf(run.project, role);
+        if (!t) continue;
         for (const n of t.notes) if (n.pitch < 48) low.push({ role, n });
       }
       low.sort((a, b) => a.n.startTick - b.n.startTick);
@@ -229,7 +233,11 @@ describe('Phase 8: low-interval rule', () => {
           if (B.n.startTick >= A.n.startTick + A.n.durationTicks) break;
           if (!(B.n.startTick < A.n.startTick + A.n.durationTicks && A.n.startTick < B.n.startTick + B.n.durationTicks)) continue;
           const d = Math.abs(A.n.pitch - B.n.pitch);
-          if (A.role === B.role) continue; // one voice per track
+          // one voice per track — and the Phase 8.2 cellosBasses/basses desks
+          // are ONE voice split across two tracks (the humanized legato join
+          // of consecutive line notes may overlap)
+          if (A.role === B.role) continue;
+          if ((A.role === 'cellosBasses' && B.role === 'basses') || (A.role === 'basses' && B.role === 'cellosBasses')) continue;
           const ok = d === 0 || d % 12 === 0 || d >= 7;
           expect(ok, `${run.templateId} ${run.fixture} t${run.take} ${A.role}/${B.role} low pair ${A.n.pitch}/${B.n.pitch} at ${Math.max(A.n.startTick, B.n.startTick)}`).toBe(true);
         }
@@ -344,6 +352,10 @@ describe('Phase 8: the moments-on baseline pins', () => {
           };
           for (const t of result.tracks) {
             if ((BRASS_ROLES as string[]).includes(t.role)) continue;
+            // Phase 8.2: the cellosBasses desk split is sanctioned — the cello
+            // line rises to its patch floor (36) and the sub-floor notes ride
+            // the NEW Double Basses track (absent from the pre-8.2 golden)
+            if (t.role === 'cellosBasses' || t.role === 'basses') continue;
             const g = golden.tracks.find((x: { id: string }) => x.id === t.id);
             expect(g, `${short} ${fixTag} t${take} missing golden track ${t.role}`).toBeDefined();
             const sig = (n: Note) => `${n.pitch}:${n.startTick}:${n.durationTicks}:${n.velocity}:${n.articulation ?? ''}:${n.layer ?? ''}`;

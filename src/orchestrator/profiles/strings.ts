@@ -55,10 +55,12 @@ export const inVocalZone = (pitch: number): boolean => pitch >= VOCAL_ZONE[0] &&
 
 /** The strings family tracks that will actually sound: in the band, unlocked
  *  (D7), bass slot first. Lives here so the conductor's layer assignment and
- *  the renderer share one reading without import cycles. */
+ *  the renderer share one reading without import cycles. Phase 8.2: the
+ *  Double Basses desk (role 'basses') is NOT a DP voice — it is written by
+ *  the compose's split pass and must never join the voicing. */
 export function stringVoiceTracks(ctx: { project: Project; ensemble: ProjectEnsemble; template: EnsembleTemplate | null }): Track[] {
   return ctx.project.tracks
-    .filter((t) => t.family === 'Strings' && isInstrumentTrack(t) && !t.locked && isInBand(t.role, ctx.ensemble, ctx.template))
+    .filter((t) => t.family === 'Strings' && isInstrumentTrack(t) && !t.locked && t.role !== 'basses' && isInBand(t.role, ctx.ensemble, ctx.template))
     .sort((a, b) => {
       const sa = STRING_PROFILE_BY_ROLE.get(a.role)?.slot ?? 'inner';
       const sb = STRING_PROFILE_BY_ROLE.get(b.role)?.slot ?? 'inner';

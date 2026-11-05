@@ -378,10 +378,13 @@ export const useStore = create<State>((set, get) => ({
     // Orchestrator compose: strings via the strings module (one global DP),
     // everything else through the rules generator — and the take increments
     // INSIDE the same edit, so one Ctrl+Z restores notes and take together.
+    // Phase 8.2: res.tracks carries the composed basses desk too (inserted
+    // after the cellos in score order when the project lacked it) — written
+    // in this SAME edit, so one undo removes track and notes together.
     const res = composeAllTracks(project, composeOptions);
     get().edit((p) => ({
       ...p,
-      tracks: p.tracks.map((t) => res.tracks.find((g) => g.id === t.id) ?? t),
+      tracks: res.tracks,
       orchestration: res.orchestration,
     }));
     return { ms: performance.now() - t0, bandSkipped, lockedKept };

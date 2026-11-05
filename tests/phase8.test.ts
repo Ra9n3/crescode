@@ -9,6 +9,7 @@ import { sanitizeNotes } from '../src/engine/generate';
 import { chunksForTrack, mergeTremoloGroups, TREMOLO_GROUP_MAX_STEP_TICKS, resolveArticulationKeyFor } from '../src/export/profile';
 import { EXPORT_PROFILES } from '../src/export/profiles';
 import { planTrackNotes } from '../src/audio/mapping';
+import { humanizeHeadTicks } from '../src/orchestrator/expression/timing';
 
 /**
  * Phase 8 — post-moments hardening, four answers:
@@ -110,7 +111,13 @@ describe('Phase 8: 4 — per-note seeding: notes outside moment bars are byte-id
         const covered = new Set<number>();
         for (const m of withM.result.plan.moments) for (let b = m.startBar; b <= m.endBar; b++) covered.add(b);
         const btBar = 3840;
-        const inMoment = (tick: number) => covered.has(Math.floor(tick / btBar) + 1);
+        // a moment note humanized past the moment's last bar line (the 8.2
+        // bass desk trails its partner by a further 1–3 ms) is still a moment
+        // note: the start counts as covered within the humanize head after a
+        // covered bar
+        const headAfter = (tick: number) => humanizeHeadTicks(withM.project.tempoMap, tick);
+        const inMoment = (tick: number) => covered.has(Math.floor(tick / btBar) + 1)
+          || covered.has(Math.floor((tick - headAfter(tick)) / btBar) + 1);
         for (const t of withM.project.tracks) {
           const other = withoutM.project.tracks.find((x) => x.id === t.id);
           if (!other) continue;

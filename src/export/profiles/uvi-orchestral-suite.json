@@ -1,10 +1,10 @@
 {
   "id": "uvi-orchestral-suite",
   "name": "UVI Orchestral Suite — string + brass ensembles",
-  "description": "One part per UVI Orchestral Suite ensemble patch (strings and, since Phase 8.1, the four Falcon brass patches Crescode writes). Keyswitch names follow the manual's pitchConvention; keyswitchZone is the patch's red zone (silent keys / keyswitch keys, MIDI sounding) and playableLow the patch's lowest playable note — in a profile export any non-keyswitch note below playableLow is dropped (it would trigger a keyswitch or sit in a silent gap); the project itself is never touched. cbLayer omit (the default) leaves the Cb octave doubles out of the export entirely — the Cello Ensemble carries the cellosBasses track and no Bass part or file is created; 'separate' gives the layer:'cb' doubles their own Bass Ensemble part on its own channel/file. Brass parts use the 4-horn layer only; the 8-horn and Xtra layers are ignored.",
+  "description": "One part per UVI Orchestral Suite ensemble patch (strings, the four Falcon brass patches Crescode writes, and since Phase 8.2 the Bass Ensemble reading the separate Double Basses track). Keyswitch names follow the manual's pitchConvention; keyswitchZone is the patch's red zone (silent keys / keyswitch keys, MIDI sounding) and playableLow the patch's lowest playable note — in a profile export any non-keyswitch note below playableLow is FOLDED up by whole octaves into the playable range (dropped only when the fold would exceed the part's hard range, the source track's highestNote, or — under an octaveDoubling policy of 'forbidden' — when the fold would create a new unison or octave doubling with another part at the same moment); the project itself is never touched. cbLayer 'separate' (the Phase 8.2 default, the user owns a Bass patch now) applies only to LEGACY combined cellosBasses tracks that still carry layer:'cb' notes — those doubles get their own Bass Ensemble part on channel 5; the Bass part otherwise reads the project's own basses track. Brass parts use the 4-horn layer only; the 8-horn and Xtra layers are ignored.",
   "pitchConvention": "C3=60",
   "keyswitchVelocity": 100,
-  "cbLayer": "omit",
+  "cbLayer": "separate",
   "parts": [
     {
       "id": "violins1",
@@ -35,7 +35,7 @@
       "source": { "role": "violins2" },
       "lowestPlayable": 55,
       "keyswitchZone": { "low": 36, "high": 50 },
-      "playableLow": 60,
+      "playableLow": 53,
       "keyswitches": { "sustain": "C1", "legato": "D1", "marcato": "A1", "pizz": "F1", "spiccato": "D2", "tremolo": "G1" },
       "fallback": {
         "detache": ["sustain"],
@@ -78,7 +78,7 @@
       "channel": 4,
       "source": { "role": "cellosBasses", "layer": null },
       "lowestPlayable": 28,
-      "keyswitchZone": { "low": 12, "high": 24 },
+      "keyswitchZone": { "low": 12, "high": 35 },
       "playableLow": 36,
       "keyswitches": { "sustain": "C-1", "legato": "D-1", "marcato": "A-1", "pizz": "E-1", "tremolo": "G-1" },
       "fallback": {
@@ -100,10 +100,10 @@
       "id": "bass",
       "patch": "Bass Ensemble",
       "channel": 5,
-      "source": { "role": "cellosBasses", "layer": "cb" },
+      "source": { "role": "basses", "legacy": { "role": "cellosBasses", "layer": "cb" } },
       "lowestPlayable": 28,
-      "keyswitchZone": { "low": 12, "high": 24 },
-      "playableLow": 28,
+      "keyswitchZone": { "low": 12, "high": 22 },
+      "playableLow": 23,
       "keyswitches": { "sustain": "C-1", "legato": "D-1", "marcato": "A-1", "pizz": "F-1", "tremolo": "G-1" },
       "fallback": {
         "detache": ["sustain"],
@@ -230,8 +230,8 @@
     "parts[1].keyswitches.spiccato (D2, read from a small manual image)",
     "parts[2].keyswitches.spiccato (C#1, read from a small manual image)",
     "parts[3].keyswitches.marcato (A-1, read from a small manual image)",
+    "parts[3].keyswitchZone.high (35 — the user's table confirms the cello zone but marks its top unverified)",
     "parts[4].transposeSemitones (default 0)",
-    "parts[4].keyswitchZone + playableLow (bass is not in the range table; zone C-1–C0 covers its keyswitches, playableLow = its lowestPlayable 28)",
     "parts[5].transposeSemitones (default 0)",
     "parts[6].transposeSemitones (default 0)",
     "parts[7].transposeSemitones (default 0)",

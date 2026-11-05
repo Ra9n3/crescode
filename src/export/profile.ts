@@ -15,15 +15,25 @@
  *
  * Phase 8.1: each part may declare its patch's `keyswitchZone` (the red
  * zone of silent/keyswitch keys) and `playableLow` (the patch's lowest
- * playable note). The validator checks every keyswitch against both; the
- * export's red-zone guard drops any non-keyswitch note below playableLow
- * (it would trigger a keyswitch or sit in a silent gap) — export only, the
- * project is untouched. Keyswitch names may also describe patch-side
+ * playable note). The validator checks every keyswitch against both.
+ *
+ * Phase 8.2: the red-zone guard FOLDS instead of dropping — a non-keyswitch
+ * note below playableLow is shifted up by whole octaves until it is playable
+ * (div2 notes included); it is dropped only when the fold would exceed the
+ * part's hard range (the source track's highestNote — the engine's ceiling,
+ * the same authority the spec cites for the bass floor) or, under an
+ * octaveDoubling policy of 'forbidden', when the fold would create a new
+ * unison or octave doubling with ANOTHER part at the same moment. A part may
+ * also name a `legacy` source (role + layer): the Bass part reads the
+ * project's own basses track and, on legacy combined cellosBasses tracks
+ * that still carry layer:'cb' notes, claims those under cbLayer 'separate'.
+ * Keyswitch names may also describe patch-side
  * articulations the project never writes (e.g. an accent patch key) as long
  * as some fallback chain of the same part references them.
  */
-import { ARTICULATIONS, type CcLane, type Note, type Project, type Track } from '../shared/schema/types';
+import { ARTICULATIONS, isInstrumentTrack, type CcLane, type Note, type Project, type Track } from '../shared/schema/types';
 import { msToTicks, ticksToMs } from '../orchestrator/spine';
+import { resolveTemplate } from '../config/ensembles';
 
 /* ---------------- pitch convention ---------------- */
 
@@ -85,6 +95,10 @@ export interface ProfileSource {
   /** 'cb' = only the layer-marked notes; null = only the unmarked notes;
    *  absent = every note of the role. */
   layer?: 'cb' | null;
+  /** Phase 8.2: an ADDITIONAL source this part reads — the Bass part's own
+   *  role is the project's basses track, and on LEGACY combined tracks that
+   *  still carry layer:'cb' notes it claims those too (cbLayer 'separate'). */
+  legacy?: { role: string; layer?: 'cb' | null };
 }
 
 export interface ProfilePart {
@@ -123,10 +137,11 @@ export interface ExportProfile {
   name: string;
   pitchConvention: string;
   keyswitchVelocity: number;
-  /** How the Cb layer of a layered track exports: 'separate' gives the
-   *  layer:'cb' notes their own part (own channel + file); 'omit' — the
-   *  default — drops the Cb-layer notes from the export entirely, so no
-   *  Bass part or file is created. */
+  /** How the Cb layer of a LEGACY combined track exports: 'separate' (the
+   *  Phase 8.2 default — the user owns a Bass patch) gives the layer:'cb'
+   *  notes their own part (own channel + file); 'omit' drops the Cb-layer
+   *  notes from the export entirely, so no Bass file is created for them.
+   *  The Bass part itself reads the project's own basses track either way. */
   cbLayer: 'separate' | 'omit';
   parts: ProfilePart[];
 }
@@ -184,6 +199,19 @@ export function validateExportProfile(doc: unknown): string[] {
       const sourceKey = `${String(s.role)}|${layerKey}`;
       if (seenSource.has(sourceKey)) err(`${at}.source`, `"${sourceKey}" is already claimed by ${seenSource.get(sourceKey)}`);
       else seenSource.set(sourceKey, String(part.id) || at);
+      // Phase 8.2: the optional legacy claim (role + layer) — validated and
+      // uniqueness-checked like a source of its own
+      if (s.legacy !== undefined) {
+        const l = s.legacy as Record<string, unknown>;
+        if (typeof l !== 'object' || l === null || typeof l.role !== 'string' || !l.role.trim()) {
+          err(`${at}.source.legacy`, 'must be { role, layer? } with a non-empty role');
+        } else {
+          if (l.layer !== undefined && l.layer !== null && l.layer !== 'cb') err(`${at}.source.legacy.layer`, `must be "cb" or null (got ${JSON.stringify(l.layer)})`);
+          const legacyKey = `${l.role}|${l.layer === undefined ? '*' : String(l.layer)}`;
+          if (seenSource.has(legacyKey)) err(`${at}.source.legacy`, `"${legacyKey}" is already claimed by ${seenSource.get(legacyKey)}`);
+          else seenSource.set(legacyKey, String(part.id) || at);
+        }
+      }
     }
 
     if (!isInt(part.lowestPlayable) || part.lowestPlayable < 0 || part.lowestPlayable > 127) err(`${at}.lowestPlayable`, 'must be an integer 0–127');
@@ -284,12 +312,25 @@ export function parseExportProfile(doc: unknown): ExportProfile {
     name: d.name as string,
     pitchConvention: d.pitchConvention as string,
     keyswitchVelocity: d.keyswitchVelocity as number,
-    cbLayer: (d.cbLayer as 'separate' | 'omit' | undefined) ?? 'omit',
+    cbLayer: (d.cbLayer as 'separate' | 'omit' | undefined) ?? 'separate',
     parts: (d.parts as Record<string, unknown>[]).map((part) => ({
       id: part.id as string,
       patch: part.patch as string,
       channel: part.channel as number,
-      source: { role: (part.source as Record<string, unknown>).role as string, ...((part.source as Record<string, unknown>).layer !== undefined ? { layer: (part.source as Record<string, unknown>).layer as 'cb' | null } : {}) },
+      source: {
+        role: (part.source as Record<string, unknown>).role as string,
+        ...((part.source as Record<string, unknown>).layer !== undefined ? { layer: (part.source as Record<string, unknown>).layer as 'cb' | null } : {}),
+        ...((part.source as Record<string, unknown>).legacy !== undefined
+          ? {
+              legacy: {
+                role: ((part.source as Record<string, unknown>).legacy as Record<string, unknown>).role as string,
+                ...(((part.source as Record<string, unknown>).legacy as Record<string, unknown>).layer !== undefined
+                  ? { layer: ((part.source as Record<string, unknown>).legacy as Record<string, unknown>).layer as 'cb' | null }
+                  : {}),
+              },
+            }
+          : {}),
+      },
       lowestPlayable: part.lowestPlayable as number,
       ...((part as Record<string, unknown>).keyswitchZone !== undefined
         ? { keyswitchZone: { low: ((part as Record<string, unknown>).keyswitchZone as { low: number }).low, high: ((part as Record<string, unknown>).keyswitchZone as { high: number }).high } }
@@ -425,6 +466,42 @@ export function keyswitchNotesFor(part: ProfilePart, notes: Note[], project: Pro
   return out;
 }
 
+/** Per-part red-zone fold counts (Phase 8.2): the optional stats sink the
+ *  tests and the phase report read. Dropped = fold exceeds the hard range or
+ *  (forbidden policy) would create a new unison/octave doubling. */
+export interface FoldStats {
+  folded: Record<string, number>;
+  droppedHardRange: Record<string, number>;
+  droppedDoubling: Record<string, number>;
+}
+
+const emptyFoldStats = (): FoldStats => ({ folded: {}, droppedHardRange: {}, droppedDoubling: {} });
+
+const bump = (rec: Record<string, number>, id: string): void => { rec[id] = (rec[id] ?? 0) + 1; };
+
+/** Sounding pitches of every part's sources (own role + legacy claim),
+ *  transposed and TAGGED with the part id — the fold's doubling check reads
+ *  every part but its own. Built lazily, once per track. */
+const allPartPitches = (project: Project, profile: ExportProfile): { partId: string; start: number; end: number; pitch: number }[] => {
+  const out: { partId: string; start: number; end: number; pitch: number }[] = [];
+  for (const part of profile.parts) {
+    const sources: ProfileSource[] = [part.source];
+    if (part.source.legacy) sources.push({ role: part.source.legacy.role, ...(part.source.legacy.layer !== undefined ? { layer: part.source.legacy.layer } : {}) });
+    for (const t of project.tracks) {
+      if (!isInstrumentTrack(t)) continue;
+      for (const src of sources) {
+        if (src.role !== t.role) continue;
+        const visible = profile.cbLayer !== 'separate' ? t.notes.filter((n) => n.layer !== 'cb') : t.notes;
+        for (const n of visible) {
+          if (!noteMatchesSource(n, src)) continue;
+          out.push({ partId: part.id, start: n.startTick, end: n.startTick + n.durationTicks, pitch: Math.max(0, Math.min(127, n.pitch + part.transposeSemitones)) });
+        }
+      }
+    }
+  }
+  return out;
+};
+
 const noteMatchesSource = (n: Note, source: ProfileSource): boolean =>
   source.layer === 'cb' ? n.layer === 'cb'
     : source.layer === null ? n.layer !== 'cb'
@@ -439,42 +516,88 @@ const ccForPart = (cc: CcLane[] | undefined, enabled: Record<string, boolean>): 
 /**
  * Maps one exportable track to its export chunks. Without a profile: the
  * track itself, untouched (byte-identical writer input). With a profile:
- * one chunk per part whose source matches the track's role — with
- * cbLayer 'separate' the cellosBasses track splits by the note layer into
- * its cello and bass parts; with 'omit' (the default) the Cb-layer notes
- * are not exported at all and no Bass part exists. Each part is
- * transposed, passed through the red-zone guard (Phase 8.1: non-keyswitch
- * notes below the part's playableLow are dropped — they would trigger a
- * keyswitch or sit in a silent gap; the project is untouched),
- * tremolo-merged (sampled mode) and fronted by its keyswitches. Notes that
- * no part claims pass through unchanged (no part, no known floor).
+ * one chunk per part whose source (own role, or the Phase 8.2 legacy claim)
+ * matches the track's role — with cbLayer 'separate' a legacy combined
+ * cellosBasses track splits by the note layer into its cello and bass
+ * parts; a project's own basses track feeds the Bass part directly. Each
+ * part is transposed, FOLDED into the playable range (Phase 8.2: notes below
+ * playableLow shift up by whole octaves — dropped only when the fold would
+ * exceed the part's hard range, the source track's highestNote, or, under an
+ * octaveDoubling policy of 'forbidden', create a new unison/octave doubling
+ * with another part at the same moment), tremolo-merged (sampled mode) and
+ * fronted by its keyswitches. Notes that no part claims pass through
+ * unchanged (no part, no known floor). The project is never touched.
  */
-export function chunksForTrack(project: Project, track: Track, profile: ExportProfile | null): ExportChunk[] {
-  // cbLayer 'omit' (the default): the Cb-layer notes are not exported at all —
-  // no part claims them and they never reach a passthrough chunk either.
+export function chunksForTrack(project: Project, track: Track, profile: ExportProfile | null, stats?: FoldStats): ExportChunk[] {
+  const fold = stats ?? emptyFoldStats();
+  // cbLayer 'omit': the Cb-layer notes of a combined track are not exported
+  // at all — no part claims them and they never reach a passthrough chunk.
   const omit = profile !== null && profile.cbLayer !== 'separate';
   const visible = omit ? track.notes.filter((n) => n.layer !== 'cb') : track.notes;
   const passthrough = (): ExportChunk => ({ trackId: track.id, name: track.name, channel: track.midiChannel, notes: visible, ...(track.cc !== undefined ? { cc: track.cc } : {}) });
   if (!profile) return [passthrough()];
-  const parts = profile.parts.filter((p) => p.source.role === track.role && !(omit && p.source.layer === 'cb'));
+
+  // the part↔track match: the part's own source role, or (cbLayer
+  // 'separate') its Phase 8.2 legacy claim
+  const sourceFor = (part: ProfilePart): ProfileSource | null => {
+    if (part.source.role === track.role) return part.source;
+    if (!omit && part.source.legacy && part.source.legacy.role === track.role) {
+      return { role: part.source.legacy.role, ...(part.source.legacy.layer !== undefined ? { layer: part.source.legacy.layer } : {}) };
+    }
+    return null;
+  };
+  const parts = profile.parts.filter((p) => sourceFor(p) !== null);
   if (!parts.length) return [passthrough()];
+
+  // the fold's doubling check is needed only when the template forbids
+  // octave doublings; the sounding pitches of the parts' sources are built
+  // lazily, once per track, tagged by part (a part never clashes with itself)
+  const template = resolveTemplate(project.ensemble);
+  const forbidFoldDoubling = template?.rules.some((r) => r.type === 'octaveDoubling' && r.params.policy === 'forbidden') ?? false;
+  let others: { partId: string; start: number; end: number; pitch: number }[] | null = null;
+  const othersOf = (): { partId: string; start: number; end: number; pitch: number }[] => (others ??= allPartPitches(project, profile));
 
   const chunks: ExportChunk[] = [];
   const claimed = new Set<Note>();
   let anyMatched = false;
   for (const part of parts) {
-    const matched = visible.filter((n) => noteMatchesSource(n, part.source) && !claimed.has(n));
+    const eff = sourceFor(part)!;
+    const matched = visible.filter((n) => noteMatchesSource(n, eff) && !claimed.has(n));
     for (const n of matched) claimed.add(n);
     if (!matched.length) continue;
     anyMatched = true;
     const transposed = part.transposeSemitones
       ? matched.map((n) => ({ ...n, pitch: Math.max(0, Math.min(127, n.pitch + part.transposeSemitones)) }))
       : matched;
-    // Red-zone guard (Phase 8.1): the EXPORTED pitch is what would trigger a
-    // keyswitch, so the guard runs on the transposed notes, before the merge
-    // (a dropped repeat must not extend a tremolo group). Keyswitch notes are
-    // generated after the guard, so they are never dropped by it.
-    const guarded = part.playableLow === undefined ? transposed : transposed.filter((n) => n.pitch >= part.playableLow!);
+    // Red-zone fold (Phase 8.2, replaces the 8.1 drop): a non-keyswitch note
+    // below playableLow shifts up by whole octaves until it is playable.
+    // It is dropped only when the folded pitch would exceed the part's hard
+    // range (the source track's highestNote) or — octaveDoubling policy
+    // 'forbidden' — when the fold would create a NEW unison or octave
+    // doubling with another part at the same moment. The guard runs on the
+    // transposed notes, before the merge (a folded repeat merges like any
+    // other); keyswitches are generated after it, so they are never folded.
+    let guarded: Note[];
+    if (part.playableLow === undefined) {
+      guarded = transposed;
+    } else {
+      guarded = [];
+      for (const n of transposed) {
+        if (n.pitch >= part.playableLow) { guarded.push(n); continue; }
+        let p = n.pitch;
+        while (p < part.playableLow) p += 12;
+        if (p > track.highestNote) { bump(fold.droppedHardRange, part.id); continue; }
+        if (forbidFoldDoubling) {
+          const list = othersOf();
+          const clash = list.some((o) => o.partId !== part.id
+            && o.start < n.startTick + n.durationTicks && o.start + (o.end - o.start) > n.startTick
+            && (Math.abs(o.pitch - p) === 0 || Math.abs(o.pitch - p) === 12 || Math.abs(o.pitch - p) === 24));
+          if (clash) { bump(fold.droppedDoubling, part.id); continue; }
+        }
+        bump(fold.folded, part.id);
+        guarded.push({ ...n, pitch: p });
+      }
+    }
     if (!guarded.length) continue; // everything dropped: no part file at all
     const merged = part.tremoloMode === 'sampled' ? mergeTremoloGroups(guarded) : guarded;
     const notes = [...keyswitchNotesFor(part, merged, project, profile), ...merged].sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
@@ -483,9 +606,9 @@ export function chunksForTrack(project: Project, track: Track, profile: ExportPr
   const rest = visible.filter((n) => !claimed.has(n));
   if (rest.length) chunks.push({ trackId: track.id, name: track.name, channel: track.midiChannel, notes: rest, ...(track.cc !== undefined ? { cc: track.cc } : {}) });
   if (chunks.length) return chunks;
-  // Every matched note was guard-dropped: the track maps to a patch that
+  // Every matched note was fold-dropped: the track maps to a patch that
   // cannot sound any of it — export nothing for it (a passthrough here would
-  // reintroduce exactly the notes the guard exists to drop). A track whose
+  // reintroduce exactly the notes the fold exists to lift). A track whose
   // parts matched NOTHING is still unmapped: passthrough as before.
   return anyMatched ? [] : [passthrough()];
 }

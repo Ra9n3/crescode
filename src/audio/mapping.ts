@@ -171,10 +171,12 @@ export const DETUNE_SPREAD_CENTS: Record<StringPart, number> = {
 };
 
 /** Which string part a note belongs to (the cellosBasses track splits by its
- *  note layer); null for every non-string note. */
+ *  note layer; the Phase 8.2 Double Basses desk is its own track); null for
+ *  every non-string note. */
 export function stringPartOf(track: Pick<Track, 'family' | 'role'>, note: Note): StringPart | null {
   if (track.family !== 'Strings') return null;
   if (track.role === 'cellosBasses') return note.layer === 'cb' ? 'bass' : 'cello';
+  if (track.role === 'basses') return 'bass'; // the Phase 8.2 Double Basses desk: the existing bass detune
   if (track.role === 'violins1' || track.role === 'violins2' || track.role === 'violas') return track.role;
   return null;
 }

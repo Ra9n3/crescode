@@ -54,13 +54,17 @@ export interface EnergyReport {
 
 const EPS = 1e-9;
 
-/** All notes of roster tracks with their role, flattened once. */
+/** All notes of roster tracks with their role, flattened once. Phase 8.2:
+ *  the Double Basses desk (role 'basses') counts as the cellosBasses role —
+ *  the split moved notes between two desks of ONE section, it added a role. */
 function rosterNotes(p: Project, template: EnsembleTemplate): { role: string; notes: Note[] }[] {
   const roles = new Set(template.roster.map((r) => r.role));
   const out: { role: string; notes: Note[] }[] = [];
   for (const t of p.tracks) {
-    if (!isInstrumentTrack(t) || !roles.has(t.role) || t.notes.length === 0) continue;
-    out.push({ role: t.role, notes: t.notes });
+    if (!isInstrumentTrack(t) || t.notes.length === 0) continue;
+    const role = t.role === 'basses' && roles.has('cellosBasses') ? 'cellosBasses' : t.role;
+    if (!roles.has(role)) continue;
+    out.push({ role, notes: t.notes });
   }
   return out;
 }

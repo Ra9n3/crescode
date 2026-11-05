@@ -20,12 +20,15 @@ import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
 import { resolveTemplate } from '../config/ensembles';
 import { chordSpans, sectionMap, orchestrationSeedFor, energyCurve } from './spine';
 import { stringsModule, stringVoiceTracks, prepareStrings, maybeLayerCellosBasses } from './render';
+import { splitCelloLine, materializeBasses, bassesTrackFor, insertBassesTrack, splitEngaged, BASSES_ROLE, BASSES_TRACK_ID, type SplitResult } from './basses';
 import { textureForType, sectionTypeKeyOf } from './conductor/layers';
 import { conduct, type ConductorPlan } from './conductor';
 import { governPadVelocities } from './energy/mix';
 import { maxMeanVelocityFor } from './energy';
 import { chordTones } from './voicing/chordTones';
-import { barTicks, beatTicks } from '../shared/schema/meter';
+import { leadingTonePcOf } from './voicing/voiceLead';
+import { scalePitchClasses } from '../shared/schema/modes';
+import { barTicks, beatTicks, projectBars } from '../shared/schema/meter';
 import { buildCcLanes } from './expression/cc';
 import { humanizeStrings } from './expression/humanize';
 import { overlapLegato } from './expression/legato';
@@ -136,7 +139,7 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     density: options.density,
     humanize: options.humanize,
     lockedTrackIds,
-    excludeRoles: [...new Set([...voiceTracks.map((t) => t.role), ...brassRosterRoles])],
+    excludeRoles: [...new Set([...voiceTracks.map((t) => t.role), ...brassRosterRoles, BASSES_ROLE])],
     roleNotes,
   });
 
@@ -221,6 +224,32 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
       .map((t) => ({ role: t.role, notes: t.notes })),
   });
 
+  // Phase 8.2: the separate Double Basses desk (spec §3). The split engages
+  // ONLY under an 'allowed' octaveDoubling policy (the cello's octave-up
+  // answer over the basses' own pitch is itself an octave doubling) and only
+  // for an unlocked, in-band cello — under climaxOnly/forbidden (chamber,
+  // sonata, vocalbacking) the combined writing continues byte-identically.
+  // The pass runs HERE — after the brass render and the first governor pass
+  // (the generator, the tutti hits, the brass doubling source and the
+  // governor all saw the exact pre-split list) and BEFORE humanize, so the
+  // routed notes trail their cello partner (the octave-up or the doubled
+  // line note) by 1–3 ms through the same partner pass the Cb doubles have
+  // always used.
+  const cbTrack = voiceTracks.find((t) => t.role === 'cellosBasses');
+  const splitOn = !!cbTrack && !cbTrack.locked && splitEngaged(template);
+  let splitReport: SplitResult | null = null;
+  if (splitOn && cbTrack) {
+    // the low-interval guard reads the low voices already written (the brass
+    // candidates, §13.4): an octave-up answer that would sit closer than a
+    // 5th under MIDI 48 against them is suppressed — the cello rests it
+    const lowVoices = Object.values(brassNotes).flatMap((notes) =>
+      notes.filter((n) => n.pitch < 48).map((n) => ({ startTick: n.startTick, durationTicks: n.durationTicks, pitch: n.pitch })));
+    const ltPc = leadingTonePcOf(project.key, scalePitchClasses(project.key, project.mode));
+    const { notes, result } = splitCelloLine(plan.moments, notesByTrackId[cbTrack.id] ?? [], lowVoices, project.tempoMap, ltPc);
+    notesByTrackId[cbTrack.id] = notes;
+    splitReport = result;
+  }
+
   // Phase 5d: humanize the strings — POSITIVE section-correlated timing
   // offsets (start only, ends kept), a small velocity jitter that never
   // lifts a note above its windows' governor cap, Cb doubles trailing their
@@ -271,6 +300,39 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     });
   }
 
+  // Phase 8.2: materialize the two desks — the 'cb'-marked notes (the Cb
+  // doubles, the sub-36 line notes, the wide-unison -24 notes) leave the
+  // cello list and become the Double Basses track (inserted after the cellos
+  // in score order, or they refill the project's own basses track). The mark
+  // is stripped: the track IS the bass desk. The desk joins the CC build like
+  // every other sounding strings track (the user's Bass patch gets the same
+  // expression arcs). The template roster is not touched — growing it would
+  // change every governor cap (the chamber pin forbids that); the energy
+  // measure counts the desk under the cellosBasses role instead.
+  let bassesById = new Map<string, Note[]>();
+  let bassesTrackId: string | null = null;
+  let bassesNeedsTrack = false;
+  if (splitOn && cbTrack) {
+    const endTick = projectBars(project) * barTicks(project.timeSignature);
+    const m = materializeBasses(notesByTrackId[cbTrack.id], endTick);
+    notesByTrackId[cbTrack.id] = m.celloNotes;
+    if (splitReport) {
+      const sup = splitReport.octaveUpSuppressed ? `, ${splitReport.octaveUpSuppressed} octave-up answer(s) suppressed by the low-interval rule` : '';
+      ctx.lines!.reports.push(
+        `cello/basses split (take ${orchestration.take}): ${splitReport.routed} note(s) routed to the Double Basses desk (${splitReport.octaveUpCount} octave-up answers on the cello${sup}, ${splitReport.momentRouted} wide-unison notes), Cb doubles ride the desk`,
+      );
+    }
+    const existingBasses = project.tracks.find((t) => t.role === BASSES_ROLE);
+    if (existingBasses) {
+      bassesTrackId = existingBasses.id;
+      bassesById.set(existingBasses.id, m.bassesNotes);
+    } else if (m.bassesNotes.length) {
+      bassesTrackId = BASSES_TRACK_ID;
+      bassesNeedsTrack = true;
+      bassesById.set(BASSES_TRACK_ID, m.bassesNotes);
+    }
+  }
+
   // Phase 5c: CC lanes for the strings the orchestrator wrote — phrase arcs
   // (CC1/CC11), CC7 balance, CC74 spikes, CC68 legato windows, soft-entry
   // S-curves. Only in-band unlocked string tracks appear in notesByTrackId,
@@ -280,7 +342,10 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     template,
     sections: ctx.sections,
     arc,
-    notesByTrackId: Object.fromEntries(stringsTrackIds.map((id) => [id, notesByTrackId[id] ?? []])),
+    notesByTrackId: Object.fromEntries([
+      ...stringsTrackIds.map((id) => [id, notesByTrackId[id] ?? []]),
+      ...(bassesTrackId ? [[bassesTrackId, bassesById.get(bassesTrackId) ?? []] as [string, Note[]]] : []),
+    ]),
     carrierByBar: ctx.lines!.carrierByBar,
   });
   const ccSummary = stringsTrackIds
@@ -319,8 +384,15 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   if (brassCcSummary) ctx.lines!.reports.push(`brass cc (take ${orchestration.take}): ${brassCcSummary}`);
 
   const stringsNotes = new Map(stringsTrackIds.map((id) => [id, notesByTrackId[id]]));
-  const tracks = project.tracks.map((t) => {
+  let tracks = project.tracks.map((t) => {
     if (!isInstrumentTrack(t)) return t;
+    if (t.role === BASSES_ROLE) {
+      // the composed basses desk: the split's notes + its CC lanes, or
+      // silence (lock wins)
+      if (t.locked) return t;
+      const cc = ccByTrackId[t.id];
+      return { ...t, notes: bassesById.get(t.id) ?? [], ...(cc ? { cc } : {}) };
+    }
     if (t.locked) return t; // lock wins
     if (!isInBand(t.role, ensemble, template)) return t; // out of band: untouched
     if (stringsNotes.has(t.id)) {
@@ -334,6 +406,11 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     const gen = ruleTracks.find((r) => r.id === t.id);
     return gen ? { ...t, notes: gen.notes } : t;
   });
+  if (bassesNeedsTrack && bassesTrackId) {
+    const cc = ccByTrackId[bassesTrackId];
+    const basses = bassesTrackFor(project, bassesById.get(bassesTrackId) ?? []);
+    tracks = insertBassesTrack(tracks, cc ? { ...basses, cc } : basses);
+  }
 
   return { tracks, orchestration, stringsTrackIds, plan, reports: [...ctx.lines!.reports] };
 }

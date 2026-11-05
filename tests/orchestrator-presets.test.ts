@@ -217,28 +217,47 @@ describe('Vc+Cb layering (4f, per note since 4.5): octave below where policy and
   it('symphony dorian: the Cb doubles every note that stays in range; skips are per note and reported', () => {
     const { project, result } = compose('ensemble.symphony');
     const cb = track(project, 'cellosBasses');
+    // Phase 8.2: the doubles ride the desk's Double Basses track
+    const bs = track(project, 'basses');
+    expect(bs).toBeTruthy();
     const report = result.reports.find((r) => r.startsWith(`Vc+Cb layering (ensemble.symphony)`));
     expect(report).toBeTruthy();
     const m = report!.match(/(\d+)\/(\d+) notes doubled/)!;
     const doubled = Number(m[1]);
     const total = Number(m[2]);
-    console.log(`Phase 4.5 report (symphony · dorian): ${report}`);
+    // the split report: the routed notes whose octave-up answer exists also
+    // trail a cello partner (the answer), so the basses notes with partners
+    // = the Cb doubles + the answered routings
+    const splitReport = result.reports.find((r) => r.startsWith('cello/basses split'))!;
+    expect(splitReport).toBeTruthy();
+    const octaveUps = Number(splitReport.match(/(\d+) octave-up answers/)![1]);
+    console.log(`Phase 4.5 report (symphony · dorian): ${report} | ${splitReport}`);
     expect(total).toBeGreaterThan(0);
     // every doubled note has its octave partner (the Cb trails its cello
     // partner by a humanize follow of a few ms — match within the head);
-    // every note stays in the hard range
-    const isDouble = (n: { startTick: number; pitch: number }) =>
-      cb.notes.some((m) => m.pitch === n.pitch + 12 && m.startTick >= n.startTick - humanizeHeadTicks(project.tempoMap, n.startTick) && m.startTick <= n.startTick);
-    expect(cb.notes.filter(isDouble).length).toBe(doubled);
+    // every note stays in its desk's hard range
+    const isDouble = (d: { startTick: number; pitch: number }) =>
+      cb.notes.some((n) => n.pitch === d.pitch + 12 && n.startTick >= d.startTick - humanizeHeadTicks(project.tempoMap, d.startTick) && n.startTick <= d.startTick);
+    expect(bs.notes.filter(isDouble).length).toBe(doubled + octaveUps);
     for (const n of cb.notes) {
       expect(n.pitch).toBeGreaterThanOrEqual(cb.lowestNote);
       expect(n.pitch).toBeLessThanOrEqual(cb.highestNote);
     }
-    // the skipped notes really are the ones that would fall below (dorian: no leading tone)
+    for (const d of bs.notes) {
+      expect(d.pitch).toBeGreaterThanOrEqual(bs.lowestNote);
+      expect(d.pitch).toBeLessThanOrEqual(bs.highestNote);
+    }
+    // the skipped notes really are the ones that would fall below (dorian: no
+    // leading tone). Phase 8.2: the layering ran on the raw line, and the raw
+    // sub-40 notes then split across the two desks — the post-split cello
+    // keeps only the 36–39 slice without doubles, so the report's skipped
+    // count (raw) is at least the post-split slice
     const lt = ltPcOf(project);
     expect(lt).toBeNull();
-    const skipped = cb.notes.filter((n) => !isDouble(n) && n.pitch - 12 < cb.lowestNote).length;
-    expect(total - doubled).toBe(skipped);
+    const hasDouble = (n: { startTick: number; pitch: number }) =>
+      bs.notes.some((d) => d.pitch === n.pitch - 12 && d.startTick >= n.startTick - humanizeHeadTicks(project.tempoMap, n.startTick) && d.startTick <= n.startTick + humanizeHeadTicks(project.tempoMap, n.startTick));
+    const skipped = cb.notes.filter((n) => !hasDouble(n) && n.pitch - 12 < cb.lowestNote).length;
+    expect(total - doubled).toBeGreaterThanOrEqual(skipped);
     expect(report).toMatch(/under the track's low E1/);
   });
 
@@ -250,11 +269,14 @@ describe('Vc+Cb layering (4f, per note since 4.5): octave below where policy and
     const composed = composeAllTracks(p, { seed: 11, moments: false });
     const project = { ...p, tracks: composed.tracks } as Project;
     const cb = track(project, 'cellosBasses');
+    const bs = track(project, 'basses');
     const report = composed.reports.find((r) => r.startsWith('Vc+Cb layering (ensemble.cinematic)'))!;
-    const doubledNotes = cb.notes.filter((n) => cb.notes.some((m) => m !== n && m.pitch === n.pitch + 12 && m.startTick >= n.startTick - humanizeHeadTicks(project.tempoMap, n.startTick) && m.startTick <= n.startTick));
+    // Phase 8.2: the doubles ride the basses desk; a doubled note (one with a
+    // cello partner an octave above) is never on the leading tone
+    const doubledNotes = bs.notes.filter((d) => cb.notes.some((n) => n.pitch === d.pitch + 12 && n.startTick >= d.startTick - humanizeHeadTicks(project.tempoMap, d.startTick) && n.startTick <= d.startTick));
     const lt = ltPcOf(project);
     expect(lt).toBe(11); // B in C Ionian
-    for (const n of doubledNotes) expect(((n.pitch % 12) + 12) % 12).not.toBe(lt); // the hard rule wins per note
+    for (const d of doubledNotes) expect(((d.pitch % 12) + 12) % 12).not.toBe(lt); // the hard rule wins per note
     console.log(`Phase 4.5 report (cinematic · C Ionian): ${report}`);
   });
 

@@ -190,7 +190,14 @@ describe('Phase 7: moments', () => {
         const t = run.project.tracks.find((x) => x.role === role);
         if (!t || t.locked) continue;
         const hits = t.notes.filter((n) => n.startTick >= downbeat - 1 && n.startTick <= downbeat + head);
-        expect(hits.length, `${run.templateId} take ${run.take} ${role} hits the downbeat`).toBeGreaterThan(0);
+        // Phase 8.2: the cellosBasses desk split — a sub-36 tutti hit sounds
+        // on the desk's Double Basses track (the cello's octave-up answer may
+        // be suppressed by the low-interval rule); the DESK hits
+        const desk = role === 'cellosBasses'
+          ? [...t.notes, ...(run.project.tracks.find((x) => x.role === 'basses')?.notes ?? [])]
+          : t.notes;
+        const deskHits = desk.filter((n) => n.startTick >= downbeat - 1 && n.startTick <= downbeat + head);
+        expect(hits.length + deskHits.length, `${run.templateId} take ${run.take} ${role} hits the downbeat`).toBeGreaterThan(0);
       }
     }
   });
@@ -202,7 +209,9 @@ describe('Phase 7: moments', () => {
       const startTick = m.startTick as number;
       const endTick = m.endTick as number;
       const carrierId = m.carrierTrackId as string;
-      const strings = run.project.tracks.filter((t) => t.family === 'Strings' && t.id !== carrierId);
+      const carrierIsCelloDesk = run.project.tracks.find((t) => t.id === carrierId)?.role === 'cellosBasses';
+      const strings = run.project.tracks.filter((t) => t.family === 'Strings' && t.id !== carrierId
+        && !(carrierIsCelloDesk && t.role === 'basses')); // the desk's own bass track carries the carrier's sub-floor notes
       for (const t of strings) {
         expect(startsIn(t.notes, startTick, endTick).length, `${run.templateId} take ${run.take} tacet ${t.role}`).toBe(0);
       }

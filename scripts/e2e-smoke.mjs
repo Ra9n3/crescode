@@ -82,6 +82,30 @@ const afterSwitchUndo = await st(() => {
   return { templateId: s.project.ensemble?.templateId ?? null, tubaNotes: s.project.tracks.find((x) => x.role === 'tuba').notes.length };
 });
 check('Undo restores the whole previous composition', afterSwitchUndo.templateId === null && afterSwitchUndo.tubaNotes > 0, JSON.stringify(afterSwitchUndo));
+
+// Regression (user report: "after I changed the template, Compose All is not
+// working"): picking a band leaves the picker panel open, and the panel's own
+// full-screen backdrop used to sit ABOVE the Compose All button — the click
+// landed on the backdrop, closed the panel and the compose never ran (silent:
+// no toast, no notes). The button must be clickable while the panel is open.
+const takeBeforePanelCompose = await st(() => window.crescodeTest.store.getState().project.orchestration?.take ?? 0);
+await page.click('[data-testid="band-option-ensemble.chamber"]'); // panel still open on purpose
+await page.click('[data-testid=compose-all]');
+const panelCompose = await st(() => {
+  const s = window.crescodeTest.store.getState();
+  const byRole = (r) => s.project.tracks.find((x) => x.role === r).notes.length;
+  return {
+    templateId: s.project.ensemble?.templateId ?? null,
+    take: s.project.orchestration?.take ?? 0,
+    lastToast: s.toasts.length ? s.toasts[s.toasts.length - 1].text : '',
+    violins1: byRole('violins1'), tuba: byRole('tuba'),
+  };
+});
+check('Compose All works while the band panel is open (backdrop must not cover the button)',
+  panelCompose.templateId === 'ensemble.chamber' && panelCompose.take === takeBeforePanelCompose + 1
+  && panelCompose.lastToast.startsWith('Composed in') && panelCompose.violins1 > 0 && panelCompose.tuba === 0,
+  JSON.stringify(panelCompose));
+await st(() => { const s = window.crescodeTest.store.getState(); s.undo(); s.undo(); }); // band pick + compose out
 // close the picker panel (dispatch pointerdown on the backdrop — React closes it)
 await st(() => document.querySelector('.fixed.inset-0')?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
 

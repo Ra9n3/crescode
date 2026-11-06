@@ -106,6 +106,7 @@ function ComposeButton() {
   const opts = useStore((s) => s.composeOptions);
   const set = useStore((s) => s.set);
   const compose = () => {
+    setOpen(false);
     const r = useStore.getState().composeAll();
     const bits = [
       `${r.ms.toFixed(0)} ms`,
@@ -116,17 +117,23 @@ function ComposeButton() {
   };
   return (
     <div className="relative flex shrink-0">
-      <button
-        data-testid="compose-all" title="Compose All — generate MIDI for every unlocked instrument track in the band (no band chosen: everyone)"
-        onClick={compose}
-        className="hw hw-primary engrave flex h-8 items-center gap-1.5 rounded-l-[4px] px-3 text-[11px] font-bold uppercase tracking-[0.1em] transition-transform active:translate-y-[1px]"
-      >
-        <Ico icon={I.magic} className="text-sm" /> Compose All
-      </button>
-      <button title="Band & generation options" aria-label="Band and generation options" data-testid="compose-options" onClick={() => setOpen(!open)}
-        className="hw hw-primary flex h-8 items-center rounded-r-[4px] border-l border-[#4a3212] px-1">
-        <Ico icon={I.caret} />
-      </button>
+      {/* z-40 keeps the two buttons ABOVE this popover's own full-screen backdrop
+          (z-30, rendered below while open): with the band picker open, a click on
+          Compose All used to land on the backdrop — the panel closed and the
+          compose never ran ("after changing the template Compose All is dead"). */}
+      <div className="relative z-40 flex">
+        <button
+          data-testid="compose-all" title="Compose All — generate MIDI for every unlocked instrument track in the band (no band chosen: everyone)"
+          onClick={compose}
+          className="hw hw-primary engrave flex h-8 items-center gap-1.5 rounded-l-[4px] px-3 text-[11px] font-bold uppercase tracking-[0.1em] transition-transform active:translate-y-[1px]"
+        >
+          <Ico icon={I.magic} className="text-sm" /> Compose All
+        </button>
+        <button title="Band & generation options" aria-label="Band and generation options" data-testid="compose-options" onClick={() => setOpen(!open)}
+          className="hw hw-primary flex h-8 items-center rounded-r-[4px] border-l border-[#4a3212] px-1">
+          <Ico icon={I.caret} />
+        </button>
+      </div>
       {open && (
         <>
           <div className="fixed inset-0 z-30" onPointerDown={() => setOpen(false)} />

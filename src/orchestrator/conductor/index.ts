@@ -32,6 +32,7 @@ import { textureForType } from './layers';
 import { planMoments, type MomentPlan } from './moments';
 import { planBrass, planBrassLeads, brassRng, type BrassPlan } from '../brass/plan';
 import { planWinds, planWindLeads, windRng, type WindPlan } from '../winds/plan';
+import { planPercussion, type PercPlan } from '../percussion/plan';
 
 /** The shared layer vocabulary (ensemble-template.schema.json §budget). */
 export const LAYER_VOCABULARY = [
@@ -106,6 +107,10 @@ export interface ConductorPlan {
    *  realised by the winds renderer after the brass renderer. In-memory
    *  only; never persisted. */
   winds: WindPlan;
+  /** The take's percussion plan (Phase 10) — planned here after the winds,
+   *  realised by the percussion renderer after the winds renderer. In-memory
+   *  only; never persisted. */
+  percussion: PercPlan;
 }
 
 export function octaveDoublingPolicyOf(template: EnsembleTemplate | null): ConductorPlan['octaveDoublingPolicy'] {
@@ -258,6 +263,11 @@ export function conduct(ctx: OrchestratorContext, arc?: ArcBar[], withMoments = 
   const winds = planWinds(ctx);
   ctx.windPlan = winds;
 
+  // Phase 10: the percussion plan — its OWN salted stream, planned after
+  // the winds. The renderer realises it after the winds renderer.
+  const percussion = planPercussion(ctx);
+  ctx.percussionPlan = percussion;
+
   // Hard contract: the plan never exceeds maxLayers (trivially true with one
   // layer today — the guard is the contract later phases must keep), and no
   // doubling layer slots exist when the band's policy forbids them.
@@ -273,7 +283,8 @@ export function conduct(ctx: OrchestratorContext, arc?: ArcBar[], withMoments = 
         .filter((t) => isInstrumentTrack(t) && !t.locked && !annotated.has(t.id) && isInBand(t.role, ctx.ensemble, template))
         .filter((t) => {
           const planned = brass.bars.some((b) => b.voices[t.role as keyof typeof b.voices] !== undefined)
-            || winds.bars.some((b) => b.voices[t.role as keyof typeof b.voices] !== undefined);
+            || winds.bars.some((b) => b.voices[t.role as keyof typeof b.voices] !== undefined)
+            || percussion.bars.some((b) => b.voices[t.role as keyof typeof b.voices] !== undefined);
           return !planned;
         })
         .map((t) => t.role),
@@ -291,6 +302,7 @@ export function conduct(ctx: OrchestratorContext, arc?: ArcBar[], withMoments = 
     moments,
     brass,
     winds,
+    percussion,
   };
 }
 

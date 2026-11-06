@@ -30,6 +30,7 @@ const BRASS_TEMPLATES = ['ensemble.symphony', 'ensemble.cinematic', 'ensemble.hy
 const NO_BRASS_TEMPLATES = ['ensemble.chamber', 'ensemble.sonata', 'ensemble.vocalbacking'];
 const BRASS_ROLES = ['horns', 'trumpets', 'trombones', 'tuba'];
 const WIND_PIN_ROLES = new Set(['flutes', 'oboes', 'clarinets', 'bassoons']);
+const PERC_PIN_ROLES = new Set(['timpani', 'snare', 'cymbals', 'aux']);
 const PROFILE = EXPORT_PROFILES[0].profile;
 
 const THREE = (): Project => projectFromFixture(JSON.parse(JSON.stringify(threeChorus)));
@@ -364,6 +365,9 @@ describe('Phase 8: the moments-on baseline pins', () => {
             // Phase 9: the wind tracks are the winds module's now — pinned
             // against the Phase 9 baseline in tests/phase9.test.ts, not here
             if (WIND_PIN_ROLES.has(t.role)) continue;
+            // Phase 10: the percussion tracks are the percussion module's now
+            // — pinned against the Phase 10 baseline in tests/phase10.test.ts
+            if (PERC_PIN_ROLES.has(t.role)) continue;
             // Phase 8.2: the cellosBasses desk split is sanctioned — the cello
             // line rises to its patch floor (36) and the sub-floor notes ride
             // the NEW Double Basses track (absent from the pre-8.2 golden)

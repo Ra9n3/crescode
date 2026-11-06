@@ -110,6 +110,29 @@ describe('Phase 8: 4 — per-note seeding: notes outside moment bars are byte-id
         const withoutM = composeTake(THREE(), templateId, take, false);
         const covered = new Set<number>();
         for (const m of withM.result.plan.moments) for (let b = m.startBar; b <= m.endBar; b++) covered.add(b);
+        // Phase 10 allowance (narrow): a roll INTO a tutti is the moment's own
+        // content spread one bar early — the percussion notes the plan rolled
+        // into a tutti moment (its 16ths live in the bar(s) before the tutti)
+        // exist only when the moments do. And the percussion's velocity
+        // shaping reads the same beat windows the wind pickup-run landings
+        // sit in: a run the old guard skipped under a non-displacing moment
+        // (divisi/imitation) renders in the moments:false run and moves the
+        // window's velocity sums, so a PERCUSSION note in that landing's beat
+        // window can differ by a few capped units. Excluded: percussion-track
+        // notes whose start lies in a planned run's landing beat window.
+        const PERC_ROLES = new Set(['timpani', 'snare', 'cymbals', 'aux']);
+        const rollBars = new Set<number>();
+        const landingWindows: [number, number][] = [];
+        const btBarP8 = 3840;
+        for (const r of withM.result.plan.winds.pickupRuns) {
+          landingWindows.push([r.downbeatTick, r.downbeatTick + 960]);
+        }
+        for (const r of withM.result.plan.percussion.rolls) {
+          const tutti = withM.result.plan.moments.find((m) => m.kind === 'tutti' && m.startBar === r.targetBar);
+          if (!tutti) continue; // chorus-entry rolls exist with and without the moments
+          for (let b = r.startBar; b < r.targetBar; b++) rollBars.add(b);
+        }
+        void btBarP8;
         const btBar = 3840;
         // a moment note humanized past the moment's last bar line (the 8.2
         // bass desk trails its partner by a further 1–3 ms) is still a moment
@@ -125,6 +148,14 @@ describe('Phase 8: 4 — per-note seeding: notes outside moment bars are byte-id
           const bByKey = new Map(bNotes.map((n) => [`${n.pitch}@${n.startTick}`, n]));
           for (const n of t.notes) {
             if (inMoment(n.startTick)) continue;
+            // the Phase 10 allowances: a planned roll INTO a tutti is moment
+            // content (see above) — percussion notes in its bars are excluded;
+            // a percussion note inside a wind pickup-run's landing beat window
+            // is windows-coupled to the run's moments-conditional presence
+            if (PERC_ROLES.has(t.role)) {
+              if (rollBars.has(Math.floor(n.startTick / btBar) + 1)) continue;
+              if (landingWindows.some(([s, e]) => n.startTick >= s && n.startTick < e)) continue;
+            }
             const o = bByKey.get(`${n.pitch}@${n.startTick}`);
             // a note whose written end reaches into a moment bar may join into
             // the moment's entry (the bow-change crossfade) — its TAIL is part

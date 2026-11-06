@@ -650,3 +650,165 @@ brass before Phase 8.1.
   and no CC), so the generator's phantom notes can never leak through the
   assembly's generator fallback; the assembly likewise never lets a
   pre-compose CC lane survive on a wind track the fresh build left empty.
+
+## 15. Percussion (Phase 10 — the percussion module)
+
+Percussion joins the orchestrator as a family module beside the strings,
+brass and winds (`src/orchestrator/percussion/`), reusing the same structure
+— profile, plan, render — and the conductor, the energy arc, the moments
+and the golden-byte harness (nothing forked). The strings render first,
+brass second, the winds third, the percussion fourth (its velocity math sees
+every other family's notes), the rules generator covers keys as before.
+Everything is defined in MIDI numbers, sounding pitch; the earlier roster
+list used C4=60 names — the numbers below are the truth.
+
+### 15.1 Roster and voices per track
+
+Percussion rosters (from the shipped templates): symphony carries timpani,
+snare, cymbals, aux; cinematic carries timpani, cymbals, aux (no snare);
+hybridstudio carries snare, cymbals, aux (no timpani); chamber, sonata and
+vocalbacking carry none — for those three the module is silent and their
+output stays byte-identical (pinned against the Phase 10 baseline captured
+at the post-9 HEAD). Timpani, snare, cymbals and aux are the whole scope;
+mallets, celesta, taiko, bass drum, gong, triangle, tambourine and
+woodblocks are out.
+
+One voice per track. Timpani is the only PITCHED part; snare (38), cymbals
+(49) and aux (42) are unpitched fixed notes. Ranges as written to the file
+(MIDI, sounding): timpani 38–57, snare 38–38, cymbals 49–49, aux 42–42.
+The timpani's 38–57 spans the four drum bands (38–45, 41–48, 46–53, 50–57);
+the config hard range (ranges.ts, D2–A3) is the same span and wins.
+
+### 15.2 Retirement of the old generator's percussion rules
+
+The rules generator wrote percussion through five labelled parts: Verse
+"Timpani downbeat" (root, downbeat, 60–76, density 0.5), Chorus "Timpani"
+(root, every-beat rhythm, 70–90, density 0.6), Pre-Chorus "Snare roll fill"
+and Chorus "Snare" (fixed 38, backbeat + a last-bar roll fill), Chorus
+"Cymbal crash" (fixed 49, every bar, 90–110, occurrences 1–4). Aux has no
+rule — at HEAD it sounds only through the tutti hit. The module owns the
+SOUND of all four tracks from Phase 10 on: its notes replace the
+generator's at assembly, so none of the five rules is heard again on a
+percussion template. As with the winds (§14.3), the generator KEEPS writing
+them as a phantom input — the pre-flight measured that 4.4% (three-chorus)
+and 3.1% (dorian) of the beat-window governor bounds the brass/wind caps
+and the pad governor read would change without the phantom, which would
+break the byte pins. The phantom never reaches the final score (the module
+claims every rostered percussion track, empty or not). The tutti hit the
+compose loop writes for the roster (§7 moments) stays in the phantom; the
+module writes its own from the moments plan (§15.6).
+
+### 15.3 What percussion humanize does today (and what replaces it)
+
+Today the generator's generic `humanizeNotes` jitters every generated
+percussion note ±12 ms / ±6 velocity (start-only, clamped inside the bar);
+the tutti hits are written AFTER the generator and land on the grid with no
+jitter; the strings' humanize never touches percussion; no CC lane reaches
+a percussion track anywhere (so a roll crescendo is a VELOCITY RAMP — the
+generator writes no CC1/CC11 for percussion). Phase 10 replaces all of it
+with per-note, hash-seeded MICRO-TIMING in the module render, stored in the
+notes (so the preview and the export — both read the stored notes — show
+the same offsets): timpani +10..+24 ms, snare +4..+12 ms, cymbals and aux
+0..+6 ms, all lags (never early), hashed from (track, start, pitch) — no
+Math.random. A hit never crosses its bar or a moment boundary because of
+the jitter (the offset clamps inside the written bar). On a tutti downbeat
+the timpani and cymbals lag the strings by 24 ms at most (the strings'
+own humanize offsets are positive, so the worst case is the timpani's
++24 ms against a string attack at +5 ms ≈ +19 ms).
+
+### 15.4 Roles by texture and energy
+
+- Timpani (one voice): notes are the chord's ROOT or FIFTH only, folded
+  into 38–57, never the leading tone; consecutive hits take the candidate
+  nearest the previous pitch (no octave jumps where a nearer pitch exists).
+  Downbeat support on section and phrase starts (phrase starts = the
+  section's first bar and every 4th bar of it — the hypermeter; reported);
+  a pulse on the root (downbeat + the cell's anchor slot) in ostinato and
+  trailer textures; a single hit on a tutti; a roll into a chorus or tutti,
+  1–2 bars, stored as `tremolo` (16ths), ending on a hit. Low energy allows
+  only soft single hits. Timpani never moves faster than eighths except in
+  a roll. Hits land on the downbeat or the ostinato's anchor beat — never
+  off-grid (snare and aux carry the off-beats).
+- Snare: fixed 38. The pattern sits INSIDE the section's drawn ostinato
+  rhythm cell, never against it — light (every other cell slot) at mid,
+  the full cell at high; the full cell pattern plays only in ostinato or
+  trailer textures. A roll crescendo, at most 1 bar (16ths), into a chorus
+  or tutti, in any texture, at high energy at the target.
+- Cymbals: fixed 49. A crash on the chorus entry and the tutti downbeat:
+  the peak chorus always gets one, the first chorus is a weighted draw
+  (0.6), other choruses a lighter draw (0.4); every crash needs a strictly
+  lower-energy bar before it. A cymbal swell (one bar, `tremolo`) may
+  precede a crash by one bar (weighted 0.5). Budget: never two crashes
+  within 4 bars, at most one per section (the drawn chorus-entry crashes
+  and the tutti crash share the budget; a tutti on a chorus entry is the
+  same bar, one crash).
+- Aux: fixed 42. A light off-beat accent (the meter's off-beat eighths,
+  eighth-length staccato hits) in pizzPulse, ostinato and trailer textures,
+  mid energy and above, never in soli. In chorus-type sections the aux
+  joins from the section's first bar (the chorus relief below).
+
+Chorus-type sections get percussion from the chorus's FIRST bar at mid
+energy and above — no entrance-rule requirement, no enter-after delay
+inside a chorus (the Phase 8.3 lesson: the chorus must not thin). Outside
+choruses the continuing pulses (timpani pulse, snare cell pattern, aux)
+keep the house entrance rule: a part's first bar after a silent bar follows
+a strictly lower-energy bar; the structural downbeat support and the
+moment/planned hits are exempt. The pre-chorus near-silence bar stays
+tacet (below).
+
+### 15.5 Gating by section target energy (fractions of the clamp max, reported)
+
+- below 0.30 — no percussion;
+- LOW, ≥ 0.30 — soft single timpani hits (the structural downbeats) only;
+- MID, ≥ 0.50 — the timpani pulse (where its texture gate passes), the aux
+  off-beats (where its texture gate passes) and the light snare cell
+  (chorus relief: from the chorus's first bar; elsewhere in ostinato/
+  trailer textures);
+- HIGH, ≥ 0.72 — the snare's full cell pattern (ostinato/trailer
+  textures), the crash sources (chorus entries) and the rolls;
+- PEAK, ≥ 0.90 — the full kit: every rostered part's gated roles stack
+  (no new role — the gates accumulate).
+
+Velocity follows the section energy (the same shaping as the winds: the
+bar's arc norm under the window governor bound) with downbeat accents;
+moment notes ride the whole-roster cap. Repeated hits on one pitch get a
+small deterministic velocity variation (±1..3 units hashed from track,
+start and pitch — no machine-gun repeats). Articulations are stored as
+data: `hit`-style attacks stay unmarked or `marcato` (accents), short
+cell/off-beat hits are `staccato`, rolls and swells are `tremolo`; no
+keyswitches anywhere in the project.
+
+### 15.6 Moments, tacets and damping
+
+- Tutti: the tutti downbeat carries a timpani hit and a cymbal crash (the
+  module writes them from the moments plan), plus a snare roll before it
+  when the energy allows (the target bar at the high gate, the roll bars
+  free of tacets). Aux stays silent at the tutti.
+- Soli: percussion is tacet — no note starts and no note rings into a
+  soli-covered bar.
+- Unison and divisi: not applicable to percussion.
+- Near-silence bar: percussion is tacet.
+- Final bar: a closing timpani hit is allowed as a weighted draw (0.5);
+  the final bar must still sound (the strings' landing chord is untouched).
+- Damping as composition: timpani and cymbal hits are shortened so they
+  end before a near-silence bar and before a soli moment — no hit rings
+  across them.
+
+### 15.7 Determinism and isolation
+
+The planner runs at the conductor level on its OWN salted D8 stream
+(`hashString('percussion')` over the (inputs, take) seed), planned after
+the winds; draw order is fixed and position-stable (the final-bar hit, then
+per chorus entry in bar order: crash, swell, timpani roll, snare roll, then
+per tutti moment: snare roll, timpani roll). The renderer realises the plan
+AFTER the winds renderer, claims every rostered writable percussion track
+(empty or not), shapes velocities under the window governor bound over
+strings + generator + brass + winds + percussion, and applies the
+micro-timing last (§15.3). A final safety pass (`governPercussionVelocities`)
+re-checks every beat window over the FINAL notes and lowers PERCUSSION
+ALONE where the mix would breach the hard clamp — the clamp is never
+exceeded. Locked and out-of-band percussion tracks are untouched; the
+energy clamp, the one-undo-step contract and the sanitizeNotes no-op are
+unchanged; the exports pass the percussion through untouched with and
+without the UVI profile (no Falcon profile — the pre-8.1 brass passthrough,
+as the winds).

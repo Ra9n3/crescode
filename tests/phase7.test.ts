@@ -189,6 +189,12 @@ describe('Phase 7: moments', () => {
       for (const role of roles) {
         const t = run.project.tracks.find((x) => x.role === role);
         if (!t || t.locked) continue;
+        // Phase 10: the percussion joins the tutti per §15.6 — the timpani
+        // hit and the cymbal crash land on the downbeat (the module writes
+        // them), while the snare and aux are tacet at the tutti (the
+        // addendum's tutti list is exhaustive). The roll into the tutti (a
+        // snare roll's ending hit) may also stand in for the snare.
+        if (role === 'snare' || role === 'aux') continue;
         const hits = t.notes.filter((n) => n.startTick >= downbeat - 1 && n.startTick <= downbeat + head);
         // Phase 8.2: the cellosBasses desk split — a sub-36 tutti hit sounds
         // on the desk's Double Basses track (the cello's octave-up answer may

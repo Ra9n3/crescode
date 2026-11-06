@@ -12,6 +12,7 @@ import type { StringLines } from './render';
 import type { MomentPlan } from './conductor/moments';
 import type { BrassPlan } from './brass/plan';
 import type { WindPlan } from './winds/plan';
+import type { PercPlan } from './percussion/plan';
 
 export interface OrchestratorContext {
   project: Project;
@@ -37,6 +38,10 @@ export interface OrchestratorContext {
    *  An in-memory annotation — never persisted; the winds renderer realises
    *  it after the brass renderer. */
   windPlan?: WindPlan;
+  /** The percussion plan (Phase 10), planned by the conductor after the
+   *  winds. An in-memory annotation — never persisted; the percussion
+   *  renderer realises it after the winds renderer. */
+  percussionPlan?: PercPlan;
 }
 
 /** The string layer vocabulary the orchestrator renders today (Phase 4a) —

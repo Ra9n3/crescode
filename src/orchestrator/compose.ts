@@ -38,6 +38,9 @@ import { EMPTY_BRASS_PLAN } from './brass/plan';
 import { renderWinds, governWindsVelocities } from './winds/render';
 import { WIND_PARTS } from './winds/profile';
 import { EMPTY_WIND_PLAN } from './winds/plan';
+import { renderPercussion, governPercussionVelocities } from './percussion/render';
+import { PERC_PARTS } from './percussion/profile';
+import { EMPTY_PERC_PLAN } from './percussion/plan';
 import type { OrchestratorContext } from './module';
 
 export interface ComposeOptions {
@@ -145,6 +148,9 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   const windRosterRoles = template
     ? template.roster.filter((r) => (WIND_PARTS as readonly string[]).includes(r.role)).map((r) => r.role)
     : [];
+  const percRosterRoles = template
+    ? template.roster.filter((r) => (PERC_PARTS as readonly string[]).includes(r.role)).map((r) => r.role)
+    : [];
   const ruleTracks = generate(project, {
     seed: options.seed,
     density: options.density,
@@ -239,6 +245,37 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   const windNotes = windResult.notesByTrackId;
   ctx.lines!.reports.push(...windPlan.reports, ...windResult.reports);
   const windsOther = Object.entries(windNotes).map(([id, notes]) => ({
+    role: project.tracks.find((t) => t.id === id)!.role,
+    notes,
+  }));
+
+  // Phase 10: percussion — the module realises the conductor's plan AFTER
+  // the winds renderer, so the velocity math sees every other family's notes
+  // (each hit is capped by the governor bound of every beat window it
+  // touches, over strings + generator + brass + winds + percussion) and the
+  // final safety pass below re-checks the clamp over the FINAL notes. The
+  // generator's own percussion notes stay in as the phantom input (they keep
+  // the pad governor's and the brass/wind caps' window math byte-identical
+  // to HEAD — §15.2); the module's notes REPLACE the phantom at assembly, so
+  // the module owns the sound while the architecture stays pinned.
+  const percPlan = ctx.percussionPlan ?? EMPTY_PERC_PLAN;
+  const windRosterRolesC = template
+    ? template.roster.filter((r) => (WIND_PARTS as readonly string[]).includes(r.role)).map((r) => r.role)
+    : [];
+  const percRuleNotes = ruleTracks
+    .filter((t) => !stringsTrackIds.includes(t.id) && !brassRosterRoles.includes(t.role) && t.role !== BASSES_ROLE && !windRosterRolesC.includes(t.role))
+    .map((t) => ({ role: t.role, notes: t.notes }));
+  const percResult = renderPercussion({
+    ctx,
+    plan: percPlan,
+    stringsNotes: notesByTrackId,
+    brassNotes,
+    windNotes,
+    ruleNotes: percRuleNotes,
+  });
+  const percussionNotes = percResult.notesByTrackId;
+  ctx.lines!.reports.push(...percPlan.reports, ...percResult.reports);
+  const percOther = Object.entries(percussionNotes).map(([id, notes]) => ({
     role: project.tracks.find((t) => t.id === id)!.role,
     notes,
   }));
@@ -353,6 +390,26 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
         ...ruleTracks.filter((t) => !stringsTrackIds.includes(t.id) && !brassRosterRoles.includes(t.role) && t.role !== BASSES_ROLE && !windRosterRoleSet.has(t.role)).map((t) => ({ role: t.role, notes: t.notes })),
         ...stringsTrackIds.map((id) => ({ role: project.tracks.find((t) => t.id === id)?.role ?? '', notes: notesByTrackId[id] ?? [] })),
         ...brassOther,
+      ],
+    });
+  }
+
+  // Phase 10: the final percussion safety pass — the same contract,
+  // PERCUSSION ALONE. The others exclude the wind roles (the real winds ride
+  // in via windsOther) and the percussion roles (the module's own notes are
+  // the `percussion` input; the generator's phantom percussion is not in the
+  // final score). Expected no-op.
+  const percRosterRoleSet = new Set(percRosterRoles);
+  if (template && percOther.length) {
+    governPercussionVelocities({
+      project: ctx.project,
+      template,
+      percussion: percOther,
+      otherNotes: [
+        ...ruleTracks.filter((t) => !stringsTrackIds.includes(t.id) && !brassRosterRoles.includes(t.role) && t.role !== BASSES_ROLE && !windRosterRoleSet.has(t.role) && !percRosterRoleSet.has(t.role)).map((t) => ({ role: t.role, notes: t.notes })),
+        ...stringsTrackIds.map((id) => ({ role: project.tracks.find((t) => t.id === id)?.role ?? '', notes: notesByTrackId[id] ?? [] })),
+        ...brassOther,
+        ...windsOther,
       ],
     });
   }
@@ -490,6 +547,12 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
       // (a re-compose of an older take) must not leak through the spread
       const cc = windCcByTrackId[t.id];
       return { ...t, notes: windNotes[t.id], ...(cc ? { cc } : { cc: undefined }) };
+    }
+    if (percussionNotes[t.id] !== undefined) {
+      // the module owns the sound; no CC lanes for percussion (§15.5 — the
+      // generator writes none today), and a stale pre-compose cc must not
+      // leak through the spread (the winds rule)
+      return { ...t, notes: percussionNotes[t.id], cc: undefined };
     }
     const gen = ruleTracks.find((r) => r.id === t.id);
     return gen ? { ...t, notes: gen.notes } : t;

@@ -121,4 +121,31 @@ for (const templateId of TEMPLATES) {
   }
 }
 console.log(`${takes} takes: crashes ${crashCount} (swells ${swellCount}), rolls ${rollCount}, final timpani hits ${finalHits}`);
+
+console.log('\n=== the Phase 10 draw-identity allowance counts (the phase 8 exclusions, survey-wide) ===');
+const PERC_SET = new Set(PERC_ROLES);
+let rollIntoTutti = 0, landingWindow = 0;
+for (const templateId of TEMPLATES) {
+  for (const doc of [threeChorus, dorian]) {
+    for (let take = 1; take <= 10; take++) {
+      const { result, project } = compose(doc, templateId, take);
+      const rollBars = new Set<number>();
+      for (const r of result.plan.percussion.rolls) {
+        const tutti = result.plan.moments.find((m) => m.kind === 'tutti' && m.startBar === r.targetBar);
+        if (!tutti) continue;
+        for (let b = r.startBar; b < r.targetBar; b++) rollBars.add(b);
+      }
+      const landings: [number, number][] = result.plan.winds.pickupRuns.map((r) => [r.downbeatTick, r.downbeatTick + 960]);
+      const bt = 3840;
+      for (const t of result.tracks) {
+        if (!PERC_SET.has(t.role)) continue;
+        for (const n of t.notes) {
+          if (rollBars.has(Math.floor(n.startTick / bt) + 1)) rollIntoTutti++;
+          else if (landings.some(([s, e]) => n.startTick >= s && n.startTick < e)) landingWindow++;
+        }
+      }
+    }
+  }
+}
+console.log(`roll-into-a-tutti bars: ${rollIntoTutti} percussion notes; wind pickup-run landing windows: ${landingWindow} percussion notes`);
 void softTotal;

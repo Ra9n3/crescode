@@ -34,7 +34,7 @@ import { momentForBar } from '../conductor/moments';
 import { cellGrid } from '../lines/ostinato';
 import { textureForType, sectionTypeNameAtBar } from '../conductor/layers';
 import type { OrchestratorContext } from '../module';
-import { PERC_PARTS, PERC_PROFILES, REPEAT_BUMP_MAX, percRosterOf, type PercPart } from './profile';
+import { PERC_GATES, PERC_PARTS, PERC_PROFILES, REPEAT_BUMP_MAX, isChorusTypeP, percRosterOf, type PercPart } from './profile';
 import type { PercPlan } from './plan';
 
 interface PercCandidate {
@@ -48,6 +48,10 @@ interface PercCandidate {
   velocityRule?: 'shaped' | 'moment';
   /** Rolls ramp: the roll note's position in its ramp (0..1). */
   ramp?: number;
+  /** The chorus drive's light pattern (Phase 10.1): it rides the HIGH
+   *  gate's intensity from the moment it engages (the bar's norm, but never
+   *  below the high gate) — the window bound still caps every note. */
+  drive?: boolean;
 }
 
 const slotTicksOf = (ts: Parameters<typeof cellGrid>[0], cell: Parameters<typeof cellGrid>[1], rate: Parameters<typeof cellGrid>[2], barStart: number, beat: number): { ticks: number[]; step: number } => {
@@ -163,11 +167,44 @@ export function renderPercussion(input: PercRenderInput): PercRenderResult {
       return out;
     };
     let prevTimpani: number | null = null;
+    const nearestIn = (pool: number[], target: number): number | null =>
+      pool.length ? pool.reduce((best, c) => (Math.abs(c - target) < Math.abs(best - target) ? c : best), pool[0]) : null;
     const timpaniPitch = (tick: number): number | null => {
       const pool = timpaniPool(tick);
       if (!pool.length) return null;
       const target = prevTimpani ?? (lo + hi) / 2;
-      const pick = pool.reduce((best, c) => (Math.abs(c - target) < Math.abs(best - target) ? c : best), pool[0]);
+      const pick = nearestIn(pool, target);
+      prevTimpani = pick;
+      return pick;
+    };
+    // the chorus drive's picks (Phase 10.1): the downbeat lands on the
+    // chord's ROOT, the optional half-bar on the FIFTH — each the nearest
+    // in-range candidate of its pitch class, advancing the same walk. A
+    // pitch class with no in-range candidate skips the hit (the fifth is
+    // optional by construction; the root falls back to the whole pool —
+    // the fold then has one candidate and it IS the answer).
+    const timpaniRoot = (tick: number): number | null => {
+      const pool = timpaniPool(tick);
+      if (!pool.length) return null;
+      const sp = spanAt(tick);
+      const ct = chordTones(sp.parsed);
+      const rootTone = ct.tones.find((t) => t.tier === 'root');
+      const rootPc = (((rootTone?.pc ?? ct.bassPc) % 12) + 12) % 12;
+      const rootPool = pool.filter((p) => (((p % 12) + 12) % 12) === rootPc);
+      const pick = nearestIn(rootPool.length ? rootPool : pool, prevTimpani ?? (lo + hi) / 2)!;
+      prevTimpani = pick;
+      return pick;
+    };
+    const timpaniFifth = (tick: number): number | null => {
+      const pool = timpaniPool(tick);
+      if (!pool.length) return null;
+      const sp = spanAt(tick);
+      const ct = chordTones(sp.parsed);
+      const rootTone = ct.tones.find((t) => t.tier === 'root');
+      const rootPc = (((rootTone?.pc ?? ct.bassPc) % 12) + 12) % 12;
+      const fifthPool = pool.filter((p) => (((p % 12) + 12) % 12) === ((rootPc + 7) % 12));
+      const pick = nearestIn(fifthPool, prevTimpani ?? (lo + hi) / 2);
+      if (pick === null) return null;
       prevTimpani = pick;
       return pick;
     };
@@ -208,14 +245,16 @@ export function renderPercussion(input: PercRenderInput): PercRenderResult {
       const rollActive = rollByBarPart.get(`${bar}:${part}`);
       // the ghost (below) must run even on a bar the moments emptied
       const ghostNeeded = part === 'timpani' && planBar.moment !== undefined && kind !== planBar.ordinary.timpani
-        && (planBar.ordinary.timpani === 'support' || planBar.ordinary.timpani === 'pulse');
+        && (planBar.ordinary.timpani === 'support' || planBar.ordinary.timpani === 'pulse' || planBar.ordinary.timpani === 'drive');
       if (!kind && !rollEnds && !rollActive && !ghostNeeded) continue;
       const barStart = (bar - 1) * btBar;
       const barEnd = bar * btBar;
       const damp = (start: number, dur: number): number => Math.max(1, Math.min(dur, dampingEnd(start) - start));
 
       // the roll's slice inside this bar (the 16ths from the roll's start to
-      // the target tick, clipped to the bar; a roll never sounds in a tacet)
+      // the target tick, clipped to the bar; a roll never sounds in a tacet
+      // — a soli, a near-silence bar or the pre-chorus bar: the roll dies
+      // before the entry and only its ending hit sounds there)
       if (rollActive) {
         const pitch = pitchOfRoll(rollActive);
         if (pitch !== null) {
@@ -226,7 +265,8 @@ export function renderPercussion(input: PercRenderInput): PercRenderResult {
             const i = Math.round((onset - rollActive.startTick) / sixteenth);
             const near = ctx.arc?.[bar - 1]?.nearSilence;
             const m = momentForBar(ctx.moments, bar);
-            if (near || m?.kind === 'soli') continue;
+            const preChorus = isChorusTypeP(sectionTypeNameAtBar(ctx, bar + 1)) && !isChorusTypeP(sectionTypeNameAtBar(ctx, bar));
+            if (near || m?.kind === 'soli' || preChorus) continue;
             candidates.push({ pitch, startTick: onset, durationTicks: sixteenth, articulation: 'tremolo', velocityRule: 'shaped', ramp: (i / n) * 0.5 });
           }
         }
@@ -239,9 +279,16 @@ export function renderPercussion(input: PercRenderInput): PercRenderResult {
       // as it would without the moments, and every ordinary note outside
       // moment bars is byte-identical to a moment-less run.
       if (ghostNeeded) {
-        timpaniPitch(barStart); // the walk advances; nothing is written
-        if (planBar.ordinary.timpani === 'pulse' && textureForType(ctx, sectionTypeNameAtBar(ctx, bar)).style.accent === 'offBeat') {
-          timpaniPitch(barStart + Math.floor(beat / 2));
+        // the walk advances with EXACTLY the picks the ordinary line would
+        // have made — root-first for the drive, the free walk otherwise
+        if (planBar.ordinary.timpani === 'drive') {
+          timpaniRoot(barStart); // the walk advances; nothing is written
+          if ((planBar.norm ?? 0) >= PERC_GATES.high) timpaniFifth(barStart + Math.floor(btBar / 2));
+        } else {
+          timpaniPitch(barStart); // the walk advances; nothing is written
+          if (planBar.ordinary.timpani === 'pulse' && textureForType(ctx, sectionTypeNameAtBar(ctx, bar)).style.accent === 'offBeat') {
+            timpaniPitch(barStart + Math.floor(beat / 2));
+          }
         }
       }
       // the roll's ending hit owns the target downbeat (the ordinary hit the
@@ -276,6 +323,26 @@ export function renderPercussion(input: PercRenderInput): PercRenderResult {
               if (pitch2 !== null && anchor < barEnd && !(rollEnds && anchor === rollEnds.targetTick)) {
                 candidates.push({ pitch: pitch2, startTick: anchor, durationTicks: damp(anchor, beat), velocityRule: 'shaped' });
               }
+            }
+          }
+        } else if (kind === 'drive') {
+          // the chorus drive (Phase 10.1): the ROOT on the bar downbeat,
+          // optionally the FIFTH on the half bar at the high gate — never
+          // faster than quarters outside rolls. The hits RING until the next
+          // drive hit in the bar (or the bar's end) — the timpani's
+          // idiomatic sustain, truncated by the usual damping rules; the
+          // ring carries the downbeat's support through the bar's weaker
+          // beat windows instead of leaving them bare.
+          const fifthHere = (planBar.norm ?? 0) >= PERC_GATES.high;
+          const half = barStart + Math.floor(btBar / 2);
+          const pitch = timpaniRoot(barStart);
+          if (pitch !== null && !(rollEnds && barStart === rollEnds.targetTick)) {
+            candidates.push({ pitch, startTick: barStart, durationTicks: damp(barStart, (fifthHere ? half : barEnd) - barStart), articulation: 'marcato', velocityRule: 'shaped', drive: true });
+          }
+          if (fifthHere) {
+            const pitch2 = timpaniFifth(half);
+            if (pitch2 !== null && half < barEnd && !(rollEnds && half === rollEnds.targetTick)) {
+              candidates.push({ pitch: pitch2, startTick: half, durationTicks: damp(half, barEnd - half), velocityRule: 'shaped', drive: true });
             }
           }
         } else if (kind === 'tutti') {
@@ -313,6 +380,23 @@ export function renderPercussion(input: PercRenderInput): PercRenderResult {
               articulation: accent ? 'marcato' : 'staccato', velocityRule: 'shaped',
             });
           });
+        } else if (kind === 'backbeat' || kind === 'grid') {
+          // the chorus drive's snare line (Phase 10.1): the backbeat-style
+          // hit on the meter's every second beat from beat 2 (beats 2 and 4
+          // in 4/4), accented; on a kit without the timpani the 'grid'
+          // carries the kit's quarter grid — the downbeat and beat 3 added,
+          // plain — so every chorus window keeps a fresh hit. Fixed pitch,
+          // the high gate's intensity.
+          const pitch = prof.fixedNote!;
+          const offs = beatOffsets(project.timeSignature);
+          for (let i = 0; i < offs.length; i++) {
+            if (kind === 'backbeat' && i % 2 === 0) continue; // beats 2 and 4 only
+            const onset = barStart + offs[i];
+            if (onset >= barEnd) break;
+            if (rollEnding.get(`${bar}:snare`) && onset === barStart) continue; // the roll's ending hit owns the downbeat
+            const accent = i % 2 === 1;
+            candidates.push({ pitch, startTick: onset, durationTicks: Math.max(1, Math.floor(beat / 2)), ...(accent ? { articulation: 'marcato' as const } : { articulation: 'staccato' as const }), velocityRule: 'shaped', drive: true });
+          }
         }
       } else if (part === 'cymbals') {
         if (kind === 'crash') {
@@ -322,9 +406,13 @@ export function renderPercussion(input: PercRenderInput): PercRenderResult {
         }
       } else if (part === 'aux') {
         if (kind === 'offbeat') {
+          // the sparse off-beat line (the off-beat eighths — one per beat
+          // window); in the chorus it is the drive's aux voice (Phase 10.1)
+          // and rides the high gate's intensity
+          const chorusDrive = isChorusTypeP(sectionTypeNameAtBar(ctx, bar)) && (planBar.norm ?? 0) >= PERC_GATES.mid;
           const { ticks } = slotTicksOf(project.timeSignature, 'offBeat', 'eighths', barStart, beat);
           for (const onset of ticks) {
-            candidates.push({ pitch: prof.fixedNote!, startTick: onset, durationTicks: Math.max(1, Math.min(eighth, barEnd - onset) / 2), articulation: 'staccato', velocityRule: 'shaped' });
+            candidates.push({ pitch: prof.fixedNote!, startTick: onset, durationTicks: Math.max(1, Math.min(eighth, barEnd - onset) / 2), articulation: 'staccato', velocityRule: 'shaped', ...(chorusDrive ? { drive: true } : {}) });
           }
         }
       }
@@ -390,8 +478,19 @@ export function renderPercussion(input: PercRenderInput): PercRenderResult {
       const bound = boundAt(Math.min(endTick - 1, c.startTick));
       const norm = planByBar.get(bar)?.norm ?? 0;
       let v: number;
+      // the drive's velocity rides the ABSOLUTE scale, not the window bound:
+      // the bound is moments-dependent (a soli's tail crosses the barline
+      // and pollutes the neighbouring windows' role sets), and a
+      // bound-relative drive velocity would let a moment move a note far
+      // outside its bars — the Phase 8 identity pin. The clamp stays with
+      // governPercussionVelocities (which lowers percussion alone on a real
+      // breach). The post-9 generator was likewise norm-independent.
+      const cap = c.drive ? 127 : bound;
       if (c.velocityRule === 'moment') v = Math.min(momentVelocity(bar), bound);
-      else {
+      else if (c.drive) {
+        const shaped = Math.max(1, Math.round(1 + (127 - 1) * Math.max(norm, PERC_GATES.peak)));
+        v = Math.max(1, Math.round(shaped + (c.articulation === 'marcato' ? 8 : 0)));
+      } else {
         const shaped = Math.max(1, Math.round(1 + (bound - 1) * Math.min(1, Math.max(0, norm))));
         // the downbeat accent, the swell's low base, the roll's ramp (§15.4)
         const accent = c.articulation === 'marcato' ? 8 : 0;
@@ -404,9 +503,10 @@ export function renderPercussion(input: PercRenderInput): PercRenderResult {
       // The variation is a pure per-note hash — deliberately independent of
       // the neighbouring candidates, so a moment's suppression of an earlier
       // hit can never move a later note's velocity (the Phase 8 draw-identity
-      // pin). Clamped to the window bound.
-      v = Math.max(1, Math.min(bound, v + bumpOf(track.id, c.startTick, c.pitch)));
-      v = Math.max(1, Math.min(127, Math.min(v, bound)));
+      // pin). Clamped to the note's cap (the window bound — or 127 for the
+      // drive's absolute scale).
+      v = Math.max(1, Math.min(cap, v + bumpOf(track.id, c.startTick, c.pitch)));
+      v = Math.max(1, Math.min(127, Math.min(v, cap)));
       // the micro-timing (§15.3): a hash-seeded lag in the part's ms range,
       // clamped inside the written bar (a hit never crosses its bar). The
       // note's END stays where the candidate put it — the damping boundaries

@@ -327,9 +327,10 @@ describe('Phase 10: the cell, the chorus presence, the anchors', () => {
         const inBar = n.startTick - (bar - 1) * btBar;
         const isRoll = rollBars.has(bar);
         if (!isRoll) {
-          // an anchored onset: the downbeat (plus the lag) or the anchor slot
+          // an anchored onset: the downbeat (plus the lag), the pulse's
+          // anchor slot, or the drive's half-bar fifth (Phase 10.1)
           const planBar = run.result.plan.percussion.bars[bar - 1];
-          const anchored = inBar <= 60 || Math.abs(inBar - Math.floor(beat / 2)) <= 60
+          const anchored = inBar <= 60 || Math.abs(inBar - Math.floor(beat / 2)) <= 60 || Math.abs(inBar - Math.floor(btBar / 2)) <= 60
             || planBar?.voices.timpani === 'tutti' || planBar?.voices.timpani === 'final';
           expect(anchored, `${run.templateId} t${run.take} timpani onset at +${inBar} in bar ${bar} is off-grid`).toBe(true);
         }
@@ -338,6 +339,117 @@ describe('Phase 10: the cell, the chorus presence, the anchors', () => {
           expect(n.startTick - prev.tick, `${run.templateId} t${run.take} timpani moves faster than an eighth`).toBeGreaterThanOrEqual(Math.floor(beat / 2) - 60);
         }
         prev = { tick: n.startTick, roll: isRoll };
+      }
+    }
+  });
+});
+
+/* ---------------- Phase 10.1: the chorus drive ---------------------------- */
+
+describe('Phase 10.1: the chorus drive', () => {
+  const chorusBarsOf = (fixture: string): number[] => {
+    const secs = fixture === 'three'
+      ? [{ startBar: 5, lengthBars: 8 }, { startBar: 17, lengthBars: 8 }, { startBar: 29, lengthBars: 8 }]
+      : [{ startBar: 9, lengthBars: 8 }];
+    return secs.flatMap((s) => Array.from({ length: s.lengthBars }, (_, i) => s.startBar + i));
+  };
+  const preChorusBarsOf = (fixture: string): number[] => (fixture === 'three' ? [4, 16, 28] : [8]);
+
+  it('every chorus bar at mid energy and above carries the timpani on the downbeat (templates that roster it); the kit never abandons the bar', () => {
+    for (const run of percSurvey) {
+      const btBar = btBarOf(run.project);
+      const roster = rosterOf(run.templateId);
+      const soli = soliBarsOf(run);
+      const maxLag = Math.ceil(msToTicks(PERC_PROFILES.timpani.timingMs[1], run.project.tempoMap)) + 1;
+      for (const bar of chorusBarsOf(run.fixture)) {
+        const planBar = run.result.plan.percussion.bars[bar - 1];
+        if ((planBar?.norm ?? 0) < PERC_GATES.mid) continue;
+        if (soli.has(bar)) continue; // a soli owns the bar: the kit is tacet by design
+        const s = (bar - 1) * btBar;
+        if (!planBar || Object.keys(planBar.voices).length === 0) {
+          // a near-silence bar inside the chorus: the whole kit is tacet
+          for (const role of PERC_ROLES) {
+            const t = trackOf(run.project, role);
+            expect(t.notes.some((n) => n.startTick >= s && n.startTick < s + btBar), `${run.templateId} ${run.fixture} t${run.take} ${role} sounds in the near-silence chorus bar ${bar}`).toBe(false);
+          }
+          continue;
+        }
+        if (!roster.includes('timpani')) continue; // hybridstudio rosters no timpani: the kit's presence is the snare/cymbals/aux line
+        const hit = trackOf(run.project, 'timpani').notes.some((n) => n.startTick >= s && n.startTick <= s + maxLag);
+        expect(hit, `${run.templateId} ${run.fixture} t${run.take}: no timpani downbeat in the mid+ chorus bar ${bar} (norm ${(planBar.norm ?? 0).toFixed(2)})`).toBe(true);
+      }
+    }
+  });
+
+  it('the pre-chorus bar is a prepared entry: no percussion sounds in the bar before a chorus entry', () => {
+    for (const run of percSurvey) {
+      const btBar = btBarOf(run.project);
+      for (const bar of preChorusBarsOf(run.fixture)) {
+        const tutti = run.result.plan.moments.some((m) => m.kind === 'tutti' && bar >= m.startBar && bar <= m.endBar);
+        if (tutti) continue; // a tutti moment owns its downbeat (never observed on a pre-chorus bar)
+        for (const role of PERC_ROLES) {
+          const t = trackOf(run.project, role);
+          const s = (bar - 1) * btBar;
+          expect(t.notes.some((n) => n.startTick >= s && n.startTick < s + btBar), `${run.templateId} ${run.fixture} t${run.take} ${role} sounds in the pre-chorus bar ${bar}`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('the drive\'s shapes: the snare backbeat sits on beats 2 and 4 (the kit\'s quarter grid without a timpani), the aux on the off-beat eighths, and the timpani drive never moves faster than quarters', () => {
+    for (const run of percSurvey) {
+      const btBar = btBarOf(run.project);
+      const beat = beatTicks(run.project.timeSignature);
+      const snareLag = Math.ceil(msToTicks(PERC_PROFILES.snare.timingMs[1], run.project.tempoMap)) + 1;
+      const auxLag = Math.ceil(msToTicks(PERC_PROFILES.aux.timingMs[1], run.project.tempoMap)) + 1;
+      for (const planBar of run.result.plan.percussion.bars) {
+        const barStart = (planBar.bar - 1) * btBar;
+        const barEnd = planBar.bar * btBar;
+        if (planBar.voices.snare === 'backbeat' || planBar.voices.snare === 'grid') {
+          const notes = trackOf(run.project, 'snare').notes.filter((n) => n.startTick >= barStart && n.startTick < barEnd);
+          const slots = planBar.voices.snare === 'backbeat'
+            ? [beat, 3 * beat].filter((o) => o < btBar) // beats 2 and 4 (4/4)
+            : [0, beat, 2 * beat, 3 * beat].filter((o) => o < btBar); // the kit's quarter grid (no timpani on the roster)
+          const rollEndsHere = run.result.plan.percussion.rolls.some((r) => r.part === 'snare' && r.targetBar === planBar.bar);
+          // the backbeat/grid hits themselves; a roll's ending hit owns the
+          // downbeat — it ADDS one for the backbeat (no grid downbeat) and
+          // REPLACES the grid's downbeat hit
+          const onShape = notes.filter((n) => slots.some((o) => n.startTick >= barStart + o && n.startTick <= barStart + o + snareLag));
+          expect(onShape.length, `${run.templateId} t${run.take} ${planBar.voices.snare} bar ${planBar.bar} hit count`).toBe(slots.length);
+          expect(notes.length, `${run.templateId} t${run.take} ${planBar.voices.snare} bar ${planBar.bar} total (roll ending included)`).toBe(slots.length + (rollEndsHere && planBar.voices.snare === 'backbeat' ? 1 : 0));
+          for (const n of onShape) {
+            expect(n.pitch).toBe(PERC_PROFILES.snare.fixedNote!);
+            const slotIdx = slots.findIndex((o) => n.startTick >= barStart + o && n.startTick <= barStart + o + snareLag);
+            // the roll's ending hit owns the downbeat and is marcato; the
+            // backbeat's hits are all accented; the grid accents the
+            // backbeats (beats 2 and 4) and leaves the downbeat/beat 3 plain
+            const isRollEnding = rollEndsHere && slots[slotIdx!] === 0;
+            const expected = isRollEnding ? 'marcato' : planBar.voices.snare === 'backbeat' ? 'marcato' : (slots[slotIdx!] === 0 || slots[slotIdx!] === 2 * beat ? 'staccato' : 'marcato');
+            expect(n.articulation, `${run.templateId} t${run.take} snare accent at slot ${slotIdx} in bar ${planBar.bar}`).toBe(expected);
+          }
+        }
+        if (planBar.voices.aux === 'offbeat') {
+          const notes = trackOf(run.project, 'aux').notes.filter((n) => n.startTick >= barStart && n.startTick < barEnd);
+          const grid = cellGrid(run.project.timeSignature, 'offBeat', 'eighths');
+          const slotLen = Math.floor(beat / grid.perBeat);
+          const slots = [...new Set(grid.slots)].map((idx) => Math.floor(idx / grid.perBeat) * beat + (idx % grid.perBeat) * slotLen).sort((a, b) => a - b);
+          expect(notes.length, `${run.templateId} t${run.take} aux off-beat bar ${planBar.bar} hit count`).toBe(slots.length);
+          for (const n of notes) {
+            const on = slots.some((o) => n.startTick >= barStart + o && n.startTick <= barStart + o + auxLag);
+            expect(on, `${run.templateId} t${run.take} aux onset ${n.startTick} off the off-beat eighths in bar ${planBar.bar}`).toBe(true);
+            expect(n.pitch).toBe(PERC_PROFILES.aux.fixedNote!);
+          }
+        }
+        if (planBar.voices.timpani === 'drive') {
+          const notes = trackOf(run.project, 'timpani').notes.filter((n) => n.startTick >= barStart && n.startTick < barEnd);
+          // the downbeat root, plus at most the half-bar fifth at the high
+          // gate — never faster than quarters outside rolls
+          const expected = (planBar.norm ?? 0) >= PERC_GATES.high ? 2 : 1;
+          expect(notes.length, `${run.templateId} t${run.take} drive bar ${planBar.bar} hit count`).toBe(expected);
+          for (let i = 1; i < notes.length; i++) {
+            expect(notes[i].startTick - notes[i - 1].startTick, `${run.templateId} t${run.take} timpani drive faster than quarters in bar ${planBar.bar}`).toBeGreaterThanOrEqual(beat - 60);
+          }
+        }
       }
     }
   });
@@ -412,8 +524,12 @@ describe('Phase 10: micro-timing and velocities', () => {
         const h = hashString(`${t.id}|${n.startTick}|${n.pitch}`);
         const bump = (h % (2 * REPEAT_BUMP_MAX + 1)) - REPEAT_BUMP_MAX || 1;
         void bump; void isMoment;
-        // velocity bounds: never above the window bound, never above 127
-        expect(n.velocity, `${role} note over the window bound`).toBeLessThanOrEqual(bound);
+        // velocity bounds: never above the window bound (127 for the drive's
+        // absolute-scale line — Phase 10.1), never above 127
+        const kind = result.plan.percussion.bars[bar - 1]?.voices[role];
+        const driveKind = kind === 'drive' || kind === 'backbeat' || kind === 'grid'
+          || (kind === 'offbeat' && (result.plan.percussion.bars[bar - 1]?.norm ?? 0) >= PERC_GATES.mid && secTypeOf(run, bar) === 'chorus');
+        expect(n.velocity, `${role} note over the ${driveKind ? 'absolute' : 'window bound'} cap`).toBeLessThanOrEqual(driveKind ? 127 : bound);
         expect(n.velocity).toBeGreaterThanOrEqual(1);
         // the micro-timing: the onset sits within the lag range of a grid
         // position (the downbeat or the anchor or a roll 16th) — the range

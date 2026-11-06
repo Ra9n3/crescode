@@ -756,6 +756,35 @@ a strictly lower-energy bar; the structural downbeat support and the
 moment/planned hits are exempt. The pre-chorus near-silence bar stays
 tacet (below).
 
+### 15.4a The chorus drive (Phase 10.1)
+
+Inside a chorus-type section at or above the MID gate the kit's chorus
+line is texture-independent (the drawn texture's own gates yield):
+
+- Timpani (the `drive` kind): the chord's ROOT on every bar downbeat,
+  ringing until the bar's next hit or the bar line; optionally the FIFTH
+  on the half bar at the HIGH gate and above. Never faster than quarters
+  outside rolls. The budget, ring-damping and range rules are the
+  ordinary hits'.
+- Snare: the backbeat-style hit on the meter's every second beat from
+  beat 2 (beats 2 and 4 in 4/4), accented, from the MID gate up. On a kit
+  WITHOUT a rostered timpani the snare carries the kit's quarter grid
+  instead (the `grid` kind: the downbeat and beat 3 added, plain), so
+  every chorus window keeps a fresh hit.
+- Aux: the sparse off-beat line — the off-beat eighths, one per beat
+  window — from the MID gate up, regardless of the drawn texture.
+
+The whole drive line rides the HIGH gate's intensity floor on the
+ABSOLUTE velocity scale (never the window bound: the bound is
+moments-dependent through the soli tails that cross a barline, and the
+Phase 8 identity pin forbids a moment moving a note outside its bars).
+The clamp guarantee stays with `governPercussionVelocities`. The drive
+never sounds during a soli, a near-silence bar or the PRE-CHORUS bar (the
+bar before a chorus entry — a full percussion tacet, swells and roll
+starts included, so the entry stays prepared; a roll's ending hit still
+lands on the entry downbeat). The crash budget is untouched. Verses and
+bridges keep the §15.4 rules exactly.
+
 ### 15.5 Gating by section target energy (fractions of the clamp max, reported)
 
 - below 0.30 — no percussion;

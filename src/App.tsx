@@ -81,8 +81,11 @@ export default function App() {
     const unsub = useStore.subscribe((s, prev) => { if (s.project !== prev.project && s.dirty) scheduleRecovery(); });
     const before = (e: BeforeUnloadEvent) => { if (useStore.getState().dirty) { writeRecovery(); e.preventDefault(); } };
     window.addEventListener('beforeunload', before);
-    const onUnload = () => { preview.stop(); preview.clearFreezeCache(); engine.stopClient(); };
-    window.addEventListener('unload', onUnload);
+    // 'pagehide', not 'unload': the unload event is deprecated by Chrome
+    // ("Unload event listeners are deprecated and will be removed") and is
+    // unreliable with the back/forward cache; pagehide fires on every exit.
+    const onPageHide = () => { preview.stop(); preview.clearFreezeCache(); engine.stopClient(); };
+    window.addEventListener('pagehide', onPageHide);
     if (useStore.getState().settings.connectEngine) engine.start();
     /* Instant-press golden glow: any quick tap on a button flashes data-pressed
        long enough to be seen, while held presses keep :active glowing. */
@@ -99,7 +102,7 @@ export default function App() {
     window.addEventListener('mousedown', onDown, true);
     window.addEventListener('mouseup', onUp, true);
     window.addEventListener('mouseleave', onLeave, true);
-    return () => { clearInterval(autosave); unsub(); window.removeEventListener('beforeunload', before); window.removeEventListener('unload', onUnload); window.removeEventListener('mousedown', onDown, true); window.removeEventListener('mouseup', onUp, true); window.removeEventListener('mouseleave', onLeave, true); };
+    return () => { clearInterval(autosave); unsub(); window.removeEventListener('beforeunload', before); window.removeEventListener('pagehide', onPageHide); window.removeEventListener('mousedown', onDown, true); window.removeEventListener('mouseup', onUp, true); window.removeEventListener('mouseleave', onLeave, true); };
   }, []);
 
   return (

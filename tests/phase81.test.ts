@@ -458,5 +458,5 @@ describe('brass guard drops: the target is zero for trumpets and horns (and hold
       }
     }
     expect(brassNotes, 'the survey actually exercised brass notes').toBeGreaterThan(0);
-  });
+  }, 30000); // the 40-compose survey is heavy: green solo (~2 s) but the 5 s default flakes under full-suite parallel load (measured 5.2 s)
 });

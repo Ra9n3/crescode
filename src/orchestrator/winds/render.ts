@@ -447,10 +447,6 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
           }
         }
         let celloSounds = false;
-        if (process.env.SUPDBG) {
-          const here = segs.filter((sg) => sg.start < barEnd && sg.end > barStart);
-          console.log(`SUPDBG2 ${part} bar ${bar} kind=${kind} segs=[${here.map((sg) => `${sg.pitch}@${sg.start}+${sg.end - sg.start}`).join(' ')}] celloList=${celloNotes.length}`);
-        }
         for (const seg of segs) {
           if (seg.start >= barEnd || seg.start + (seg.end - seg.start) <= barStart) continue;
           celloSounds = true;
@@ -472,10 +468,7 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
             const d = Math.abs(pitch - ans);
             return !(d === 0 || d % 12 === 0 || d >= 7);
           })();
-          if (clash || answerClash) {
-            if (process.env.SUPDBG) console.log(`SUPDBG ${part} bar ${bar} seg ${seg.pitch}@${seg.start} -> ${pitch}: ${answerClash ? 'answer' : 'interval'} clash`);
-            continue;
-          }
+          if (clash || answerClash) continue;
           push('dbl', pitch, s, e - s, e - s < beat ? 'staccato' : artFor(pitch, 'sustain', 'marcato'));
         }
         if (!celloSounds) {

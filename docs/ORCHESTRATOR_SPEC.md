@@ -844,3 +844,176 @@ energy clamp, the one-undo-step contract and the sanitizeNotes no-op are
 unchanged; the exports pass the percussion through untouched with and
 without the UVI profile (no Falcon profile — the pre-8.1 brass passthrough,
 as the winds).
+
+## 16. Keys — harp and piano (Phase 11)
+
+Keys join the orchestrator as a family module beside the strings, brass,
+winds and percussion (`src/orchestrator/keys/`), reusing the same structure
+— profile, plan, render — and the conductor, the energy arc, the moments
+and the golden-byte harness (nothing forked). The strings render first,
+brass second, the winds third, the percussion fourth, the keys LAST (their
+velocity math sees every other family's rendered notes), the rules
+generator covers nothing further. Everything is defined in MIDI numbers,
+sounding pitch (the C4=60 display trap noted in §13 applies).
+
+### 16.1 Roster and voices per track
+
+Keys rosters (from the shipped templates): symphony carries harp (no
+piano); chamber and sonata carry piano only; cinematic, hybridstudio and
+vocalbacking carry both. The config hard ranges (ranges.ts, written C4=60):
+piano A0–C8 = 21–108, harp Cb1–G#7 = 23–104 — the track's own
+lowestNote/highestNote always wins. One voice per track: sequential figures
+only (broken-chord eighths, single-line pulses, glissandos), so the note
+`layer` field needed NO generalisation for the figures. The one sanctioned
+relaxation is the comping CHORD: the piano's downbeat comp is a chord
+(main voice + its 'kbd' sisters — up to COMP_CHORD_VOICES − 1 = 3
+sisters, distinct pitch classes, no octave pairs inside the chord), exactly
+as 'div2' let one string track carry a second line. 'kbd' is additive and
+optional; the validator accepts it; old projects load unchanged.
+
+### 16.2 Registers (MIDI, sounding)
+
+The harp's illustrative sweet spot is 36–91; the extreme top and bottom
+octaves are reserved for the roots, the pulses, the tutti hits, the comping
+and the glissandos. The bed writes inside the sweet spot over about two
+octaves of chord tones; the low plucked roots fold into 23–35; the gliss
+runs may span the extremes. The piano's arpeggiator writes 55–84, the comp
+register is 48–67 (the search reaches one octave higher so vocalbacking's
+zone-shifted tones still yield four voices), the low pulse and the tutti
+hit fold into 33–52. In vocalbacking the VOCAL ZONE (A3..A5 = 57–81, the
+D6 default the strings already keep free) stays free of BOTH parts: a note
+that would land in it moves by octave (down first, then up) and is dropped
+when the track's range cannot take it; a gliss run's zone tones drop out of
+the run (holes, the sweep keeps its direction).
+
+### 16.3 Roles by template and energy
+
+- Harp arpeggio bed: broken-chord eighths cycling the chord tones over
+  about two octaves — the pool is rebuilt at EVERY onset, so a bar spanning
+  two half-bar chords walks both (stateless per bar; no ghost runs are
+  needed anywhere in this module). Main at low to mid energy; under the
+  chorus relief it keeps ringing. Chord tones only. The low plucked roots:
+  a soft quarter pluck on phrase starts under the pizz-flavoured sparse
+  textures at low energy; under the chorus relief (when the piano owns the
+  arpeggiator) the roots become the harp's drive line — the root on every
+  quarter, never an arpeggio.
+- Glissando (rare, weighted, at most 2 per piece): an upward run of the
+  key's diatonic scale only, ending on a chord tone AT a chorus or tutti
+  downbeat; a descending run may mark an outro/resolution (the first
+  outro-like section's downbeat); stored as plain notes (no articulation);
+  1 beat to 1 bar; 16ths; a velocity ramp into the landing. The runs check
+  their crossing bars free of near-silence at draw time; a soli covering a
+  crossing bar deletes the kind at the voice map.
+- Piano arpeggiator: broken-chord eighths in 55–84 at low to mid energy in
+  cinematic and hybridstudio ONLY, drawn per SECTION TYPE (one arpeggiator
+  per section — never both a harp bed and a piano arp in one bar).
+- Low octave pulse: the root on quarters at high energy in ostinato or
+  trailer textures (de facto cinematic); under the chorus relief it is the
+  non-arpeggiating piano's drive line. Never faster than eighths.
+- Comping (chamber, sonata, vocalbacking): the chord on downbeats or phrase
+  starts at low to mid energy, on the fillGating answer bars the conductor
+  reserves, and — under the chorus relief — on EVERY QUARTER (the drive's
+  grid line; the generator's own chorus comp was a quarter-grid block
+  chord). One chord per onset, ringing a beat.
+- Tutti: the piano hits the downbeat's root (low, marcato, the drawn moment
+  shape); the harp's glissando lands on the downbeat when drawn (weighted)
+  and otherwise the harp is tacet. Unison: the keys do not join (tacet).
+- Final bar: the closing figure sounds — the harp descends the chord (the
+  resolving direction), the piano anchors the root (low, marcato, half a
+  bar: the figuration exemption's short side against the strings' long
+  landing chord). The final bar is never a tacet.
+
+### 16.4 Gating by section target energy (fractions of the clamp max)
+
+- below 0.30 — no keys (the near-silence and thin bars stay thin);
+- LOW, ≥ 0.30 — the harp bed (soft), the piano comping at phrase starts
+  and the fillGating answer bars;
+- MID, ≥ 0.50 — the arpeggiators' main zone, the bed;
+- HIGH, ≥ 0.72 — the harp thins to glissandos or rests outside a chorus
+  (it is buried under a tutti); the piano's low octave pulse;
+- PEAK, ≥ 0.90 — harp tacet except a glissando; the piano's pulse.
+
+Chorus relief (the 8.3/10 lesson — a chorus must not get thinner): inside
+a chorus-type section the keys sound from the section's FIRST bar at the
+LOW gate — the drawn arpeggiator keeps its figure, the comping rides every
+quarter, the bed keeps ringing, the non-arpeggiating part takes its drive
+line (roots / pulse on quarters). No entrance rule, no thin-to-rests.
+Velocity: the ordinary notes shape against the MUSICAL ceiling (84 — the
+generator's keys band topped there) capped by the window bound; the relief
+notes ride the ABSOLUTE relief velocity 92 (the percussion drive's rule,
+§15.4a — the block chord the comp replaces sat above any shaped level),
+and the hard clamp stays with the final safety pass (§16.8).
+
+### 16.5 Moments, tacets and damping
+
+- Tutti: the piano root hit + the harp glissando (weighted draw) — the
+  moment is roster-defined as before; the keys renderer writes its own
+  gestures from the moments plan (the compose loop's roster hit stays in
+  the phantom, §15.2's mechanism).
+- Unison: the keys do not join — tacet.
+- Soli and near-silence bars: tacet — no note starts and no note rings
+  across them (the damping shortens the ringing figures, §15.6's rule).
+- Final bar: the closing figure (§16.3) — it must still sound.
+
+### 16.6 Retirement of the old generator's keys rules
+
+The rules generator wrote keys through six labelled parts: Intro "Harp
+arpeggio", Verse "Piano chords", Chorus "Piano" and "Harp arp", Outro
+"Harp final" and the catch-all "Keys sustain (any family Keys)". The keys
+module owns the SOUND of the rostered harp/piano tracks from Phase 11 on:
+its notes replace the generator's at assembly. As with the winds and the
+percussion, the generator KEEPS writing them as a phantom input — the pad
+governor's, the humanize jitter caps' and the brass/wind/percussion caps'
+window math read the phantom exactly as at HEAD, which keeps every non-keys
+track byte-identical (the pre-flight measured the dependence: without the
+phantom the mix windows change on every keys-rostered template). The
+phantom never reaches the final score (the module claims every rostered
+keys track, empty or not), and a stale pre-compose CC lane cannot leak
+through the assembly (the winds rule). A user-added generic 'keys' track
+(role 'keys') is not rostered — the generator keeps it.
+
+### 16.7 Humanize and determinism
+
+Micro-timing is per-note, hash-seeded from (track, start, pitch) — no
+Math.random — stored IN the notes so the preview and the export show the
+same offsets: harp +0..8 ms, piano +4..12 ms, lags only; a note never
+crosses its bar or a moment boundary because of the jitter (the start
+clamps inside the written bar; the end stays where the figure put it). No
+CC lane reaches a keys track — no sustain pedal, no new CC (the generator
+writes none today). The planner runs at the conductor level on its OWN
+salted D8 stream (`hashString('keys')` over the (inputs, take) seed),
+planned after the percussion; draw order is fixed and position-stable (the
+arpeggiator per section type, then the chorus-entry glissandos in bar
+order, then the outro glissando, then the tutti glissandos in bar order —
+the moment-dependent draw rides LAST so a moments-off run consumes an
+identical prefix). Locked and out-of-band keys tracks are never written;
+one undo step per Compose All; output is a sanitizeNotes no-op and
+validateProject passes; the exports pass the keys through untouched with
+and without the UVI profile (no keys part mapped — the pre-8.1 brass
+passthrough).
+
+### 16.8 The clamp
+
+Every keys note's velocity is capped by the governor bound of the beat
+window it attacks in (mean ≤ 127·clampMax·N/roles — the relief's absolute
+velocity included, which the bound may EXCEED: the drive's rule), and a
+final safety pass (`governKeysVelocities`) re-checks every beat window over
+the FINAL notes and lowers KEYS ALONE where the mix would breach the hard
+clamp — the clamp is never exceeded.
+
+### 16.9 Implementation notes (how §16 landed)
+
+- The comping chord is the ONE place the one-voice cap bent: the sonata and
+  chamber choruses were held up by the generator's block chords, and a
+  single guide tone cannot carry the window mean. The 'kbd' layers are the
+  div2 precedent applied to keys.
+- The relief's absolute velocity exists for the same reason: the window
+  bound is a CEILING, not a target, and the tight-clamp templates (sonata:
+  bound 82) left the chorus mean below the baseline when the keys shaped
+  against the bound. The safety pass holds the clamp; zero aboveMax over
+  the whole survey is pinned.
+- The keys line is stateless per bar (no pitch walks), so no moment needs a
+  ghost run — the draw-identity pin is satisfied by draw ORDER alone.
+- The half-bar chord walk: a bar spanning two chords (the dorian fixture's
+  grid) reads the span at every onset — the bed, the arpeggio and the comp
+  all change colour mid-bar.

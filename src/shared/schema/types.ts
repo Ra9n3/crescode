@@ -46,8 +46,12 @@ export interface Note {
    *  Additive, optional: export profiles split the cellosBasses track by it
    *  (layer 'cb' → the bass part, everything else → the cello part).
    *  'div2' (Phase 7 moments) marks the SECOND line of a divisi moment —
-   *  it exports with its parent part/channel and is never Cb-doubled. */
-  layer?: 'cb' | 'div2';
+   *  it exports with its parent part/channel and is never Cb-doubled.
+   *  'kbd' (Phase 11) marks an ADDITIONAL comping-chord voice on a keys
+   *  track — the one-voice cap's one sanctioned relaxation: the piano's
+   *  downbeat comp is a chord (the main voice + its 'kbd' sisters sound
+   *  together), exactly as 'div2' let one string track carry two lines. */
+  layer?: 'cb' | 'div2' | 'kbd';
 }
 
 /** One automation point on a CC lane. Ticks are absolute, values 0–127. */

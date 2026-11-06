@@ -195,6 +195,11 @@ describe('Phase 7: moments', () => {
         // addendum's tutti list is exhaustive). The roll into the tutti (a
         // snare roll's ending hit) may also stand in for the snare.
         if (role === 'snare' || role === 'aux') continue;
+        // Phase 11: the keys join per §16.5 — the piano's tutti root hit
+        // lands on the downbeat and the harp's glissando lands there only
+        // when drawn (weighted); the harp never attacks the tutti downbeat
+        // like the roster hit the old compose loop wrote for it
+        if (role === 'harp') continue;
         const hits = t.notes.filter((n) => n.startTick >= downbeat - 1 && n.startTick <= downbeat + head);
         // Phase 8.2: the cellosBasses desk split — a sub-36 tutti hit sounds
         // on the desk's Double Basses track (the cello's octave-up answer may

@@ -121,6 +121,12 @@ describe('Phase 8: 4 — per-note seeding: notes outside moment bars are byte-id
         // window can differ by a few capped units. Excluded: percussion-track
         // notes whose start lies in a planned run's landing beat window.
         const PERC_ROLES = new Set(['timpani', 'snare', 'cymbals', 'aux']);
+        // Phase 11 allowance (the same narrow shape): a glissando INTO a
+        // tutti is the moment's own content spread one bar early — the harp
+        // notes the plan ran into a tutti moment (the run's 16ths live in
+        // the bar(s) before the tutti) exist only when the moments do.
+        const KEYS_ROLES_P8 = new Set(['harp', 'piano']);
+        const glissBars = new Set<number>();
         const rollBars = new Set<number>();
         const landingWindows: [number, number][] = [];
         const btBarP8 = 3840;
@@ -131,6 +137,16 @@ describe('Phase 8: 4 — per-note seeding: notes outside moment bars are byte-id
           const tutti = withM.result.plan.moments.find((m) => m.kind === 'tutti' && m.startBar === r.targetBar);
           if (!tutti) continue; // chorus-entry rolls exist with and without the moments
           for (let b = r.startBar; b < r.targetBar; b++) rollBars.add(b);
+        }
+        // the Phase 11 allowance: a glissando INTO a tutti is the moment's
+        // own content spread one bar early — the harp notes the plan ran
+        // into a tutti moment (the run's 16ths live in the bar(s) before the
+        // tutti) exist only when the moments do
+        for (const g2 of withM.result.plan.keys.glisses) {
+          const tutti = withM.result.plan.moments.find((m) => m.kind === 'tutti' && m.startBar === g2.targetBar);
+          if (!tutti) continue; // chorus-entry and outro glissandos exist with and without the moments
+          const startBar = Math.floor(g2.startTick / 3840) + 1;
+          for (let b = startBar; b <= g2.targetBar; b++) glissBars.add(b);
         }
         void btBarP8;
         const btBar = 3840;
@@ -156,6 +172,9 @@ describe('Phase 8: 4 — per-note seeding: notes outside moment bars are byte-id
               if (rollBars.has(Math.floor(n.startTick / btBar) + 1)) continue;
               if (landingWindows.some(([s, e]) => n.startTick >= s && n.startTick < e)) continue;
             }
+            // the Phase 11 allowance: a planned glissando INTO a tutti is
+            // moment content (see above) — keys notes in its bars are excluded
+            if (KEYS_ROLES_P8.has(t.role) && glissBars.has(Math.floor(n.startTick / btBar) + 1)) continue;
             const o = bByKey.get(`${n.pitch}@${n.startTick}`);
             // a note whose written end reaches into a moment bar may join into
             // the moment's entry (the bow-change crossfade) — its TAIL is part

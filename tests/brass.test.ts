@@ -31,6 +31,9 @@ const NO_BRASS_TEMPLATES = ['ensemble.chamber', 'ensemble.sonata', 'ensemble.voc
 const BRASS_ROLES = ['horns', 'trumpets', 'trombones', 'tuba'];
 const WIND_PIN_ROLES = new Set(['flutes', 'oboes', 'clarinets', 'bassoons']);
 const PERC_PIN_ROLES = new Set(['timpani', 'snare', 'cymbals', 'aux']);
+// Phase 11: the keys tracks are the keys module's now — pinned against the
+// Phase 11 baseline in tests/phase11.test.ts
+const KEYS_PIN_ROLES = new Set(['harp', 'piano']);
 const PROFILE = EXPORT_PROFILES[0].profile;
 
 const THREE = (): Project => projectFromFixture(JSON.parse(JSON.stringify(threeChorus)));
@@ -312,13 +315,20 @@ const stableTracks = (result: ReturnType<typeof composeAllTracks>): string =>
 
 describe('Phase 8: the moments-on baseline pins', () => {
   it('chamber, sonata and vocalbacking are byte-identical to the pre-brass baseline (3 templates × 2 fixtures × takes 1–10)', () => {
+    // Phase 11: the keys tracks (harp, piano) are excluded — the keys module
+    // owns their sound from Phase 11 on (the sanctioned change)
+    const stableTrack = (t: { id: string; role: string; notes: unknown; cc?: unknown }) =>
+      JSON.stringify({ id: t.id, role: t.role, notes: t.notes, ...(t.cc !== undefined ? { cc: t.cc } : {}) });
     for (const templateId of NO_BRASS_TEMPLATES) {
       const short = templateId.replace('ensemble.', '');
       for (const [fixTag, base] of [['three', THREE], ['dorian', DORIAN]] as const) {
         for (let take = 1; take <= 10; take++) {
           const golden = JSON.parse(readFileSync(new URL(`./golden-moments/${short}-${fixTag}-t${take}.json`, import.meta.url), 'utf8'));
           const { result } = composeTake(base(), templateId, take);
-          expect(stableTracks(result), `${short} ${fixTag} t${take} diverged from the baseline`).toBe(JSON.stringify({ tracks: golden.tracks }));
+          const goldenTracks = golden.tracks.filter((t: { role: string }) => !KEYS_PIN_ROLES.has(t.role));
+          const current = result.tracks.filter((t) => !KEYS_PIN_ROLES.has(t.role));
+          expect(current.map(stableTrack), `${short} ${fixTag} t${take} diverged from the baseline`)
+            .toEqual(goldenTracks.map(stableTrack));
         }
       }
     }
@@ -368,6 +378,9 @@ describe('Phase 8: the moments-on baseline pins', () => {
             // Phase 10: the percussion tracks are the percussion module's now
             // — pinned against the Phase 10 baseline in tests/phase10.test.ts
             if (PERC_PIN_ROLES.has(t.role)) continue;
+            // Phase 11: the keys tracks are the keys module's now — pinned
+            // against the Phase 11 baseline in tests/phase11.test.ts
+            if (KEYS_PIN_ROLES.has(t.role)) continue;
             // Phase 8.2: the cellosBasses desk split is sanctioned — the cello
             // line rises to its patch floor (36) and the sub-floor notes ride
             // the NEW Double Basses track (absent from the pre-8.2 golden)

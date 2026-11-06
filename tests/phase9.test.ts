@@ -399,13 +399,22 @@ const stableTracks = (result: ReturnType<typeof composeAllTracks>): string =>
 
 describe('Phase 9: the moments-on baseline pins (golden90, captured at the post-8.3 HEAD)', () => {
   it('chamber, sonata and vocalbacking are byte-identical to the baseline (3 templates × 2 fixtures × takes 1–10)', () => {
+    // Phase 11: the keys tracks (harp, piano) are excluded — the keys module
+    // owns their sound from Phase 11 on (the sanctioned change); the pin
+    // here is the WINDS-phase contract for every other track.
+    const KEYS_SET = new Set<string>(['harp', 'piano']);
+    const stableTrack = (t: { id: string; role: string; notes: unknown; cc?: unknown }) =>
+      JSON.stringify({ id: t.id, role: t.role, notes: t.notes, ...(t.cc !== undefined ? { cc: t.cc } : {}) });
     for (const templateId of PIN_TEMPLATES) {
       const short = templateId.replace('ensemble.', '');
       for (const [fixTag, base] of [['three', THREE], ['dorian', DORIAN]] as const) {
         for (let take = 1; take <= 10; take++) {
           const golden = JSON.parse(readFileSync(new URL(`./golden90/${short}-${fixTag}-t${take}.json`, import.meta.url), 'utf8'));
           const { result } = composeTake(base(), templateId, take);
-          expect(stableTracks(result), `${short} ${fixTag} t${take} diverged from the baseline`).toBe(JSON.stringify({ tracks: golden.tracks }));
+          const goldenTracks = golden.tracks.filter((t: { role: string }) => !KEYS_SET.has(t.role));
+          const current = result.tracks.filter((t) => !KEYS_SET.has(t.role));
+          expect(current.map(stableTrack), `${short} ${fixTag} t${take} diverged from the baseline`)
+            .toEqual(goldenTracks.map(stableTrack));
         }
       }
     }
@@ -449,6 +458,7 @@ describe('Phase 9: the moments-on baseline pins (golden90, captured at the post-
           for (const t of result.tracks) {
             if ((WIND_ROLES as string[]).includes(t.role)) continue;
             if (PERC_ROLES.includes(t.role)) continue; // Phase 10 owns these now (see above)
+            if (t.role === 'harp' || t.role === 'piano') continue; // Phase 11 owns these now (see above)
             const g = golden.tracks.find((x: { id: string }) => x.id === t.id);
             expect(g, `${short} ${fixTag} t${take} missing golden track ${t.role}`).toBeDefined();
             const cur = t.notes.filter((n) => !inSanctioned(n)).map(sig).sort();

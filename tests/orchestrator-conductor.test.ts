@@ -58,7 +58,10 @@ describe('conductor: per-bar layer plan (3a)', () => {
     expect(result.plan.templateId).toBe('ensemble.chamber');
     expect(result.plan.maxLayers).toBe(5);
     expect(result.plan.octaveDoublingPolicy).toBe('climaxOnly');
-    expect(result.plan.unannotatedRoles).toEqual(['piano']); // in band, owned by the rules generator
+    // Phase 11: the keys module plans the piano now (its per-bar kinds ride
+    // plan.keys) — the unannotated list is empty where the rules generator
+    // used to be the only writer
+    expect(result.plan.unannotatedRoles).toEqual([]);
     // the drawn texture holds for the whole section type: every Verse bar and
     // every Chorus bar carries the same layer set
     const tex = texturesOf(result);

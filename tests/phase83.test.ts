@@ -232,5 +232,5 @@ describe('Phase 8.3: the clamp and the ranges hold with the relief', () => {
       }
     }
     expect(peakBars).toBeGreaterThan(0);
-  });
+  }, 30000); // the survey grew with the keys module (the phase81 convention)
 });

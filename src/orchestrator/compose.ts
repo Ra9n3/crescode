@@ -41,6 +41,9 @@ import { EMPTY_WIND_PLAN } from './winds/plan';
 import { renderPercussion, governPercussionVelocities } from './percussion/render';
 import { PERC_PARTS } from './percussion/profile';
 import { EMPTY_PERC_PLAN } from './percussion/plan';
+import { renderKeys, governKeysVelocities } from './keys/render';
+import { KEYS_PARTS } from './keys/profile';
+import { EMPTY_KEYS_PLAN } from './keys/plan';
 import type { OrchestratorContext } from './module';
 
 export interface ComposeOptions {
@@ -150,6 +153,9 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     : [];
   const percRosterRoles = template
     ? template.roster.filter((r) => (PERC_PARTS as readonly string[]).includes(r.role)).map((r) => r.role)
+    : [];
+  const keysRosterRoles = template
+    ? template.roster.filter((r) => (KEYS_PARTS as readonly string[]).includes(r.role)).map((r) => r.role)
     : [];
   const ruleTracks = generate(project, {
     seed: options.seed,
@@ -276,6 +282,37 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   const percussionNotes = percResult.notesByTrackId;
   ctx.lines!.reports.push(...percPlan.reports, ...percResult.reports);
   const percOther = Object.entries(percussionNotes).map(([id, notes]) => ({
+    role: project.tracks.find((t) => t.id === id)!.role,
+    notes,
+  }));
+
+  // Phase 11: keys — the module realises the conductor's plan AFTER the
+  // percussion renderer, so the velocity math sees every other family's
+  // notes (each note is capped by the governor bound of the beat window it
+  // attacks in, over strings + generator + brass + winds + percussion) and
+  // the final safety pass below re-checks the clamp over the FINAL notes.
+  // The generator's own keys notes stay in as the phantom input (they keep
+  // the pad governor's, the humanize jitter caps' and the brass/wind/perc
+  // caps' window math byte-identical to HEAD — §16.4); the module's notes
+  // REPLACE the phantom at assembly, so the module owns the sound while the
+  // architecture stays pinned. No CC lanes for keys (the generator writes
+  // none today; no sustain pedal — §16.7).
+  const keysPlan = ctx.keysPlan ?? EMPTY_KEYS_PLAN;
+  const keysRuleNotes = ruleTracks
+    .filter((t) => !stringsTrackIds.includes(t.id) && !brassRosterRoles.includes(t.role) && t.role !== BASSES_ROLE && !windRosterRolesC.includes(t.role) && !percRosterRoles.includes(t.role) && !keysRosterRoles.includes(t.role))
+    .map((t) => ({ role: t.role, notes: t.notes }));
+  const keysResult = renderKeys({
+    ctx,
+    plan: keysPlan,
+    stringsNotes: notesByTrackId,
+    brassNotes,
+    windNotes,
+    percNotes: percussionNotes,
+    ruleNotes: keysRuleNotes,
+  });
+  const keysNotes = keysResult.notesByTrackId;
+  ctx.lines!.reports.push(...keysPlan.reports, ...keysResult.reports);
+  const keysOther = Object.entries(keysNotes).map(([id, notes]) => ({
     role: project.tracks.find((t) => t.id === id)!.role,
     notes,
   }));
@@ -410,6 +447,26 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
         ...stringsTrackIds.map((id) => ({ role: project.tracks.find((t) => t.id === id)?.role ?? '', notes: notesByTrackId[id] ?? [] })),
         ...brassOther,
         ...windsOther,
+      ],
+    });
+  }
+
+  // Phase 11: the final keys safety pass — the same contract, KEYS ALONE.
+  // The others exclude the wind, percussion and keys roles (the real ones
+  // ride in via windsOther / percOther / the `keys` input; the generator's
+  // phantoms are not in the final score). Expected no-op.
+  const keysRosterRoleSet = new Set(keysRosterRoles);
+  if (template && keysOther.length) {
+    governKeysVelocities({
+      project: ctx.project,
+      template,
+      keys: keysOther,
+      otherNotes: [
+        ...ruleTracks.filter((t) => !stringsTrackIds.includes(t.id) && !brassRosterRoles.includes(t.role) && t.role !== BASSES_ROLE && !windRosterRoleSet.has(t.role) && !percRosterRoleSet.has(t.role) && !keysRosterRoleSet.has(t.role)).map((t) => ({ role: t.role, notes: t.notes })),
+        ...stringsTrackIds.map((id) => ({ role: project.tracks.find((t) => t.id === id)?.role ?? '', notes: notesByTrackId[id] ?? [] })),
+        ...brassOther,
+        ...windsOther,
+        ...percOther,
       ],
     });
   }
@@ -553,6 +610,12 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
       // generator writes none today), and a stale pre-compose cc must not
       // leak through the spread (the winds rule)
       return { ...t, notes: percussionNotes[t.id], cc: undefined };
+    }
+    if (keysNotes[t.id] !== undefined) {
+      // the module owns the sound; no CC lanes for keys (§16.7 — the
+      // generator writes none today, no sustain pedal), and a stale
+      // pre-compose cc must not leak through the spread (the winds rule)
+      return { ...t, notes: keysNotes[t.id], cc: undefined };
     }
     const gen = ruleTracks.find((r) => r.id === t.id);
     return gen ? { ...t, notes: gen.notes } : t;

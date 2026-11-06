@@ -669,21 +669,32 @@ describe('Phase 10: the clamp and the baseline pins', () => {
   });
 
   it('chamber, sonata and vocalbacking are byte-identical to the baseline (3 templates × 2 fixtures × takes 1–10)', () => {
-    const stableTracks = (r: ReturnType<typeof composeAllTracks>) => JSON.stringify({ tracks: r.tracks.map((t) => ({ id: t.id, role: t.role, notes: t.notes, ...(t.cc !== undefined ? { cc: t.cc } : {}) })) });
+    // Phase 11: the keys tracks (harp, piano) are excluded — the keys module
+    // owns their sound from Phase 11 on (the sanctioned change); the pin
+    // here is the PERCUSSION-phase contract for every other track.
+    const KEYS_SET = new Set<string>(['harp', 'piano']);
+    const stableTrack = (t: { id: string; role: string; notes: unknown; cc?: unknown }) =>
+      JSON.stringify({ id: t.id, role: t.role, notes: t.notes, ...(t.cc !== undefined ? { cc: t.cc } : {}) });
     for (const templateId of PIN_TEMPLATES) {
       const short = templateId.replace('ensemble.', '');
       for (const [fixTag, base] of [['three', THREE], ['dorian', DORIAN]] as const) {
         for (let take = 1; take <= 10; take++) {
           const golden = JSON.parse(readFileSync(new URL(`./golden96/${short}-${fixTag}-t${take}.json`, import.meta.url), 'utf8'));
           const { result } = composeTake(base(), templateId, take);
-          expect(stableTracks(result), `${short} ${fixTag} t${take} diverged from the baseline`).toBe(JSON.stringify({ tracks: golden.tracks }));
+          const goldenTracks = golden.tracks.filter((t: { role: string }) => !KEYS_SET.has(t.role));
+          const current = result.tracks.filter((t) => !KEYS_SET.has(t.role));
+          expect(current.map(stableTrack), `${short} ${fixTag} t${take} diverged from the baseline`)
+            .toEqual(goldenTracks.map(stableTrack));
         }
       }
     }
   });
 
-  it('symphony, cinematic, hybridstudio: every non-percussion track is byte-identical to the baseline (everywhere — the percussion module must not perturb anything else)', () => {
+  it('symphony, cinematic, hybridstudio: every non-percussion, non-keys track is byte-identical to the baseline (everywhere — the percussion module must not perturb anything else)', () => {
     const PERC_SET = new Set<string>(PERC_ROLES as readonly string[]);
+    // Phase 11: the keys tracks (harp, piano) are excluded too — the keys
+    // module owns their sound from Phase 11 on (the sanctioned change).
+    const KEYS_SET = new Set<string>(['harp', 'piano']);
     for (const templateId of PERC_TEMPLATES) {
       const short = templateId.replace('ensemble.', '');
       for (const [fixTag, base] of [['three', THREE], ['dorian', DORIAN]] as const) {
@@ -692,6 +703,7 @@ describe('Phase 10: the clamp and the baseline pins', () => {
           const { result } = composeTake(base(), templateId, take);
           for (const t of result.tracks) {
             if (PERC_SET.has(t.role)) continue;
+            if (KEYS_SET.has(t.role)) continue;
             const g = golden.tracks.find((x: { id: string }) => x.id === t.id);
             expect(JSON.stringify({ notes: t.notes, ...(t.cc !== undefined ? { cc: t.cc } : {}) }), `${short} ${fixTag} t${take} ${t.role} diverged`)
               .toBe(JSON.stringify({ notes: g.notes, ...(g.cc !== undefined ? { cc: g.cc } : {}) }));
@@ -730,7 +742,7 @@ describe('Phase 10: the clamp and the baseline pins', () => {
       }
       console.log(`PHASE10 chorus (mean/below-floor, 10 takes aggregated) ${short}: ${beforeMean.toFixed(3)}/${beforeBelow} -> ${(afterMean).toFixed(3)}/${afterBelow} (takes lowered: ${lowered}/10)`);
     }
-  });
+  }, 60000);
 });
 
 /* ---------------- 14+15+16. locks, hygiene, exports ------------------------ */

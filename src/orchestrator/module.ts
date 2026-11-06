@@ -13,6 +13,7 @@ import type { MomentPlan } from './conductor/moments';
 import type { BrassPlan } from './brass/plan';
 import type { WindPlan } from './winds/plan';
 import type { PercPlan } from './percussion/plan';
+import type { KeysPlan } from './keys/plan';
 
 export interface OrchestratorContext {
   project: Project;
@@ -42,6 +43,10 @@ export interface OrchestratorContext {
    *  winds. An in-memory annotation — never persisted; the percussion
    *  renderer realises it after the winds renderer. */
   percussionPlan?: PercPlan;
+  /** The keys plan (Phase 11 — harp and piano), planned by the conductor
+   *  after the percussion. An in-memory annotation — never persisted; the
+   *  keys renderer realises it after the percussion renderer. */
+  keysPlan?: KeysPlan;
 }
 
 /** The string layer vocabulary the orchestrator renders today (Phase 4a) —

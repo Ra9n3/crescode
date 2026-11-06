@@ -179,10 +179,12 @@ interface State {
   updateGroup: (id: string, patch: Partial<LibraryGroup>) => void;
   deleteGroup: (id: string) => void;
   routeTrack: (trackId: string, groupId: string | null) => boolean;
-  /** Generate MIDI for every unlocked instrument track IN the band (no band
-   *  chosen = everyone). Locked and out-of-band lanes are left exactly as
-   *  they are. ONE undoable edit; returns timing and who was left alone. */
-  composeAll: () => { ms: number; bandSkipped: number; lockedKept: number };
+  /** Runs the orchestrator over every unlocked in-band track as ONE undoable
+   *  edit. Returns the report (elapsed ms, band skips, locked kept) — or null
+   *  when composing THREW: the error is toasted and logged (never silent — a
+   *  dead button with no message is undiagnosable), and the project is left
+   *  untouched (composeAllTracks is pure; the edit only wraps a success). */
+  composeAll: () => { ms: number; bandSkipped: number; lockedKept: number } | null;
 
   set: (patch: Partial<State>) => void;
   setSettings: (patch: Partial<Settings>) => void;
@@ -274,7 +276,16 @@ export const useStore = create<State>((set, get) => ({
   switchTemplate: (templateId) => {
     const p = get().project;
     const template = templateId ? (ENSEMBLE_BY_ID.get(templateId) ?? null) : null;
-    const res = applyTemplate(p, template);
+    // Same never-silent rule as composeAll: a throw here would leave the
+    // picker click doing nothing at all.
+    let res;
+    try {
+      res = applyTemplate(p, template);
+    } catch (e) {
+      console.error('[switchTemplate] applying the band threw — the project is untouched', e);
+      get().toast('error', `Band switch failed — ${e instanceof Error ? e.message : String(e)}`);
+      return;
+    }
     if (res.project === p) return;
     const name = template?.name ?? 'No band';
     get().edit(() => res.project);
@@ -381,7 +392,17 @@ export const useStore = create<State>((set, get) => ({
     // Phase 8.2: res.tracks carries the composed basses desk too (inserted
     // after the cellos in score order when the project lacked it) — written
     // in this SAME edit, so one undo removes track and notes together.
-    const res = composeAllTracks(project, composeOptions);
+    // A throw here used to bubble into the click handler and die there —
+    // no toast, no notes, "the button does not work". Compose must never
+    // fail silently: surface the real error and leave the project untouched.
+    let res;
+    try {
+      res = composeAllTracks(project, composeOptions);
+    } catch (e) {
+      console.error('[composeAll] composing threw — the project is untouched', e);
+      get().toast('error', `Compose All failed — ${e instanceof Error ? e.message : String(e)}`);
+      return null;
+    }
     get().edit((p) => ({
       ...p,
       tracks: res.tracks,

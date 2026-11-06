@@ -108,6 +108,7 @@ function ComposeButton() {
   const compose = () => {
     setOpen(false);
     const r = useStore.getState().composeAll();
+    if (!r) return; // composing threw — the store toasted the real error already
     const bits = [
       `${r.ms.toFixed(0)} ms`,
       r.bandSkipped ? `${r.bandSkipped} out-of-band skipped` : '',

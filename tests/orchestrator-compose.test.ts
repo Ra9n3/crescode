@@ -391,7 +391,7 @@ describe('Compose All in the store: one edit, take inside it', () => {
     const before = s.project;
     expect(before.orchestration).toBeUndefined();
     const res = s.composeAll();
-    expect(res.ms).toBeGreaterThanOrEqual(0);
+    expect(res && res.ms).toBeGreaterThanOrEqual(0);
     const after = useStore.getState().project;
     expect(after.orchestration?.take).toBe(1);
     expect(after.tracks.find((t) => t.role === 'cellosBasses')!.notes.length).toBeGreaterThan(0);

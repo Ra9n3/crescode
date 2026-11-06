@@ -87,25 +87,35 @@ check('Undo restores the whole previous composition', afterSwitchUndo.templateId
 // working"): picking a band leaves the picker panel open, and the panel's own
 // full-screen backdrop used to sit ABOVE the Compose All button — the click
 // landed on the backdrop, closed the panel and the compose never ran (silent:
-// no toast, no notes). The button must be clickable while the panel is open.
-const takeBeforePanelCompose = await st(() => window.crescodeTest.store.getState().project.orchestration?.take ?? 0);
-await page.click('[data-testid="band-option-ensemble.chamber"]'); // panel still open on purpose
-await page.click('[data-testid=compose-all]');
-const panelCompose = await st(() => {
-  const s = window.crescodeTest.store.getState();
-  const byRole = (r) => s.project.tracks.find((x) => x.role === r).notes.length;
-  return {
-    templateId: s.project.ensemble?.templateId ?? null,
-    take: s.project.orchestration?.take ?? 0,
-    lastToast: s.toasts.length ? s.toasts[s.toasts.length - 1].text : '',
-    violins1: byRole('violins1'), tuba: byRole('tuba'),
-  };
-});
-check('Compose All works while the band panel is open (backdrop must not cover the button)',
-  panelCompose.templateId === 'ensemble.chamber' && panelCompose.take === takeBeforePanelCompose + 1
-  && panelCompose.lastToast.startsWith('Composed in') && panelCompose.violins1 > 0 && panelCompose.tuba === 0,
-  JSON.stringify(panelCompose));
-await st(() => { const s = window.crescodeTest.store.getState(); s.undo(); s.undo(); }); // band pick + compose out
+// no toast, no notes). The button must be clickable while the panel is open —
+// for EVERY band: the follow-up report ("only on symphony and cinematic the
+// compose all button does not work") hid because this smoke only ever picked
+// chamber. Every band is now picked and composed with the panel still open.
+const ALL_BANDS = ['ensemble.symphony', 'ensemble.chamber', 'ensemble.cinematic', 'ensemble.sonata', 'ensemble.vocalbacking', 'ensemble.hybridstudio'];
+for (const band of ALL_BANDS) {
+  // park the panel closed, open it fresh, pick the band (the only place a
+  // band can be picked from) and compose WITHOUT closing it — the exact
+  // reported flow
+  await st(() => document.querySelector('.fixed.inset-0')?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  await page.click('[data-testid=compose-options]');
+  await page.click(`[data-testid="band-option-${band}"]`); // panel still open on purpose
+  const takeBeforeBandCompose = await st(() => window.crescodeTest.store.getState().project.orchestration?.take ?? 0);
+  await page.click('[data-testid=compose-all]');
+  const bandCompose = await st(() => {
+    const s = window.crescodeTest.store.getState();
+    return {
+      templateId: s.project.ensemble?.templateId ?? null,
+      take: s.project.orchestration?.take ?? 0,
+      lastToast: s.toasts.length ? s.toasts[s.toasts.length - 1].text : '',
+      notes: s.project.tracks.reduce((a, t) => a + t.notes.length, 0),
+    };
+  });
+  check(`Compose All works with the panel open after picking ${band}`,
+    bandCompose.templateId === band && bandCompose.take === takeBeforeBandCompose + 1
+    && bandCompose.lastToast.startsWith('Composed in') && bandCompose.notes > 0,
+    JSON.stringify(bandCompose));
+  await st(() => { const s = window.crescodeTest.store.getState(); s.undo(); s.undo(); }); // band pick + compose out
+}
 // close the picker panel (dispatch pointerdown on the backdrop — React closes it)
 await st(() => document.querySelector('.fixed.inset-0')?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
 

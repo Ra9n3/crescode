@@ -381,19 +381,73 @@ describe('Phase 10.1: the chorus drive', () => {
     }
   });
 
-  it('the pre-chorus bar is a prepared entry: no percussion sounds in the bar before a chorus entry', () => {
+  it('the pre-chorus bar keeps the entry prepared: the groove — the timpani pulse, the snare pattern, the aux off-beat — is tacet there, while the build (the rolls\' 16ths, the cymbal swell, the ending hit) sounds as in Phase 10', () => {
+    let build16Bars = 0, build16Drawn = 0, swellBars = 0, swellDrawn = 0;
     for (const run of percSurvey) {
       const btBar = btBarOf(run.project);
+      const soli = soliBarsOf(run);
       for (const bar of preChorusBarsOf(run.fixture)) {
-        const tutti = run.result.plan.moments.some((m) => m.kind === 'tutti' && bar >= m.startBar && bar <= m.endBar);
-        if (tutti) continue; // a tutti moment owns its downbeat (never observed on a pre-chorus bar)
+        const s = (bar - 1) * btBar;
+        const e = bar * btBar;
+        const planBar = run.result.plan.percussion.bars[bar - 1];
+        // the groove kinds are never built on a pre-chorus bar (Phase 10.2:
+        // only the drive-pattern line is tacet there — but tacet it is)
+        const kinds = Object.values(planBar?.voices ?? {});
+        for (const k of ['drive', 'pulse', 'support', 'backbeat', 'grid', 'cellLight', 'cellFull', 'offbeat']) {
+          expect(kinds, `${run.templateId} ${run.fixture} t${run.take}: the groove kind ${k} on the pre-chorus bar ${bar}`).not.toContain(k);
+        }
+        if (soli.has(bar)) {
+          // a soli-covered pre-chorus bar stays FULLY tacet (the roll's
+          // 16ths die before the solo too)
+          for (const role of PERC_ROLES) {
+            const t = trackOf(run.project, role);
+            expect(t.notes.some((n) => n.startTick >= s && n.startTick < e), `${run.templateId} ${run.fixture} t${run.take} ${role} sounds in the soli-covered pre-chorus bar ${bar}`).toBe(false);
+          }
+          continue;
+        }
+        const rollHere = run.result.plan.percussion.rolls.filter((r) => bar >= r.startBar && bar < r.targetBar);
+        const swellHere = run.result.plan.percussion.crashes.some((c) => c.swell && c.bar === bar + 1);
+        const crashHere = run.result.plan.percussion.crashes.some((c) => c.bar === bar);
+        if (rollHere.length) build16Drawn++;
+        if (swellHere) swellDrawn++;
+        let roll16Sounded = false, swellSounded = false;
         for (const role of PERC_ROLES) {
           const t = trackOf(run.project, role);
-          const s = (bar - 1) * btBar;
-          expect(t.notes.some((n) => n.startTick >= s && n.startTick < s + btBar), `${run.templateId} ${run.fixture} t${run.take} ${role} sounds in the pre-chorus bar ${bar}`).toBe(false);
+          const inBar = t.notes.filter((n) => n.startTick >= s && n.startTick < e);
+          if (role === 'aux') {
+            expect(inBar.length, `${run.templateId} ${run.fixture} t${run.take} aux sounds in the pre-chorus bar ${bar}`).toBe(0);
+            continue;
+          }
+          if (role === 'cymbals') {
+            // the build only: the drawn swell (or a mapped crash)
+            for (const n of inBar) {
+              expect(swellHere || crashHere, `${run.templateId} ${run.fixture} t${run.take} cymbals sound in the pre-chorus bar ${bar} with no swell/crash drawn`).toBe(true);
+              expect(n.articulation, `${run.templateId} ${run.fixture} t${run.take} cymbals note in the pre-chorus bar ${bar} is not the swell`).toBe('tremolo');
+              swellSounded = true;
+            }
+            continue;
+          }
+          // timpani/snare: only the roll's 16ths (the ending hit lands on
+          // the entry downbeat, one bar later); a tutti moment's own hit is
+          // exempt (never observed on a pre-chorus bar)
+          const tuttiHit = planBar?.moment === 'tutti' && planBar?.voices.timpani === 'tutti' && role === 'timpani';
+          for (const n of inBar) {
+            const roll = rollHere.find((r) => r.part === role);
+            const is16th = roll !== undefined && n.articulation === 'tremolo';
+            expect(is16th || tuttiHit, `${run.templateId} ${run.fixture} t${run.take} ${role} groove note in the pre-chorus bar ${bar} (start ${n.startTick - s})`).toBe(true);
+            if (is16th) roll16Sounded = true;
+          }
         }
+        if (roll16Sounded) build16Bars++;
+        if (swellSounded) swellBars++;
       }
     }
+    // the build really sounds: every drawn roll-16th bar and swell bar on a
+    // non-soli pre-chorus bar produced notes, and nothing else did
+    expect(build16Bars, 'the rolls\' 16ths never sound on a pre-chorus bar').toBe(build16Drawn);
+    expect(build16Drawn, 'no roll covers a pre-chorus bar in the survey').toBeGreaterThan(0);
+    expect(swellBars, 'the swell never sounds on a pre-chorus bar').toBe(swellDrawn);
+    expect(swellDrawn, 'no swell is drawn onto a pre-chorus bar in the survey').toBeGreaterThan(0);
   });
 
   it('the drive\'s shapes: the snare backbeat sits on beats 2 and 4 (the kit\'s quarter grid without a timpani), the aux on the off-beat eighths, and the timpani drive never moves faster than quarters', () => {

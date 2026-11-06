@@ -253,8 +253,9 @@ export function renderPercussion(input: PercRenderInput): PercRenderResult {
 
       // the roll's slice inside this bar (the 16ths from the roll's start to
       // the target tick, clipped to the bar; a roll never sounds in a tacet
-      // — a soli, a near-silence bar or the pre-chorus bar: the roll dies
-      // before the entry and only its ending hit sounds there)
+      // — a soli or a near-silence bar: the roll dies before it. On the
+      // pre-chorus bar the 16ths SOUND (Phase 10.2): the prepared entry
+      // keeps its build, only the groove is tacet there)
       if (rollActive) {
         const pitch = pitchOfRoll(rollActive);
         if (pitch !== null) {
@@ -265,8 +266,7 @@ export function renderPercussion(input: PercRenderInput): PercRenderResult {
             const i = Math.round((onset - rollActive.startTick) / sixteenth);
             const near = ctx.arc?.[bar - 1]?.nearSilence;
             const m = momentForBar(ctx.moments, bar);
-            const preChorus = isChorusTypeP(sectionTypeNameAtBar(ctx, bar + 1)) && !isChorusTypeP(sectionTypeNameAtBar(ctx, bar));
-            if (near || m?.kind === 'soli' || preChorus) continue;
+            if (near || m?.kind === 'soli') continue;
             candidates.push({ pitch, startTick: onset, durationTicks: sixteenth, articulation: 'tremolo', velocityRule: 'shaped', ramp: (i / n) * 0.5 });
           }
         }

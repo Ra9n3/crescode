@@ -43,9 +43,11 @@
  * the aux plays the sparse off-beat at the high gate where the full
  * off-beat does not. The drive never sounds during a soli, a near-silence
  * bar or the PRE-CHORUS bar (the bar before a chorus entry) — the prepared
- * entry: that bar is a full percussion tacet, swells and roll starts
- * included (a roll's ending hit still lands on the entry downbeat). The
- * crash budget is untouched.
+ * entry keeps its BUILD but drops the GROOVE (Phase 10.2): the drive-pattern
+ * line — the timpani's pulse, the snare's pattern, the aux off-beat — is
+ * tacet there, while the rolls' 16ths (timpani and snare), the cymbal swell
+ * and every roll's ending hit sound exactly as in Phase 10. Soli and
+ * near-silence bars stay FULLY tacet. The crash budget is untouched.
  */
 import { mulberry32, hashString } from '../../engine/generate';
 import { orchestrationSeedFor, type SpineSection } from '../spine';
@@ -147,9 +149,10 @@ export function planPercussion(ctx: OrchestratorContext): PercPlan {
   const chorusSecs = [...sections].sort((a, b) => a.startBar - b.startBar).filter((s) => isChorusTypeP(s.name));
   const peakChorus = chorusSecs[chorusSecs.length - 1];
   const firstChorus = chorusSecs[0];
-  // the pre-chorus bars (Phase 10.1): the bar before a chorus-type entry — a
-  // full percussion tacet so the entry stays prepared (contiguous chorus
-  // sections have no bar between them)
+  // the pre-chorus bars (Phase 10.1): the bar before a chorus-type entry —
+  // the prepared entry (contiguous chorus sections have no bar between
+  // them); Phase 10.2 scopes the tacet to the groove line only — the build
+  // (the rolls' 16ths, the swell, the ending hits) sounds as in Phase 10
   const preChorusBars = new Set<number>();
   for (const sec of chorusSecs) {
     const b = sec.startBar - 1;
@@ -182,8 +185,8 @@ export function planPercussion(ctx: OrchestratorContext): PercPlan {
     if (bar < 2 || !((arc[bar - 2]?.target ?? 0) < (arc[bar - 1]?.target ?? 0))) continue;
     lastCrashBar = bar;
     // the swell draw (the bar before the crash, off the near-silence bars;
-    // the draw stream is Phase 10's — the pre-chorus tacet eats the swell's
-    // NOTE at the voice map, not the draw)
+    // the draw stream is Phase 10's — on the pre-chorus bar the swell's
+    // NOTE sounds again from Phase 10.2 on: only the groove is tacet there)
     let swell = false;
     const swellBar = bar - 1;
     if (roster.includes('cymbals') && swellBar >= 1 && !nearSilence(swellBar) && rng() < CYMBAL_SWELL_CHANCE) swell = true;
@@ -257,6 +260,16 @@ export function planPercussion(ctx: OrchestratorContext): PercPlan {
     const isNearSilence = nearSilenceBars.has(bar);
     const isPreChorus = preChorusBars.has(bar);
 
+    // the rolls sound through the pre-chorus bar (Phase 10.2 — the
+    // prepared entry keeps its build), OUTSIDE the groove gate below: the
+    // map shows the roll kind where the 16ths sound. A near-silence bar
+    // draws none (the rolls' own tacet check at draw time) and the soli
+    // branch below still deletes the kind there.
+    if (!nearSilence(bar)) {
+      if (roster.includes('timpani') && rollByBarPart.has(`${bar}:timpani`)) voices.timpani = 'roll';
+      if (roster.includes('snare') && rollByBarPart.has(`${bar}:snare`)) voices.snare = 'roll';
+    }
+
     if (!nearSilence(bar) && !isPreChorus) {
       // the house entrance rule for the continuing pulses (§15.4): a part's
       // first bar after a silent bar follows a strictly lower-energy bar;
@@ -272,13 +285,12 @@ export function planPercussion(ctx: OrchestratorContext): PercPlan {
       const phraseStart = bar === secStart || (bar - secStart) % 4 === 0;
 
       // timpani
-      if (roster.includes('timpani')) {
-        if (rollByBarPart.has(`${bar}:timpani`)) voices.timpani = 'roll';
+      if (roster.includes('timpani') && !voices.timpani) {
         // the chorus drive (Phase 10.1): the root on every bar downbeat —
         // texture-independent (the drawn pulse's anchor yields to it); the
         // renderer rings the root and adds the optional half-bar fifth at
         // the high gate (never faster than quarters outside rolls)
-        else if (inChorus && norm >= PERC_GATES.mid) voices.timpani = 'drive';
+        if (inChorus && norm >= PERC_GATES.mid) voices.timpani = 'drive';
         else if (CELL_TEXTURES.has(tex.id) && norm >= PERC_GATES.mid && entranceOk('timpani')) voices.timpani = 'pulse';
         else if (phraseStart && norm >= PERC_GATES.low) voices.timpani = 'support';
       }
@@ -287,9 +299,8 @@ export function planPercussion(ctx: OrchestratorContext): PercPlan {
       // WITHOUT the timpani the snare carries the kit's quarter grid (the
       // downbeat and beat 3 included, plain) so every chorus window keeps a
       // fresh hit. Outside the chorus the §15.4 texture rules stand.
-      if (roster.includes('snare')) {
-        if (rollByBarPart.has(`${bar}:snare`)) voices.snare = 'roll';
-        else if (inChorus && norm >= PERC_GATES.mid) voices.snare = roster.includes('timpani') ? 'backbeat' : 'grid';
+      if (roster.includes('snare') && !voices.snare) {
+        if (inChorus && norm >= PERC_GATES.mid) voices.snare = roster.includes('timpani') ? 'backbeat' : 'grid';
         else if (CELL_TEXTURES.has(tex.id) && norm >= PERC_GATES.high && entranceOk('snare')) voices.snare = 'cellFull';
         else if (CELL_TEXTURES.has(tex.id) && norm >= PERC_GATES.mid && entranceOk('snare')) voices.snare = 'cellLight';
       }
@@ -301,24 +312,30 @@ export function planPercussion(ctx: OrchestratorContext): PercPlan {
         if (inChorus && norm >= PERC_GATES.mid) voices.aux = 'offbeat';
         else if (AUX_TEXTURES.has(tex.id) && norm >= PERC_GATES.mid && entranceOk('aux')) voices.aux = 'offbeat';
       }
-      // cymbals
-      if (roster.includes('cymbals')) {
-        if (crashByBar.has(bar)) voices.cymbals = 'crash';
-        else if (crashes.some((c) => c.swell && c.bar === bar + 1)) voices.cymbals = 'swell';
-      }
+    }
+    // cymbals (OUTSIDE the groove gate — Phase 10.2): the crash and the
+    // swell are the entry's build, not the drive pattern — they sound on
+    // the pre-chorus bar exactly as in Phase 10; a soli or near-silence
+    // bar still deletes them below
+    if (!nearSilence(bar) && roster.includes('cymbals')) {
+      if (crashByBar.has(bar)) voices.cymbals = 'crash';
+      else if (crashes.some((c) => c.swell && c.bar === bar + 1)) voices.cymbals = 'swell';
     }
     // the ordinary line is the base (the renderer ghost-runs it through the
     // moment bars so the timpani's pitch walk stays moments-independent)
     for (const p of PERC_PARTS) ordinaryVoices[p] = voices[p];
 
-    // the moments run last: the tutti hit + crash; a soli, the near-silence
-    // bar or the pre-chorus bar silences the kit entirely (§15.6; the
-    // pre-chorus tacet is Phase 10.1's prepared entry). The soli's
-    // deletion is a plan-map read only — the entrance tracker GHOSTS through
-    // it (the tracker below advances as if the kit had sounded), so the
-    // entrance chain stays byte-identical with and without the moments.
+    // the moments run last: the tutti hit + crash; a soli or the
+    // near-silence bar silences the kit entirely (§15.6). The pre-chorus
+    // bar is NOT a full tacet since Phase 10.2 — the groove kinds are
+    // simply never built above (the prepared entry), while the rolls' 16ths
+    // (the renderer), the swell and the ending hits sound there as in
+    // Phase 10. The soli's deletion is a plan-map read only — the entrance
+    // tracker GHOSTS through it (the tracker below advances as if the kit
+    // had sounded), so the entrance chain stays byte-identical with and
+    // without the moments.
     const ghostBars = new Set<PercPart>();
-    if (isSoli || isNearSilence || isPreChorus) {
+    if (isSoli || isNearSilence) {
       for (const p of PERC_PARTS) {
         if (voices[p] !== undefined) ghostBars.add(p);
         delete voices[p];
@@ -347,11 +364,11 @@ export function planPercussion(ctx: OrchestratorContext): PercPlan {
 
     barPlans.push({
       bar, level, norm, voices, ordinary: ordinaryVoices,
-      ...(moment?.kind === 'tutti' && !isSoli && !isPreChorus ? { moment: 'tutti' as const } : isSoli && moment?.kind === 'soli' ? { moment: 'soli' as const } : {}),
+      ...(moment?.kind === 'tutti' && !isSoli ? { moment: 'tutti' as const } : isSoli && moment?.kind === 'soli' ? { moment: 'soli' as const } : {}),
     });
   }
 
-  reports.push(`percussion (take ${take}): gates 0.30/0.50/0.72/0.90 of clamp ${clampMax}, chorus relief mid kit from the first chorus bar, chorus drive (root downbeats + high half-fifths, backbeats / grid, off-beat eighths at the high gate's level), pre-chorus tacet; crashes ${crashes.map((c) => `b${c.bar}:${c.source}${c.swell ? '+swell' : ''}`).join(',') || 'none'}; rolls ${rolls.map((r) => `b${r.startBar}-${r.targetBar}:${r.part}`).join(',') || 'none'}; final timpani ${finalTimpani ? 'hit' : 'none'}`);
+  reports.push(`percussion (take ${take}): gates 0.30/0.50/0.72/0.90 of clamp ${clampMax}, chorus relief mid kit from the first chorus bar, chorus drive (root downbeats + high half-fifths, backbeats / grid, off-beat eighths at the high gate's level), pre-chorus groove tacet (the rolls' 16ths, the swells and the ending hits sound); crashes ${crashes.map((c) => `b${c.bar}:${c.source}${c.swell ? '+swell' : ''}`).join(',') || 'none'}; rolls ${rolls.map((r) => `b${r.startBar}-${r.targetBar}:${r.part}`).join(',') || 'none'}; final timpani ${finalTimpani ? 'hit' : 'none'}`);
   const firstBars = barPlans.filter((b) => Object.values(b.voices).some((v) => v !== undefined)).slice(0, 12);
   if (firstBars.length) reports.push(`percussion plan (take ${take}): ${firstBars.map((b) => `b${b.bar}[${b.level}] ${Object.entries(b.voices).map(([p, k]) => `${p}:${k}`).join(',')}`).join(' | ')}`);
 

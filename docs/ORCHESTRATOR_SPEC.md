@@ -780,9 +780,12 @@ moments-dependent through the soli tails that cross a barline, and the
 Phase 8 identity pin forbids a moment moving a note outside its bars).
 The clamp guarantee stays with `governPercussionVelocities`. The drive
 never sounds during a soli, a near-silence bar or the PRE-CHORUS bar (the
-bar before a chorus entry — a full percussion tacet, swells and roll
-starts included, so the entry stays prepared; a roll's ending hit still
-lands on the entry downbeat). The crash budget is untouched. Verses and
+bar before a chorus entry). On the pre-chorus bar only the GROOVE is tacet
+(Phase 10.2 — the prepared entry keeps its build): the timpani's pulse,
+the snare's pattern and the aux off-beat never sound there, while the
+rolls' 16ths (timpani and snare), the cymbal swell and every roll's
+ending hit sound exactly as in Phase 10 — a soli or near-silence pre-chorus
+bar stays fully tacet. The crash budget is untouched. Verses and
 bridges keep the §15.4 rules exactly.
 
 ### 15.5 Gating by section target energy (fractions of the clamp max, reported)

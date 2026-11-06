@@ -35,6 +35,9 @@ import { overlapLegato } from './expression/legato';
 import { renderBrass, governBrassVelocities } from './brass/render';
 import { BRASS_PARTS } from './brass/profile';
 import { EMPTY_BRASS_PLAN } from './brass/plan';
+import { renderWinds, governWindsVelocities } from './winds/render';
+import { WIND_PARTS } from './winds/profile';
+import { EMPTY_WIND_PLAN } from './winds/plan';
 import type { OrchestratorContext } from './module';
 
 export interface ComposeOptions {
@@ -126,13 +129,21 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
 
   // the rules generator covers every other family — strings AND brass are
   // excluded from its WRITING (Phase 8: the brass module owns the template's
-  // brass roster), but the rendered strings still feed its doublings (D9)
+  // brass roster), but the rendered strings still feed its doublings (D9).
+  // Phase 9: the generator KEEPS writing the template's winds — its notes
+  // are a phantom input that keeps every downstream window math (the brass
+  // velocity caps, the pad governor, the humanize jitter caps) byte-identical
+  // to HEAD; the winds module's notes REPLACE the phantom at assembly, so
+  // the module owns the sound while the architecture stays pinned.
   const roleNotes = Object.entries(notesByTrackId).map(([id, notes]) => ({
     role: project.tracks.find((t) => t.id === id)!.role,
     notes,
   }));
   const brassRosterRoles = template
     ? template.roster.filter((r) => (BRASS_PARTS as readonly string[]).includes(r.role)).map((r) => r.role)
+    : [];
+  const windRosterRoles = template
+    ? template.roster.filter((r) => (WIND_PARTS as readonly string[]).includes(r.role)).map((r) => r.role)
     : [];
   const ruleTracks = generate(project, {
     seed: options.seed,
@@ -205,12 +216,40 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     notes,
   }));
 
+  // Phase 9: winds — the module realises the conductor's plan AFTER the
+  // brass renderer, so the velocity math sees every other family's notes
+  // (each wind note is capped by the governor bound of every beat window it
+  // touches, over strings + generator + brass + winds) and the brass
+  // windowing (§14.6) reads the rendered brass. The generator's own wind
+  // notes stay in as the phantom input; the generator's entries for the
+  // EXCLUDED roles (brass, the basses desk) carry the project's stale
+  // pre-compose notes and are filtered out — the fresh brass rides in via
+  // brassNotes, so a re-compose measures the same windows as a fresh one.
+  const windPlan = ctx.windPlan ?? EMPTY_WIND_PLAN;
+  const windRuleNotes = ruleTracks
+    .filter((t) => !stringsTrackIds.includes(t.id) && !brassRosterRoles.includes(t.role) && t.role !== BASSES_ROLE)
+    .map((t) => ({ role: t.role, notes: t.notes }));
+  const windResult = renderWinds({
+    ctx,
+    plan: windPlan,
+    stringsNotes: notesByTrackId,
+    brassNotes,
+    ruleNotes: windRuleNotes,
+  });
+  const windNotes = windResult.notesByTrackId;
+  ctx.lines!.reports.push(...windPlan.reports, ...windResult.reports);
+  const windsOther = Object.entries(windNotes).map(([id, notes]) => ({
+    role: project.tracks.find((t) => t.id === id)!.role,
+    notes,
+  }));
+
   // Mixed-window governor: the pads' own cap bounds strings-only windows, but
   // real windows mix pads with the rules generator's output. Re-check every
   // beat window and pull pad velocities down where the MIX would breach the
   // template's hard clamp (spec §6, Phase-2 acceptance). No band → no clamp.
-  // (Brass is not an input here — its notes are already governor-capped and
-  // the final brass safety pass below re-checks the clamp for them.)
+  // (Brass and winds are not inputs here — their notes are already
+  // governor-capped and the final brass/winds safety passes below re-check
+  // the clamp for them.)
   const rosterRoles = new Set(
     (template ? template.roster.map((r) => r.role) : project.tracks.filter((t) => isInstrumentTrack(t) && isInBand(t.role, ensemble, template)).map((t) => t.role)),
   );
@@ -300,6 +339,24 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     });
   }
 
+  // Phase 9: the final winds safety pass — the same contract, WINDS ALONE.
+  // The others exclude the wind roles (the module's own notes are the `winds`
+  // input; the generator's phantom wind notes are not in the final score).
+  // Expected no-op.
+  const windRosterRoleSet = new Set(windRosterRoles);
+  if (template && windsOther.length) {
+    governWindsVelocities({
+      project: ctx.project,
+      template,
+      winds: windsOther,
+      otherNotes: [
+        ...ruleTracks.filter((t) => !stringsTrackIds.includes(t.id) && !brassRosterRoles.includes(t.role) && t.role !== BASSES_ROLE && !windRosterRoleSet.has(t.role)).map((t) => ({ role: t.role, notes: t.notes })),
+        ...stringsTrackIds.map((id) => ({ role: project.tracks.find((t) => t.id === id)?.role ?? '', notes: notesByTrackId[id] ?? [] })),
+        ...brassOther,
+      ],
+    });
+  }
+
   // Phase 8.2: materialize the two desks — the 'cb'-marked notes (the Cb
   // doubles, the sub-36 line notes, the wide-unison -24 notes) leave the
   // cello list and become the Double Basses track (inserted after the cellos
@@ -383,6 +440,30 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     .join(', ');
   if (brassCcSummary) ctx.lines!.reports.push(`brass cc (take ${orchestration.take}): ${brassCcSummary}`);
 
+  // Phase 9: winds CC lanes — the SAME generation (§14: CC1 and CC11 lanes
+  // use the same generation as strings and brass; wind swells are shaped by
+  // phrase), built from the final wind notes.
+  const windCcByTrackId = Object.keys(windNotes).length
+    ? buildCcLanes({
+        project: ctx.project,
+        template,
+        sections: ctx.sections,
+        arc,
+        notesByTrackId: windNotes,
+        carrierByBar: ctx.lines!.carrierByBar,
+      })
+    : {};
+  const windCcSummary = Object.keys(windNotes)
+    .map((id) => {
+      const lanes = windCcByTrackId[id];
+      if (!lanes) return null;
+      const name = project.tracks.find((t) => t.id === id)?.name ?? id;
+      return `${name} ${lanes.length}L/${lanes.reduce((a, l) => a + l.points.length, 0)}P`;
+    })
+    .filter(Boolean)
+    .join(', ');
+  if (windCcSummary) ctx.lines!.reports.push(`winds cc (take ${orchestration.take}): ${windCcSummary}`);
+
   const stringsNotes = new Map(stringsTrackIds.map((id) => [id, notesByTrackId[id]]));
   let tracks = project.tracks.map((t) => {
     if (!isInstrumentTrack(t)) return t;
@@ -402,6 +483,13 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     if (brassNotes[t.id] !== undefined) {
       const cc = brassCcByTrackId[t.id];
       return { ...t, notes: brassNotes[t.id], ...(cc ? { cc } : {}) };
+    }
+    if (windNotes[t.id] !== undefined) {
+      // the fresh CC build owns the lanes: when it produced none (an empty
+      // part — buildCcLanes skips empty tracks), the track's PRE-COMPOSE cc
+      // (a re-compose of an older take) must not leak through the spread
+      const cc = windCcByTrackId[t.id];
+      return { ...t, notes: windNotes[t.id], ...(cc ? { cc } : { cc: undefined }) };
     }
     const gen = ruleTracks.find((r) => r.id === t.id);
     return gen ? { ...t, notes: gen.notes } : t;

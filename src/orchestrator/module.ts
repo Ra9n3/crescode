@@ -11,6 +11,7 @@ import type { ResolvedChord, SpineSection, ArcBar } from './spine';
 import type { StringLines } from './render';
 import type { MomentPlan } from './conductor/moments';
 import type { BrassPlan } from './brass/plan';
+import type { WindPlan } from './winds/plan';
 
 export interface OrchestratorContext {
   project: Project;
@@ -32,6 +33,10 @@ export interface OrchestratorContext {
    *  An in-memory annotation — never persisted; the brass renderer realises
    *  it after the rules generator. */
   brassPlan?: BrassPlan;
+  /** The winds plan (Phase 9), planned by the conductor after the moments.
+   *  An in-memory annotation — never persisted; the winds renderer realises
+   *  it after the brass renderer. */
+  windPlan?: WindPlan;
 }
 
 /** The string layer vocabulary the orchestrator renders today (Phase 4a) —

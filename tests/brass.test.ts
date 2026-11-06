@@ -29,6 +29,7 @@ const TEMPLATES = ['ensemble.symphony', 'ensemble.chamber', 'ensemble.cinematic'
 const BRASS_TEMPLATES = ['ensemble.symphony', 'ensemble.cinematic', 'ensemble.hybridstudio'];
 const NO_BRASS_TEMPLATES = ['ensemble.chamber', 'ensemble.sonata', 'ensemble.vocalbacking'];
 const BRASS_ROLES = ['horns', 'trumpets', 'trombones', 'tuba'];
+const WIND_PIN_ROLES = new Set(['flutes', 'oboes', 'clarinets', 'bassoons']);
 const PROFILE = EXPORT_PROFILES[0].profile;
 
 const THREE = (): Project => projectFromFixture(JSON.parse(JSON.stringify(threeChorus)));
@@ -332,8 +333,10 @@ describe('Phase 8: the moments-on baseline pins', () => {
           // excluded from the pin: every MOMENT bar on EITHER side (the
           // moments plans legitimately moved — the brass lead's bars join
           // the moments' noGo and a horn may carry a soli), the brass-lead
-          // bars (the strings drop to pad) and the horn-soli bars
+          // bars (the strings drop to pad), the horn-soli bars and the
+          // Phase 9 wind-lead bars (the strings drop to pad there too)
           const leadBars = new Set(result.plan.brass.leads.flatMap((l) => { const out: number[] = []; for (let b = l.startBar; b <= l.endBar; b++) out.push(b); return out; }));
+          for (const l of result.plan.winds.leads) for (let b = l.startBar; b <= l.endBar; b++) leadBars.add(b);
           for (const m of result.plan.moments) for (let b = m.startBar; b <= m.endBar; b++) leadBars.add(b);
           for (const m of golden.moments ?? []) for (let b = m.startBar; b <= m.endBar; b++) leadBars.add(b);
           for (const l of golden.leads ?? []) for (let b = l.startBar; b <= l.endBar; b++) leadBars.add(b);
@@ -358,6 +361,9 @@ describe('Phase 8: the moments-on baseline pins', () => {
           };
           for (const t of result.tracks) {
             if ((BRASS_ROLES as string[]).includes(t.role)) continue;
+            // Phase 9: the wind tracks are the winds module's now — pinned
+            // against the Phase 9 baseline in tests/phase9.test.ts, not here
+            if (WIND_PIN_ROLES.has(t.role)) continue;
             // Phase 8.2: the cellosBasses desk split is sanctioned — the cello
             // line rises to its patch floor (36) and the sub-floor notes ride
             // the NEW Double Basses track (absent from the pre-8.2 golden)

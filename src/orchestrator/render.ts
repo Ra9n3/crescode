@@ -37,6 +37,7 @@ import { maxMeanVelocityFor } from './energy';
 import { arcTargetAt, orchestrationSeedFor } from './spine';
 import { STRING_PROFILE_BY_ROLE, STRING_ROLES, VOCAL_ZONE, stringVoiceTracks } from './profiles/strings';
 import { BRASS_PROFILES } from './brass/profile';
+import { WIND_PROFILES } from './winds/profile';
 import { chordTones } from './voicing/chordTones';
 import { leadingTonePcOf, voiceLead, type VoicedChord, type VoiceFix, type VoiceSpec, type VoicingChord } from './voicing/voiceLead';
 import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
@@ -155,6 +156,13 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
     // sweet spot; strings keep their profile windows
     const brass = BRASS_PROFILES[t?.role as keyof typeof BRASS_PROFILES];
     if (t && brass) return [Math.max(t.lowestNote, brass.sweet[0]), Math.min(t.highestNote, brass.sweet[1])];
+    // Phase 9: a wind carrier (the wind soli) draws its line in the wind's
+    // soft window (the sweet spot under the soft ceiling)
+    const wind = WIND_PROFILES[t?.role as keyof typeof WIND_PROFILES];
+    if (t && wind) {
+      const hi = wind.softCeiling !== null ? Math.min(wind.sweet[1], wind.softCeiling) : wind.sweet[1];
+      return [Math.max(t.lowestNote, wind.sweet[0]), Math.min(t.highestNote, hi)];
+    }
     const prof = STRING_PROFILE_BY_ROLE.get(t.role);
     return prof ? [Math.max(t.lowestNote, Math.min(t.highestNote, prof.comfortable[0])), Math.max(t.lowestNote, Math.min(t.highestNote, prof.comfortable[1]))] : [t.lowestNote, t.highestNote];
   };

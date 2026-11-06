@@ -4,6 +4,7 @@ import { ENSEMBLE_BY_ID } from '../src/config/ensembles';
 import { composeAllTracks } from '../src/orchestrator/compose';
 import { measureEnergy } from '../src/orchestrator/energy';
 import { humanizeHeadTicks } from '../src/orchestrator/expression/timing';
+import { barTicks } from '../src/shared/schema/meter';
 import { chordSpans } from '../src/engine/generate';
 import { sanitizeNotes } from '../src/engine/generate';
 import { ticksToMs } from '../src/orchestrator/spine';
@@ -240,18 +241,35 @@ describe('Compose All through the orchestrator: property sweep', () => {
     }
   });
 
-  it('D9 compose order: strings render first, so doubling parts double what they wrote', () => {
+  it('D9 compose order: the winds module reads the strings it rendered first — the lead double rides the carrier line, and the old generator no longer writes the template winds', () => {
     for (const templateId of ['ensemble.symphony', 'ensemble.cinematic']) {
-      const { project } = compose(templateId, {}, { seed: 11, moments: false });
+      const { project, result } = compose(templateId, {}, { seed: 11, moments: false });
       const flutes = track(project, 'flutes').notes;
       expect(flutes.length).toBeGreaterThan(0);
-      // every flute entrance doubles a Violins I entrance (the strings module's
-      // top line, +12 before sanitization). Phase 5d humanizes the STRING
-      // attacks late (start only, ≤ the tempo-map head), so the un-humanized
-      // flute lands at or slightly before the V1 note's written start.
-      const v1 = track(project, 'violins1').notes;
+      // Phase 9: the winds module owns the template winds (the old generator's
+      // "Flutes double Vln I" is retired). Its lead double rides the strings'
+      // carrier line (the strings rendered FIRST, D9): where the plan drew a
+      // flute double, every flute note sits at the carrier's pitch +12 (or in
+      // unison), within the humanize-head window of a carrier note.
+      const carrierBars = result.plan.winds.bars.filter((b) => b.voices.flutes === 'leadDouble');
+      if (carrierBars.length) {
+        const btBar = barTicks(project.timeSignature);
+        const v1 = track(project, 'violins1').notes;
+        const doubleNotes = flutes.filter((n) => {
+          const bar = Math.floor(n.startTick / btBar) + 1;
+          return carrierBars.some((b) => b.bar === bar);
+        });
+        expect(doubleNotes.length, 'the drawn flute double wrote no notes').toBeGreaterThan(0);
+        for (const n of doubleNotes) {
+          // the double rides a carrier note at the same tick, a unison or an
+          // octave (any octave) away — fitOctave preserves the pitch class
+          expect(v1.some((m) => Math.abs(n.startTick - m.startTick) <= 1 && (n.pitch - m.pitch) % 12 === 0)).toBe(true);
+        }
+      }
+      // every flute note is in range and never the leading tone of the key
       for (const n of flutes) {
-        expect(v1.some((m) => n.startTick >= m.startTick - humanizeHeadTicks(project.tempoMap, n.startTick) && n.startTick <= m.startTick)).toBe(true);
+        expect(n.pitch).toBeGreaterThanOrEqual(60);
+        expect(n.pitch).toBeLessThanOrEqual(96);
       }
     }
   });

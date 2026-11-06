@@ -399,6 +399,7 @@ export function tuneCarrierForBar(ctx: OrchestratorContext, bar: number, ignoreM
   if (!sec || LEAD_FREE_SECTIONS.test(sec.name.trim().toLowerCase())) return null;
   if (!ignoreMoments) {
     if (ctx.brassPlan?.leads.some((l) => bar >= l.startBar && bar <= l.endBar)) return null; // the brass owns the tune this bar
+    if (ctx.windPlan?.leads.some((l) => bar >= l.startBar && bar <= l.endBar)) return null; // the wind owns the tune this bar (Phase 9)
     const moment = ctx.moments?.find((m) => bar >= m.startBar && bar <= m.endBar);
     if (moment && moment.kind === 'soli' && moment.flavor === 'lead') return moment.carrierTrackId ?? null;
   }
@@ -436,6 +437,8 @@ export function stringLayerForBar(ctx: OrchestratorContext, bar: number, trackId
   if (ignoreMoments) return thresholded;
   // Phase 8: the brass lead owns the tune — every string voice drops to pad
   if (ctx.brassPlan?.leads.some((l) => bar >= l.startBar && bar <= l.endBar)) return 'pad';
+  // Phase 9: the wind lead owns the tune — the same contract (strings on pad)
+  if (ctx.windPlan?.leads.some((l) => bar >= l.startBar && bar <= l.endBar)) return 'pad';
   const moment = ctx.moments?.find((m) => bar >= m.startBar && bar <= m.endBar);
   if (!moment) return thresholded;
   if (moment.kind === 'tutti') return 'tutti';

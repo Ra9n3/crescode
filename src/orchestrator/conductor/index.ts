@@ -31,6 +31,7 @@ import { layerSlotsForBar } from './layers';
 import { textureForType } from './layers';
 import { planMoments, type MomentPlan } from './moments';
 import { planBrass, planBrassLeads, brassRng, type BrassPlan } from '../brass/plan';
+import { planWinds, planWindLeads, windRng, type WindPlan } from '../winds/plan';
 
 /** The shared layer vocabulary (ensemble-template.schema.json §budget). */
 export const LAYER_VOCABULARY = [
@@ -101,6 +102,10 @@ export interface ConductorPlan {
    *  realised by the brass renderer after the rules generator. In-memory
    *  only; never persisted. */
   brass: BrassPlan;
+  /** The take's winds plan (Phase 9) — planned here after the moments,
+   *  realised by the winds renderer after the brass renderer. In-memory
+   *  only; never persisted. */
+  winds: WindPlan;
 }
 
 export function octaveDoublingPolicyOf(template: EnsembleTemplate | null): ConductorPlan['octaveDoublingPolicy'] {
@@ -212,6 +217,12 @@ export function conduct(ctx: OrchestratorContext, arc?: ArcBar[], withMoments = 
     planBrassLeads(ctx.project, template, ctx.sections, arc ?? [], brassRng(ctx.project, ctx.project.orchestration?.take ?? 0))
       .flatMap((l) => { const out: number[] = []; for (let b = l.startBar; b <= l.endBar; b++) out.push(b); return out; }),
   );
+  // Phase 9: the wind lead is planned the same way — moments-independent,
+  // and the moments avoid its bars too (one lead at a time).
+  const windLeadBars = new Set(
+    planWindLeads(ctx.project, template, ctx.sections, arc ?? [], windRng(ctx.project, ctx.project.orchestration?.take ?? 0))
+      .flatMap((l) => { const out: number[] = []; for (let b = l.startBar; b <= l.endBar; b++) out.push(b); return out; }),
+  );
   const moments: MomentPlan[] = withMoments
     ? planMoments({
         project: ctx.project,
@@ -224,6 +235,7 @@ export function conduct(ctx: OrchestratorContext, arc?: ArcBar[], withMoments = 
         stringTracks: voices,
         take: ctx.project.orchestration?.take ?? 0,
         brassLeadBars,
+        windLeadBars,
       })
     : [];
   ctx.moments = moments;
@@ -240,6 +252,12 @@ export function conduct(ctx: OrchestratorContext, arc?: ArcBar[], withMoments = 
   const brass = planBrass(ctx);
   ctx.brassPlan = brass;
 
+  // Phase 9: the winds plan — its OWN salted stream, planned after the
+  // brass (the windowing reads the brass plan at render time). The strings'
+  // layer suppression on wind-lead bars reads ctx.windPlan.leads.
+  const winds = planWinds(ctx);
+  ctx.windPlan = winds;
+
   // Hard contract: the plan never exceeds maxLayers (trivially true with one
   // layer today — the guard is the contract later phases must keep), and no
   // doubling layer slots exist when the band's policy forbids them.
@@ -248,12 +266,14 @@ export function conduct(ctx: OrchestratorContext, arc?: ArcBar[], withMoments = 
   const annotated = new Set(voiceIds);
   // Phase 8: a brass role the brass plan actually annotates is no longer
   // "unannotated" — the plan carries its per-bar kinds (plan.brass).
+  // Phase 9: the same for the wind roles (plan.winds).
   const unannotatedRoles = [
     ...new Set(
       ctx.project.tracks
         .filter((t) => isInstrumentTrack(t) && !t.locked && !annotated.has(t.id) && isInBand(t.role, ctx.ensemble, template))
         .filter((t) => {
-          const planned = brass.bars.some((b) => b.voices[t.role as keyof typeof b.voices] !== undefined);
+          const planned = brass.bars.some((b) => b.voices[t.role as keyof typeof b.voices] !== undefined)
+            || winds.bars.some((b) => b.voices[t.role as keyof typeof b.voices] !== undefined);
           return !planned;
         })
         .map((t) => t.role),
@@ -270,6 +290,7 @@ export function conduct(ctx: OrchestratorContext, arc?: ArcBar[], withMoments = 
     unannotatedRoles,
     moments,
     brass,
+    winds,
   };
 }
 

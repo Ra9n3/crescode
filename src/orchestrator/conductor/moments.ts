@@ -34,6 +34,7 @@ import type { EnsembleTemplate } from '../../shared/schema/ensembleTemplate';
 import { chordAt } from '../lines/motif';
 import { voiceLead, type VoicingChord, type VoiceFix, type VoiceSpec, type VoicingOptions } from '../voicing/voiceLead';
 import { chordTones } from '../voicing/chordTones';
+import { WIND_SOLI_ORDER } from '../winds/profile';
 import { STRING_PROFILE_BY_ROLE } from '../profiles/strings';
 import type { BreathWindow } from './index';
 
@@ -109,6 +110,9 @@ export interface MomentPlanInput {
    *  moment may share a bar with the lead, whose placement is
    *  moments-independent (planned first at the conductor). */
   brassLeadBars?: ReadonlySet<number>;
+  /** Phase 9: the wind lead's bars (when the template rosters winds) — the
+   *  same contract (planned first at the conductor, moments-independent). */
+  windLeadBars?: ReadonlySet<number>;
 }
 
 const COUNT_WEIGHTS: Record<MomentKind, [number, number, number]> = {
@@ -147,6 +151,7 @@ export function planMoments(input: MomentPlanInput): MomentPlan[] {
   const rng = mulberry32((orchestrationSeedFor(project, project.orchestration) ^ Math.imul(hashString('moments'), 0x85ebca6b)) >>> 0);
   const noGo = forbiddenBars(arc, bars);
   for (const b of input.brassLeadBars ?? []) noGo.add(b);
+  for (const b of input.windLeadBars ?? []) noGo.add(b);
   const takenBars = new Set<number>();
   const out: MomentPlan[] = [];
 
@@ -277,7 +282,21 @@ export function planMoments(input: MomentPlanInput): MomentPlan[] {
             const hornTrack = hornInRoster
               ? project.tracks.find((t) => t.role === 'horns' && !t.locked && isInBand(t.role, project.ensemble ?? { templateId: null, overrides: {}, pins: {} }, template))
               : undefined;
-            const full = hornTrack ? [...pool, hornTrack] : pool;
+            // Phase 9: a wind soli is allowed — the first rostered of oboes,
+            // clarinets, flutes joins the pool the same way (the renderer
+            // hands the line to the winds module) — but NOT on a chorus-type
+            // candidate: a wind solo replacing a string solo at a chorus
+            // entry would thin the chorus (the addendum's chorus-mean rule),
+            // so chorus-entry solis keep the exact prior pool and draws.
+            // Templates without a wind roster keep them everywhere.
+            const windPart = !CHORUS_LIKE.test(typeKey)
+              ? WIND_SOLI_ORDER.find((p) => template.roster.some((r) => r.role === p))
+              : undefined;
+            const windTrack = windPart
+              ? project.tracks.find((t) => t.role === windPart && t.family === 'Woodwinds' && !t.locked && isInBand(t.role, project.ensemble ?? { templateId: null, overrides: {}, pins: {} }, template))
+              : undefined;
+            const withHorn = hornTrack ? [...pool, hornTrack] : pool;
+            const full = windTrack ? [...withHorn, windTrack] : withHorn;
             carrierTrackId = (full[Math.floor(rng() * full.length)] ?? stringTracks[0]).id;
           }
           return {

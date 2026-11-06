@@ -448,3 +448,205 @@ Compose All (the brass work happens inside `composeAllTracks`).
   would double a leading tone another voice holds (a line fix can pin a
   track to the line's LT note that only sounds at the span's tail, and the
   previous span's forced bass LT can tail in through the legato join).
+
+## 14. Woodwinds (Phase 9 — the winds module)
+
+Winds join the orchestrator as a family module beside the strings and brass
+(`src/orchestrator/winds/`), reusing the brass module's structure — profile,
+plan, render — and the conductor, the energy arc, the breaths, the voicing
+and the moments (nothing forked). The strings render first, brass second,
+the winds third (they read the brass plan and the rendered brass notes for
+the windowing below), the rules generator covers percussion/keys as before.
+Everything is defined in MIDI numbers, sounding pitch (stored sounding, the
+C3/C4 display trap noted in §13 applies).
+
+### 14.1 Roster and voices per track
+
+Wind rosters (from the shipped templates): symphony carries flutes, oboes,
+clarinets, bassoons; cinematic carries flutes, clarinets, bassoons (no
+oboes); hybridstudio carries flutes, clarinets (no oboes, no bassoons);
+chamber, sonata and vocalbacking carry none — for those three the winds
+module is silent and their output stays byte-identical (pinned against the
+Phase 9 baseline captured at the post-8.3 HEAD). Piccolo, alto flute,
+English horn, bass clarinet and contrabassoon are out of scope.
+
+Voices per track: ONE (§13.1's rule carries over). Harmony is spread ACROSS
+the four wind instruments — one voice each — never as block chords inside a
+track. The old rules generator's wind output (§14.3) is replaced for these
+roles exactly as the brass's was.
+
+### 14.2 Zones, ceilings, caps (MIDI, sounding; the config hard ranges win)
+
+| part | hard range (ranges.ts) | weak (soft only, rarely) | sweet spot | strained / loud only | phrase cap | rhythm floor |
+|---|---|---|---|---|---|---|
+| flutes | 60–96 | below 67 (breathy) | 72–88 | above 91 | min(6 s, 4 bars) | 16ths ok |
+| oboes | 58–93 | below 62 (reedy) | 64–84 | above 88 | min(8 s, 8 bars), 1-beat gap | 16ths ok (repeated: < 120 BPM) |
+| clarinets | 50–91 | 50–62 (dark, fine as colour) | 67–86 | above 88 | ~10 s | 16ths ok (repeated: < 120 BPM) |
+| bassoons | 34–75 | below 38 (rough) | 41–67 | above 70 (pinched) | ~8 s | eighths or slower |
+
+Every zone sits inside its config hard range. Outside the sweet spot a part
+plays only above the high energy fraction (§14.4) — the clarinet's dark
+50–62 is the one exception (colour is its job). Addendum hard rules: the
+oboe has NO soft dynamics below 63, the bassoon none below 41, the flute
+none above 84; a flute note in 60–66 never carries a lead, doubled or solo,
+over brass or dense strings; a clarinet note in 65–68 never carries a lead,
+counterline or pickup-run note. Repeated same-pitch notes: flutes may play
+16ths at any tempo; oboes and clarinets play repeated 16ths only below
+120 BPM (otherwise eighths); bassoons never faster than eighths; runs of
+DIFFERENT pitches at 16ths are fine for flutes, oboes and clarinets.
+Sustained pads merge consecutive same-pitch notes into one note. Each cap
+cut is followed by a rest of at least one beat (the breath mechanism).
+Flutter-tongue: flutes and clarinets may play it at the PEAK only, stored
+as the `tremolo` articulation, a rare weighted draw.
+
+### 14.3 Retirement of the old generator's wind rules
+
+The rules generator wrote winds through five labelled parts: Verse
+"Clarinet line" (counterMelody), Chorus "Flutes double Vln I" (melody,
+doubleOf violins1 +12), Chorus "Oboes" (counterMelody), Chorus "Bassoons
+bass" (bass) and Bridge "Oboe solo" (melody). The winds module owns the
+SOUND of those tracks from Phase 9 on: its notes replace the generator's at
+assembly, so none of the five rules is heard again on a wind template. The
+generator itself KEEPS writing them as a phantom input — its notes feed the
+brass renderer's and the pad governor's window math exactly as at HEAD,
+which is what keeps the brass (and every other family) byte-identical: the
+brass velocity caps depend on the window's role count, and removing the
+generator's winds would have raised them. The phantom never reaches the
+final score (the module claims every rostered wind track, empty or not),
+and the wind renderer filters the generator's stale excluded-role entries
+(brass, the basses desk) out of its own window math so a re-compose
+measures the same windows as a fresh one. Templates without a wind roster
+keep the generator byte-identically.
+
+### 14.4 Gating by section target energy (fractions of the clamp max, reported)
+
+- below 0.30 — no winds (the near-silence and thin bars stay thin);
+- LOW, ≥ 0.30 — one or two solo colour winds (clarinet, else oboe) over the strings' pad;
+- MID, ≥ 0.50 — the flute double joins (drawn per section, §14.5) and the bassoon joins on the bass;
+- HIGH, ≥ 0.72 — octave doubling on top and wind runs; the harmony spreads;
+- PEAK, ≥ 0.90 — the full wind choir.
+
+Chorus-aware relief (the Phase 8.3 idea, addendum dependency): inside a
+chorus-type section (the same /chorus|refrain|hook|drop/ match as brass)
+the upper winds — flutes, oboes, clarinets — sound from the LOW gate, so a
+chorus never thins with winds in; the bassoon sounds wherever the cellos
+play (no energy gate of its own there). The soft-dip bar before a chorus
+may still thin out. Every wind entrance keeps the brass rule (§13.3): a
+part's first bar after a silent bar follows a strictly lower-energy bar;
+bar 1 never enters. The prepared entrance rides the same CC generator.
+
+### 14.5 Roles by texture and energy
+
+- Lead double — a flute or oboe doubles the strings' lead an octave above
+  or in unison (a different colour), drawn PER SECTION (never constant, so
+  it never sounds like organ stops), octave doubling only where D2 allows;
+  winds never go above the lead except in this intended octave double.
+- Counterline and colour — the clarinet takes an inner line against the
+  lead, rhythmically different from it, by riding the strings' own
+  counterline line (which the Phase 7 imitation answers already replace on
+  their bars — the imitation mode is thereby extended to a wind at no cost).
+- Bass reinforcement — the bassoon doubles the cello line at unison or an
+  octave up (fitted into its sweet spot), or sits on a sustained root.
+  Below MIDI 48 its intervals with the cellos, basses and low brass are a
+  5th or wider (unison/octave allowed) — checked at write time against the
+  already-written low voices, the potential cello octave-up answer of a
+  sub-36 note included. The leading tone is never doubled across families
+  (the brass hard rule: wind pitches open where the LT crosses).
+- Harmony — at HIGH+ the rostered winds spread across distinct chord tones,
+  one voice per track, under the lead ceiling.
+- Ostinato support — staccato chord-tone figures INSIDE the ostinato's
+  rhythm cell (read from the strings' rendered ostinato onsets, never
+  against it); flutes and clarinets may use 16ths (the addendum's repeated-
+  note rules), bassoons eighths or slower.
+- Pickup run (rare) — a short diatonic scale run, flutes or clarinets
+  (oboes optional), in the last beat or two before a chorus or tutti
+  downbeat, ending on a chord tone AT the downbeat; drawn with low weight,
+  at most twice per piece, never on the near-silence or final bar.
+- Wind lead (rare, weighted) — a solo wind (oboe, clarinet or flute) takes
+  the tune for 2–4 bars in a BRIDGE INTERIOR (never a bridge's first or
+  last bar: every moment candidate class sits at a section opening, a
+  pre-chorus dip or the bar after a breath, so an interior lead displaces
+  nothing), the strings dropping to pad (the brass-lead mechanism);
+  planned BEFORE the moments on its own stream so it is moments-independent
+  and the moments avoid its bars (additively — on the surveyed takes this
+  never fires, so the moments stay byte-identical to HEAD); one lead at a
+  time — no bar carries a string lead, the brass lead and a wind lead
+  together; the lead ceiling moves with it (the motif is drawn in the wind's
+  soft window, the clarinet's lifted past the 65–68 ban).
+
+### 14.6 Interaction with brass (windowing)
+
+Winds never fight the brass and the brass part is never changed. When the
+brass plan carries a fanfare, stab or lead on a bar, the flutes cut OVER
+the brass — the octave above the lead (the strings' tune, or the brass
+lead's own line), with notes above MIDI 84 only when the bar's energy
+allows them (the high gate). The other winds play in the GAPS between the
+brass hits (their attacked notes never attack with the brass) or rest; a
+held note may simply continue under the hits.
+
+### 14.7 Moments (Phase 7 integration, extended to winds)
+
+- Tutti: the roster-wide hit now includes the winds (each wind part hits
+  the chord's root pitch class octave-fitted into its sweet spot, marcato,
+  the drawn shape, under the whole-roster velocity cap).
+- Unison: flutes and oboes join an octave above the unison line, bassoons
+  join with the cellos (the cellos' own spread offset), only where the
+  octaveDoubling policy allows, leading tone skipped; clarinets rest.
+- Soli: a wind soli is allowed — the first rostered of oboes, clarinets,
+  flutes joins the soli carrier pool where the template rosters winds (the
+  Phase 8 horn pattern) — but NOT on a chorus-type candidate, where a wind
+  solo replacing a string solo would thin the chorus (the addendum's
+  chorus-mean rule); the strings rest (tacet) under it and the winds module
+  renders the carrier line.
+- Divisi: NOT extended to winds (reported, not built).
+
+### 14.8 Determinism and isolation
+
+The winds planner draws on its OWN salted D8 stream (`hashString('winds')`
+over the (inputs, take) seed) — the texture draws, the moments stream, the
+brass stream and every existing draw are untouched. The pickup run targets
+only structural downbeats (chorus-type entries — where the tutti moments
+land anyway), so no wind draw depends on the moments. Wind notes are
+velocity-capped by the same governor bound the strings and brass use
+(their windows include the rendered brass and the wind candidates), and a
+final winds-only safety pass re-checks the windows after humanize/legato
+and lowers WINDS ALONE if anything moved. Locked and out-of-band wind
+tracks are never written. Output is a `sanitizeNotes` no-op and
+`validateProject` passes. One undo step per Compose All. Winds have no
+Falcon profile: they pass through the export untouched, exactly like the
+brass before Phase 8.1.
+
+### 14.9 Implementation notes (how §14 landed)
+
+- The phrase cap is a PART-level clock over sounding runs (any kind); the
+  moment gestures (tutti/unison/soli) neither consume nor obey it and the
+  wind lead and pickup run start fresh phrases — the ordinary line's clock
+  stays byte-identical with and without the moments (the draw-identity
+  pin). The bassoon's cello double rides the CELLO line's own phrasing
+  (the §13.9 precedent, cap-free), and the low-interval guard reads the
+  WRITTEN cello overlap only — at wind-render time the cello list is
+  pre-humanize/pre-legato and a segment's bar holds only notes that start
+  in it, so the guard never depends on a moment's replacement of a
+  neighbouring bar.
+- The brass windowing (§14.6) reads the brass plan's ORDINARY kinds and
+  lead spans (both moments-independent) — never the rendered moment kinds —
+  and the flute's cut-over emits STATE-FREE (the ordinary kind ghost-runs
+  first to advance the state, the cut-over notes consult neither the part
+  clock nor the voice-leading groups), so both runs stay byte-identical
+  outside moment bars.
+- The ostinato figures read the texture's drawn CELL GRID directly (not the
+  rendered strings' ostinato notes, which are tacet under a soli — reading
+  them would make the ghost state moment-dependent), entering after the
+  style's enterAfter like the strings' own cell.
+- The bassoon's double is STRUCTURAL in the brass windowing: it never
+  yields to the brass hits (the colour and counter voices do), so "the
+  bassoon sounds wherever the cellos play" survives the 8.3 chorus
+  fanfares. Moment bars are exempt from the presence contract (a soli
+  silences the whole wind choir by design).
+- The lead ceiling is the tune's lowest pitch in the bar (the wind lead's
+  own line when it carries the tune); the intended exceptions are the
+  octave lead-double and the flute cut-over.
+- A wind part the plan leaves silent is still CLAIMED (an empty note list
+  and no CC), so the generator's phantom notes can never leak through the
+  assembly's generator fallback; the assembly likewise never lets a
+  pre-compose CC lane survive on a wind track the fresh build left empty.

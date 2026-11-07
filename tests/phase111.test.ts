@@ -12,7 +12,7 @@ import { defaultRules } from '../src/config/generation-rules';
 import { inVocalZone } from '../src/orchestrator/profiles/strings';
 import {
   PIANO_COMP_MENU, PIANO_DRIVE_MENU, PIANO_VB_MENU,
-  PIANO_LH, VB_LOW, VB_SPARKLE,
+  KEYS_GATES, PIANO_LH, VB_LOW, VB_SPARKLE, VB_SPARKLE_TOP,
   type KeysPart, type PianoPattern,
 } from '../src/orchestrator/keys/profile';
 
@@ -57,22 +57,37 @@ for (const templateId of TEMPLATES) {
 /* ---------------- 1. the register targets --------------------------------- */
 
 describe('Phase 11.1: the piano register', () => {
-  it('comp and arpeggiator mean pitch is at least MIDI 66, and under 15% of those notes sit below 60', () => {
+  // Phase 11.4 UPDATE (named): the drive menu grew the deliberate
+  // low-register variants (driveLow, driveSplit — the chorus is no longer
+  // always high), so their bars leave the mean-pitch population (their
+  // register is asserted in phase114.test.ts); the sub-60 comp/arp notes
+  // are the deliberate low band (the left-hand singles, the vocalbacking
+  // lowFifth and the body-window rescues) inside 40-56 — no longer
+  // phrase-start-only — and the ≤ 15% share cap now applies to the
+  // templates WITHOUT the low-band menu (vocalbacking's low-band weight is
+  // a Phase 11.4 target, asserted there).
+  it('comp and arpeggiator mean pitch is at least MIDI 66 outside the low-register drive variants, every sub-60 note sits in the low window 40-56, and the sub-60 share stays under 15% on chamber and sonata', () => {
     for (const templateId of TEMPLATES) {
       const runs = SURVEY.filter((r) => r.templateId === templateId);
-      const template = resolveTemplate(runs[0].project.ensemble)!;
       const bt = barTicks(runs[0].project.timeSignature);
       const compArp: number[] = [];
       const lowNotes: { run: Run; n: Note; bar: number }[] = [];
       for (const run of runs) {
         const piano = run.project.tracks.find((t) => t.role === PIANO);
         if (!piano) continue;
+        const lowVariantBars = new Set<number>();
+        for (const e of run.planPatterns) {
+          if (e.pattern !== 'driveLow' && e.pattern !== 'driveSplit') continue;
+          const sec = run.project.sections.find((s) => s.startBar === e.startBar);
+          if (sec) for (let b = sec.startBar; b < sec.startBar + sec.lengthBars; b++) lowVariantBars.add(b);
+        }
         const kindByBar = new Map<number, string>();
         for (const b of run.result.plan.keys.bars) if (b.voices.piano) kindByBar.set(b.bar, b.voices.piano);
         for (const n of piano.notes) {
           const bar = Math.floor(n.startTick / bt) + 1;
           const kind = kindByBar.get(bar);
           if (kind !== 'comp' && kind !== 'arp') continue;
+          if (lowVariantBars.has(bar)) continue;
           compArp.push(n.pitch);
           if (n.pitch < 60) lowNotes.push({ run, n, bar });
         }
@@ -80,33 +95,44 @@ describe('Phase 11.1: the piano register', () => {
       if (!compArp.length) continue; // symphony: no piano in band
       const mean = compArp.reduce((a, p) => a + p, 0) / compArp.length;
       expect(mean, `${templateId}: comp/arp mean ${mean.toFixed(1)} below 66`).toBeGreaterThanOrEqual(66);
-      const below = lowNotes.length / compArp.length;
-      expect(below, `${templateId}: ${(100 * below).toFixed(1)}% of comp/arp notes below 60`).toBeLessThanOrEqual(0.15);
-      // the only sub-60 comp notes are the deliberate left-hand single
-      // root/fifth at phrase starts (40-55; vocalbacking's low pattern 40-56)
-      for (const { run, n, bar } of lowNotes) {
-        expect(n.pitch, `${templateId} t${run.take}: a sub-60 note outside the left-hand window`).toBeGreaterThanOrEqual(40);
-        expect(n.pitch, `${templateId} t${run.take}: a sub-60 note above the left-hand window`).toBeLessThanOrEqual(56);
-        const sec = run.project.sections.find((s) => bar >= s.startBar && bar < s.startBar + s.lengthBars);
-        const secStart = sec?.startBar ?? 1;
-        expect((bar - secStart) % 4 === 0 || bar === secStart, `${templateId} t${run.take}: a sub-60 note off the phrase starts`).toBe(true);
+      // the only sub-60 comp notes are the deliberate low band: the
+      // left-hand singles (40-55), vocalbacking's lowFifth and the
+      // body-window rescues (40-56)
+      for (const { run, n } of lowNotes) {
+        expect(n.pitch, `${templateId} t${run.take}: a sub-60 note below the low window`).toBeGreaterThanOrEqual(40);
+        expect(n.pitch, `${templateId} t${run.take}: a sub-60 note above the low window`).toBeLessThanOrEqual(56);
       }
-      void template;
+      if (templateId !== 'ensemble.vocalbacking') {
+        const below = lowNotes.length / compArp.length;
+        expect(below, `${templateId}: ${(100 * below).toFixed(1)}% of comp/arp notes below 60`).toBeLessThanOrEqual(0.15);
+      }
     }
   }, 900000);
 
-  it('the right-hand material sits in its window: 62-84 (chamber, sonata, the arpeggiator), 82-96 above the zone and 40-56 below it (vocalbacking)', () => {
+  it('the right-hand material sits in its window: 62-84 (chamber, sonata, the arpeggiator), the sparkle body 82-91 with the 92-96 top only on phrase-start chords at peak bars, and 40-56 below it (vocalbacking) — the Phase 11.4 sparkle cap', () => {
     for (const run of SURVEY) {
       const piano = run.project.tracks.find((t) => t.role === PIANO);
       if (!piano) continue;
       const isVB = run.templateId === 'ensemble.vocalbacking';
+      const bt = barTicks(run.project.timeSignature);
       for (const n of piano.notes) {
         if (isVB) {
           expect(
-            (n.pitch >= VB_SPARKLE[0] && n.pitch <= VB_SPARKLE[1]) || (n.pitch >= VB_LOW[0] && n.pitch <= VB_LOW[1]) || n.pitch < VB_LOW[0],
+            (n.pitch >= VB_SPARKLE[0] && n.pitch <= VB_SPARKLE_TOP) || (n.pitch >= VB_LOW[0] && n.pitch <= VB_LOW[1]) || n.pitch < VB_LOW[0],
             `${run.templateId} t${run.take}: piano note ${n.pitch} outside the sparkle and low windows`,
           ).toBe(true);
           expect(n.pitch >= 57 && n.pitch <= 81, `${run.templateId} t${run.take}: piano note ${n.pitch} inside the vocal zone`).toBe(false);
+          if (n.pitch > VB_SPARKLE[1]) {
+            // the 92-96 top: only the phrase-start chords of peak-level bars
+            const bar = Math.floor(n.startTick / bt) + 1;
+            const sec = run.project.sections.find((s) => bar >= s.startBar && bar < s.startBar + s.lengthBars);
+            const secStart = sec?.startBar ?? 1;
+            const norm = run.result.plan.keys.bars[bar - 1]?.norm ?? 0;
+            expect(
+              (bar === secStart || (bar - secStart) % 4 === 0) && norm >= KEYS_GATES.peak,
+              `${run.templateId} t${run.take}: a ${n.pitch} note outside the phrase-start peak allowance`,
+            ).toBe(true);
+          }
         } else {
           // the low events are the pulse, the tutti/final hits and the
           // left-hand singles — everything else stays in 62-84
@@ -120,15 +146,22 @@ describe('Phase 11.1: the piano register', () => {
     }
   }, 900000);
 
-  it('the left-hand singles are single notes (no chord) at phrase starts, inside 40-55', () => {
+  it('the left-hand singles are single notes (no chord) at phrase starts, inside 40-55 (the drive-variant bars excluded — their low notes are the 11.4 chorus register)', () => {
     for (const run of SURVEY) {
       if (run.templateId === 'ensemble.vocalbacking' || run.templateId === 'ensemble.cinematic' || run.templateId === 'ensemble.hybridstudio') continue;
       const piano = run.project.tracks.find((t) => t.role === PIANO);
       if (!piano) continue;
       const bt = barTicks(run.project.timeSignature);
+      const lowVariantBars = new Set<number>();
+      for (const e of run.planPatterns) {
+        if (e.pattern !== 'driveLow' && e.pattern !== 'driveSplit') continue;
+        const sec = run.project.sections.find((s) => s.startBar === e.startBar);
+        if (sec) for (let b = sec.startBar; b < sec.startBar + sec.lengthBars; b++) lowVariantBars.add(b);
+      }
       for (const n of piano.notes) {
         if (n.pitch >= PIANO_LH[0] && n.pitch <= PIANO_LH[1]) {
           const bar = Math.floor(n.startTick / bt) + 1;
+          if (lowVariantBars.has(bar)) continue;
           const sec = run.project.sections.find((s) => bar >= s.startBar && bar < s.startBar + s.lengthBars);
           const secStart = sec?.startBar ?? 1;
           expect(bar === secStart || (bar - secStart) % 4 === 0, `${run.templateId} t${run.take}: a left-hand note off a phrase start`).toBe(true);

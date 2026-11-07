@@ -65,13 +65,26 @@ export const PIANO_ARP_TEMPLATES = new Set(['ensemble.cinematic', 'ensemble.hybr
  *  the right-hand material is centred in 62-84 with the chord's top voice
  *  around 72-84; the deliberate left-hand single root/fifth sits in 40-55
  *  at phrase starts. vocalbacking keeps the vocal zone (57-81) free by
- *  writing ABOVE it (the sparkle register, capped about 96) or below it
- *  (the low root/fifth); it never falls back to octave-down for chords or
- *  arpeggios. The octave pulse keeps its low window — that is its job. */
+ *  writing ABOVE it (the sparkle register) or below it (the low root/fifth);
+ *  it never falls back to octave-down for chords or arpeggios. The octave
+ *  pulse keeps its low window — that is its job.
+ *  §16.2b (Phase 11.4) the sparkle band is capped: the BODY writes 82-91;
+ *  the 92-96 top is rare — only the phrase-start chords of peak-level bars
+ *  may write it (VB_SPARKLE_TOP). A chord tone whose pitch class has no
+ *  fold inside the 10-semitone body window rescues into the low band
+ *  (VB_LOW) — zone-free, and the per-strike voice count never drops. */
 export const PIANO_LH = [40, 55] as const;
 export const PIANO_SPARKLE_CAP = 96;
-export const VB_SPARKLE = [82, PIANO_SPARKLE_CAP] as const;
+export const VB_SPARKLE = [82, 91] as const;
+export const VB_SPARKLE_TOP = 96;
 export const VB_LOW = [40, 56] as const;
+/** §16.3a (Phase 11.4) the relief drive's low register (below the vocal
+ *  zone / below 57): the driveLow variant folds the whole chord in here.
+ *  The per-strike voice count stays the drive's own min(cap, #pcs) — the
+ *  safety pass fires on the tight templates' chorus windows, so any change
+ *  to the counts or the velocities would move its scale and shift the harp
+ *  off the golden103 bytes. Only the REGISTER changes. */
+export const DRIVE_LOW = VB_LOW;
 
 /** §16.3a (Phase 11.1) the piano's per-section pattern menu, drawn per
  *  section instance per take on its OWN salted stream (the existing draw
@@ -79,14 +92,27 @@ export const VB_LOW = [40, 56] as const;
  *  voicing variants (the drive's grid, note counts and velocities stay
  *  exactly the Phase 11 relief's — only the voicing changes, so the chorus
  *  energy is untouched); the other sections draw the comp menu (chamber,
- *  sonata) or the vocalbacking menu. Every section type has ≥ 4 outcomes. */
+ *  sonata) or the vocalbacking menu. Every section type has ≥ 4 outcomes.
+ *  §16.3a (Phase 11.4): the drive menu grows the LOW and SPLIT variants —
+ *  the chorus is no longer always high. The low variant folds the drive's
+ *  chord below the vocal zone (40-56); the split strikes a low root with
+ *  the remaining chord tones above the zone (82+), nothing in 57-81. Both
+ *  keep the drive's grid, per-strike voice count and velocities exactly
+ *  (the relief's energy contract). When the HARP owns a section's
+ *  arpeggiator the vocalbacking piano draws only its non-arpeggio patterns
+ *  (the one-arpeggiator rule — highArp is the menu's only figure). */
 export type PianoPattern =
   | 'block' | 'offbeat' | 'broken' | 'alberti' | 'dyad' | 'echo' | 'callfill'
   | 'sparkle' | 'lowFifth' | 'highArp' | 'dyadHigh'
-  | 'driveBlock' | 'driveInvert' | 'driveOpen' | 'driveTight';
+  | 'driveBlock' | 'driveInvert' | 'driveOpen' | 'driveTight' | 'driveLow' | 'driveSplit';
 export const PIANO_COMP_MENU: readonly PianoPattern[] = ['block', 'offbeat', 'broken', 'alberti', 'dyad', 'echo', 'callfill'];
 export const PIANO_VB_MENU: readonly PianoPattern[] = ['sparkle', 'lowFifth', 'highArp', 'dyadHigh'];
-export const PIANO_DRIVE_MENU: readonly PianoPattern[] = ['driveBlock', 'driveInvert', 'driveOpen', 'driveTight'];
+export const PIANO_DRIVE_MENU: readonly PianoPattern[] = ['driveBlock', 'driveInvert', 'driveOpen', 'driveTight', 'driveLow', 'driveSplit'];
+/** The vocalbacking patterns that are not arpeggio figures — the menu the
+ *  piano draws from where the harp owns the section's arpeggiator. */
+export const PIANO_VB_MENU_NON_ARP: readonly PianoPattern[] = ['sparkle', 'lowFifth', 'dyadHigh'];
+/** The relief drive's variants that write the deliberate low register. */
+export const DRIVE_LOW_VARIANTS: readonly PianoPattern[] = ['driveLow', 'driveSplit'];
 
 /** §16.2 weighted glissando draws (rare — at most 2 per piece, reported). */
 export const GLISS_WEIGHTS = { chorus: 0.35, tutti: 0.5, outro: 0.4 } as const;

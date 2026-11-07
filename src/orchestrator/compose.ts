@@ -41,7 +41,7 @@ import { EMPTY_WIND_PLAN } from './winds/plan';
 import { renderPercussion, governPercussionVelocities } from './percussion/render';
 import { PERC_PARTS } from './percussion/profile';
 import { EMPTY_PERC_PLAN } from './percussion/plan';
-import { renderKeys, governKeysVelocities } from './keys/render';
+import { renderKeys, governKeysVelocities, absorbPianoVelocities } from './keys/render';
 import { KEYS_PARTS } from './keys/profile';
 import { EMPTY_KEYS_PLAN } from './keys/plan';
 import type { OrchestratorContext } from './module';
@@ -451,11 +451,36 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     });
   }
 
+  // Phase 11.4: the piano's absorption pass — over the windows holding the
+  // NEW mid-energy comping, the PIANO ALONE absorbs any clamp excess (the
+  // other families' caps never saw a keys role there), so the final keys
+  // safety pass below keeps firing exactly where — and only where — it
+  // fired at Phase 11.1 and the harp's bytes stay on golden103. Runs over
+  // the FINAL other notes (post-humanize, post-legato) — the same state the
+  // safety pass reads.
+  const keysRosterRoleSet = new Set(keysRosterRoles);
+  const pianoAbsorbTrackId = Object.keys(keysNotes).find((id) => project.tracks.find((t) => t.id === id)?.role === 'piano');
+  const harpAbsorbTrackId = Object.keys(keysNotes).find((id) => project.tracks.find((t) => t.id === id)?.role === 'harp');
+  if (template && pianoAbsorbTrackId && keysResult.absorbWindows.length) {
+    absorbPianoVelocities({
+      template,
+      piano: { role: 'piano', notes: keysNotes[pianoAbsorbTrackId] },
+      harp: harpAbsorbTrackId ? { role: 'harp', notes: keysNotes[harpAbsorbTrackId] } : null,
+      otherNotes: [
+        ...ruleTracks.filter((t) => !stringsTrackIds.includes(t.id) && !brassRosterRoles.includes(t.role) && t.role !== BASSES_ROLE && !windRosterRoleSet.has(t.role) && !percRosterRoleSet.has(t.role) && !keysRosterRoleSet.has(t.role)).map((t) => ({ role: t.role, notes: t.notes })),
+        ...stringsTrackIds.map((id) => ({ role: project.tracks.find((t) => t.id === id)?.role ?? '', notes: notesByTrackId[id] ?? [] })),
+        ...brassOther,
+        ...windsOther,
+        ...percOther,
+      ],
+      windows: keysResult.absorbWindows,
+    });
+  }
+
   // Phase 11: the final keys safety pass — the same contract, KEYS ALONE.
   // The others exclude the wind, percussion and keys roles (the real ones
   // ride in via windsOther / percOther / the `keys` input; the generator's
   // phantoms are not in the final score). Expected no-op.
-  const keysRosterRoleSet = new Set(keysRosterRoles);
   if (template && keysOther.length) {
     governKeysVelocities({
       project: ctx.project,

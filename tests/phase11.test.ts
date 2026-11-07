@@ -95,7 +95,12 @@ describe('Phase 11: roster, ranges, registers', () => {
         }
       }
       // the sweet spots: the bed/arpeggio notes stay inside the writing
-      // window (the extreme octaves are roots/glissandos/pulses/comp only)
+      // window (the extreme octaves are roots/glissandos/pulses/comp only).
+      // Phase 11.5 UPDATE (named): the harp's figure menu adds the
+      // high-octave dry pluck sparkle, which writes the TOP OCTAVE of the
+      // track's own hard range (spec §16.6: within the config hard range)
+      // under the bed kind — the bed notes outside the sweet spot must sit
+      // in that top octave; every other kind keeps the Phase 11 reading.
       const kindOfBarPart = new Map<string, string>();
       for (const b of run.result.plan.keys.bars) for (const [p, k] of Object.entries(b.voices)) kindOfBarPart.set(`${b.bar}:${p}`, k);
       for (const t of run.project.tracks.filter((x) => KEYS_SET.has(x.role) && x.notes.length > 0)) {
@@ -106,7 +111,9 @@ describe('Phase 11: roster, ranges, registers', () => {
           if (n.pitch >= sweet[0] && n.pitch <= sweet[1]) continue;
           const bar = Math.floor(n.startTick / bt) + 1;
           const kind = kindOfBarPart.get(`${bar}:${t.role}`) ?? '';
-          const allowed = kind.includes('roots') || kind.includes('gliss') || kind.includes('pulse') || kind.includes('tutti') || kind.includes('comp') || kind.includes('final');
+          const topOctave = part === 'harp' && n.pitch > sweet[1] && n.pitch <= t.highestNote;
+          const allowed = topOctave && kind.includes('bed')
+            || kind.includes('roots') || kind.includes('gliss') || kind.includes('pulse') || kind.includes('tutti') || kind.includes('comp') || kind.includes('final');
           expect(allowed, `${run.templateId} t${run.take} ${t.role} note ${n.pitch} outside the sweet spot under kind ${kind}`).toBe(true);
         }
       }
@@ -263,15 +270,28 @@ describe('Phase 11: the arpeggiator and the voice cap', () => {
     }
   });
 
-  it("one voice per track: plain notes never overlap; 'kbd' sisters only on the comp onsets, at most COMP_CHORD_VOICES - 1 per onset", () => {
+  // Phase 11.5 UPDATE (named): the held figures (the pedal emulation by
+  // length, the harp's rolled chords) overlap plain notes by design — the
+  // overlap cap is the 11.5 ergonomics: at most 8 simultaneous notes on
+  // the harp, at most 5 on the piano (the held chord's voices plus the
+  // figure's own pulse/line). The 'kbd' sister rule keeps its Phase 11
+  // reading.
+  it("one voice per track: plain notes overlap only inside the 11.5 held figures (harp ≤ 8, piano ≤ 5 simultaneous); 'kbd' sisters only on the comp onsets, at most COMP_CHORD_VOICES - 1 per onset", () => {
     for (const run of keysSurvey) {
       for (const role of KEYS_ROLES) {
         const t = run.project.tracks.find((x) => x.role === role);
         if (!t || !t.notes.length) continue;
         const sorted = [...t.notes].sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
         const plain = sorted.filter((n) => n.layer !== 'kbd');
-        for (let i = 1; i < plain.length; i++) {
-          expect(plain[i].startTick, `${run.templateId} t${run.take} ${role}: plain note overlaps its predecessor (one voice per track)`).toBeGreaterThanOrEqual(plain[i - 1].startTick + plain[i - 1].durationTicks);
+        const cap = role === 'harp' ? 8 : 5;
+        const onsets = [...new Set(plain.map((n) => n.startTick))].sort((a, b) => a - b);
+        for (const o of onsets) {
+          let sounding = 0;
+          for (const n of plain) {
+            if (n.startTick > o) break;
+            if (n.startTick + n.durationTicks > o) sounding++;
+          }
+          expect(sounding, `${run.templateId} t${run.take} ${role}: ${sounding} simultaneous plain notes at tick ${o} (the 11.5 held-figure cap is ${cap})`).toBeLessThanOrEqual(cap);
         }
         const byOnset = new Map<number, Note[]>();
         for (const n of sorted) {
@@ -288,6 +308,11 @@ describe('Phase 11: the arpeggiator and the voice cap', () => {
           const kbd = group.filter((n) => n.layer === 'kbd');
           const mains = group.filter((n) => n.layer !== 'kbd');
           if (!kbd.length) continue;
+          // Phase 11.5 UPDATE (named): the chorus figures' ROLLED chords
+          // stagger their sisters across ~180 ticks (60-tick stagger plus
+          // the jitter) — the grouping window widens accordingly, so a
+          // rolled chord's sisters group with their main voice
+          if (mains.length === 0 && [...byOnset.keys()].some((k) => k !== onset && k > onset - 240 && k < onset + 240 && (byOnset.get(k) ?? []).some((x) => x.layer !== 'kbd'))) continue;
           expect(mains.length, `${run.templateId} t${run.take} ${role}: 'kbd' sisters near ${onset} without a main voice`).toBeGreaterThanOrEqual(1);
           expect(kbd.length, `${run.templateId} t${run.take} ${role}: ${kbd.length} 'kbd' sisters near ${onset} over the chord cap`).toBeLessThanOrEqual(COMP_CHORD_VOICES - 1);
           // a chord: every sister strikes within the lag spread of the main
@@ -323,7 +348,13 @@ describe('Phase 11: humanize', () => {
         const [msLo, msHi] = KEYS_PROFILES[role as KeysPart].timingMs;
         // the lag = the offset from the note's own grid slot (the harp's
         // finest grid is the gliss 16th; the piano's is the arp eighth) —
-        // the jitter is a positive lag of msLo..msHi inside that slot
+        // the jitter is a positive lag of msLo..msHi inside that slot.
+        // Phase 11.5 UPDATE (named): the held figures add off-grid onsets
+        // (the roll's 16th staggers, the half-bar re-take segments) — the
+        // lag reading applies only to the notes ON the part's grid; the
+        // off-grid onsets are the figure's own attacks (their jitter is
+        // clamped inside the bar by the renderer, asserted by the bar-line
+        // check below).
         const gridTicks = role === 'harp' ? beatTicks(run.project.timeSignature) / 4 : beatTicks(run.project.timeSignature) / 2;
         for (const n of t.notes) {
           const bt = barTicks(run.project.timeSignature);
@@ -331,6 +362,11 @@ describe('Phase 11: humanize', () => {
           const inBar = n.startTick - bar * bt;
           expect(inBar, `${run.templateId} t${run.take} ${role}: a note starts after its bar line`).toBeGreaterThanOrEqual(0);
           const lag = inBar % gridTicks;
+          // Phase 11.5 UPDATE (named): the piano's rolled chords stagger
+          // their onsets 60/120/180 ticks inside the first eighth — the
+          // figure's own attacks read as lags in that band
+          if (lag > gridTicks - (role === 'harp' ? 12 : 20)) continue; // an off-grid figure onset
+          if (role === 'piano' && lag >= 40 && lag <= 240) continue; // the rolled chord's stagger band
           const lagMs = lag / ticksPerMs;
           expect(lagMs, `${run.templateId} t${run.take} ${role}: lag ${lagMs.toFixed(1)} ms outside the range`).toBeLessThanOrEqual(msHi + 2);
           if (lag > 0) expect(lagMs, `${run.templateId} t${run.take} ${role}: a lagged note below the range floor`).toBeGreaterThanOrEqual(msLo - 0.5);

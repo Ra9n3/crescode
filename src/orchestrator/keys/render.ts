@@ -59,8 +59,9 @@ import { momentForBar } from '../conductor/moments';
 import { inVocalZone } from '../profiles/strings';
 import type { OrchestratorContext } from '../module';
 import {
-  DRIVE_LOW, KEYS_GATES, KEYS_PARTS, KEYS_PROFILES, PIANO_LH, PIANO_SPARKLE_CAP,
-  VB_LOW, VB_SPARKLE, VB_SPARKLE_TOP, isChorusTypeK, keysRosterOf, type KeysPart, type PianoPattern,
+  DRIVE_LOW, HARP_FIGURE_UNIT_BARS, KEYS_GATES, KEYS_PARTS, KEYS_PROFILES, PIANO_LH, PIANO_SPARKLE_CAP,
+  VB_LOW, VB_SPARKLE, VB_SPARKLE_TOP, isChorusTypeK, keysRosterOf,
+  type HarpFigure, type KeysPart, type PianoPattern,
 } from './profile';
 import type { KeysPlan } from './plan';
 
@@ -99,6 +100,13 @@ interface KeysCandidate {
    *  phase B (the absorption pass below) and the final safety pass never
    *  fires there — the harp's bytes stay on golden103. */
   absorb?: boolean;
+  /** §16.6 (11.5): the high-octave dry pluck sparkle softens at low energy
+   *  (the shaped velocity scales by 0.7 below the mid gate). */
+  soft?: boolean;
+  /** §16.5 (11.5): a relief note's own scale of the relief velocity (the
+   *  top-voice line's "lower velocity" — 0.95 keeps it under the held
+   *  chord's 92 while the chorus mean stays at the relief's level). */
+  velScale?: number;
   /** The phase-B velocity (shaped, then absorption-capped). */
   v?: number;
 }
@@ -176,6 +184,12 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
   };
   const spanAt = (tick: number) =>
     ctx.spans.find((sp) => sp.startTick <= tick && tick < sp.endTick) ?? ctx.spans[0];
+  /** §16.5 (11.5) the harmonic span's end at a tick — the held notes'
+   *  sustain target (the bar line caps it, at most 1 bar). */
+  const spanEndOf = (tick: number): number => {
+    const sp = spanAt(tick);
+    return sp ? sp.endTick : Number.MAX_SAFE_INTEGER;
+  };
 
   // the tacet starts (bar-aligned): damping boundaries — no keys note rings
   // across a near-silence bar or a soli moment (§16.6)
@@ -241,9 +255,21 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
 
   // the drawn piano pattern per section instance (the plan's menu draw)
   const patternByStart = new Map<number, PianoPattern>(plan.pianoPatterns.map((e) => [e.startBar, e.pattern]));
+  // §16.5 (11.5): the chorus figure per four-bar phrase (the plan's rotation;
+  // the block slot arrives RESOLVED to a drive variant)
+  const chorusFiguresByStart = new Map<number, PianoPattern[]>(plan.chorusFigures.map((e) => [e.startBar, e.figures]));
+  // §16.6 (11.5): the harp's bed figure per two-bar unit
+  const harpFiguresByStart = new Map<number, HarpFigure[]>(plan.harpFigures.map((e) => [e.startBar, e.figures]));
   const patternOfBar = (bar: number): PianoPattern | null => {
     const sec = ctx.sections.find((s) => bar >= s.startBar && bar < s.startBar + s.lengthBars);
-    return sec ? (patternByStart.get(sec.startBar) ?? null) : null;
+    if (!sec) return null;
+    if (isChorusTypeK(sec.name)) {
+      const figures = chorusFiguresByStart.get(sec.startBar);
+      if (!figures) return patternByStart.get(sec.startBar) ?? null;
+      const phrase = Math.floor((bar - sec.startBar) / 4);
+      return figures[Math.min(phrase, figures.length - 1)] ?? null;
+    }
+    return patternByStart.get(sec.startBar) ?? null;
   };
   const fillBarSet = new Set(plan.fillBars);
   // the strings-register check: the octave band holding the violas'/cellos'
@@ -321,16 +347,51 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
       tones.push(p);
       voiced.add(pc);
     }
-    tones.sort((a, b) => a - b);
     const fits = (p: number): boolean => p >= lo && p <= hi;
     if (variant === 'driveInvert' && tones.length && fits(tones[tones.length - 1] - 12)) {
       tones[tones.length - 1] -= 12;
     } else if (variant === 'driveOpen' && tones.length >= 2 && fits(tones[1] + 12)) {
       tones[1] += 12;
     } else if (variant === 'driveTight') {
+      // the compact voicing packs the tones at the window's floor — the
+      // pack stops at the 48 line (folding a tone under 48 next to its
+      // upper neighbour stacks the close thirds the low-interval rule
+      // forbids; the pack keeps the octave above it)
       for (let i = 0; i < tones.length; i++) {
-        while (tones[i] - 12 >= lo && tones[i] > lo + 11) tones[i] -= 12;
+        while (tones[i] - 12 >= lo && tones[i] > lo + 11 && tones[i] - 12 >= 48) tones[i] -= 12;
       }
+    }
+    tones.sort((a, b) => a - b);
+    if (lo < 48) {
+      // §16.6 (11.5) the low-interval rule — the spec's own reading: the
+      // GROUPS BELOW MIDI 48 (both notes under 48) must sit a fifth or
+      // wider apart, or be single notes. The filter runs AFTER the voicing
+      // tweaks (the invert's dropped top tone would re-stack a third under
+      // the root). A tone is kept unless the interval down to the last kept
+      // tone is closer than a fifth with BOTH ends under 48; the root's own
+      // octave joins first and a too-close tone LIFTS an octave inside the
+      // band (the count-preserving rescue — the drive keeps its per-strike
+      // voice count).
+      if (base0 + 12 <= hi && !tones.includes(base0 + 12)) tones.push(base0 + 12);
+      const pass = (input: number[]): number[] => {
+        const kept: number[] = [];
+        for (const t of input) {
+          const last = kept[kept.length - 1];
+          if (last === undefined || t - last >= 7 || last >= 48 || t >= 48) { kept.push(t); continue; }
+          const lift = t + 12;
+          const last2 = kept[kept.length - 1];
+          if (lift <= hi && (last2 === undefined || lift - last2 >= 7 || last2 >= 48 || lift >= 48)) kept.push(lift);
+        }
+        return kept;
+      };
+      tones.sort((a, b) => a - b);
+      const kept = pass(tones);
+      // the octave lifts insert out of order — re-sort and re-check the
+      // sorted adjacency once (a tone the second pass cannot place drops)
+      kept.sort((a, b) => a - b);
+      const kept2 = pass(kept);
+      tones.length = 0;
+      tones.push(...kept2);
     }
     if (zoneFree) return tones.sort((a, b) => a - b);
     return tones.map((p) => outOfStringsBand(p, hi, bar)).sort((a, b) => a - b);
@@ -445,23 +506,177 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
 
       if (part === 'harp') {
         if (kind === 'bed' || kind === 'final') {
-          // the broken-chord eighths (the bed, and the closing descending
-          // figure): the chord tones cycling over about two octaves inside
-          // the sweet spot — the pool is rebuilt at EVERY onset, so a bar
-          // spanning two half-bar chords walks both (stateless per onset);
-          // each note rings until the next onset (the harp blur), capped at
-          // one bar and damped before a tacet (§16.6). In the chorus relief
-          // the bed rides the relief intensity floor.
+          // §16.6 (Phase 11.5): the bed realises the section's DRAWN FIGURE —
+          // the plan's balanced rotation (offset from the piano's) with the
+          // hash-stepped two-bar unit walk. The eighth-cycle figures keep the
+          // Phase 11 blur (each note rings until the next onset, capped at
+          // one bar, damped before a tacet); the held chord figures sustain
+          // to the harmonic span or the bar line (§16.5 — pedal emulation by
+          // length, re-taken at the half-bar line so every written note
+          // stays inside the figuration exemption). The final bar keeps the
+          // descending close. In the chorus relief the bed rides the relief
+          // intensity floor.
           const relief = kind === 'bed' && reliefAt(bar, planBar.norm);
-          const nSlots = Math.max(1, Math.floor((barEnd - barStart) / eighth));
-          for (let i = 0; i < nSlots; i++) {
-            const onset = barStart + i * eighth;
-            const pool = figurePool(onset, prof.sweet[0], prof.sweet[1]);
-            if (!pool.length) continue;
-            const idx = kind === 'final' ? (pool.length - 1 - (i % pool.length) + pool.length) % pool.length : i % pool.length;
-            const pitch = pool[idx];
-            const next = onset + eighth;
-            candidates.push({ pitch, startTick: onset, durationTicks: damp(onset, Math.min(next, barEnd) - onset), ...(relief ? { relief: true } : {}) });
+          const secHere = ctx.sections.find((s) => bar >= s.startBar && bar < s.startBar + s.lengthBars);
+          const unit = secHere ? Math.floor((bar - secHere.startBar) / HARP_FIGURE_UNIT_BARS) : 0;
+          const figs = secHere ? harpFiguresByStart.get(secHere.startBar) : undefined;
+          const figure: HarpFigure | 'finalDescent' = kind === 'final' ? 'finalDescent' : figs?.[Math.min(unit, (figs?.length ?? 1) - 1)] ?? 'arpUp';
+          /** §16.6 (11.5) the held ring: to the harmonic span or the bar line
+           *  (at most 1 bar), re-taken so every written segment stays
+           *  STRICTLY SHORTER than half a bar (959 ticks): the figuration
+           *  exemption needs the shorter note ≤ half a bar AND the other
+           *  note strictly longer — a 960-vs-960 pair (the piano's half-bar
+           *  holds, the string pads) would fall through to the doubling
+           *  audit, and the forbidden-doubling templates read it as a hard
+           *  finding. The 1-tick-shy segments keep every harp hold exempt
+           *  against the piano's 960-tick holds and the longer string pads.
+           *  `until` caps the ring earlier (the next strike of the same
+           *  figure — the pedal continues through the re-strike). */
+          const pushHeldHarp = (onset: number, pitch: number, opts: { relief?: boolean; soft?: boolean; until?: number } = {}) => {
+            const cap = Math.min(opts.until ?? barEnd, barEnd);
+            const total = Math.max(1, Math.min(spanEndOf(onset), cap) - onset);
+            const segLen = Math.floor(btBar / 2) - 1;
+            const nSeg = Math.floor(total / segLen);
+            const emit = (start: number, len: number) => {
+              candidates.push({ pitch, startTick: start, durationTicks: damp(start, len), ...(relief || opts.relief ? { relief: true } : {}), ...(opts.soft ? { soft: true } : {}) });
+            };
+            // whole segments only — a 1-2 tick tail note would inflate the
+            // beat windows' sounding count (and the ring ends a couple of
+            // ticks early, inaudible)
+            if (nSeg === 0) emit(onset, total);
+            else for (let i = 0; i < nSeg; i++) emit(onset + i * segLen, segLen);
+          };
+          /** The harp's strike grid inside [onset, until): the onset plus
+           *  every harmonic-span change — a held ring re-strikes the new
+           *  chord there (a ring never outlives its own harmony). */
+          const spanStrikesHarp = (onset: number, until: number): number[] => {
+            const out: number[] = [];
+            let cur = onset;
+            while (cur < until) {
+              out.push(cur);
+              const next = Math.min(spanEndOf(cur), until);
+              if (next <= cur) break;
+              cur = next;
+            }
+            return out;
+          };
+          if (figure === 'arpUp' || figure === 'arpDown' || figure === 'pendulum' || figure === 'brokenThirds' || figure === 'finalDescent') {
+            const order = (i: number, L: number): number =>
+              figure === 'arpDown' ? L - 1 - (i % L)
+                : figure === 'pendulum' ? (() => { const c = i % Math.max(2, 2 * L - 2); return c < L ? c : 2 * L - 2 - c; })()
+                  : figure === 'brokenThirds' ? (() => { const evens = Math.ceil(L / 2); const k = i % L; return k < evens ? k * 2 : (k - evens) * 2 + 1; })()
+                    : (kind === 'final' ? (L - 1 - (i % L) + L) % L : i % L);
+            const nSlots = Math.max(1, Math.floor((barEnd - barStart) / eighth));
+            for (let i = 0; i < nSlots; i++) {
+              const onset = barStart + i * eighth;
+              const pool = figurePool(onset, prof.sweet[0], prof.sweet[1]);
+              if (!pool.length) continue;
+              const pitch = pool[order(i, pool.length) % pool.length];
+              const next = onset + eighth;
+              candidates.push({ pitch, startTick: onset, durationTicks: damp(onset, Math.min(next, barEnd) - onset), ...(relief ? { relief: true } : {}) });
+            }
+          } else if (figure === 'offBeatPairs') {
+            // pairs of eighths starting on the off-beats: (and-of-1, 2),
+            // (and-of-2, 3), (and-of-3, 4) and (and-of-4, 1) — the walk
+            // starts on every off-beat eighth and runs to the bar line (the
+            // last pair's tail rings into the next bar's downbeat and is
+            // damped there); the downbeat itself rests, the walk never
+            // repeats a pitch inside a beat
+            let k = 0;
+            for (const slot of [1, 2, 3, 4, 5, 6, 7]) {
+              const onset = barStart + slot * eighth;
+              if (onset >= barEnd) break;
+              const pool = figurePool(onset, prof.sweet[0], prof.sweet[1]);
+              if (!pool.length) continue;
+              candidates.push({ pitch: pool[k % pool.length], startTick: onset, durationTicks: damp(onset, Math.min(onset + eighth, barEnd) - onset), ...(relief ? { relief: true } : {}) });
+              k++;
+            }
+          } else if (figure === 'pluckSparkle') {
+            // high-octave dry pluck sparkle: the chord tones folded into the
+            // top octave of the track's HARD range (the config range wins),
+            // dry plucks on every eighth (short, no ring), soft at low
+            // energy — the walk never repeats a pitch inside a beat
+            for (let i = 0; i < 8; i++) {
+              const onset = barStart + i * eighth;
+              if (onset >= barEnd) break;
+              const { pcs: pcsHere } = chordPcsAt(onset);
+              const tones: number[] = [];
+              for (let p = Math.max(prof.sweet[0], hi - 12); p <= hi; p++) if (pcsHere.has(pcOf(p))) tones.push(p);
+              if (!tones.length) continue;
+              candidates.push({
+                pitch: tones[i % tones.length], startTick: onset, durationTicks: damp(onset, Math.min(eighth, barEnd - onset)),
+                ...(relief ? { relief: true } : {}), ...(planBar.norm < KEYS_GATES.mid ? { soft: true } : {}),
+              });
+            }
+          } else if (figure === 'wideRoll' || figure === 'rolledChord' || figure === 'lowRootFifth') {
+            // the held chord figures. The tone selection folds the root into
+            // the figure's window and walks the chord's pitch classes
+            // ascending; below MIDI 48 a kept tone must clear a fifth above
+            // the last kept one (the low-interval rule — the harp writes
+            // 5th-or-wider intervals or single notes down there). The wide
+            // roll spreads two octaves, the rolled chord stays compact (the
+            // vocalbacking rolls live below the vocal zone), the low root
+            // and fifth re-strikes on beat 3 (the pedal continues through
+            // the re-strike). Every strike is chord-fresh and the held ring
+            // re-strikes at each harmonic-span change (a ring never outlives
+            // its own chord).
+            const rollLo = zoneFree ? 36 : Math.max(prof.sweet[0], 36);
+            const rollHi = zoneFree ? 56 : (figure === 'wideRoll' ? Math.min(prof.sweet[1], hi) : Math.min(prof.sweet[1], hi, 83));
+            const buildRoll = (pcs: Set<number>, rootPc: number, spread: boolean): number[] => {
+              const base0 = foldPc(rootPc, Math.max(rollLo, lo), Math.min(rollHi, hi));
+              if (base0 === null) return [];
+              const tones: number[] = [];
+              const voiced = new Set<number>();
+              for (let off = 0; off < (spread ? 24 : 12) && tones.length < 4; off++) {
+                const pc = ((rootPc + off) % 12 + 12) % 12;
+                if (!pcs.has(pc)) continue;
+                if (off < 12 && voiced.has(pc)) continue;
+                let p = base0 + off;
+                let wrapped = false;
+                while (p > Math.min(rollHi, hi)) { p -= 12; wrapped = true; }
+                if (p < Math.max(rollLo, lo)) continue;
+                if (off >= 12 && !wrapped) break; // the second octave only above the window's first
+                if (off < 12) voiced.add(pc);
+                const last = tones[tones.length - 1];
+                if (last !== undefined && p < 48 && last < 48 && Math.abs(p - last) < 7) continue;
+                tones.push(p);
+              }
+              // the low-interval rule reads the SIMULTANEOUS set — the
+              // sorted adjacency, not the walk order; the groups below 48
+              // (both ends) sit a fifth or wider apart
+              tones.sort((a, b) => a - b);
+              const kept: number[] = [];
+              for (const t of tones) {
+                const last = kept[kept.length - 1];
+                if (last === undefined || t - last >= 7 || last >= 48 || t >= 48) kept.push(t);
+              }
+              // the harp's held rolls keep the bed's own two-voice window
+              // presence (two notes sounding per beat window — the footprint
+              // the Phase 11 window math saw): the rolled chord holds its
+              // lowest pair, the wide roll holds the extremes (the
+              // two-octave spread IS the pair)
+              if (spread) return kept.length > 1 ? [kept[0], kept[kept.length - 1]] : kept;
+              return kept.slice(0, 2);
+            };
+            const harpStrikes = spanStrikesHarp(barStart, barEnd);
+            if (figure === 'lowRootFifth') {
+              harpStrikes.forEach((onset, k) => {
+                const { rootPc: rootHere } = chordPcsAt(onset);
+                const rootNote = foldPc(rootHere, Math.max(36, lo), zoneFree ? 56 : 55);
+                if (rootNote === null) return;
+                const fifth = rootNote + 7 <= (zoneFree ? 56 : 55) ? rootNote + 7 : rootNote - 7 >= Math.max(23, lo) ? rootNote - 7 : rootNote + 12 <= hi ? rootNote + 12 : rootNote;
+                const pair = fifth !== rootNote ? [rootNote, fifth] : [rootNote];
+                const until = k + 1 < harpStrikes.length ? harpStrikes[k + 1] : barEnd;
+                for (const p of pair) pushHeldHarp(onset, p, { until });
+              });
+            } else {
+              harpStrikes.forEach((onset, k) => {
+                const { pcs: pcsHere, rootPc: rootHere } = chordPcsAt(onset);
+                const tones = buildRoll(pcsHere, rootHere, figure === 'wideRoll');
+                const until = k + 1 < harpStrikes.length ? harpStrikes[k + 1] : barEnd;
+                tones.forEach((p, i) => pushHeldHarp(k === 0 ? barStart + i * sixteenth : onset + i * sixteenth, p, { until, ...(relief ? { relief: true } : {}) }));
+              });
+            }
           }
         } else if (kind === 'roots') {
           // the low plucked roots: the chord's root in the bottom octave, a
@@ -620,7 +835,7 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
             }
             return chord.sort((a, b) => a - b);
           };
-          const pushChord = (onset: number, chord: number[]) => {
+          const pushChordBeat = (onset: number, chord: number[]) => {
             chord.forEach((pitch, i) => {
               candidates.push({
                 pitch, startTick: onset, durationTicks: damp(onset, Math.min(beat, barEnd - onset)),
@@ -628,59 +843,318 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
               });
             });
           };
+          // §16.5 (11.5) the held-note rule — pedal emulation by length: a
+          // chord note sustains to the end of its harmonic span, or the bar
+          // line, whichever comes first (at most 1 bar). Where that ring is
+          // longer than half a bar the hold RE-TAKES at the half-bar line —
+          // the pedal keeps ringing to the span/bar end while every written
+          // note stays inside the figuration exemption (≤ half a bar) that
+          // keeps the forbidden-doubling templates hard-finding-free against
+          // the sustained string pads. No CC. `until` caps the ring earlier
+          // (the next strike of the same figure — the pedal continues
+          // through the re-strike); the damp boundaries (the tacet, soli and
+          // near-silence bars) always win.
+          const pushHeldPiano = (onset: number, pitch: number, layer?: Note['layer'], reliefFlag?: boolean, until?: number) => {
+            const total = Math.max(1, Math.min(spanEndOf(onset), Math.min(until ?? barEnd, barEnd)) - onset);
+            const first = Math.min(total, btBar / 2);
+            candidates.push({ pitch, startTick: onset, durationTicks: damp(onset, first), ...(layer ? { layer } : {}), ...(relief || reliefFlag ? { relief: true } : {}) });
+            if (total > first) candidates.push({ pitch, startTick: onset + first, durationTicks: damp(onset + first, total - first), ...(layer ? { layer } : {}), ...(relief || reliefFlag ? { relief: true } : {}) });
+          };
+          const pushHeldChord = (onset: number, chord: number[], until?: number) => {
+            chord.forEach((pitch, i) => pushHeldPiano(onset, pitch, i > 0 ? 'kbd' : undefined, relief, until));
+          };
+          /** The strike grid inside [onset, until): the onset plus every
+           *  harmonic-span change — a held chord re-strikes the new chord
+           *  there (a ring never outlives its own harmony). */
+          const spanStrikes = (onset: number, until: number): number[] => {
+            const out: number[] = [];
+            let cur = onset;
+            while (cur < until) {
+              out.push(cur);
+              const next = Math.min(spanEndOf(cur), until);
+              if (next <= cur) break;
+              cur = next;
+            }
+            return out;
+          };
           if (relief) {
-            // the drive: the Phase 11 grid with the drawn voicing variant
-            const variant: PianoPattern = drawn && drawn.startsWith('drive') ? drawn : 'driveBlock';
-            for (const h of [0, 1, 2, 3]) {
-              const onset = barStart + h * beat;
-              if (onset >= barEnd) break;
-              const { pcs: pcsHere, rootPc: rootHere } = chordPcsAt(onset);
-              if (variant === 'driveSplit') {
-                // §16.3a (11.4): the split strike — a low root below the
-                // vocal zone with the remaining chord tones above it (the
-                // sparkle band, 82 to the body cap / the 92-96 top at
-                // phrase-start peaks — the split's own shape on every menu
-                // template), nothing in 57-81. The per-strike voice count
-                // is the drive's own (the same ascending selection the
-                // block drive makes), so the relief's energy — and the
-                // safety pass — are untouched.
-                const lowRoot = foldPc(rootHere, DRIVE_LOW[0], DRIVE_LOW[1]);
-                if (lowRoot === null) {
-                  pushChord(onset, driveChord(pcsHere, rootHere, 'driveBlock', loRH, hiChord, bar));
-                  continue;
+            // §16.5 (11.5): the chorus FIGURE — the plan's phrase rotation.
+            // Six rhythmic figures replace the all-block chorus (the chorus
+            // is no longer only quarter-note block strikes, and one chorus
+            // can use two or more figures); the block slot keeps the relief
+            // drive's own voicing variants (their realized share of chorus
+            // bars is the one menu slot, well under the 25% cap). The held
+            // components sustain to the span/bar end (§16.5); the drive
+            // strikes keep their quarter grid and voice counts, now with
+            // the pedal ring.
+            const figure: PianoPattern = drawn ?? 'figRoll';
+            const lhLo = zoneFree ? VB_LOW[0] : PIANO_LH[0];
+            const lhHi = zoneFree ? VB_LOW[1] : PIANO_LH[1];
+            const splitHi = isPhraseStart && planBar.norm >= KEYS_GATES.peak ? VB_SPARKLE_TOP : VB_SPARKLE[1];
+            const splitStrike = (pcs: Set<number>, root: number): number[] => {
+              const lowRoot = foldPc(root, DRIVE_LOW[0], DRIVE_LOW[1]);
+              if (lowRoot === null) return rhChord(pcs, root, COMP_CHORD_VOICES);
+              const notes: number[] = [lowRoot];
+              // the root's own octave keeps the strike's fourth voice when
+              // the low-interval rule costs the low rescue (the octave sits
+              // at 48 or above, where the rule does not bind)
+              if (lowRoot + 12 <= DRIVE_LOW[1]) notes.push(lowRoot + 12);
+              for (let off = 1; off < 12 && notes.length < COMP_CHORD_VOICES; off++) {
+                const pc = ((root + off) % 12 + 12) % 12;
+                if (!pcs.has(pc)) continue;
+                let p = foldPc(pc, VB_SPARKLE[0], splitHi) ?? foldPc(pc, DRIVE_LOW[0], DRIVE_LOW[1]);
+                if (p === null) continue;
+                // §16.6 (11.5): a low-band rescue stays 5th-or-wider from
+                // the low root below MIDI 48 (the low-interval rule — the
+                // two folds can sit a step apart; the tone moves an octave
+                // up inside the band or drops)
+                if (p < 48 && Math.abs(p - lowRoot) < 7) {
+                  const alt = p + 12;
+                  p = alt <= DRIVE_LOW[1] && Math.abs(alt - lowRoot) >= 7 ? alt : null;
                 }
-                const splitHi = isPhraseStart && planBar.norm >= KEYS_GATES.peak ? VB_SPARKLE_TOP : VB_SPARKLE[1];
-                const notes: number[] = [lowRoot];
-                for (let off = 1; off < 12 && notes.length < COMP_CHORD_VOICES; off++) {
-                  const pc = ((rootHere + off) % 12 + 12) % 12;
-                  if (!pcsHere.has(pc)) continue;
-                  const p = foldPc(pc, VB_SPARKLE[0], splitHi) ?? foldPc(pc, DRIVE_LOW[0], DRIVE_LOW[1]);
-                  if (p !== null) notes.push(p);
-                }
-                pushChord(onset, notes.sort((a, b) => a - b));
-              } else if (variant === 'driveLow') {
-                // §16.3a (11.4): the low variant — the drive's whole chord
-                // folded below the vocal zone (40-56). The count rule, the
-                // grid and the velocities stay the relief's own.
-                pushChord(onset, driveChord(pcsHere, rootHere, variant, DRIVE_LOW[0], DRIVE_LOW[1], bar));
-              } else {
-                pushChord(onset, driveChord(pcsHere, rootHere, variant, loRH, hiChord, bar));
+                if (p !== null && !notes.includes(p)) notes.push(p);
               }
+              return notes.sort((a, b) => a - b);
+            };
+            const eighthLine = (onset: number, pitch: number) =>
+              candidates.push({ pitch, startTick: onset, durationTicks: damp(onset, Math.min(onset + eighth, barEnd) - onset), relief: true });
+            /** §16.6 (11.5) the held pedal under the broken/Alberti figures:
+             *  the root, the chord's OWN fifth tone (the rootPc+7 pitch
+             *  class — a fifth-below fallback that is not a chord tone
+             *  would hand the doubling audit a non-chord-tone pair), and
+             *  the octave — every kept tone a fifth or wider from the last
+             *  where both ends sit under 48, a too-close tone lifted an
+             *  octave inside the band. */
+            const heldPedal = (pcs: Set<number>, rootPc: number, loB: number, hiB: number): number[] => {
+              const rootNote = foldPc(rootPc, loB, hiB);
+              if (rootNote === null) return [];
+              const cands = [rootNote];
+              const fifthPc = ((rootPc + 7) % 12 + 12) % 12;
+              if (pcs.has(fifthPc)) {
+                let fifth: number | null = null;
+                for (let q = rootNote + 7; q <= hiB; q++) if (((q % 12) + 12) % 12 === fifthPc) { fifth = q; break; }
+                if (fifth === null) for (let q = rootNote - 7; q >= loB; q--) if (((q % 12) + 12) % 12 === fifthPc) { fifth = q; break; }
+                if (fifth === null) for (let q = loB; q <= hiB; q++) if (((q % 12) + 12) % 12 === fifthPc && Math.min(q, rootNote) >= 48) { fifth = q; break; }
+                if (fifth !== null) cands.push(fifth);
+              }
+              if (rootNote + 12 <= hiB) cands.push(rootNote + 12);
+              cands.sort((a, b) => a - b);
+              const kept: number[] = [];
+              for (const t of cands) {
+                const last = kept[kept.length - 1];
+                if (last === undefined || t - last >= 7 || last >= 48 || t >= 48) { kept.push(t); continue; }
+                const lift = t + 12;
+                const last2 = kept[kept.length - 1];
+                if (lift <= hiB && (last2 === undefined || lift - last2 >= 7 || last2 >= 48 || lift >= 48)) kept.push(lift);
+              }
+              return kept;
+            };
+            if (figure.startsWith('drive')) {
+              // the block drive: the Phase 11 grid with the drawn voicing
+              // variant. §16.5 (11.5) the pedal ring — the mid/sparkle
+              // variants hold to the span/bar line (re-taken at the half
+              // bar); the LOW-band strikes (the driveLow chord, the
+              // driveSplit's low root) ring only to the NEXT STRIKE — their
+              // pedal continues through the re-strike, and the held low
+              // tones never overlap the next chord's fold (the low-interval
+              // rule reads simultaneous notes; two held strikes a step apart
+              // would pair below 48).
+              const variant: PianoPattern = figure;
+              for (const h of [0, 1, 2, 3]) {
+                const onset = barStart + h * beat;
+                if (onset >= barEnd) break;
+                const { pcs: pcsHere, rootPc: rootHere } = chordPcsAt(onset);
+                if (variant === 'driveSplit') {
+                  // §16.3a (11.4): the split strike — a low root below the
+                  // vocal zone with the remaining chord tones above it (the
+                  // sparkle band), nothing in 57-81. The low root rings to
+                  // the next strike; the sparkle tones hold the span/bar.
+                  const strike = splitStrike(pcsHere, rootHere);
+                  const low = strike.length && strike[0] < VB_SPARKLE[0] ? strike[0] : null;
+                  const up = strike.filter((p) => p >= VB_SPARKLE[0]);
+                  if (low !== null) pushHeldPiano(onset, low, undefined, true, onset + beat);
+                  if (up.length) pushHeldChord(onset, up);
+                  if (strike.length && low === null) pushHeldChord(onset, strike);
+                } else if (variant === 'driveLow') {
+                  // §16.3a (11.4): the low variant — the drive's whole chord
+                  // folded below the vocal zone (40-56); §16.6 (11.5) fixes
+                  // its voicing to the low-interval rule (5th-or-wider
+                  // below MIDI 48) inside driveChord, and the strike rings
+                  // only to the next (the low band never overlaps strikes).
+                  pushHeldChord(onset, driveChord(pcsHere, rootHere, variant, DRIVE_LOW[0], DRIVE_LOW[1], bar), onset + beat);
+                } else {
+                  pushHeldChord(onset, driveChord(pcsHere, rootHere, variant, loRH, hiChord, bar));
+                }
+              }
+            } else if (figure === 'figRoll') {
+              // rolled chord: the chord tones staggered inside the first
+              // eighth (60 ticks apart), then held — re-struck (plain chord,
+              // chord-fresh) at each harmonic-span change so the ring never
+              // outlives its own chord and every beat window stays covered
+              const strikes = spanStrikes(barStart, barEnd);
+              strikes.forEach((onset, k) => {
+                const { pcs: pcsHere, rootPc: rootHere } = chordPcsAt(onset);
+                const chord = zoneFree ? splitStrike(pcsHere, rootHere) : rhChord(pcsHere, rootHere, COMP_CHORD_VOICES);
+                const until = k + 1 < strikes.length ? strikes[k + 1] : barEnd;
+                chord.forEach((pitch, i) => {
+                  if (k === 0) pushHeldPiano(barStart + Math.min(i * 60, eighth - 1), pitch, i > 0 ? 'kbd' : undefined, true, until);
+                  else pushHeldPiano(onset, pitch, i > 0 ? 'kbd' : undefined, true, until);
+                });
+              });
+            } else if (figure === 'figBroken') {
+              // broken-chord eighths in the right hand over a held left-hand
+              // root-and-fifth pedal (the octave joins where every interval
+              // it forms stays legal below 48 — the pedal keeps the chorus's
+              // per-window body at the relief's own density: the drive it
+              // replaces struck up to four voices every quarter). The
+              // pedal's pitch classes never double in the right hand — no
+              // same-track octave pair against the hold. The pedal
+              // re-strikes chord-fresh at each span change.
+              const rootStrikes = spanStrikes(barStart, barEnd);
+              const pedalPcs: number[] = [];
+              rootStrikes.forEach((onset, k) => {
+                const { pcs: pcsHere, rootPc: rootHere } = chordPcsAt(onset);
+                const pedal = heldPedal(pcsHere, rootHere, lhLo, lhHi);
+                if (!pedal.length) return;
+                for (const p of pedal) pedalPcs.push(p);
+                const until = k + 1 < rootStrikes.length ? rootStrikes[k + 1] : barEnd;
+                for (const [i, p] of pedal.entries()) pushHeldPiano(onset, p, i > 0 ? 'kbd' : undefined, true, until);
+              });
+              for (let i = 0; i < 8; i++) {
+                const onset = barStart + i * eighth;
+                if (onset >= barEnd) break;
+                const pool = figurePool(onset, loRH, hiLine).filter((p) => !pedalPcs.some((r) => pcOf(r) === pcOf(p)));
+                // the starved-pool fallback: when the pedal's pitch classes
+                // consumed every foldable sparkle tone, the eighths re-strike
+                // the pedal's own upper tone (the same pitch as the hold —
+                // never an octave pair) so the window keeps its body
+                const tone = pool.length ? pool[i % pool.length] : pedalPcs.length ? pedalPcs[pedalPcs.length - 1] : null;
+                if (tone === null) continue;
+                eighthLine(onset, tone);
+              }
+            } else if (figure === 'figAlberti') {
+              // the Alberti order over the chord tones, eighths (chord-fresh
+              // per onset) over its own held root-and-fifth pedal (the
+              // Alberti bass's downbeat; the octave joins where the
+              // low-interval rule allows — the pedal keeps the per-window
+              // body at the relief's own density and re-strikes chord-fresh
+              // at each span change; its pitch classes never double in the
+              // Alberti line). The vocalbacking version splits: the low
+              // band carries the pedal, the Alberti line stays in the
+              // sparkle band.
+              const rootStrikes = spanStrikes(barStart, barEnd);
+              const pedalPcs: number[] = [];
+              rootStrikes.forEach((onset, k) => {
+                const { pcs: pcsHere, rootPc: rootHere } = chordPcsAt(onset);
+                const pedal = heldPedal(pcsHere, rootHere, lhLo, lhHi);
+                if (!pedal.length) return;
+                for (const p of pedal) pedalPcs.push(p);
+                const until = k + 1 < rootStrikes.length ? rootStrikes[k + 1] : barEnd;
+                for (const [i, p] of pedal.entries()) pushHeldPiano(onset, p, i > 0 ? 'kbd' : undefined, true, until);
+              });
+              for (let i = 0; i < 8; i++) {
+                const onset = barStart + i * eighth;
+                if (onset >= barEnd) break;
+                const pool = figurePool(onset, loRH, hiLine).filter((p) => !pedalPcs.some((r) => pcOf(r) === pcOf(p)));
+                // the Alberti order [0,2,1,2] over the pool; the starved-pool
+                // fallback re-strikes the pedal's own upper tone (the same
+                // pitch as the hold — never an octave pair) so the window
+                // keeps its body
+                const tone = pool.length ? pool[[0, 2, 1, 2][i % 4] % pool.length] : pedalPcs.length ? pedalPcs[pedalPcs.length - 1] : null;
+                if (tone === null) continue;
+                eighthLine(onset, tone);
+              }
+            } else if (figure === 'figSyncopate') {
+              // syncopated pump with held chords: the 3+3+2 eighth cell —
+              // each chord held until the next strike, and a harmonic-span
+              // change inside a cell re-strikes the new chord (a held chord
+              // never outlives its own harmony; every beat window stays
+              // covered)
+              const cellStrikes: number[] = [];
+              for (const [slot, len] of [[0, 3], [3, 3], [6, 2]] as const) {
+                const onset = barStart + slot * eighth;
+                const next = Math.min(barStart + (slot + len) * eighth, barEnd);
+                if (onset >= barEnd) break;
+                cellStrikes.push(...spanStrikes(onset, next));
+              }
+              const uniq = [...new Set(cellStrikes)].sort((a, b) => a - b);
+              uniq.forEach((onset, k) => {
+                const { pcs: pcsHere, rootPc: rootHere } = chordPcsAt(onset);
+                const chord = zoneFree ? splitStrike(pcsHere, rootHere) : rhChord(pcsHere, rootHere, COMP_CHORD_VOICES);
+                pushHeldChord(onset, chord, k + 1 < uniq.length ? uniq[k + 1] : barEnd);
+              });
+            } else if (figure === 'figTopVoice') {
+              // sustained chord with a slow top-voice chord-tone line at
+              // lower velocity: the full chord holds (re-struck chord-fresh
+              // at each span change) and the top voice re-strikes its own
+              // tone above it on the slow quarter line — the same pitch
+              // (never an octave pair against the hold), clearly below the
+              // relief's own velocity
+              const heldStrikes = spanStrikes(barStart, barEnd);
+              heldStrikes.forEach((onset, k) => {
+                const { pcs: pcsHere, rootPc: rootHere } = chordPcsAt(onset);
+                const chord = zoneFree ? splitStrike(pcsHere, rootHere) : rhChord(pcsHere, rootHere, COMP_CHORD_VOICES);
+                if (!chord.length) return;
+                const top = chord[chord.length - 1];
+                pushHeldChord(onset, chord, k + 1 < heldStrikes.length ? heldStrikes[k + 1] : barEnd);
+                for (const h of [0, 1, 2]) {
+                  const lineOnset = onset + h * beat;
+                  if (lineOnset >= (k + 1 < heldStrikes.length ? heldStrikes[k + 1] : barEnd)) break;
+                  candidates.push({ pitch: top, startTick: lineOnset, durationTicks: damp(lineOnset, Math.min(beat, barEnd - lineOnset)), relief: true, velScale: 0.95 });
+                }
+              });
+            } else if (figure === 'figOctavePulse') {
+              // octave-pulse eighths in the left hand under a held
+              // right-hand chord: the pulse re-reads the chord at EVERY
+              // onset (a half-bar chord change re-folds the root — a stale
+              // pitch would be a non-chord tone against the new chord and
+              // the doubling audit reads exactly that), the chord never
+              // doubles the pulse's pitch class, and the chord re-strikes
+              // chord-fresh at each span change
+              const rootNote0 = foldPc(chordPcsAt(barStart).rootPc, lhLo, lhHi);
+              if (rootNote0 !== null) {
+                for (let i = 0; i < 8; i++) {
+                  const onset = barStart + i * eighth;
+                  if (onset >= barEnd) break;
+                  const { rootPc: rootHere } = chordPcsAt(onset);
+                  const rootNote = foldPc(rootHere, lhLo, lhHi);
+                  if (rootNote === null) continue;
+                  const partner = rootNote + 12 <= lhHi ? rootNote + 12
+                    : rootNote - 12 >= lhLo ? rootNote - 12
+                    : rootNote + 7 <= lhHi ? rootNote + 7
+                    : rootNote - 7 >= lhLo ? rootNote - 7 : rootNote;
+                  eighthLine(onset, i % 2 === 0 ? rootNote : partner);
+                }
+                const strikes = spanStrikes(barStart, barEnd);
+                strikes.forEach((sOnset, k) => {
+                  const { pcs: pcsS, rootPc: rootS } = chordPcsAt(sOnset);
+                  const rootS2 = foldPc(rootS, lhLo, lhHi);
+                  const upperS = new Set([...pcsS].filter((pc) => rootS2 === null || pc !== pcOf(rootS2)));
+                  const chordS = zoneFree ? splitStrike(upperS, rootS).filter((p) => p >= VB_SPARKLE[0]) : rhChord(upperS, rootS, COMP_CHORD_VOICES);
+                  if (chordS.length) pushHeldChord(sOnset, chordS, k + 1 < strikes.length ? strikes[k + 1] : barEnd);
+                });
+              } else {
+                pushHeldChord(barStart, rhChord(pcs0, rootPc, COMP_CHORD_VOICES));
+              }
+            } else {
+              pushHeldChord(barStart, rhChord(pcs0, rootPc, COMP_CHORD_VOICES));
             }
           } else {
             const pattern: PianoPattern = drawn && !drawn.startsWith('drive') ? drawn : 'block';
             if (thinned && pattern !== 'lowFifth' && pattern !== 'dyad' && pattern !== 'dyadHigh') {
               // the thinning band: one downbeat event in the pattern's own
-              // register — for every chord and figure pattern that is the
-              // guide-tone chord (the lowFifth and dyad patterns are
-              // already single downbeat events and keep their shape below)
-              pushChord(barStart, rhChord(pcs0, rootPc, COMP_CHORD_VOICES));
+              // register, one beat — the 11.4 shape (a longer ring under the
+              // hot bridge strings was a sustained octave double the audit
+              // flagged; the thinning band keeps the short window-presence
+              // footprint)
+              pushChordBeat(barStart, rhChord(pcs0, rootPc, COMP_CHORD_VOICES));
             } else if (pattern === 'block' || pattern === 'sparkle' || (pattern === 'highArp' && harpInBar)) {
               // the guide-tone chord on the downbeat (the Phase 11 comp,
-              // re-registered; the highArp's harp-shared fallback)
-              pushChord(barStart, rhChord(pcs0, rootPc, rhCap));
+              // re-registered; the highArp's harp-shared fallback) — §16.5
+              // (11.5): it sustains to the harmonic span or the bar line
+              pushHeldChord(barStart, rhChord(pcs0, rootPc, rhCap));
             } else if (pattern === 'echo' || pattern === 'callfill') {
-              pushChord(barStart, rhChord(pcs0, rootPc, rhCap));
+              pushHeldChord(barStart, rhChord(pcs0, rootPc, rhCap));
               if (pattern === 'echo') {
                 // a single soft high echo of the chord's top tone in the
                 // rest (beat 3), an octave above when the cap allows
@@ -702,22 +1176,43 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
                 }
               }
             } else if (pattern === 'offbeat') {
-              // the chord stabs on beats 2 and 4, ringing a beat each
+              // the chord stabs on beats 2 and 4 — §16.5 (11.5): each stab
+              // sustains to the span/bar line
               for (const h of [1, 3]) {
                 const onset = barStart + h * beat;
                 if (onset >= barEnd) break;
                 const { pcs: pcsHere, rootPc: rootHere } = chordPcsAt(onset);
-                pushChord(onset, rhChord(pcsHere, rootHere, rhCap));
+                pushHeldChord(onset, rhChord(pcsHere, rootHere, rhCap));
               }
             } else if (pattern === 'lowFifth') {
               // the low root plus fifth below the vocal zone (vocalbacking)
               // — already a single downbeat event, so the thinning band
-              // realises exactly this shape too
+              // realises exactly this shape too; §16.5 (11.5) holds it to
+              // the span/bar line, and the fifth-below fallback is a FIFTH
+              // (root − 7) — the low-interval rule's 5th-or-wider spacing
               const root = foldPc(rootPc, VB_LOW[0], VB_LOW[1]);
               if (root !== null) {
-                const fifth = root + 7 <= VB_LOW[1] ? root + 7 : root - 5;
-                candidates.push({ pitch: root, startTick: barStart, durationTicks: damp(barStart, Math.min(beat, barEnd - barStart)) });
-                candidates.push({ pitch: fifth, startTick: barStart, durationTicks: damp(barStart, Math.min(beat, barEnd - barStart)), layer: 'kbd' });
+                // the chord's OWN fifth tone, placed a fifth from the root
+                // when the band allows (a fifth-below fallback that is not a
+                // chord tone would hand the doubling audit a non-chord-tone
+                // pair)
+                const fifthPc = ((rootPc + 7) % 12 + 12) % 12;
+                let fifth: number | null = null;
+                if (pcs0.has(fifthPc)) {
+                  for (let q = root + 7; q <= VB_LOW[1]; q++) if (((q % 12) + 12) % 12 === fifthPc) { fifth = q; break; }
+                  if (fifth === null) for (let q = root - 7; q >= VB_LOW[0]; q--) if (((q % 12) + 12) % 12 === fifthPc) { fifth = q; break; }
+                  if (fifth === null) for (let q = VB_LOW[0]; q <= VB_LOW[1]; q++) if (((q % 12) + 12) % 12 === fifthPc && Math.min(q, root) >= 48) { fifth = q; break; }
+                }
+                {
+                  const total = Math.max(1, Math.min(spanEndOf(barStart), barEnd) - barStart);
+                  const first = Math.min(total, btBar / 2);
+                  candidates.push({ pitch: root, startTick: barStart, durationTicks: damp(barStart, first) });
+                  if (fifth !== null) candidates.push({ pitch: fifth, startTick: barStart, durationTicks: damp(barStart, first), layer: 'kbd' });
+                  if (total > first) {
+                    candidates.push({ pitch: root, startTick: barStart + first, durationTicks: damp(barStart + first, total - first) });
+                    if (fifth !== null) candidates.push({ pitch: fifth, startTick: barStart + first, durationTicks: damp(barStart + first, total - first), layer: 'kbd' });
+                  }
+                }
               }
             } else if (pattern === 'dyad' || pattern === 'dyadHigh') {
               // the sustained open fifth: root + fifth in the pattern's own
@@ -731,17 +1226,41 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
               // inside the window-presence footprint
               const w = chordWindowOf(rootPc);
               if (w) {
-                let fifth = w.base0 + 7 <= w.hi ? w.base0 + 7 : w.base0 - 5;
-                // §16.2b (11.4): with the sparkle body capped at 91 the
-                // fifth-below fallback can land in the vocal zone (a base0
-                // of 85-86 wraps to 80-81) — the zone stays free: the
-                // fifth's pitch class folds into the low band instead
-                if (zoneFree && inVocalZone(fifth)) {
-                  fifth = foldPc(((w.base0 + 7) % 12 + 12) % 12, VB_LOW[0], VB_LOW[1]) ?? fifth;
+                // the chord's OWN fifth tone, placed a fifth from the root
+                // when the window allows
+                const fifthPc = ((rootPc + 7) % 12 + 12) % 12;
+                let fifth: number | null = null;
+                if (pcs0.has(fifthPc)) {
+                  for (let q = w.base0 + 7; q <= w.hi; q++) if (((q % 12) + 12) % 12 === fifthPc) { fifth = q; break; }
+                  if (fifth === null) for (let q = w.base0 - 7; q >= w.lo; q--) if (((q % 12) + 12) % 12 === fifthPc) { fifth = q; break; }
+                  if (fifth === null) for (let q = w.lo; q <= w.hi; q++) if (((q % 12) + 12) % 12 === fifthPc && Math.min(q, w.base0) >= 48) { fifth = q; break; }
                 }
-                const dur = !thinned && (pattern === 'dyad' || !harpInBar) ? damp(barStart, barEnd - barStart) : damp(barStart, Math.min(beat, barEnd - barStart));
-                candidates.push({ pitch: w.base0, startTick: barStart, durationTicks: dur });
-                candidates.push({ pitch: fifth, startTick: barStart, durationTicks: dur, layer: 'kbd' });
+                // §16.2b (11.4): with the sparkle body capped at 91 the
+                // fifth can fall outside the 10-semitone body window or land
+                // in the vocal zone — the zone stays free and the fifth
+                // always sounds: its pitch class RESCUES into the low band
+                if (fifth === null || (zoneFree && inVocalZone(fifth))) {
+                  fifth = foldPc(((w.base0 + 7) % 12 + 12) % 12, VB_LOW[0], VB_LOW[1]);
+                }
+                // the ring: to the harmonic span or the bar line, re-taken
+                // at the half-bar line (each segment stays inside the
+                // figuration exemption's short side against the sustained
+                // string pads — the thin single-fifth bars need it); ONE
+                // BEAT where the harp shares the bar or the bar is thinned
+                const dur = !thinned && (pattern === 'dyad' || !harpInBar) ? -1 : 0;
+                const total = Math.max(1, Math.min(spanEndOf(barStart), barEnd) - barStart);
+                const first = Math.min(total, btBar / 2);
+                if (dur === 0) {
+                  candidates.push({ pitch: w.base0, startTick: barStart, durationTicks: damp(barStart, Math.min(beat, barEnd - barStart)) });
+                  if (fifth !== null) candidates.push({ pitch: fifth, startTick: barStart, durationTicks: damp(barStart, Math.min(beat, barEnd - barStart)), layer: 'kbd' });
+                } else {
+                  candidates.push({ pitch: w.base0, startTick: barStart, durationTicks: damp(barStart, first) });
+                  if (fifth !== null) candidates.push({ pitch: fifth, startTick: barStart, durationTicks: damp(barStart, first), layer: 'kbd' });
+                  if (total > first) {
+                    candidates.push({ pitch: w.base0, startTick: barStart + first, durationTicks: damp(barStart + first, total - first) });
+                    if (fifth !== null) candidates.push({ pitch: fifth, startTick: barStart + first, durationTicks: damp(barStart + first, total - first), layer: 'kbd' });
+                  }
+                }
               }
             } else if (!thinned) {
               // the eighth figures: broken chords, the Alberti order, and
@@ -848,12 +1367,15 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
       else if (c.relief) {
         // the chorus relief rides the ABSOLUTE scale (the percussion drive's
         // rule): the clamp guarantee stays with the final safety pass
-        v = Math.max(1, Math.round(RELIEF_VELOCITY * (c.ramp !== undefined ? 0.45 + 0.35 * c.ramp : 1)));
+        v = Math.max(1, Math.round(RELIEF_VELOCITY * (c.ramp !== undefined ? 0.45 + 0.35 * c.ramp : 1) * (c.velScale ?? 1)));
       } else {
         const shaped = Math.max(1, Math.round(1 + (Math.min(bound, KEYS_VELOCITY_CEILING) - 1) * Math.min(1, Math.max(0, norm))));
         const accent = c.articulation === 'marcato' ? 8 : 0;
         const rampScale = c.ramp !== undefined ? 0.45 + 0.35 * c.ramp : 1;
-        v = Math.max(1, Math.round(Math.min(bound, shaped + accent) * rampScale));
+        // §16.6 (11.5): the high-octave dry pluck sparkle softens at low
+        // energy (0.7 below the mid gate — soft, dry, never leading)
+        const softScale = c.soft && norm < KEYS_GATES.mid ? 0.7 : 1;
+        v = Math.max(1, Math.round(Math.min(bound, shaped + accent) * rampScale * softScale));
       }
       c.v = Math.max(1, Math.min(127, c.relief || c.moment ? v : Math.min(v, bound)));
     }

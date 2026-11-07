@@ -66,7 +66,12 @@ describe('Phase 11.1: the piano register', () => {
   // phrase-start-only — and the ≤ 15% share cap now applies to the
   // templates WITHOUT the low-band menu (vocalbacking's low-band weight is
   // a Phase 11.4 target, asserted there).
-  it('comp and arpeggiator mean pitch is at least MIDI 66 outside the low-register drive variants, every sub-60 note sits in the low window 40-56, and the sub-60 share stays under 15% on chamber and sonata', () => {
+  // Phase 11.5 UPDATE (named): the chorus relief now realises the 11.5
+  // figures, whose held left-hand pedals live in 40-55 on every chorus bar
+  // (the figures' own register, asserted in phase115.test.ts) — the
+  // mean-pitch population reads the comp/arp notes OUTSIDE the chorus
+  // sections (the drive-variant exclusion folds into it).
+  it('comp and arpeggiator mean pitch is at least MIDI 66 outside the low-register drive variants and the 11.5 chorus figure bars, every sub-60 note sits in the low window 40-56, and the sub-60 share stays under 15% on chamber and sonata', () => {
     for (const templateId of TEMPLATES) {
       const runs = SURVEY.filter((r) => r.templateId === templateId);
       const bt = barTicks(runs[0].project.timeSignature);
@@ -80,6 +85,11 @@ describe('Phase 11.1: the piano register', () => {
           if (e.pattern !== 'driveLow' && e.pattern !== 'driveSplit') continue;
           const sec = run.project.sections.find((s) => s.startBar === e.startBar);
           if (sec) for (let b = sec.startBar; b < sec.startBar + sec.lengthBars; b++) lowVariantBars.add(b);
+        }
+        for (const sec of run.project.sections) {
+          if (/chorus|refrain|hook|drop/.test(sec.name.trim().toLowerCase())) {
+            for (let b = sec.startBar; b < sec.startBar + sec.lengthBars; b++) lowVariantBars.add(b);
+          }
         }
         const kindByBar = new Map<number, string>();
         for (const b of run.result.plan.keys.bars) if (b.voices.piano) kindByBar.set(b.bar, b.voices.piano);
@@ -146,22 +156,32 @@ describe('Phase 11.1: the piano register', () => {
     }
   }, 900000);
 
-  it('the left-hand singles are single notes (no chord) at phrase starts, inside 40-55 (the drive-variant bars excluded — their low notes are the 11.4 chorus register)', () => {
+  // Phase 11.5 UPDATE (named): the chorus relief now realises the 11.5
+  // figures, whose held left-hand pedals (the broken and Alberti basses)
+  // sit in 40-55 on EVERY chorus bar, not only phrase starts — the
+  // assertion exempts the chorus sections (their low register is the
+  // 11.5 figure register, asserted in phase115.test.ts).
+  it('the left-hand singles are single notes (no chord) at phrase starts, inside 40-55 (the drive-variant bars and the 11.5 chorus figure bars excluded)', () => {
     for (const run of SURVEY) {
       if (run.templateId === 'ensemble.vocalbacking' || run.templateId === 'ensemble.cinematic' || run.templateId === 'ensemble.hybridstudio') continue;
       const piano = run.project.tracks.find((t) => t.role === PIANO);
       if (!piano) continue;
       const bt = barTicks(run.project.timeSignature);
-      const lowVariantBars = new Set<number>();
+      const exemptBars = new Set<number>();
       for (const e of run.planPatterns) {
         if (e.pattern !== 'driveLow' && e.pattern !== 'driveSplit') continue;
         const sec = run.project.sections.find((s) => s.startBar === e.startBar);
-        if (sec) for (let b = sec.startBar; b < sec.startBar + sec.lengthBars; b++) lowVariantBars.add(b);
+        if (sec) for (let b = sec.startBar; b < sec.startBar + sec.lengthBars; b++) exemptBars.add(b);
+      }
+      for (const sec of run.project.sections) {
+        if (/chorus|refrain|hook|drop/.test(sec.name.trim().toLowerCase())) {
+          for (let b = sec.startBar; b < sec.startBar + sec.lengthBars; b++) exemptBars.add(b);
+        }
       }
       for (const n of piano.notes) {
         if (n.pitch >= PIANO_LH[0] && n.pitch <= PIANO_LH[1]) {
           const bar = Math.floor(n.startTick / bt) + 1;
-          if (lowVariantBars.has(bar)) continue;
+          if (exemptBars.has(bar)) continue;
           const sec = run.project.sections.find((s) => bar >= s.startBar && bar < s.startBar + s.lengthBars);
           const secStart = sec?.startBar ?? 1;
           expect(bar === secStart || (bar - secStart) % 4 === 0, `${run.templateId} t${run.take}: a left-hand note off a phrase start`).toBe(true);
@@ -196,14 +216,22 @@ describe('Phase 11.1: the pattern menu', () => {
     for (const p of [...PIANO_COMP_MENU, ...PIANO_VB_MENU]) expect((PIANO_DRIVE_MENU as readonly string[]).includes(p)).toBe(false);
   });
 
-  it('chorus-type sections draw only the relief drive variants; the other sections draw their template menu', () => {
+  // Phase 11.5 UPDATE (named): the chorus sections draw the 11.5 FIGURE
+  // menu per phrase (the six rhythmic figures + the block slots resolving
+  // to the relief drive's own variants) — the pianoPatterns entry holds
+  // the phrase-0 draw; the assertion reads the plan's chorusFigures.
+  it('chorus-type sections draw only the 11.5 chorus figure menu (the six figures + the drive variants); the other sections draw their template menu', () => {
     for (const run of SURVEY) {
       if (!run.planPatterns.length) continue;
+      const chorusMenu = [...PIANO_DRIVE_MENU, 'figRoll', 'figBroken', 'figAlberti', 'figSyncopate', 'figTopVoice', 'figOctavePulse'];
       for (const e of run.planPatterns) {
         const sec = run.project.sections.find((s) => s.startBar === e.startBar);
         const isChorus = /chorus|refrain|hook|drop/.test((sec?.name ?? '').trim().toLowerCase());
         if (isChorus) {
-          expect(PIANO_DRIVE_MENU.includes(e.pattern), `${run.templateId} ${run.fixture} t${run.take}: chorus drew ${e.pattern}`).toBe(true);
+          const figs = run.result.plan.keys.chorusFigures.find((f) => f.startBar === e.startBar)?.figures ?? [e.pattern];
+          for (const fig of figs) {
+            expect(chorusMenu.includes(fig), `${run.templateId} ${run.fixture} t${run.take}: chorus phrase drew ${fig}`).toBe(true);
+          }
         } else {
           const menu = run.templateId === 'ensemble.vocalbacking' ? PIANO_VB_MENU : PIANO_COMP_MENU;
           expect(menu.includes(e.pattern), `${run.templateId} ${run.fixture} t${run.take}: section at b${e.startBar} drew ${e.pattern}`).toBe(true);
@@ -246,16 +274,21 @@ describe('Phase 11.1: the byte pins', () => {
   const stableTrack = (t: { id: string; role: string; notes: unknown; cc?: unknown }) =>
     JSON.stringify({ id: t.id, role: t.role, notes: t.notes, ...(t.cc !== undefined ? { cc: t.cc } : {}) });
 
-  it('every non-piano track in all six templates is byte-identical to golden103 (the post-11.1 capture — the harp included)', () => {
+  // Phase 11.5 UPDATE (named): the harp joined the keys family's own
+  // movement (the 11.5 figure menu), so the pin reads the NON-KEYS tracks.
+  // The harp's golden103 pin is superseded by phase115.test.ts's golden104
+  // pin and the golden105 diff.
+  it('every non-keys track in all six templates is byte-identical to golden103 (the post-11.1 capture — the 11.5 update: the piano and the harp filtered)', () => {
+    const KEYS_ROLES = new Set(['piano', 'harp']);
     for (const templateId of TEMPLATES) {
       const short = templateId.replace('ensemble.', '');
       for (const [fixTag, fixture] of [['three', 'three'], ['dorian', 'dorian']] as const) {
         for (let take = 1; take <= 10; take++) {
           const golden = JSON.parse(readFileSync(new URL(`./golden103/${short}-${fixTag}-t${take}.json`, import.meta.url), 'utf8'));
           const run = composeTake(fixture, templateId, take, false);
-          const goldenTracks = golden.tracks.filter((t: { role: string }) => t.role !== PIANO);
-          const current = run.project.tracks.filter((t) => t.role !== PIANO);
-          expect(current.map(stableTrack), `${short} ${fixTag} t${take} moved a non-piano track against golden103`)
+          const goldenTracks = golden.tracks.filter((t: { role: string }) => !KEYS_ROLES.has(t.role));
+          const current = run.project.tracks.filter((t) => !KEYS_ROLES.has(t.role));
+          expect(current.map(stableTrack), `${short} ${fixTag} t${take} moved a non-keys track against golden103`)
             .toEqual(goldenTracks.map(stableTrack));
         }
       }

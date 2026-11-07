@@ -56,10 +56,11 @@ import { sectionTypeNameAtBar, textureForType } from '../conductor/layers';
 import type { OrchestratorContext } from '../module';
 import { momentForBar } from '../conductor/moments';
 import {
-  GLISS_MAX_PER_PIECE, GLISS_WEIGHTS, KEYS_GATES, KEYS_PARTS, OUTRO_LIKE, PIANO_ARP_TEMPLATES,
-  PIANO_COMP_MENU, PIANO_DRIVE_MENU, PIANO_VB_MENU, PIANO_VB_MENU_NON_ARP,
+  GLISS_MAX_PER_PIECE, GLISS_WEIGHTS, HARP_FIGURE_MENU, HARP_FIGURE_UNIT_BARS, HARP_ROTATION_OFFSET,
+  KEYS_GATES, KEYS_PARTS, OUTRO_LIKE, PIANO_ARP_TEMPLATES,
+  PIANO_BLOCK_FAMILY, PIANO_CHORUS_FIGURE_MENU, PIANO_COMP_MENU, PIANO_DRIVE_MENU, PIANO_VB_MENU, PIANO_VB_MENU_NON_ARP,
   isChorusTypeK, keysRosterOf, levelForNormK,
-  type KeysLevel, type KeysPart, type PianoPattern,
+  type HarpFigure, type KeysLevel, type KeysPart, type PianoPattern,
 } from './profile';
 
 export type HarpVoiceKind = 'bed' | 'roots' | 'gliss' | 'final';
@@ -100,11 +101,22 @@ export interface KeysPlan {
   /** §16.3a: the conductor's fillGating answer bars reserved for the piano
    *  (the callfill pattern answers in them; the renderer reads the set). */
   fillBars: number[];
+  /** §16.5 (Phase 11.5): the chorus piano figure per four-bar phrase per
+   *  chorus section instance (the rotation draws the figure menu per chorus
+   *  occurrence and changes it at phrase level; the block slot is resolved
+   *  to a concrete drive variant here — the renderer never sees the
+   *  sentinel). startBar-keyed like pianoPatterns. */
+  chorusFigures: { startBar: number; figures: PianoPattern[] }[];
+  /** §16.6 (Phase 11.5): the harp's bed figure per two-bar unit per section
+   *  instance — the balanced rotation offset from the piano's, plus the
+   *  hash-stepped unit walk (a chorus of at least 4 bars always holds at
+   *  least 2 figures, and never the verse's figure). */
+  harpFigures: { startBar: number; figures: HarpFigure[] }[];
   reports: string[];
 }
 
 /** The empty plan (no template / no keys roster): the module is silent. */
-export const EMPTY_KEYS_PLAN: KeysPlan = { bars: [], glisses: [], arpeggiatorByType: {}, pianoPatterns: [], fillBars: [], reports: [] };
+export const EMPTY_KEYS_PLAN: KeysPlan = { bars: [], glisses: [], arpeggiatorByType: {}, pianoPatterns: [], fillBars: [], chorusFigures: [], harpFigures: [], reports: [] };
 
 /** The salted keys stream (D8): a pure function of (inputs, take). */
 export const keysRng = (project: Project, take: number): (() => number) =>
@@ -176,10 +188,17 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[]): Key
   // top share at ceil(instances/menu) ≤ 40% for every menu of ≥ 3
   // outcomes, and every pattern realises. The harp-owned vocalbacking
   // sections rotate the non-arpeggio subset (the one-arpeggiator rule).
-  // chorus-type sections rotate the relief drive's voicing variants; the
-  // others rotate the comp menu (chamber, sonata) or the vocalbacking
-  // menu. cinematic and hybridstudio keep the arpeggiator — no menu.
+  // §16.5 (Phase 11.5): chorus-type sections rotate the FIGURE menu per
+  // four-bar phrase (the chorus is no longer only quarter-note block
+  // strikes; the block slot resolves to the relief drive's own six
+  // voicing variants rotating across the phrases that drew it — the
+  // block share of chorus bars is 1 of the 7 menu slots, well under the
+  // 25% cap). The other sections keep the 11.4 rotation (the comp menu
+  // on chamber and sonata, the vocalbacking menu — or its non-arpeggio
+  // subset under a harp-owned arpeggiator). cinematic and hybridstudio
+  // keep the arpeggiator — no menu.
   const pianoPatterns: { startBar: number; pattern: PianoPattern }[] = [];
+  const chorusFigures: { startBar: number; figures: PianoPattern[] }[] = [];
   const pianoMenuable = roster.includes('piano') && !PIANO_ARP_TEMPLATES.has(template.id);
   const isVB = template.id === 'ensemble.vocalbacking';
   const menuFor = (sec: { name: string }): readonly PianoPattern[] => {
@@ -189,12 +208,74 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[]): Key
   };
   if (pianoMenuable) {
     const ordered = [...sections].sort((a, b) => a.startBar - b.startBar);
+    let chorusOrdinal = 0;
+    let blockOrdinal = 0;
     ordered.forEach((sec, ordinal) => {
+      if (isChorusTypeK(sec.name)) {
+        // the chorus figure rotation: the base indexes the chorus
+        // occurrence, each phrase steps one menu slot — consecutive
+        // phrases never repeat, so a multi-phrase chorus always uses two
+        // or more figures. The BLOCK slots number their own draws (the
+        // k-th block over the take) and resolve to the relief drive's
+        // variants in that order — every variant realises within six
+        // block draws regardless of where the slots land.
+        const figures: PianoPattern[] = [];
+        const nPhrases = Math.max(1, Math.ceil(sec.lengthBars / 4));
+        for (let p = 0; p < nPhrases; p++) {
+          const drawn = PIANO_CHORUS_FIGURE_MENU[(take - 1 + chorusOrdinal + p) % PIANO_CHORUS_FIGURE_MENU.length];
+          figures.push(drawn === PIANO_BLOCK_FAMILY ? PIANO_DRIVE_MENU[((take - 1) * 2 + blockOrdinal++) % PIANO_DRIVE_MENU.length] : drawn);
+        }
+        chorusFigures.push({ startBar: sec.startBar, figures });
+        pianoPatterns.push({ startBar: sec.startBar, pattern: figures[0] });
+        chorusOrdinal++;
+        return;
+      }
       const menu = menuFor(sec);
       const pattern = menu[(take - 1 + ordinal) % menu.length];
       pianoPatterns.push({ startBar: sec.startBar, pattern });
     });
     reports.push(`keys piano menu (take ${take}, balanced rotation): ${pianoPatterns.map((e) => `b${e.startBar}=${e.pattern}`).join(', ')}`);
+    reports.push(`keys chorus figures (take ${take}, phrase rotation): ${chorusFigures.map((e) => `b${e.startBar}=[${e.figures.join(' | ')}]`).join(', ') || 'none'}`);
+  }
+
+  // §16.6 (Phase 11.5): the harp's bed figure per section instance — a
+  // DETERMINISTIC BALANCED ROTATION over the type's GLOBAL unit stream,
+  // offset from the piano's rotation by a constant: the type's units across
+  // the whole take are numbered (take-1)*U + i (U = the type's unit count,
+  // fixed per fixture), the figure = menu[globalIndex + phase] where the
+  // PHASE is the phrase-level hash variation — a salted hash of
+  // (take, type) shifts the menu per take and per section type, so the same
+  // global index draws a different figure on a different type or take while
+  // the rotation keeps every figure's share at ceil(units/9) — the ≤ 40%
+  // cap holds even for the 7-unit realized samples (a hot bridge where the
+  // harp tacets half the units). Consecutive units never repeat (the global
+  // index steps by 1), so a chorus of at least 4 bars (two units) always
+  // uses at least 2 figures, and a chorus never repeats the verse's figure
+  // (the phase and the index both differ).
+  const harpFigures: { startBar: number; figures: HarpFigure[] }[] = [];
+  if (roster.includes('harp')) {
+    const byType = new Map<string, { startBar: number; lengthBars: number }[]>();
+    for (const sec of [...sections].sort((a, b) => a.startBar - b.startBar)) {
+      const key = sec.name.trim().toLowerCase() || '*';
+      if (!byType.has(key)) byType.set(key, []);
+      byType.get(key)!.push({ startBar: sec.startBar, lengthBars: sec.lengthBars });
+    }
+    for (const [type, secs] of byType) {
+      const totalUnits = secs.reduce((a, s) => a + Math.max(1, Math.ceil(s.lengthBars / HARP_FIGURE_UNIT_BARS)), 0);
+      const phase = hashString(`harp-fig:${take}:${type}`) % HARP_FIGURE_MENU.length;
+      let idx = 0;
+      for (const s of secs) {
+        const nUnits = Math.max(1, Math.ceil(s.lengthBars / HARP_FIGURE_UNIT_BARS));
+        const figures: HarpFigure[] = [];
+        for (let u = 0; u < nUnits; u++) {
+          const globalIdx = (take - 1) * totalUnits + idx + HARP_ROTATION_OFFSET;
+          figures.push(HARP_FIGURE_MENU[(globalIdx + phase) % HARP_FIGURE_MENU.length]);
+          idx++;
+        }
+        harpFigures.push({ startBar: s.startBar, figures });
+      }
+    }
+    reports.push(`keys harp figures (take ${take}, global rotation +${HARP_ROTATION_OFFSET}, hash phase per type): ${harpFigures.map((e) => `b${e.startBar}=[${e.figures.join(' | ')}]`).join(', ')}`);
   }
   const bars = projectBars(project);
   const btBar = barTicks(project.timeSignature);
@@ -357,7 +438,7 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[]): Key
   const firstBars = barPlans.filter((b) => Object.values(b.voices).some((v) => v !== undefined)).slice(0, 12);
   if (firstBars.length) reports.push(`keys plan (take ${take}): ${firstBars.map((b) => `b${b.bar}[${b.level}] ${Object.entries(b.voices).map(([p, k]) => `${p}:${k}`).join(' | ')}`).join(' | ')}`);
 
-  return { bars: barPlans, glisses, arpeggiatorByType, pianoPatterns, fillBars: fillBarList, reports };
+  return { bars: barPlans, glisses, arpeggiatorByType, pianoPatterns, fillBars: fillBarList, chorusFigures, harpFigures, reports };
 }
 
 /** The keys tracks the plan annotates (the conductor's honesty list). */

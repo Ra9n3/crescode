@@ -80,10 +80,11 @@ export const VB_SPARKLE_TOP = 96;
 export const VB_LOW = [40, 56] as const;
 /** §16.3a (Phase 11.4) the relief drive's low register (below the vocal
  *  zone / below 57): the driveLow variant folds the whole chord in here.
- *  The per-strike voice count stays the drive's own min(cap, #pcs) — the
- *  safety pass fires on the tight templates' chorus windows, so any change
- *  to the counts or the velocities would move its scale and shift the harp
- *  off the golden103 bytes. Only the REGISTER changes. */
+ *  §16.6 (Phase 11.5) the low-interval rule (the groups below MIDI 48 sit
+ *  a fifth or wider apart) re-voices the ascending selection — the root's
+ *  octave joins the candidate set and a too-close tone lifts an octave —
+ *  so every root keeps three or four voices inside 40-56. Only the
+ *  REGISTER changes; the grid and the velocities stay the relief's own. */
 export const DRIVE_LOW = VB_LOW;
 
 /** §16.3a (Phase 11.1) the piano's per-section pattern menu, drawn per
@@ -104,15 +105,59 @@ export const DRIVE_LOW = VB_LOW;
 export type PianoPattern =
   | 'block' | 'offbeat' | 'broken' | 'alberti' | 'dyad' | 'echo' | 'callfill'
   | 'sparkle' | 'lowFifth' | 'highArp' | 'dyadHigh'
-  | 'driveBlock' | 'driveInvert' | 'driveOpen' | 'driveTight' | 'driveLow' | 'driveSplit';
+  | 'driveBlock' | 'driveInvert' | 'driveOpen' | 'driveTight' | 'driveLow' | 'driveSplit'
+  | 'figRoll' | 'figBroken' | 'figAlberti' | 'figSyncopate' | 'figTopVoice' | 'figOctavePulse'
+  | 'blockFamily';
 export const PIANO_COMP_MENU: readonly PianoPattern[] = ['block', 'offbeat', 'broken', 'alberti', 'dyad', 'echo', 'callfill'];
 export const PIANO_VB_MENU: readonly PianoPattern[] = ['sparkle', 'lowFifth', 'highArp', 'dyadHigh'];
 export const PIANO_DRIVE_MENU: readonly PianoPattern[] = ['driveBlock', 'driveInvert', 'driveOpen', 'driveTight', 'driveLow', 'driveSplit'];
+/** §16.5 (Phase 11.5) the chorus figure menu — the chorus is no longer only
+ *  quarter-note block strikes. Six rhythmic figures, drawn per chorus
+ *  occurrence and changing at phrase level (one chorus can use two or more),
+ *  plus TWO block slots at indices 4 and 7 (never adjacent, so consecutive
+ *  phrases never both draw blocks): when a block slot draws, the relief
+ *  drive's own six voicing variants rotate across the phrases that drew it
+ *  — the existing block-drive variants stay in the menu at exactly the 25%
+ *  cap of chorus bars, and their windows are the ones the chorus-mean floor
+ *  is measured against. The block slot is resolved to a concrete drive
+ *  variant by the plan before the renderer ever sees it. */
+export const PIANO_CHORUS_FIGURE_MENU: readonly PianoPattern[] = [
+  'figRoll', 'figBroken', 'figAlberti', 'figSyncopate', 'blockFamily', 'figTopVoice', 'figOctavePulse', 'blockFamily',
+];
+/** The sentinel the chorus rotation draws for the block-drive slot (the plan
+ *  resolves it to one of PIANO_DRIVE_MENU; the renderer never sees it). */
+export const PIANO_BLOCK_FAMILY = 'blockFamily' as const;
 /** The vocalbacking patterns that are not arpeggio figures — the menu the
  *  piano draws from where the harp owns the section's arpeggiator. */
 export const PIANO_VB_MENU_NON_ARP: readonly PianoPattern[] = ['sparkle', 'lowFifth', 'dyadHigh'];
 /** The relief drive's variants that write the deliberate low register. */
 export const DRIVE_LOW_VARIANTS: readonly PianoPattern[] = ['driveLow', 'driveSplit'];
+
+/** §16.6 (Phase 11.5) the harp's per-section figure menu. The bed realises
+ *  the drawn figure instead of the single broken-chord-eighths shape; the
+ *  rotation is the piano's balanced rotation OFFSET by a constant, and the
+ *  figure varies per two-bar unit inside a section by a salted hash step
+ *  (a chorus of at least 4 bars therefore always uses at least 2 figures,
+ *  and a chorus never repeats the verse's figure). The existing roles stay:
+ *  the low roots, the rare glissandos, the high-energy thinning, the tacet
+ *  at peak and the final-bar descent are kinds of their own, not menu
+ *  outcomes. */
+export type HarpFigure =
+  | 'arpUp' | 'arpDown' | 'pendulum' | 'brokenThirds' | 'wideRoll'
+  | 'offBeatPairs' | 'pluckSparkle' | 'rolledChord' | 'lowRootFifth';
+export const HARP_FIGURE_MENU: readonly HarpFigure[] = [
+  'arpUp', 'arpDown', 'pendulum', 'brokenThirds', 'wideRoll',
+  'offBeatPairs', 'pluckSparkle', 'rolledChord', 'lowRootFifth',
+];
+/** The harp rotation's constant offset from the piano's (the piano indexes
+ *  (take - 1 + ordinal); the harp's global unit stream adds this — different
+ *  draws for the same ordinal, the same balanced coverage). */
+export const HARP_ROTATION_OFFSET = 4;
+/** The figure varies per two-bar unit inside a section (the chorus rule's
+ *  "at least 2 figures in 4 bars"); the units walk the global rotation and
+ *  the menu's PHASE shifts per take and per section type by a salted hash —
+ *  the phrase-level hash variation. */
+export const HARP_FIGURE_UNIT_BARS = 2;
 
 /** §16.2 weighted glissando draws (rare — at most 2 per piece, reported). */
 export const GLISS_WEIGHTS = { chorus: 0.35, tutti: 0.5, outro: 0.4 } as const;

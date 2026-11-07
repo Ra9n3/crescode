@@ -34,6 +34,7 @@
 import { ARTICULATIONS, isInstrumentTrack, type CcLane, type Note, type Project, type Track } from '../shared/schema/types';
 import { msToTicks, ticksToMs } from '../orchestrator/spine';
 import { resolveTemplate } from '../config/ensembles';
+import { hashString } from '../engine/generate';
 
 /* ---------------- pitch convention ---------------- */
 
@@ -130,6 +131,26 @@ export interface ProfilePart {
   tremoloMode: 'sampled' | 'measured';
   /** controller number → written? (default: 1, 7, 11 on; 68, 74 off). */
   ccEnabled: Record<string, boolean>;
+  /** Phase 12: 'none' = the patch has NO keyswitches at all (the whole
+   *  keyboard is playable): no keyswitch is emitted and the articulation
+   *  resolution check is skipped. Default 'standard'. */
+  keyswitchMode?: 'standard' | 'none';
+  /** Phase 12: 'merged' (default) = the part rides in the merged file;
+   *  'fileOnly' = the part exports only as its own per-track file on its
+   *  documented channel — the merged file carries what fits and avoids the
+   *  drum channel. */
+  fileScope?: 'merged' | 'fileOnly';
+  /** Phase 12: the patch's fixed key map — a pitch remap in the EXPORT only.
+   *  fixedPitch: every note takes this one key. rotate: notes at `from`
+   *  rotate deterministically through the named profile pool (hash-seeded
+   *  per note, never the same key twice in a row). At most one of the two. */
+  noteMap?: { fixedPitch?: number; rotate?: { from: number; pool: string } };
+  /** Phase 12: whether this part's sounding pitches count as doubling
+   *  candidates for ANOTHER part's fold (the octaveDoubling 'forbidden'
+   *  check). Default true — the orchestral parts the template rule governs.
+   *  The Phase 12 additions declare false, so the string/brass fold
+   *  behaviour stays byte-identical to the pre-12 profile output. */
+  doublingCandidate?: boolean;
 }
 
 export interface ExportProfile {
@@ -143,6 +164,15 @@ export interface ExportProfile {
    *  notes from the export entirely, so no Bass file is created for them.
    *  The Bass part itself reads the project's own basses track either way. */
   cbLayer: 'separate' | 'omit';
+  /** Phase 12: named key pools for noteMap rotation (the snare's
+   *  single-hit keys). Editable data; keys must be distinct (every key is a
+   *  different sample). */
+  pools?: Record<string, number[]>;
+  /** Phase 12: track roles the profile deliberately does NOT map — their
+   *  notes stay in the project and are left out of the export (the dialog
+   *  and the report say so). A role is either mapped by a part or listed
+   *  here, never both. */
+  unmapped?: string[];
   parts: ProfilePart[];
 }
 
@@ -174,9 +204,25 @@ export function validateExportProfile(doc: unknown): string[] {
   if (!conv) err('pitchConvention', typeof d.pitchConvention === 'string' ? `unparseable convention ${JSON.stringify(d.pitchConvention)} (expected "C3=60" style)` : 'must be a string like "C3=60"');
   if (!isInt(d.keyswitchVelocity) || d.keyswitchVelocity < 1 || d.keyswitchVelocity > 127) err('keyswitchVelocity', 'must be an integer 1–127');
   if (d.cbLayer !== undefined && d.cbLayer !== 'separate' && d.cbLayer !== 'omit') err('cbLayer', `must be "separate" or "omit" (got ${JSON.stringify(d.cbLayer)})`);
+  // Phase 12: the named key pools and the deliberately unmapped roles
+  if (d.pools !== undefined) {
+    if (typeof d.pools !== 'object' || d.pools === null) err('pools', 'must be an object of named key arrays');
+    else for (const [name, arr] of Object.entries(d.pools as Record<string, unknown>)) {
+      if (!name.trim()) { err('pools', 'pool names must be non-empty'); continue; }
+      if (!Array.isArray(arr) || !arr.length) { err(`pools.${name}`, 'must be a non-empty array of midi keys'); continue; }
+      if (!arr.every((k) => isInt(k) && (k as number) >= 0 && (k as number) <= 127)) { err(`pools.${name}`, 'every key must be an integer 0–127'); continue; }
+      if (new Set(arr as number[]).size !== arr.length) err(`pools.${name}`, 'keys must be distinct (every key is a different sample)');
+    }
+  }
+  if (d.unmapped !== undefined && (!Array.isArray(d.unmapped) || !d.unmapped.every((r) => typeof r === 'string' && r.trim()))) {
+    err('unmapped', 'must be an array of non-empty role names');
+  }
   if (!Array.isArray(d.parts) || !d.parts.length) { err('parts', 'must be a non-empty array'); return errors; }
 
-  const seenChannel = new Map<number, string>();
+  // Phase 12: channels are unique WITHIN each scope class — the merged file
+  // and a fileOnly part's own file never share a reader, so a fileOnly part
+  // may reuse a number the merged file also uses (documented per part).
+  const seenChannel: Record<'merged' | 'fileOnly', Map<number, string>> = { merged: new Map(), fileOnly: new Map() };
   const seenSource = new Map<string, string>();
   d.parts.forEach((rawPart, i) => {
     const at = `parts[${i}]`;
@@ -185,8 +231,18 @@ export function validateExportProfile(doc: unknown): string[] {
     if (typeof part.id !== 'string' || !part.id.trim()) err(`${at}.id`, 'must be a non-empty string');
     if (typeof part.patch !== 'string' || !part.patch.trim()) err(`${at}.patch`, 'must be a non-empty string');
     if (!isInt(part.channel) || part.channel < 1 || part.channel > 16) err(`${at}.channel`, 'must be an integer 1–16');
-    else if (seenChannel.has(part.channel)) err(`${at}.channel`, `channel ${part.channel} is already used by ${seenChannel.get(part.channel)}`);
-    else seenChannel.set(part.channel, String(part.id) || at);
+    else {
+      const scope: 'merged' | 'fileOnly' = part.fileScope === 'fileOnly' ? 'fileOnly' : 'merged';
+      const seen = seenChannel[scope];
+      if (seen.has(part.channel)) err(`${at}.channel`, `channel ${part.channel} is already used by ${seen.get(part.channel)} (${scope} scope)`);
+      else seen.set(part.channel, String(part.id) || at);
+    }
+    if (part.fileScope !== undefined && part.fileScope !== 'merged' && part.fileScope !== 'fileOnly') {
+      err(`${at}.fileScope`, `must be "merged" or "fileOnly" (got ${JSON.stringify(part.fileScope)})`);
+    }
+    if (part.doublingCandidate !== undefined && typeof part.doublingCandidate !== 'boolean') {
+      err(`${at}.doublingCandidate`, 'must be true or false');
+    }
 
     // source
     const src = part.source;
@@ -278,10 +334,51 @@ export function validateExportProfile(doc: unknown): string[] {
       }
     }
 
-    // every articulation resolves (with the same suppression the transform uses)
-    for (const art of PROFILE_ARTS) {
-      if (resolveArticulationKeyFor(part as unknown as ProfilePart, art, d.pitchConvention as string) === null) {
-        err(`${at}`, `articulation ${JSON.stringify(art)} does not resolve to a keyswitch through its fallback chain`);
+    // every articulation resolves (with the same suppression the transform
+    // uses) — skipped for keyswitchMode 'none' (no keyswitches exist there)
+    if (part.keyswitchMode !== 'none') {
+      for (const art of PROFILE_ARTS) {
+        if (resolveArticulationKeyFor(part as unknown as ProfilePart, art, d.pitchConvention as string) === null) {
+          err(`${at}`, `articulation ${JSON.stringify(art)} does not resolve to a keyswitch through its fallback chain`);
+        }
+      }
+    }
+
+    // Phase 12: keyswitchMode 'none' — the patch has no keyswitches at all
+    if (part.keyswitchMode !== undefined && part.keyswitchMode !== 'standard' && part.keyswitchMode !== 'none') {
+      err(`${at}.keyswitchMode`, `must be "standard" or "none" (got ${JSON.stringify(part.keyswitchMode)})`);
+    }
+    if (part.keyswitchMode === 'none') {
+      const ksKeys = part.keyswitches && typeof part.keyswitches === 'object' ? Object.keys(part.keyswitches as Record<string, unknown>) : [];
+      if (ksKeys.length) err(`${at}.keyswitches`, 'must be empty when keyswitchMode is "none" (the patch has no keyswitches)');
+      if (part.fallback !== undefined && typeof part.fallback === 'object' && Object.keys(part.fallback as Record<string, unknown>).length) {
+        err(`${at}.fallback`, 'must be empty when keyswitchMode is "none"');
+      }
+    }
+
+    // Phase 12: the note map (export-only pitch remap)
+    const nm = part.noteMap;
+    if (nm !== undefined) {
+      if (typeof nm !== 'object' || nm === null) { err(`${at}.noteMap`, 'must be an object'); }
+      else {
+        const m = nm as Record<string, unknown>;
+        if (m.fixedPitch !== undefined && m.rotate !== undefined) err(`${at}.noteMap`, 'fixedPitch and rotate are mutually exclusive');
+        if (m.fixedPitch !== undefined && (!isInt(m.fixedPitch) || (m.fixedPitch as number) < 0 || (m.fixedPitch as number) > 127)) {
+          err(`${at}.noteMap.fixedPitch`, 'must be an integer 0–127');
+        }
+        if (m.rotate !== undefined) {
+          const r = m.rotate as Record<string, unknown>;
+          if (typeof r !== 'object' || r === null || !isInt(r.from) || (r.from as number) < 0 || (r.from as number) > 127) {
+            err(`${at}.noteMap.rotate.from`, 'must be an integer 0–127');
+          }
+          if (typeof r.pool !== 'string' || !r.pool.trim()) {
+            err(`${at}.noteMap.rotate.pool`, 'must name a profile pool');
+          } else {
+            const pool = d.pools && typeof d.pools === 'object' ? (d.pools as Record<string, unknown>)[r.pool as string] : undefined;
+            if (!Array.isArray(pool)) err(`${at}.noteMap.rotate.pool`, `pool ${JSON.stringify(r.pool)} is not defined at profile level`);
+            else if (pool.length < 2) err(`${at}.noteMap.rotate.pool`, 'pool must hold at least 2 keys (the no-immediate-repeat advance needs room)');
+          }
+        }
       }
     }
 
@@ -295,6 +392,22 @@ export function validateExportProfile(doc: unknown): string[] {
       }
     }
   });
+
+  // Phase 12: an unmapped role must not also be claimed by a part
+  if (Array.isArray(d.unmapped)) {
+    const claimed = new Set<string>();
+    for (const rawPart of d.parts as Record<string, unknown>[]) {
+      const src = rawPart && typeof rawPart === 'object' ? rawPart.source as Record<string, unknown> | undefined : undefined;
+      if (src && typeof src.role === 'string') {
+        claimed.add(src.role);
+        const legacy = src.legacy as Record<string, unknown> | undefined;
+        if (legacy && typeof legacy.role === 'string') claimed.add(legacy.role);
+      }
+    }
+    for (const r of d.unmapped as string[]) {
+      if (claimed.has(r)) err('unmapped', `role ${JSON.stringify(r)} is also claimed by a part — a role is either mapped or unmapped, not both`);
+    }
+  }
 
   if (d.unverified !== undefined) {
     if (!Array.isArray(d.unverified) || !d.unverified.every((v) => typeof v === 'string')) err('unverified', 'must be an array of value paths');
@@ -313,6 +426,10 @@ export function parseExportProfile(doc: unknown): ExportProfile {
     pitchConvention: d.pitchConvention as string,
     keyswitchVelocity: d.keyswitchVelocity as number,
     cbLayer: (d.cbLayer as 'separate' | 'omit' | undefined) ?? 'separate',
+    ...(d.pools !== undefined
+      ? { pools: Object.fromEntries(Object.entries(d.pools as Record<string, number[]>).map(([k, v]) => [k, [...v]])) }
+      : {}),
+    ...(d.unmapped !== undefined ? { unmapped: [...(d.unmapped as string[])] } : {}),
     parts: (d.parts as Record<string, unknown>[]).map((part) => ({
       id: part.id as string,
       patch: part.patch as string,
@@ -343,6 +460,21 @@ export function parseExportProfile(doc: unknown): ExportProfile {
       keyswitchLengthMs: part.keyswitchLengthMs as number,
       tremoloMode: (part.tremoloMode as 'sampled' | 'measured' | undefined) ?? 'sampled',
       ccEnabled: { ...(part.ccEnabled as Record<string, boolean> | undefined) },
+      ...(part.keyswitchMode === 'none' ? { keyswitchMode: 'none' as const } : {}),
+      ...(part.fileScope === 'fileOnly' ? { fileScope: 'fileOnly' as const } : {}),
+      ...(part.doublingCandidate === false ? { doublingCandidate: false as const } : {}),
+      ...((part as Record<string, unknown>).noteMap !== undefined
+        ? {
+            noteMap: {
+              ...((part as Record<string, unknown>).noteMap as { fixedPitch?: number }).fixedPitch !== undefined
+                ? { fixedPitch: ((part as Record<string, unknown>).noteMap as { fixedPitch: number }).fixedPitch }
+                : {},
+              ...((part as Record<string, unknown>).noteMap as { rotate?: { from: number; pool: string } }).rotate !== undefined
+                ? { rotate: { ...((part as Record<string, unknown>).noteMap as { rotate: { from: number; pool: string } }).rotate } }
+                : {},
+            },
+          }
+        : {}),
     })),
   };
 }
@@ -390,6 +522,9 @@ export interface ExportChunk {
   channel: number;
   notes: Note[];
   cc?: CcLane[];
+  /** Phase 12: set for fileScope 'fileOnly' parts — the merged file skips
+   *  the chunk; the per-track writer keeps it. */
+  fileOnly?: boolean;
 }
 
 /** The renderer tiles its measured tremolo at this step (lines/ostinato.ts);
@@ -473,18 +608,26 @@ export interface FoldStats {
   folded: Record<string, number>;
   droppedHardRange: Record<string, number>;
   droppedDoubling: Record<string, number>;
+  /** Phase 12: notes remapped by a part's noteMap (the rotated snare keys,
+   *  the fixed cymbal key). Optional so pre-12 stats sinks keep type-checking. */
+  remapped?: Record<string, number>;
 }
 
 const emptyFoldStats = (): FoldStats => ({ folded: {}, droppedHardRange: {}, droppedDoubling: {} });
 
 const bump = (rec: Record<string, number>, id: string): void => { rec[id] = (rec[id] ?? 0) + 1; };
 
-/** Sounding pitches of every part's sources (own role + legacy claim),
- *  transposed and TAGGED with the part id — the fold's doubling check reads
- *  every part but its own. Built lazily, once per track. */
+/** Sounding pitches of every MERGED doubling-candidate part's sources (own
+ *  role + legacy claim), transposed and TAGGED with the part id — the fold's
+ *  doubling check reads every candidate part but its own. A fileScope
+ *  'fileOnly' part sounds in another FILE, and a part with
+ *  doublingCandidate false (the Phase 12 additions) is not a candidate the
+ *  template's rule ever governed — neither is a fold-clash source. Built
+ *  lazily, once per track. */
 const allPartPitches = (project: Project, profile: ExportProfile): { partId: string; start: number; end: number; pitch: number }[] => {
   const out: { partId: string; start: number; end: number; pitch: number }[] = [];
   for (const part of profile.parts) {
+    if (part.fileScope === 'fileOnly' || part.doublingCandidate === false) continue;
     const sources: ProfileSource[] = [part.source];
     if (part.source.legacy) sources.push({ role: part.source.legacy.role, ...(part.source.legacy.layer !== undefined ? { layer: part.source.legacy.layer } : {}) });
     for (const t of project.tracks) {
@@ -513,6 +656,43 @@ const ccForPart = (cc: CcLane[] | undefined, enabled: Record<string, boolean>): 
   return lanes.length ? lanes : undefined;
 };
 
+/* ---------------- the note map (Phase 12: export-only pitch remap) --------- */
+
+/**
+ * Applies a part's noteMap in the EXPORT only. fixedPitch: every note takes
+ * that one key. rotate: the notes at `from` rotate through the named pool —
+ * a hash-seeded draw per note (part id, pitch, tick, duration and the
+ * note's index seed it) that never repeats the previous rotated key.
+ * Deterministic: a pure function of the note sequence. Timing, velocity and
+ * the note count are untouched; the project never sees any of it.
+ */
+export function applyNoteMap(part: ProfilePart, notes: Note[], profile: ExportProfile, stats?: FoldStats): Note[] {
+  const map = part.noteMap;
+  if (!map) return notes;
+  if (map.fixedPitch !== undefined) {
+    if (stats && notes.length) (stats.remapped ??= {})[part.id] = (stats.remapped?.[part.id] ?? 0) + notes.length;
+    return notes.map((n) => ({ ...n, pitch: map.fixedPitch! }));
+  }
+  if (!map.rotate) return notes;
+  const pool = profile.pools?.[map.rotate.pool];
+  if (!pool || pool.length < 2) return notes; // validator guarantees; belt + braces
+  const order = notes.map((n, i) => ({ n, i })).sort((a, b) => a.n.startTick - b.n.startTick || a.n.pitch - b.n.pitch || a.i - b.i);
+  const out: Note[] = new Array(notes.length);
+  let prev: number | null = null;
+  let remapped = 0;
+  for (const { n, i } of order) {
+    if (n.pitch !== map.rotate.from) { out[i] = n; continue; }
+    let idx = hashString(`${part.id}|${n.pitch}|${n.startTick}|${n.durationTicks}|${i}`) % pool.length;
+    let key = pool[idx];
+    if (prev !== null && key === prev) { idx = (idx + 1) % pool.length; key = pool[idx]; }
+    out[i] = { ...n, pitch: key };
+    prev = key;
+    remapped++;
+  }
+  if (stats && remapped) (stats.remapped ??= {})[part.id] = (stats.remapped?.[part.id] ?? 0) + remapped;
+  return out;
+}
+
 /**
  * Maps one exportable track to its export chunks. Without a profile: the
  * track itself, untouched (byte-identical writer input). With a profile:
@@ -520,13 +700,17 @@ const ccForPart = (cc: CcLane[] | undefined, enabled: Record<string, boolean>): 
  * matches the track's role — with cbLayer 'separate' a legacy combined
  * cellosBasses track splits by the note layer into its cello and bass
  * parts; a project's own basses track feeds the Bass part directly. Each
- * part is transposed, FOLDED into the playable range (Phase 8.2: notes below
+ * part is transposed, note-mapped (Phase 12: an export-only pitch remap —
+ * the rotated snare keys, the fixed cymbal key), FOLDED into the playable
+ * range (Phase 8.2: notes below
  * playableLow shift up by whole octaves — dropped only when the fold would
  * exceed the part's hard range, the source track's highestNote, or, under an
  * octaveDoubling policy of 'forbidden', create a new unison/octave doubling
  * with another part at the same moment), tremolo-merged (sampled mode) and
  * fronted by its keyswitches. Notes that no part claims pass through
- * unchanged (no part, no known floor). The project is never touched.
+ * unchanged (no part, no known floor). A role the profile lists as unmapped
+ * (Phase 12) exports nothing — its notes stay in the project. The project is
+ * never touched.
  */
 export function chunksForTrack(project: Project, track: Track, profile: ExportProfile | null, stats?: FoldStats): ExportChunk[] {
   const fold = stats ?? emptyFoldStats();
@@ -536,6 +720,9 @@ export function chunksForTrack(project: Project, track: Track, profile: ExportPr
   const visible = omit ? track.notes.filter((n) => n.layer !== 'cb') : track.notes;
   const passthrough = (): ExportChunk => ({ trackId: track.id, name: track.name, channel: track.midiChannel, notes: visible, ...(track.cc !== undefined ? { cc: track.cc } : {}) });
   if (!profile) return [passthrough()];
+  // Phase 12: a deliberately unmapped role stays out of the export entirely
+  // (the dialog and the report say so; the project keeps its notes).
+  if (profile.unmapped?.includes(track.role)) return [];
 
   // the part↔track match: the part's own source role, or (cbLayer
   // 'separate') its Phase 8.2 legacy claim
@@ -569,6 +756,9 @@ export function chunksForTrack(project: Project, track: Track, profile: ExportPr
     const transposed = part.transposeSemitones
       ? matched.map((n) => ({ ...n, pitch: Math.max(0, Math.min(127, n.pitch + part.transposeSemitones)) }))
       : matched;
+    // Phase 12: the note map runs before the fold guard, so a remapped key
+    // (all ≥ the patch's playable floor by construction) is never folded.
+    const mapped = applyNoteMap(part, transposed, profile, fold);
     // Red-zone fold (Phase 8.2, replaces the 8.1 drop): a non-keyswitch note
     // below playableLow shifts up by whole octaves until it is playable.
     // It is dropped only when the folded pitch would exceed the part's hard
@@ -579,10 +769,10 @@ export function chunksForTrack(project: Project, track: Track, profile: ExportPr
     // other); keyswitches are generated after it, so they are never folded.
     let guarded: Note[];
     if (part.playableLow === undefined) {
-      guarded = transposed;
+      guarded = mapped;
     } else {
       guarded = [];
-      for (const n of transposed) {
+      for (const n of mapped) {
         if (n.pitch >= part.playableLow) { guarded.push(n); continue; }
         let p = n.pitch;
         while (p < part.playableLow) p += 12;
@@ -601,7 +791,11 @@ export function chunksForTrack(project: Project, track: Track, profile: ExportPr
     if (!guarded.length) continue; // everything dropped: no part file at all
     const merged = part.tremoloMode === 'sampled' ? mergeTremoloGroups(guarded) : guarded;
     const notes = [...keyswitchNotesFor(part, merged, project, profile), ...merged].sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
-    chunks.push({ trackId: track.id, name: part.patch, channel: part.channel, notes, ...(ccForPart(track.cc, part.ccEnabled) !== undefined ? { cc: ccForPart(track.cc, part.ccEnabled)! } : {}) });
+    chunks.push({
+      trackId: track.id, name: part.patch, channel: part.channel, notes,
+      ...(part.fileScope === 'fileOnly' ? { fileOnly: true } : {}),
+      ...(ccForPart(track.cc, part.ccEnabled) !== undefined ? { cc: ccForPart(track.cc, part.ccEnabled)! } : {}),
+    });
   }
   const rest = visible.filter((n) => !claimed.has(n));
   if (rest.length) chunks.push({ trackId: track.id, name: track.name, channel: track.midiChannel, notes: rest, ...(track.cc !== undefined ? { cc: track.cc } : {}) });
@@ -611,4 +805,44 @@ export function chunksForTrack(project: Project, track: Track, profile: ExportPr
   // reintroduce exactly the notes the fold exists to lift). A track whose
   // parts matched NOTHING is still unmapped: passthrough as before.
   return anyMatched ? [] : [passthrough()];
+}
+
+/* ---------------- the export dialog's per-part lines (Phase 12) ------------ */
+
+/**
+ * One human line per profile part — channel, keyswitches, note map, the
+ * fold floor — plus one line per unmapped role. The export dialog renders
+ * these verbatim; the tests read them as the report's channel table.
+ */
+export function profilePartSummary(profile: ExportProfile): string[] {
+  const lines: string[] = [];
+  for (const p of profile.parts) {
+    const ks = p.keyswitchMode === 'none' || !Object.keys(p.keyswitches).length
+      ? 'no keyswitch'
+      : Object.entries(p.keyswitches).map(([art, name]) => `${name} = ${art}`).join(', ');
+    const where = p.fileScope === 'fileOnly' ? `ch ${p.channel} (own file only)` : `ch ${p.channel}`;
+    const map = p.noteMap?.fixedPitch !== undefined
+      ? `every note → key ${p.noteMap.fixedPitch}`
+      : p.noteMap?.rotate
+        ? `note ${p.noteMap.rotate.from} → ${profile.pools?.[p.noteMap.rotate.pool]?.length ?? 0}-key pool ${p.noteMap.rotate.pool}, rotated per note`
+        : p.playableLow !== undefined
+          ? `notes below ${p.playableLow} fold up by octaves`
+          : '';
+    lines.push(`${where} · ${p.patch} · ${ks}${map ? ` · ${map}` : ''}`);
+  }
+  for (const role of profile.unmapped ?? []) {
+    lines.push(`${role} — unmapped: its notes stay in the project and are left out of the export`);
+  }
+  return lines;
+}
+
+/**
+ * The one-line statement of what the merged file cannot carry (null when
+ * every part rides in the merged file).
+ */
+export function profileScopeNote(profile: ExportProfile): string | null {
+  const fileOnly = profile.parts.filter((p) => p.fileScope === 'fileOnly');
+  if (!fileOnly.length) return null;
+  const list = fileOnly.map((p) => `${p.patch} (ch ${p.channel})`).join(', ');
+  return `The merged file carries what fits and avoids channel 10; ${list} export as their own files — load each on its own channel or Falcon instance.`;
 }

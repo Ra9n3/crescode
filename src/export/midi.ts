@@ -13,7 +13,7 @@ import { parseMidi, writeMidi, type MidiData, type MidiEvent } from 'midi-file';
 import { barTicks, projectEndTick } from '../shared/schema/meter';
 import { MODES } from '../shared/schema/modes';
 import { PPQ, isInstrumentTrack, type CcLane, type Note, type Project, type Track } from '../shared/schema/types';
-import { chunksForTrack, type ExportProfile } from './profile';
+import { chunksForTrack, type ExportProfile, type FoldStats } from './profile';
 
 type Abs = MidiEvent & { abs: number; order: number };
 
@@ -102,10 +102,10 @@ export function exportableTracks(p: Project, mode: 'all' | 'selected' | 'unlocke
   return p.tracks.filter((t) => isInstrumentTrack(t) && (mode === 'all' || (mode === 'selected' ? selected.includes(t.id) : !t.locked)));
 }
 
-/** Single Type-1 file: conductor track + one track per instrument (per profile part when a profile is given). */
-export function buildMergedMidi(p: Project, tracks: Track[], profile: ExportProfile | null = null): Uint8Array {
+/** Single Type-1 file: conductor track + one track per instrument (per profile part when a profile is given). Parts whose fileScope is 'fileOnly' (Phase 12) export as their own files only — the merged file carries what fits and skips them. */
+export function buildMergedMidi(p: Project, tracks: Track[], profile: ExportProfile | null = null, stats?: FoldStats): Uint8Array {
   const end = projectEndTick(p);
-  const chunks = tracks.flatMap((t) => chunksForTrack(p, t, profile));
+  const chunks = tracks.flatMap((t) => chunksForTrack(p, t, profile, stats)).filter((c) => !c.fileOnly);
   const data: MidiData = {
     header: { format: 1, numTracks: chunks.length + 1, ticksPerBeat: PPQ },
     tracks: [
@@ -122,11 +122,11 @@ export function perTrackFileName(p: Project, t: Track): string {
   return `${String(idx).padStart(2, '0')} ${safe}.mid`;
 }
 
-/** One Type-1 file per instrument (per profile part when a profile is given); each has tempo/time/key and ends at the project end tick. */
-export function buildPerTrackMidi(p: Project, tracks: Track[], profile: ExportProfile | null = null): { fileName: string; data: Uint8Array }[] {
+/** One Type-1 file per instrument (per profile part when a profile is given); each has tempo/time/key and ends at the project end tick. fileScope 'fileOnly' parts get their file here too (Phase 12). */
+export function buildPerTrackMidi(p: Project, tracks: Track[], profile: ExportProfile | null = null, stats?: FoldStats): { fileName: string; data: Uint8Array }[] {
   const end = projectEndTick(p);
   return tracks.flatMap((t) =>
-    chunksForTrack(p, t, profile).map((c) => ({
+    chunksForTrack(p, t, profile, stats).map((c) => ({
       fileName: perTrackFileName(p, { ...t, name: c.name }),
       data: new Uint8Array(writeMidi({
         header: { format: 1, numTracks: 2, ticksPerBeat: PPQ },

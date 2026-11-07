@@ -1,7 +1,7 @@
 {
   "id": "uvi-orchestral-suite",
   "name": "UVI Orchestral Suite — string + brass ensembles",
-  "description": "One part per UVI Orchestral Suite ensemble patch (strings, the four Falcon brass patches Crescode writes, and since Phase 8.2 the Bass Ensemble reading the separate Double Basses track). Keyswitch names follow the manual's pitchConvention; keyswitchZone is the patch's red zone (silent keys / keyswitch keys, MIDI sounding) and playableLow the patch's lowest playable note — in a profile export any non-keyswitch note below playableLow is FOLDED up by whole octaves into the playable range (dropped only when the fold would exceed the part's hard range, the source track's highestNote, or — under an octaveDoubling policy of 'forbidden' — when the fold would create a new unison or octave doubling with another part at the same moment); the project itself is never touched. cbLayer 'separate' (the Phase 8.2 default, the user owns a Bass patch now) applies only to LEGACY combined cellosBasses tracks that still carry layer:'cb' notes — those doubles get their own Bass Ensemble part on channel 5; the Bass part otherwise reads the project's own basses track. Brass parts use the 4-horn layer only; the 8-horn and Xtra layers are ignored.",
+  "description": "One part per UVI Orchestral Suite ensemble patch (strings, the four Falcon brass patches Crescode writes, and since Phase 8.2 the Bass Ensemble reading the separate Double Basses track). Keyswitch names follow the manual's pitchConvention; keyswitchZone is the patch's red zone (silent keys / keyswitch keys, MIDI sounding) and playableLow the patch's lowest playable note — in a profile export any non-keyswitch note below playableLow is FOLDED up by whole octaves into the playable range (dropped only when the fold would exceed the part's hard range, the source track's highestNote, or — under an octaveDoubling policy of 'forbidden' — when the fold would create a new unison or octave doubling with another part at the same moment); the project itself is never touched. cbLayer 'separate' (the Phase 8.2 default, the user owns a Bass patch now) applies only to LEGACY combined cellosBasses tracks that still carry layer:'cb' notes — those doubles get their own Bass Ensemble part on channel 5; the Bass part otherwise reads the project's own basses track. Brass parts use the 4-horn layer only; the 8-horn and Xtra layers are ignored. Phase 12 adds the winds (the four Solo patches on channels 11–14, sustain + staccato keyswitches, every other articulation falling back to sustain; a note below the patch's playable floor — the silent gap — folds up by whole octaves, dropped only as a last resort), the keys (Harp on channel 15, one Harp 1 Sustain keyswitch at the part start, no transposition, no CC; the IRCAM Prepared Piano 2 Octavo Grand on channel 16 — no keyswitch, no CC, no transposition, the whole keyboard playable, Phase 11.5's note lengths remain the sustain mechanism) and the percussion (Timpani on channel 10, one Timpani 2 selection keyswitch per part, hits as written and roll 16ths kept as hits; Snare on channel 11, every engine note 38 remapped through the snareHitKeys pool 48–62 — a hash-seeded rotation, never the same key twice in a row, velocity as written; Cymbals on channel 12, every note to the long-crash key 48 — the engine writes crashes and swells only, so the short-hit keys 55–59 are never emitted and no other cymbal key ever is). Timpani, Snare and Cymbals are fileScope 'fileOnly': the merged file carries what fits (channels 1–9 and 11–16), avoids channel 10, and the export dialog says so. Aux is unmapped: its notes stay in the project and are left out of the export, with the dialog's warning.",
   "pitchConvention": "C3=60",
   "keyswitchVelocity": 100,
   "cbLayer": "separate",
@@ -10,220 +10,963 @@
       "id": "violins1",
       "patch": "Violins 1 Ensemble",
       "channel": 1,
-      "source": { "role": "violins1" },
+      "source": {
+        "role": "violins1"
+      },
       "lowestPlayable": 55,
-      "keyswitchZone": { "low": 24, "high": 38 },
+      "keyswitchZone": {
+        "low": 24,
+        "high": 38
+      },
       "playableLow": 48,
-      "keyswitches": { "sustain": "C0", "legato": "D0", "marcato": "A0", "pizz": "F0", "spiccato": "D1", "tremolo": "G0" },
+      "keyswitches": {
+        "sustain": "C0",
+        "legato": "D0",
+        "marcato": "A0",
+        "pizz": "F0",
+        "spiccato": "D1",
+        "tremolo": "G0"
+      },
       "fallback": {
-        "detache": ["sustain"],
-        "portato": ["sustain"],
-        "sulTasto": ["sustain"],
-        "sulPont": ["sustain"],
-        "conSord": ["sustain"]
+        "detache": [
+          "sustain"
+        ],
+        "portato": [
+          "sustain"
+        ],
+        "sulTasto": [
+          "sustain"
+        ],
+        "sulPont": [
+          "sustain"
+        ],
+        "conSord": [
+          "sustain"
+        ]
       },
       "transposeSemitones": 0,
       "keyswitchLeadMs": 30,
       "keyswitchLengthMs": 60,
       "tremoloMode": "sampled",
-      "ccEnabled": { "1": true, "7": true, "11": true, "68": false, "74": false }
+      "ccEnabled": {
+        "1": true,
+        "7": true,
+        "11": true,
+        "68": false,
+        "74": false
+      }
     },
     {
       "id": "violins2",
       "patch": "Violins 2 Ensemble",
       "channel": 2,
-      "source": { "role": "violins2" },
+      "source": {
+        "role": "violins2"
+      },
       "lowestPlayable": 55,
-      "keyswitchZone": { "low": 36, "high": 50 },
+      "keyswitchZone": {
+        "low": 36,
+        "high": 50
+      },
       "playableLow": 53,
-      "keyswitches": { "sustain": "C1", "legato": "D1", "marcato": "A1", "pizz": "F1", "spiccato": "D2", "tremolo": "G1" },
+      "keyswitches": {
+        "sustain": "C1",
+        "legato": "D1",
+        "marcato": "A1",
+        "pizz": "F1",
+        "spiccato": "D2",
+        "tremolo": "G1"
+      },
       "fallback": {
-        "detache": ["sustain"],
-        "portato": ["sustain"],
-        "sulTasto": ["sustain"],
-        "sulPont": ["sustain"],
-        "conSord": ["sustain"]
+        "detache": [
+          "sustain"
+        ],
+        "portato": [
+          "sustain"
+        ],
+        "sulTasto": [
+          "sustain"
+        ],
+        "sulPont": [
+          "sustain"
+        ],
+        "conSord": [
+          "sustain"
+        ]
       },
       "transposeSemitones": 0,
       "keyswitchLeadMs": 30,
       "keyswitchLengthMs": 60,
       "tremoloMode": "sampled",
-      "ccEnabled": { "1": true, "7": true, "11": true, "68": false, "74": false }
+      "ccEnabled": {
+        "1": true,
+        "7": true,
+        "11": true,
+        "68": false,
+        "74": false
+      }
     },
     {
       "id": "violas",
       "patch": "Viola Ensemble",
       "channel": 3,
-      "source": { "role": "violas" },
+      "source": {
+        "role": "violas"
+      },
       "lowestPlayable": 48,
-      "keyswitchZone": { "low": 24, "high": 47 },
+      "keyswitchZone": {
+        "low": 24,
+        "high": 47
+      },
       "playableLow": 48,
-      "keyswitches": { "sustain": "C0", "legato": "D0", "marcato": "A0", "pizz": "F0", "spiccato": "C#1", "tremolo": "G0" },
+      "keyswitches": {
+        "sustain": "C0",
+        "legato": "D0",
+        "marcato": "A0",
+        "pizz": "F0",
+        "spiccato": "C#1",
+        "tremolo": "G0"
+      },
       "fallback": {
-        "detache": ["sustain"],
-        "portato": ["sustain"],
-        "sulTasto": ["sustain"],
-        "sulPont": ["sustain"],
-        "conSord": ["sustain"]
+        "detache": [
+          "sustain"
+        ],
+        "portato": [
+          "sustain"
+        ],
+        "sulTasto": [
+          "sustain"
+        ],
+        "sulPont": [
+          "sustain"
+        ],
+        "conSord": [
+          "sustain"
+        ]
       },
       "transposeSemitones": 0,
       "keyswitchLeadMs": 30,
       "keyswitchLengthMs": 60,
       "tremoloMode": "sampled",
-      "ccEnabled": { "1": true, "7": true, "11": true, "68": false, "74": false }
+      "ccEnabled": {
+        "1": true,
+        "7": true,
+        "11": true,
+        "68": false,
+        "74": false
+      }
     },
     {
       "id": "cello",
       "patch": "Cello Ensemble",
       "channel": 4,
-      "source": { "role": "cellosBasses", "layer": null },
+      "source": {
+        "role": "cellosBasses",
+        "layer": null
+      },
       "lowestPlayable": 28,
-      "keyswitchZone": { "low": 12, "high": 35 },
+      "keyswitchZone": {
+        "low": 12,
+        "high": 35
+      },
       "playableLow": 36,
-      "keyswitches": { "sustain": "C-1", "legato": "D-1", "marcato": "A-1", "pizz": "E-1", "tremolo": "G-1" },
+      "keyswitches": {
+        "sustain": "C-1",
+        "legato": "D-1",
+        "marcato": "A-1",
+        "pizz": "E-1",
+        "tremolo": "G-1"
+      },
       "fallback": {
-        "detache": ["sustain"],
-        "portato": ["sustain"],
-        "sulTasto": ["sustain"],
-        "sulPont": ["sustain"],
-        "conSord": ["sustain"],
-        "staccato": ["marcato"],
-        "spiccato": ["marcato"]
+        "detache": [
+          "sustain"
+        ],
+        "portato": [
+          "sustain"
+        ],
+        "sulTasto": [
+          "sustain"
+        ],
+        "sulPont": [
+          "sustain"
+        ],
+        "conSord": [
+          "sustain"
+        ],
+        "staccato": [
+          "marcato"
+        ],
+        "spiccato": [
+          "marcato"
+        ]
       },
       "transposeSemitones": 0,
       "keyswitchLeadMs": 30,
       "keyswitchLengthMs": 60,
       "tremoloMode": "sampled",
-      "ccEnabled": { "1": true, "7": true, "11": true, "68": false, "74": false }
+      "ccEnabled": {
+        "1": true,
+        "7": true,
+        "11": true,
+        "68": false,
+        "74": false
+      }
     },
     {
       "id": "bass",
       "patch": "Bass Ensemble",
       "channel": 5,
-      "source": { "role": "basses", "legacy": { "role": "cellosBasses", "layer": "cb" } },
+      "source": {
+        "role": "basses",
+        "legacy": {
+          "role": "cellosBasses",
+          "layer": "cb"
+        }
+      },
       "lowestPlayable": 28,
-      "keyswitchZone": { "low": 12, "high": 22 },
+      "keyswitchZone": {
+        "low": 12,
+        "high": 22
+      },
       "playableLow": 23,
-      "keyswitches": { "sustain": "C-1", "legato": "D-1", "marcato": "A-1", "pizz": "F-1", "tremolo": "G-1" },
+      "keyswitches": {
+        "sustain": "C-1",
+        "legato": "D-1",
+        "marcato": "A-1",
+        "pizz": "F-1",
+        "tremolo": "G-1"
+      },
       "fallback": {
-        "detache": ["sustain"],
-        "portato": ["sustain"],
-        "sulTasto": ["sustain"],
-        "sulPont": ["sustain"],
-        "conSord": ["sustain"],
-        "staccato": ["marcato"],
-        "spiccato": ["marcato"]
+        "detache": [
+          "sustain"
+        ],
+        "portato": [
+          "sustain"
+        ],
+        "sulTasto": [
+          "sustain"
+        ],
+        "sulPont": [
+          "sustain"
+        ],
+        "conSord": [
+          "sustain"
+        ],
+        "staccato": [
+          "marcato"
+        ],
+        "spiccato": [
+          "marcato"
+        ]
       },
       "transposeSemitones": 0,
       "keyswitchLeadMs": 30,
       "keyswitchLengthMs": 60,
       "tremoloMode": "sampled",
-      "ccEnabled": { "1": true, "7": true, "11": true, "68": false, "74": false }
+      "ccEnabled": {
+        "1": true,
+        "7": true,
+        "11": true,
+        "68": false,
+        "74": false
+      }
     },
     {
       "id": "horns",
       "patch": "French Horn Ensemble",
       "channel": 6,
-      "source": { "role": "horns" },
+      "source": {
+        "role": "horns"
+      },
       "lowestPlayable": 35,
-      "keyswitchZone": { "low": 24, "high": 29 },
+      "keyswitchZone": {
+        "low": 24,
+        "high": 29
+      },
       "playableLow": 35,
-      "keyswitches": { "sustain": "C0", "staccato": "C#0" },
+      "keyswitches": {
+        "sustain": "C0",
+        "staccato": "C#0"
+      },
       "fallback": {
-        "marcato": ["staccato"],
-        "spiccato": ["staccato"],
-        "pizz": ["staccato"],
-        "legato": ["sustain"],
-        "tremolo": ["sustain"],
-        "detache": ["sustain"],
-        "portato": ["sustain"],
-        "sulTasto": ["sustain"],
-        "sulPont": ["sustain"],
-        "conSord": ["sustain"]
+        "marcato": [
+          "staccato"
+        ],
+        "spiccato": [
+          "staccato"
+        ],
+        "pizz": [
+          "staccato"
+        ],
+        "legato": [
+          "sustain"
+        ],
+        "tremolo": [
+          "sustain"
+        ],
+        "detache": [
+          "sustain"
+        ],
+        "portato": [
+          "sustain"
+        ],
+        "sulTasto": [
+          "sustain"
+        ],
+        "sulPont": [
+          "sustain"
+        ],
+        "conSord": [
+          "sustain"
+        ]
       },
       "transposeSemitones": 0,
       "keyswitchLeadMs": 30,
       "keyswitchLengthMs": 60,
-      "ccEnabled": { "1": true, "7": true, "11": true, "68": false, "74": false }
+      "ccEnabled": {
+        "1": true,
+        "7": true,
+        "11": true,
+        "68": false,
+        "74": false
+      }
     },
     {
       "id": "trombones",
       "patch": "Trombone Ensemble",
       "channel": 7,
-      "source": { "role": "trombones" },
+      "source": {
+        "role": "trombones"
+      },
       "lowestPlayable": 36,
-      "keyswitchZone": { "low": 24, "high": 25 },
+      "keyswitchZone": {
+        "low": 24,
+        "high": 25
+      },
       "playableLow": 36,
-      "keyswitches": { "sustain": "C0", "staccato": "C#0" },
+      "keyswitches": {
+        "sustain": "C0",
+        "staccato": "C#0"
+      },
       "fallback": {
-        "marcato": ["staccato"],
-        "spiccato": ["staccato"],
-        "pizz": ["staccato"],
-        "legato": ["sustain"],
-        "tremolo": ["sustain"],
-        "detache": ["sustain"],
-        "portato": ["sustain"],
-        "sulTasto": ["sustain"],
-        "sulPont": ["sustain"],
-        "conSord": ["sustain"]
+        "marcato": [
+          "staccato"
+        ],
+        "spiccato": [
+          "staccato"
+        ],
+        "pizz": [
+          "staccato"
+        ],
+        "legato": [
+          "sustain"
+        ],
+        "tremolo": [
+          "sustain"
+        ],
+        "detache": [
+          "sustain"
+        ],
+        "portato": [
+          "sustain"
+        ],
+        "sulTasto": [
+          "sustain"
+        ],
+        "sulPont": [
+          "sustain"
+        ],
+        "conSord": [
+          "sustain"
+        ]
       },
       "transposeSemitones": 0,
       "keyswitchLeadMs": 30,
       "keyswitchLengthMs": 60,
-      "ccEnabled": { "1": true, "7": true, "11": true, "68": false, "74": false }
+      "ccEnabled": {
+        "1": true,
+        "7": true,
+        "11": true,
+        "68": false,
+        "74": false
+      }
     },
     {
       "id": "trumpets",
       "patch": "Trumpet Ensemble",
       "channel": 8,
-      "source": { "role": "trumpets" },
+      "source": {
+        "role": "trumpets"
+      },
       "lowestPlayable": 55,
-      "keyswitchZone": { "low": 48, "high": 52 },
+      "keyswitchZone": {
+        "low": 48,
+        "high": 52
+      },
       "playableLow": 55,
-      "keyswitches": { "sustain": "C2", "accent": "D2", "staccato": "D#2" },
+      "keyswitches": {
+        "sustain": "C2",
+        "accent": "D2",
+        "staccato": "D#2"
+      },
       "fallback": {
-        "marcato": ["accent"],
-        "spiccato": ["staccato"],
-        "pizz": ["staccato"],
-        "legato": ["sustain"],
-        "tremolo": ["sustain"],
-        "detache": ["sustain"],
-        "portato": ["sustain"],
-        "sulTasto": ["sustain"],
-        "sulPont": ["sustain"],
-        "conSord": ["sustain"]
+        "marcato": [
+          "accent"
+        ],
+        "spiccato": [
+          "staccato"
+        ],
+        "pizz": [
+          "staccato"
+        ],
+        "legato": [
+          "sustain"
+        ],
+        "tremolo": [
+          "sustain"
+        ],
+        "detache": [
+          "sustain"
+        ],
+        "portato": [
+          "sustain"
+        ],
+        "sulTasto": [
+          "sustain"
+        ],
+        "sulPont": [
+          "sustain"
+        ],
+        "conSord": [
+          "sustain"
+        ]
       },
       "transposeSemitones": 0,
       "keyswitchLeadMs": 30,
       "keyswitchLengthMs": 60,
-      "ccEnabled": { "1": true, "7": true, "11": true, "68": false, "74": false }
+      "ccEnabled": {
+        "1": true,
+        "7": true,
+        "11": true,
+        "68": false,
+        "74": false
+      }
     },
     {
       "id": "tuba",
       "patch": "Tuba solo",
       "channel": 9,
-      "source": { "role": "tuba" },
+      "source": {
+        "role": "tuba"
+      },
       "lowestPlayable": 28,
-      "keyswitchZone": { "low": 24, "high": 25 },
+      "keyswitchZone": {
+        "low": 24,
+        "high": 25
+      },
       "playableLow": 28,
-      "keyswitches": { "sustain": "C0", "staccato": "C#0" },
+      "keyswitches": {
+        "sustain": "C0",
+        "staccato": "C#0"
+      },
       "fallback": {
-        "marcato": ["staccato"],
-        "spiccato": ["staccato"],
-        "pizz": ["staccato"],
-        "legato": ["sustain"],
-        "tremolo": ["sustain"],
-        "detache": ["sustain"],
-        "portato": ["sustain"],
-        "sulTasto": ["sustain"],
-        "sulPont": ["sustain"],
-        "conSord": ["sustain"]
+        "marcato": [
+          "staccato"
+        ],
+        "spiccato": [
+          "staccato"
+        ],
+        "pizz": [
+          "staccato"
+        ],
+        "legato": [
+          "sustain"
+        ],
+        "tremolo": [
+          "sustain"
+        ],
+        "detache": [
+          "sustain"
+        ],
+        "portato": [
+          "sustain"
+        ],
+        "sulTasto": [
+          "sustain"
+        ],
+        "sulPont": [
+          "sustain"
+        ],
+        "conSord": [
+          "sustain"
+        ]
       },
       "transposeSemitones": 0,
       "keyswitchLeadMs": 30,
       "keyswitchLengthMs": 60,
-      "ccEnabled": { "1": true, "7": true, "11": true, "68": false, "74": false }
+      "ccEnabled": {
+        "1": true,
+        "7": true,
+        "11": true,
+        "68": false,
+        "74": false
+      }
+    },
+    {
+      "id": "flutes",
+      "patch": "Flute Solo",
+      "channel": 11,
+      "source": {
+        "role": "flutes"
+      },
+      "lowestPlayable": 59,
+      "keyswitchZone": {
+        "low": 48,
+        "high": 51
+      },
+      "playableLow": 59,
+      "keyswitches": {
+        "sustain": "C2",
+        "staccato": "C#2"
+      },
+      "fallback": {
+        "legato": [
+          "sustain"
+        ],
+        "detache": [
+          "sustain"
+        ],
+        "marcato": [
+          "sustain"
+        ],
+        "spiccato": [
+          "sustain"
+        ],
+        "pizz": [
+          "sustain"
+        ],
+        "tremolo": [
+          "sustain"
+        ],
+        "portato": [
+          "sustain"
+        ],
+        "sulTasto": [
+          "sustain"
+        ],
+        "sulPont": [
+          "sustain"
+        ],
+        "conSord": [
+          "sustain"
+        ]
+      },
+      "transposeSemitones": 0,
+      "keyswitchLeadMs": 30,
+      "keyswitchLengthMs": 60,
+      "tremoloMode": "sampled",
+      "ccEnabled": {
+        "1": true,
+        "7": true,
+        "11": true,
+        "68": false,
+        "74": false
+      },
+      "doublingCandidate": false
+    },
+    {
+      "id": "oboes",
+      "patch": "Oboe Solo",
+      "channel": 12,
+      "source": {
+        "role": "oboes"
+      },
+      "lowestPlayable": 59,
+      "keyswitchZone": {
+        "low": 48,
+        "high": 56
+      },
+      "playableLow": 59,
+      "keyswitches": {
+        "sustain": "C2",
+        "staccato": "C#2"
+      },
+      "fallback": {
+        "legato": [
+          "sustain"
+        ],
+        "detache": [
+          "sustain"
+        ],
+        "marcato": [
+          "sustain"
+        ],
+        "spiccato": [
+          "sustain"
+        ],
+        "pizz": [
+          "sustain"
+        ],
+        "tremolo": [
+          "sustain"
+        ],
+        "portato": [
+          "sustain"
+        ],
+        "sulTasto": [
+          "sustain"
+        ],
+        "sulPont": [
+          "sustain"
+        ],
+        "conSord": [
+          "sustain"
+        ]
+      },
+      "transposeSemitones": 0,
+      "keyswitchLeadMs": 30,
+      "keyswitchLengthMs": 60,
+      "tremoloMode": "sampled",
+      "ccEnabled": {
+        "1": true,
+        "7": true,
+        "11": true,
+        "68": false,
+        "74": false
+      },
+      "doublingCandidate": false
+    },
+    {
+      "id": "clarinets",
+      "patch": "Clarinet Solo",
+      "channel": 13,
+      "source": {
+        "role": "clarinets"
+      },
+      "lowestPlayable": 50,
+      "keyswitchZone": {
+        "low": 36,
+        "high": 39
+      },
+      "playableLow": 50,
+      "keyswitches": {
+        "sustain": "C1",
+        "staccato": "C#1"
+      },
+      "fallback": {
+        "legato": [
+          "sustain"
+        ],
+        "detache": [
+          "sustain"
+        ],
+        "marcato": [
+          "sustain"
+        ],
+        "spiccato": [
+          "sustain"
+        ],
+        "pizz": [
+          "sustain"
+        ],
+        "tremolo": [
+          "sustain"
+        ],
+        "portato": [
+          "sustain"
+        ],
+        "sulTasto": [
+          "sustain"
+        ],
+        "sulPont": [
+          "sustain"
+        ],
+        "conSord": [
+          "sustain"
+        ]
+      },
+      "transposeSemitones": 0,
+      "keyswitchLeadMs": 30,
+      "keyswitchLengthMs": 60,
+      "tremoloMode": "sampled",
+      "ccEnabled": {
+        "1": true,
+        "7": true,
+        "11": true,
+        "68": false,
+        "74": false
+      },
+      "doublingCandidate": false
+    },
+    {
+      "id": "bassoons",
+      "patch": "Bassoon Solo",
+      "channel": 14,
+      "source": {
+        "role": "bassoons"
+      },
+      "lowestPlayable": 35,
+      "keyswitchZone": {
+        "low": 24,
+        "high": 27
+      },
+      "playableLow": 35,
+      "keyswitches": {
+        "sustain": "C0",
+        "staccato": "C#0"
+      },
+      "fallback": {
+        "legato": [
+          "sustain"
+        ],
+        "detache": [
+          "sustain"
+        ],
+        "marcato": [
+          "sustain"
+        ],
+        "spiccato": [
+          "sustain"
+        ],
+        "pizz": [
+          "sustain"
+        ],
+        "tremolo": [
+          "sustain"
+        ],
+        "portato": [
+          "sustain"
+        ],
+        "sulTasto": [
+          "sustain"
+        ],
+        "sulPont": [
+          "sustain"
+        ],
+        "conSord": [
+          "sustain"
+        ]
+      },
+      "transposeSemitones": 0,
+      "keyswitchLeadMs": 30,
+      "keyswitchLengthMs": 60,
+      "tremoloMode": "sampled",
+      "ccEnabled": {
+        "1": true,
+        "7": true,
+        "11": true,
+        "68": false,
+        "74": false
+      },
+      "doublingCandidate": false
+    },
+    {
+      "id": "timpani",
+      "patch": "Timpani",
+      "channel": 10,
+      "fileScope": "fileOnly",
+      "source": {
+        "role": "timpani"
+      },
+      "lowestPlayable": 35,
+      "keyswitchZone": {
+        "low": 24,
+        "high": 27
+      },
+      "playableLow": 35,
+      "keyswitches": {
+        "sustain": "C#0"
+      },
+      "fallback": {
+        "legato": [
+          "sustain"
+        ],
+        "detache": [
+          "sustain"
+        ],
+        "marcato": [
+          "sustain"
+        ],
+        "staccato": [
+          "sustain"
+        ],
+        "spiccato": [
+          "sustain"
+        ],
+        "pizz": [
+          "sustain"
+        ],
+        "tremolo": [
+          "sustain"
+        ],
+        "portato": [
+          "sustain"
+        ],
+        "sulTasto": [
+          "sustain"
+        ],
+        "sulPont": [
+          "sustain"
+        ],
+        "conSord": [
+          "sustain"
+        ]
+      },
+      "transposeSemitones": 0,
+      "keyswitchLeadMs": 30,
+      "keyswitchLengthMs": 60,
+      "tremoloMode": "measured",
+      "ccEnabled": {},
+      "doublingCandidate": false
+    },
+    {
+      "id": "snare",
+      "patch": "Snare",
+      "channel": 11,
+      "fileScope": "fileOnly",
+      "source": {
+        "role": "snare"
+      },
+      "lowestPlayable": 48,
+      "playableLow": 48,
+      "keyswitchMode": "none",
+      "keyswitches": {},
+      "fallback": {},
+      "noteMap": {
+        "rotate": {
+          "from": 38,
+          "pool": "snareHitKeys"
+        }
+      },
+      "transposeSemitones": 0,
+      "keyswitchLeadMs": 30,
+      "keyswitchLengthMs": 60,
+      "tremoloMode": "measured",
+      "ccEnabled": {},
+      "doublingCandidate": false
+    },
+    {
+      "id": "cymbals",
+      "patch": "Cymbals",
+      "channel": 12,
+      "fileScope": "fileOnly",
+      "source": {
+        "role": "cymbals"
+      },
+      "lowestPlayable": 48,
+      "playableLow": 48,
+      "keyswitchMode": "none",
+      "keyswitches": {},
+      "fallback": {},
+      "noteMap": {
+        "fixedPitch": 48
+      },
+      "transposeSemitones": 0,
+      "keyswitchLeadMs": 30,
+      "keyswitchLengthMs": 60,
+      "tremoloMode": "measured",
+      "ccEnabled": {},
+      "doublingCandidate": false
+    },
+    {
+      "id": "harp",
+      "patch": "Harp",
+      "channel": 15,
+      "source": {
+        "role": "harp"
+      },
+      "lowestPlayable": 23,
+      "keyswitchZone": {
+        "low": 12,
+        "high": 22
+      },
+      "playableLow": 23,
+      "keyswitches": {
+        "sustain": "C-1"
+      },
+      "fallback": {
+        "legato": [
+          "sustain"
+        ],
+        "detache": [
+          "sustain"
+        ],
+        "marcato": [
+          "sustain"
+        ],
+        "staccato": [
+          "sustain"
+        ],
+        "spiccato": [
+          "sustain"
+        ],
+        "pizz": [
+          "sustain"
+        ],
+        "tremolo": [
+          "sustain"
+        ],
+        "portato": [
+          "sustain"
+        ],
+        "sulTasto": [
+          "sustain"
+        ],
+        "sulPont": [
+          "sustain"
+        ],
+        "conSord": [
+          "sustain"
+        ]
+      },
+      "transposeSemitones": 0,
+      "keyswitchLeadMs": 30,
+      "keyswitchLengthMs": 60,
+      "tremoloMode": "measured",
+      "ccEnabled": {},
+      "doublingCandidate": false
+    },
+    {
+      "id": "piano",
+      "patch": "Piano (Octavo Grand)",
+      "channel": 16,
+      "source": {
+        "role": "piano"
+      },
+      "lowestPlayable": 21,
+      "playableLow": 21,
+      "keyswitchMode": "none",
+      "keyswitches": {},
+      "fallback": {},
+      "transposeSemitones": 0,
+      "keyswitchLeadMs": 30,
+      "keyswitchLengthMs": 60,
+      "tremoloMode": "measured",
+      "ccEnabled": {},
+      "doublingCandidate": false
     }
+  ],
+  "pools": {
+    "snareHitKeys": [
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62
+    ]
+  },
+  "unmapped": [
+    "aux"
   ],
   "unverified": [
     "parts[0].playableLow (C2=48, from the user's table, marked unverified there)",
@@ -235,6 +978,7 @@
     "parts[5].transposeSemitones (default 0)",
     "parts[6].transposeSemitones (default 0)",
     "parts[7].transposeSemitones (default 0)",
-    "parts[8].transposeSemitones (default 0)"
+    "parts[8].transposeSemitones (default 0)",
+    "parts[9..17] (the Phase 12 parts): zones, playable floors and key maps from the Phase 12 patch table (MIDI, C3 = 60); the piano's playableLow 21 is the standard A0 keyboard floor (the table says 'whole keyboard' without a number); the cymbals' short-hit keys 55–59 stay unemitted — the engine writes crashes and swells only (Phase 12 pre-flight 3, 120 golden105 runs)"
   ]
 }

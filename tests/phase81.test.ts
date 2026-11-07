@@ -83,7 +83,8 @@ describe('brass key conversion (C3=60 → C0=24)', () => {
 /* ---------------- 2. profile shape: roles, channels, zones ---------------- */
 describe('the brass parts in the shipped profile', () => {
   it('uses the brass module\'s Crescode roles, the Falcon patch names, and the channels after the strings', () => {
-    expect(PROFILE.parts.map((p) => p.id)).toEqual(['violins1', 'violins2', 'violas', 'cello', 'bass', 'horns', 'trombones', 'trumpets', 'tuba']);
+    // Phase 12: the profile grew from 9 parts to 18 — the strings and brass keep their ids, order and channels
+    expect(PROFILE.parts.map((p) => p.id)).toEqual(['violins1', 'violins2', 'violas', 'cello', 'bass', 'horns', 'trombones', 'trumpets', 'tuba', 'flutes', 'oboes', 'clarinets', 'bassoons', 'timpani', 'snare', 'cymbals', 'harp', 'piano']);
     expect(BRASS_IDS.map((id) => partOf(id).source)).toEqual([
       { role: 'horns' }, { role: 'trombones' }, { role: 'trumpets' }, { role: 'tuba' },
     ]);
@@ -92,10 +93,12 @@ describe('the brass parts in the shipped profile', () => {
     expect(PROFILE.parts.slice(0, 5).map((p) => p.channel)).toEqual([1, 2, 3, 4, 5]);
   });
 
-  it('every part (strings included) carries keyswitchZone + playableLow; every keyswitch lies inside its zone and below playableLow', () => {
+  it('every part (strings included) carries playableLow; keyswitch-bearing parts carry keyswitchZone and every keyswitch lies inside its zone and below playableLow', () => {
     for (const part of PROFILE.parts) {
-      expect(part.keyswitchZone, `${part.id} keyswitchZone`).toBeDefined();
       expect(part.playableLow, `${part.id} playableLow`).toBeDefined();
+      if (Object.keys(part.keyswitches).length) { // the Phase 12 keyswitch-free parts (snare, cymbals, piano) carry no zone
+        expect(part.keyswitchZone, `${part.id} keyswitchZone`).toBeDefined();
+      }
       for (const [art, name] of Object.entries(part.keyswitches)) {
         const midi = keyNameToMidi(name, CONV)!;
         expect(midi, `${part.id}.${art} (${name}) inside the zone`).toBeGreaterThanOrEqual(part.keyswitchZone!.low);
@@ -280,8 +283,13 @@ describe('profile validator: keyswitchZone + playableLow', () => {
 
 /* ---------------- 6. unique channels ---------------- */
 describe('channels', () => {
-  it('the nine channels are unique (1–9); a duplicate is rejected naming the owner', () => {
-    expect(new Set(PROFILE.parts.map((p) => p.channel)).size).toBe(PROFILE.parts.length);
+  it('channels are unique within each scope class (merged 1–9 + 11–16, files 10–12); a duplicate is rejected naming the owner', () => {
+    // Phase 12: the merged file and a fileOnly part's own file never share a reader, so the uniqueness is per scope
+    const merged = PROFILE.parts.filter((p) => p.fileScope !== 'fileOnly');
+    const files = PROFILE.parts.filter((p) => p.fileScope === 'fileOnly');
+    expect(new Set(merged.map((p) => p.channel)).size).toBe(merged.length);
+    expect(new Set(files.map((p) => p.channel)).size).toBe(files.length);
+    expect(merged.every((p) => p.channel !== 10)).toBe(true); // the merged file avoids the drum channel
     const doc = uviDoc() as { parts: Record<string, unknown>[] };
     const horns = doc.parts.find((p) => p.id === 'horns') as { channel: number };
     horns.channel = 4;

@@ -793,20 +793,29 @@ describe('Phase 10: locks, band, hygiene, exports', () => {
     }
   });
 
-  it('export with and without the profile passes the percussion through (no Falcon profile — the pre-8.1 passthrough)', () => {
+  it('export without the profile passes the percussion through; with the profile the percussion parts claim it (Phase 12)', () => {
     const { project } = composeTake(THREE(), 'ensemble.symphony', 1);
     expect(validateProject(JSON.parse(JSON.stringify(project))).ok).toBe(true);
     // the merged no-profile export builds and parses
     const merged = buildMergedMidi(project, project.tracks.filter((t) => t.notes.length));
     expect(merged.length).toBeGreaterThan(200);
-    // the UVI profile export: the percussion tracks are not in the profile —
-    // their chunks pass through untouched
+    // the UVI profile export: the percussion parts claim their tracks (Phase 12) —
+    // the snare rotates into 48–62, the cymbals land on the long-crash key 48,
+    // the timpani plays as written under one selection keyswitch, the aux is unmapped
     for (const role of PERC_ROLES) {
       const t = trackOf(project, role);
       if (!t.notes.length) continue;
       const chunks = chunksForTrack(project, t, PROFILE);
-      const total = chunks.reduce((a2, c) => a2 + c.notes.length, 0);
-      expect(total, `${role} lost notes in the profile export`).toBe(t.notes.length);
+      if (role === 'aux') {
+        expect(chunks.length, 'the aux is unmapped and exports nothing').toBe(0);
+        continue;
+      }
+      const part = PROFILE.parts.find((p) => p.source.role === role)!;
+      expect(chunks.length).toBe(1);
+      const sounding = chunks[0].notes.filter((n) => n.pitch >= part.playableLow!);
+      expect(sounding.length, `${role} lost notes in the profile export`).toBe(t.notes.length);
+      if (role === 'snare') expect(sounding.every((n) => n.pitch >= 48 && n.pitch <= 62)).toBe(true);
+      if (role === 'cymbals') expect(sounding.every((n) => n.pitch === 48)).toBe(true);
     }
   });
 

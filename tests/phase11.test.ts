@@ -492,7 +492,7 @@ describe('Phase 11: locks, band, hygiene, exports', () => {
     }
   }, 300000);
 
-  it('export with and without the profile passes the keys through (no keys part in the UVI profile — the pre-8.1 passthrough)', () => {
+  it('export without the profile passes the keys through; with the profile the keys parts claim them (Phase 12)', () => {
     const { project } = composeTake(THREE(), 'ensemble.cinematic', 1);
     expect(validateProject(JSON.parse(JSON.stringify(project))).ok).toBe(true);
     const merged = buildMergedMidi(project, project.tracks.filter((t) => t.notes.length));
@@ -500,9 +500,11 @@ describe('Phase 11: locks, band, hygiene, exports', () => {
     for (const role of KEYS_ROLES) {
       const t = trackOf(project, role);
       if (!t.notes.length) continue;
+      const part = PROFILE.parts.find((p) => p.source.role === role)!;
       const chunks = chunksForTrack(project, t, PROFILE);
-      const total = chunks.reduce((a2, c) => a2 + c.notes.length, 0);
-      expect(total, `${role} lost notes in the profile export`).toBe(t.notes.length);
+      expect(chunks.length).toBe(1);
+      const sounding = chunks[0].notes.filter((n) => n.pitch >= part.playableLow!);
+      expect(sounding.length, `${role} lost notes in the profile export`).toBe(t.notes.length);
     }
   });
 

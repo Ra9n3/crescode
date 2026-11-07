@@ -1127,3 +1127,80 @@ on five string tracks for the two honest replacement designs (plan-derived
 role presence, and the widened pad governor); the record lives in
 `scripts/phase112-dryrun.ts` and the stopped implementation on the local
 branch `phase112-dryrun-wip`.
+
+## 17. Falcon export profiles — winds, percussion, keys (Phase 12)
+
+Export-only phase at the post-11.5 HEAD: the engine and the project data
+don't change, `tests/golden105/` stays the immutable project-output
+reference (every project track byte-identical — pinned on all 120 corpus
+runs), and every change lives in the profile JSON, the profile machinery,
+the export path, the export dialog and the tests.
+
+### 17.1 The parts and the channels
+
+The profile grows from 9 parts to 18. The merged file carries what fits
+while avoiding channel 10 (the General MIDI drum channel) — exactly the 15
+melodic parts: strings 1–5, brass 6–9 (both unchanged), the winds on 11–14,
+the harp on 15, the piano on 16. The three pitched-percussion parts cannot
+fit (only channel 10 remains), so they are `fileScope: 'fileOnly'`: they
+export only as their own per-track files on documented channels — Timpani
+10, Snare 11, Cymbals 12 — meant for their own Falcon instance or multi
+(11/12 reuse wind channel numbers by number only). The export dialog
+renders one line per part (channel, keyswitches, note map, fold floor),
+the merged-carry note naming the three file-only parts, and states what
+the merged file cannot carry. Channel uniqueness is validated PER SCOPE
+class; `allPartPitches` (the fold's doubling check) never reads a
+file-only part (another file's arrangement is not a doubling candidate).
+
+### 17.2 The patch data (MIDI sounding, C3 = 60)
+
+| Patch | Keyswitches | Red zone | Playable from | Silent gap | Note map |
+|---|---|---|---|---|---|
+| Flute Solo | sustain 48, staccato 49 | 48–51 | 59 | 52–58 | — |
+| Oboe Solo | sustain 48, staccato 49 | 48–56 | 59 | 57–58 | — |
+| Clarinet Solo | sustain 36, staccato 37 | 36–39 | 50 | 40–49 | — |
+| Bassoon Solo | sustain 24, staccato 25 | 24–27 | 35 | 28–34 | — |
+| Timpani | Timpani 2 = 25 (sent once per part) | 24–27 | 35 | none | hits as written; roll 16ths stay hits (`tremoloMode 'measured'`) |
+| Snare | none (`keyswitchMode 'none'`) | — | 48 | none | every engine 38 → `snareHitKeys` 48–62, rotated |
+| Cymbals | none | — | 48 | none | every note → the long-crash key 48 |
+| Aux | unmapped (`profile.unmapped`) | — | — | — | left out of the export; the notes stay in the project |
+| Harp | Harp 1 Sustain = 12 (once per part) | 12–22 | 23 | none | as written; no transposition, no CC |
+| Piano (IRCAM Prepared Piano 2, Octavo Grand) | none | — | whole keyboard (21) | none | as written; no keyswitch, no CC, no transposition — Phase 11.5's note lengths remain the sustain mechanism |
+
+The winds have no marcato/tremolo/legato samples: those articulations fall
+back to sustain through the fallback chains (staccato stays staccato), the
+flutter-tongue tremolo merges into one sustained note (sampled mode), and
+the wind CC lanes follow the brass convention (1/7/11 exported, 68/74
+dropped) — the engine writes 1/7/11 on every wind track.
+
+### 17.3 The note map (the export-only pitch remap)
+
+`part.noteMap` is a new profile field with exactly two shapes, mutually
+exclusive: `fixedPitch` (every note takes one key — the cymbal crash) and
+`rotate` (notes at `from` remap through a named profile pool). The pools
+live at the profile level (`pools`, e.g. `snareHitKeys` = 48–62, distinct
+keys — every key is a different sample). The rotation draws hash-seeded
+per note (part id, pitch, tick, duration and index seed the FNV-1a hash
+the engine already uses) and never repeats the previous rotated key; it is
+a pure function of the note sequence. Velocity, timing and the note count
+ride through untouched. The remap runs BEFORE the fold guard, so a remapped
+key is never folded; the stats sink counts it under `remapped`.
+
+### 17.4 Aux, and what the corpus measured
+
+A role in `profile.unmapped` exports nothing (no chunk, no file); its
+notes stay in the project and the dialog warns. Pre-flight measured the
+golden105 corpus (6 templates × 2 fixtures × takes 1–10): ZERO wind notes
+inside any silent gap (the config floors 58/34 for oboe/bassoon sit inside
+gaps but were never realised — the fold guard stays armed per patch), and
+the cymbals carry ONLY crashes (unmarked) and swells (`tremolo`) — 100
+notes, all to key 48; the short-hit keys 55–59 never fire and no other
+cymbal key is ever emitted. Snare: 1,846 notes, all 15 pool keys realised,
+no immediate repetition. Aux: 3,632 notes across 60 runs, all left out.
+The Phase 12 patches fold and drop NOTHING across the corpus (the
+string/brass folds are pre-existing behaviour, byte-pinned against the
+pre-change reference captured in `tests/phase12-export-reference.json`).
+The `doublingCandidate: false` declaration on the nine new parts keeps the
+sonata/vocalbacking fold-doubling check reading exactly the candidates it
+read before (their `octaveDoubling: forbidden` rules are live), which is
+what keeps the string/brass profile output byte-identical.

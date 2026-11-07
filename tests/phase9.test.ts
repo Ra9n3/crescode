@@ -507,16 +507,24 @@ describe('Phase 9: hygiene', () => {
     expect(validateProject(JSON.parse(JSON.stringify(project))).ok).toBe(true);
   });
 
-  it('the UVI profile and the no-profile export both pass the winds through untouched', () => {
+  it('the no-profile export passes the winds through untouched; the UVI profile claims them with their own parts (Phase 12)', () => {
     const { project } = composeTake(THREE(), 'ensemble.symphony', 1);
     const before = JSON.stringify(project);
     expect(validateExportProfile(PROFILE)).toEqual([]);
     for (const role of WIND_ROLES) {
       const t = trackOf(project, role);
+      // no profile: the pre-8.1 passthrough, untouched
+      const plain = chunksForTrack(project, t, null);
+      expect(plain.length).toBe(1);
+      expect(plain[0].notes).toEqual(t.notes);
+      expect(plain[0].channel).toBe(t.midiChannel);
+      // the profile: the wind part claims the track — every engine note survives, plus its keyswitches below the playable floor
+      const part = PROFILE.parts.find((p) => p.source.role === role)!;
       const chunks = chunksForTrack(project, t, PROFILE);
-      expect(chunks.length, `${role} chunk count`).toBe(1); // one passthrough chunk: no wind part in the profile
-      expect(chunks[0].notes).toEqual(t.notes);
-      expect(chunks[0].channel).toBe(t.midiChannel);
+      expect(chunks.length).toBe(1);
+      expect(chunks[0].channel).toBe(part.channel);
+      const sounding = chunks[0].notes.filter((n) => n.pitch >= part.playableLow!);
+      expect(sounding.length, `${role} lost notes in the profile export`).toBe(t.notes.length);
     }
     expect(JSON.stringify(project)).toBe(before);
     expect(validateProject(JSON.parse(JSON.stringify(project))).ok).toBe(true);

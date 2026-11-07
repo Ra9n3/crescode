@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { useStore } from '../store/store';
 import { buildMergedMidi, buildPerTrackMidi, exportableTracks, parseMidiFile } from '../export/midi';
 import { EXPORT_PROFILES } from '../export/profiles';
+import { profilePartSummary, profileScopeNote, type FoldStats } from '../export/profile';
 import { exportJson, getRecent, openProjectText, pickFile, saveFile, saveFilesToFolder, saveProject } from '../lib/files';
 import { BAND_ROLES, freshEnsemble, INSTRUMENTS, isInstrumentTrack, isInBand, noteName, PERCUSSION_FIXED_NOTES, projectBars } from '../shared/schema';
 import { ENSEMBLE_BY_ID } from '../config/ensembles';
@@ -62,19 +63,34 @@ function ExportDialog() {
       return;
     }
     if (!tracks.length) { s.toast('warn', 'No tracks selected for export'); return; }
+    // the profile's fold/remap stats sink (Phase 12): the report reads it
+    const stats: FoldStats = { folded: {}, droppedHardRange: {}, droppedDoubling: {} };
+    const auxNotes = tracks.filter((t) => t.role === 'aux').reduce((a, t) => a + t.notes.length, 0);
+    const statBits = (): string => {
+      if (!chosenProfile) return '';
+      const bits: string[] = [];
+      const sum = (r?: Record<string, number>): number => Object.values(r ?? {}).reduce((a, b) => a + b, 0);
+      bits.push(`folded ${sum(stats.folded)} · dropped ${sum(stats.droppedHardRange) + sum(stats.droppedDoubling)}`);
+      for (const [id, n] of Object.entries(stats.remapped ?? {})) {
+        const patch = chosenProfile.parts.find((pp) => pp.id === id)?.patch ?? id;
+        bits.push(`${patch}: ${n} notes remapped`);
+      }
+      if (auxNotes) bits.push(`aux left out (${auxNotes} notes, kept in the project)`);
+      return ` ${bits.join(' · ')}.`;
+    };
     if (fmt === 'midi') {
-      const data = buildMergedMidi(p, tracks, chosenProfile);
+      const data = buildMergedMidi(p, tracks, chosenProfile, stats);
       const n = await saveFile(`${p.name || 'Crescode'}.mid`, data as BlobPart, 'audio/midi', 'mid');
       if (!n) return;
       const parsed = parseMidiFile(data);
       const count = parsed.tracks.reduce((a, t) => a + t.notes.length, 0);
-      setReport(`Wrote ${n}: Type ${parsed.format}, ${parsed.ppq} PPQ, ${parsed.bpm} BPM, ${parsed.tracks.length - 1} instrument tracks + conductor, ${count} notes, ${projectBars(p)} bars, markers: ${parsed.markers.map((m) => m.text).join(', ') || 'none'}${chosenProfile ? `. Profile: ${chosenProfile.name}.` : ''}`);
+      setReport(`Wrote ${n}: Type ${parsed.format}, ${parsed.ppq} PPQ, ${parsed.bpm} BPM, ${parsed.tracks.length - 1} instrument tracks + conductor, ${count} notes, ${projectBars(p)} bars, markers: ${parsed.markers.map((m) => m.text).join(', ') || 'none'}${chosenProfile ? `. Profile: ${chosenProfile.name}.` : ''}${statBits()}`);
       s.toast('success', `Exported ${n}`);
     } else {
-      const files = buildPerTrackMidi(p, tracks, chosenProfile);
+      const files = buildPerTrackMidi(p, tracks, chosenProfile, stats);
       const where = await saveFilesToFolder(files);
       if (!where) return;
-      setReport(`Wrote ${files.length} files to ${where}: ${files.map((f) => f.fileName).join(', ')}. All end at bar ${projectBars(p) + 1}.${chosenProfile ? ` Profile: ${chosenProfile.name}.` : ''}`);
+      setReport(`Wrote ${files.length} files to ${where}: ${files.map((f) => f.fileName).join(', ')}. All end at bar ${projectBars(p) + 1}.${chosenProfile ? ` Profile: ${chosenProfile.name}.` : ''}${statBits()}`);
       s.toast('success', `Exported ${files.length} MIDI files`);
     }
   };
@@ -117,6 +133,14 @@ function ExportDialog() {
                 mono
               />
               {chosenProfile && <span className="text-[10px] leading-tight text-[var(--c-textMute)]">keyswitches + per-part channels; project untouched</span>}
+            </div>
+          )}
+          {chosenProfile && (
+            <div className="mb-3 max-h-44 overflow-auto rounded-md border border-[var(--c-line)] p-2 text-[11px] leading-relaxed" data-testid="export-profile-parts">
+              {profilePartSummary(chosenProfile).map((l, i) => (
+                <div key={i} className={l.includes('— unmapped') ? 'text-[var(--c-textMute)]' : 'text-[var(--c-textDim)]'}>{l}</div>
+              ))}
+              {profileScopeNote(chosenProfile) && <div className="mt-1 text-[var(--c-textMute)]">{profileScopeNote(chosenProfile)}</div>}
             </div>
           )}
           <div className="mb-2 flex items-center gap-3 text-xs">

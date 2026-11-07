@@ -477,7 +477,7 @@ describe('Phase 11.5: the clamp, the chorus-mean floor, hygiene', () => {
     }
   }, 600000);
 
-  it('exports keep every keys note: the merged MIDI builds and the UVI profile drop nothing on chamber and vocalbacking', () => {
+  it('exports keep every keys note: the merged MIDI builds and the UVI profile parts carry them on chamber and vocalbacking (Phase 12)', () => {
     const PROFILE = EXPORT_PROFILES[0].profile;
     for (const templateId of ['ensemble.chamber', 'ensemble.vocalbacking']) {
       const { project } = composeTake('three', templateId, 3, false);
@@ -487,8 +487,11 @@ describe('Phase 11.5: the clamp, the chorus-mean floor, hygiene', () => {
       for (const role of [PIANO, HARP]) {
         const t = project.tracks.find((x) => x.role === role);
         if (!t || !t.notes.length) continue;
-        const total = chunksForTrack(project, t, PROFILE).reduce((a2, c) => a2 + c.notes.length, 0);
-        expect(total, `${templateId}: ${role} lost notes in the profile export`).toBe(t.notes.length);
+        const part = PROFILE.parts.find((p) => p.source.role === role)!;
+        const chunks = chunksForTrack(project, t, PROFILE);
+        expect(chunks.length).toBe(1);
+        const sounding = chunks[0].notes.filter((n) => n.pitch >= part.playableLow!);
+        expect(sounding.length, `${templateId}: ${role} lost notes in the profile export`).toBe(t.notes.length);
       }
     }
   }, 600000);

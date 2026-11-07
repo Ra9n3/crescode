@@ -120,9 +120,9 @@ describe('profile validator', () => {
     expect(errors.some((e) => e.includes('parts[1].channel') && e.includes('already used'))).toBe(true);
     expect(errors.some((e) => e.includes('parts[2]') && e.includes('does not resolve'))).toBe(true);
   });
-  it('keeps the UNVERIFIED markers: the pre-8.1 four plus the 8.1/8.2 additions', () => {
+  it('keeps the UNVERIFIED markers: the pre-8.1 four plus the 8.1/8.2 additions, and the Phase 12 additions appended', () => {
     const doc = uviDoc() as { unverified: string[] };
-    expect(doc.unverified).toEqual([
+    expect(doc.unverified.slice(0, 10)).toEqual([
       'parts[0].playableLow (C2=48, from the user\'s table, marked unverified there)',
       'parts[1].keyswitches.spiccato (D2, read from a small manual image)',
       'parts[2].keyswitches.spiccato (C#1, read from a small manual image)',
@@ -134,6 +134,7 @@ describe('profile validator', () => {
       'parts[7].transposeSemitones (default 0)',
       'parts[8].transposeSemitones (default 0)',
     ]);
+    expect(doc.unverified[10]).toContain('Phase 12 parts');
   });
 });
 
@@ -226,10 +227,10 @@ describe('profile export (dorian, cinematic take 1, legacy combined track)', () 
     }
     expect(bass[0].channel).toBe(5);
     expect(cello[0].channel).toBe(4);
-    for (const [i, part] of PROFILE_SEP.parts.entries()) {
+    for (const part of PROFILE_SEP.parts) {
       const chunk = partChunk(project, tracks, part.id)[0];
-      if (!chunk) continue; // a part whose source track is silent this take has no chunk (Phase 8.1: brass parts joined)
-      expect(chunk.channel).toBe(i + 1);
+      if (!chunk || !chunk.notes.length) continue; // a part whose source track is silent this take has no part chunk (the empty lane's passthrough documents the project's own channel, not the part's)
+      expect(chunk.channel).toBe(part.channel); // the part's own documented channel (Phase 12: the merged scope spans 1–9 + 11–16)
     }
   });
 
@@ -288,9 +289,11 @@ describe('profile export (dorian, cinematic take 1, legacy combined track)', () 
     const byName = Object.fromEntries(parsed.tracks.map((t) => [t.name, t]));
     for (const part of PROFILE_SEP.parts) {
       const t = byName[part.patch];
-      expect(t).toBeTruthy();
+      if (!t || (!t.notes.length && !t.cc.length)) continue; // a part whose source track is absent or silent this take has no sounding track in the merged file
       expect(t.channel).toBe(part.channel);
-      expect(t.notes.some((n) => n.pitch < part.lowestPlayable && n.velocity === PROFILE.keyswitchVelocity)).toBe(true);
+      if (Object.keys(part.keyswitches).length) { // the Phase 12 keyswitch-free parts (snare, cymbals, piano) emit none
+        expect(t.notes.some((n) => n.pitch < part.lowestPlayable && n.velocity === PROFILE.keyswitchVelocity)).toBe(true);
+      }
     }
     expect(byName['Violins 1 Ensemble'].cc.length).toBeGreaterThan(0);
     expect(byName['Cello Ensemble'].cc.some((c) => c.cc === 7 && c.tick === 0 && c.value === 90)).toBe(true);

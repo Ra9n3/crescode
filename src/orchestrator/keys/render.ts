@@ -16,14 +16,23 @@
  * `layer` field is never generalised. Figures are STATELESS per bar (the
  * cycle restarts from the bar's own chord), so no moment needs a ghost run.
  *
- * Registers (§16.2): the bed and the arpeggio write inside the sweet spot
- * (harp 36–91, piano 55–84) over about two octaves of chord tones; the low
- * plucked roots, the low octave pulse and the tutti hits fold into the low
- * register; a glissando may use the extreme octaves. The config hard range
- * (the track's own lowestNote/highestNote) always wins. In vocalbacking the
- * vocal zone (A3..A5 sounding, the D6 default the strings already keep
- * free) stays free of both parts: a note that would land in it moves by
- * octave (down first), a run note that cannot is dropped.
+ * Registers (§16.2, §16.2a): the bed and the arpeggio write inside the sweet
+ * spot (harp 36-91, piano 62-84 — Phase 11.1 raised the piano's window:
+ * the right-hand material is centred in 62-84 with the chord's top voice
+ * around 72-84) over about two octaves of chord tones; the low plucked
+ * roots, the low octave pulse and the tutti hits fold into the low
+ * register; a glissando may use the extreme octaves; the piano's comp
+ * material checks the strings' register in the same bar (a candidate in
+ * the octave band holding the violas'/cellos' median pitch moves up). The
+ * config hard range (the track's own lowestNote/highestNote) always wins.
+ * In vocalbacking the vocal zone (A3..A5 sounding, the D6 default the
+ * strings already keep free) stays free of both parts: a harp note that
+ * would land in it moves by octave (down first, then up) and a note that
+ * cannot move out of the zone inside the track's range is dropped; the
+ * PIANO (Phase 11.1) builds its material zone-free by construction — the
+ * sparkle register above the zone (82-96) or the low root/fifth below it
+ * (40-56) — and its zone shift, as a last resort, moves UP first: never
+ * an octave-down fallback for chords or arpeggios.
  *
  * Ring and damping (§16.6): a harp note is capped at about one bar; no
  * keys note rings across a near-silence bar or a soli (the hits are
@@ -49,7 +58,10 @@ import { maxMeanVelocityFor } from '../energy';
 import { momentForBar } from '../conductor/moments';
 import { inVocalZone } from '../profiles/strings';
 import type { OrchestratorContext } from '../module';
-import { KEYS_PARTS, KEYS_GATES, KEYS_PROFILES, isChorusTypeK, keysRosterOf, type KeysPart } from './profile';
+import {
+  KEYS_PARTS, KEYS_GATES, KEYS_PROFILES, PIANO_LH, PIANO_SPARKLE_CAP,
+  VB_LOW, VB_SPARKLE, isChorusTypeK, keysRosterOf, type KeysPart, type PianoPattern,
+} from './profile';
 import type { KeysPlan } from './plan';
 
 /** §16.4 velocity shaping: the ordinary notes shape against the MUSICAL
@@ -185,10 +197,23 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
   };
 
   /** The vocal-zone displacement (vocalbacking only): a note that would
-   *  land in the zone moves by octave — down first, then up — and a note
-   *  that cannot move out of the zone inside the track's range is dropped. */
-  const zoneShift = (pitch: number, lo: number, hi: number): number | null => {
+   *  land in the zone moves by octave — DOWN first, then up — and a note
+   *  that cannot move out of the zone inside the track's range is dropped.
+   *  The PIANO passes upFirst (§16.2a): its material is built zone-free by
+   *  construction, and the last-resort shift moves UP first — never an
+   *  octave-down fallback for chords or arpeggios. The harp's behaviour is
+   *  unchanged. */
+  const zoneShift = (pitch: number, lo: number, hi: number, upFirst = false): number | null => {
     if (!zoneFree || !inVocalZone(pitch)) return pitch;
+    if (upFirst) {
+      let p = pitch;
+      while (inVocalZone(p) && p + 12 <= hi) p += 12;
+      if (!inVocalZone(p)) return p;
+      p = pitch;
+      while (inVocalZone(p) && p - 12 >= lo) p -= 12;
+      if (!inVocalZone(p)) return p;
+      return null;
+    }
     let p = pitch;
     while (inVocalZone(p) && p - 12 >= lo) p -= 12;
     if (!inVocalZone(p)) return p;
@@ -196,6 +221,88 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
     while (inVocalZone(p) && p + 12 <= hi) p += 12;
     if (!inVocalZone(p)) return p;
     return null;
+  };
+
+  /* ---------- §16.2a/§16.3a helpers (Phase 11.1, piano only) ------------- */
+
+  // the drawn piano pattern per section instance (the plan's menu draw)
+  const patternByStart = new Map<number, PianoPattern>(plan.pianoPatterns.map((e) => [e.startBar, e.pattern]));
+  const patternOfBar = (bar: number): PianoPattern | null => {
+    const sec = ctx.sections.find((s) => bar >= s.startBar && bar < s.startBar + s.lengthBars);
+    return sec ? (patternByStart.get(sec.startBar) ?? null) : null;
+  };
+  const fillBarSet = new Set(plan.fillBars);
+  // the strings-register check: the octave band holding the violas'/cellos'
+  // median pitch in the bar (null when neither desk sounds there) — the
+  // piano's right-hand material moves up out of it (the rule yields at the
+  // window's top). Pitch-only: the window roles, the note counts and the
+  // velocities are untouched, so no other track can move through it.
+  const stringsBandCache = new Map<number, [number, number] | null>();
+  const stringsBandAt = (bar: number): [number, number] | null => {
+    if (stringsBandCache.has(bar)) return stringsBandCache.get(bar)!;
+    const s = (bar - 1) * btBar;
+    const e = bar * btBar;
+    const pitches: number[] = [];
+    for (const id of Object.keys(stringsNotes)) {
+      const role = project.tracks.find((t) => t.id === id)?.role;
+      if (role !== 'violas' && role !== 'cellosBasses') continue;
+      for (const n of stringsNotes[id] ?? []) {
+        if (n.startTick < e && n.startTick + n.durationTicks > s) pitches.push(n.pitch);
+      }
+    }
+    let out: [number, number] | null = null;
+    if (pitches.length) {
+      const sorted = [...pitches].sort((a, b) => a - b);
+      const med = sorted[Math.floor(sorted.length / 2)];
+      const base = 12 * Math.floor(med / 12);
+      out = [base, base + 12];
+    }
+    stringsBandCache.set(bar, out);
+    return out;
+  };
+  const outOfStringsBand = (p: number, hi: number, bar: number): number => {
+    const band = stringsBandAt(bar);
+    if (band && p >= band[0] && p < band[1] && p + 12 <= hi) return p + 12;
+    return p;
+  };
+  /** The relief drive's voicing variant (§16.3a): the Phase 11 chord rule
+   *  (ascending distinct pitch classes from the window floor's root, at
+   *  most COMP_CHORD_VOICES voices — the count rule the relief's energy
+   *  was measured with) with the variant's octave placement inside
+   *  [lo, hi]. The tone placement WRAPS an octave down when the scan
+   *  reaches the window top, so the count is min(cap, #pcs) in EVERY
+   *  window — the relief's per-strike voice count, velocity and therefore
+   *  energy are identical to the Phase 11 drive's (whose windows sit at
+   *  the clamp on the tight templates — the safety pass must keep firing
+   *  exactly as before, or the clamped harp moves). Pitch-only otherwise.
+   *  */
+  const driveChord = (pcs: Set<number>, rootPc: number, variant: PianoPattern, loB: number, hiB: number, bar: number): number[] => {
+    const base0 = foldPc(rootPc, loB, hiB);
+    if (base0 === null) return [];
+    const tones: number[] = [];
+    const voiced = new Set<number>();
+    for (let off = 0; off < 12 && tones.length < COMP_CHORD_VOICES; off++) {
+      const pc = ((rootPc + off) % 12 + 12) % 12;
+      if (!pcs.has(pc) || voiced.has(pc)) continue;
+      let p = base0 + ((pc - base0) % 12 + 12) % 12;
+      if (p > hiB) p -= 12;
+      if (p < loB || p > hiB) continue;
+      tones.push(p);
+      voiced.add(pc);
+    }
+    tones.sort((a, b) => a - b);
+    const fits = (p: number): boolean => p >= loB && p <= hiB;
+    if (variant === 'driveInvert' && tones.length && fits(tones[tones.length - 1] - 12)) {
+      tones[tones.length - 1] -= 12;
+    } else if (variant === 'driveOpen' && tones.length >= 2 && fits(tones[1] + 12)) {
+      tones[1] += 12;
+    } else if (variant === 'driveTight') {
+      for (let i = 0; i < tones.length; i++) {
+        while (tones[i] - 12 >= loB && tones[i] > loB + 11) tones[i] -= 12;
+      }
+    }
+    // the strings-register rule (§16.2a) — pitch-only, count-preserving
+    return tones.map((p) => outOfStringsBand(p, hiB, bar)).sort((a, b) => a - b);
   };
 
   /* ---------------- phase A: candidates per part (no velocities yet) ------ */
@@ -219,16 +326,21 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
 
     /** The figure's chord-tone pool: the chord tones over about two octaves
      *  from the window floor's nearest root, inside the sweet spot and the
-     *  track's range, zone-shifted and deduped ascending (§16.2). */
+     *  track's range, zone-shifted and deduped ascending (§16.2). The
+     *  PIANO (§16.2a) additionally moves a candidate up out of the strings'
+     *  octave band and shifts the zone UP first (§16.3a). */
     const figurePool = (tick: number, winLo: number, winHi: number): number[] => {
       const { pcs, rootPc } = chordPcsAt(tick);
+      const barHere = Math.min(bars, Math.max(1, Math.floor(tick / btBar) + 1));
       const base0 = foldPc(rootPc, Math.max(winLo, lo), Math.min(winHi, hi));
       if (base0 === null) return [];
       const out: number[] = [];
       for (let p = base0; p <= Math.min(winHi, hi, base0 + 24); p++) {
         if (!pcs.has(pcOf(p))) continue;
-        const shifted = zoneShift(p, lo, hi);
-        if (shifted !== null && !out.includes(shifted)) out.push(shifted);
+        const shifted = zoneShift(p, lo, hi, part === 'piano');
+        if (shifted === null) continue;
+        const fixed = part === 'piano' ? outOfStringsBand(shifted, Math.min(winHi, hi), barHere) : shifted;
+        if (!out.includes(fixed)) out.push(fixed);
       }
       return out.sort((a, b) => a - b);
     };
@@ -382,39 +494,157 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
             }
           }
         } else if (kind === 'comp') {
-          // the comping: a chord on the downbeat — the main voice + its
-          // 'kbd' sisters (the chord's tones in the comp register, lowest
-          // first; the one-voice cap's sanctioned relaxation, §16.1) —
-          // ringing a beat. In the chorus relief the chord restrikes on
-          // EVERY QUARTER (the drive's grid line — the generator's own
-          // chorus comp was a quarter-grid block chord; the chorus must not
-          // thin, §16.4) and rides the relief velocity. The chord is built
-          // per onset (the half-bar chord walk); the search reaches one
-          // octave above the comp register so the zone-shifted tones
-          // (vocalbacking) still yield four voices; the extreme top octaves
-          // stay reserved for roots and glissandos; and a pitch class
-          // already voiced is skipped — no octave sisters inside the chord
-          // (the doubling policies read them as doubles).
+          // §16.3a (Phase 11.1): the comp instrument realises the section's
+          // drawn pattern. The chorus relief keeps the Phase 11 drive grid
+          // (a chord on EVERY QUARTER, ringing a beat, the relief velocity)
+          // and the drawn variant only re-voices it — the grid, the note
+          // counts and the velocities are the relief's own, so the chorus
+          // energy is untouched. The other bars play the drawn pattern.
+          // Every chord is the main voice + its 'kbd' sisters (§16.1), the
+          // pitch classes distinct (no octave sisters — the doubling
+          // policies read them as doubles), built per onset (the half-bar
+          // chord walk). The right-hand windows: 62-84 (chamber, sonata),
+          // the sparkle register 82-96 (vocalbacking — above the vocal
+          // zone; the low root/fifth pattern sits below it, 40-56; never an
+          // octave-down fallback). The deliberate left-hand single
+          // root/fifth (40-55) rides the chord patterns at phrase starts
+          // only. Where the harp shares the bar, the piano keeps the
+          // Phase 11 window presence (downbeat events only, a beat long) so
+          // the shared window math — and the harp — never moves.
+          const secHere = ctx.sections.find((s) => bar >= s.startBar && bar < s.startBar + s.lengthBars);
+          const secStart = secHere?.startBar ?? 1;
           const relief = reliefAt(bar, planBar.norm);
-          const hits = relief ? [0, 1, 2, 3] : [0];
-          for (const h of hits) {
-            const onset = barStart + h * beat;
-            if (onset >= barEnd) break;
-            const { pcs: pcsHere } = chordPcsAt(onset);
+          const drawn = patternOfBar(bar);
+          const loRH = zoneFree ? VB_SPARKLE[0] : prof.comp[0];
+          const hiRH = zoneFree ? VB_SPARKLE[1] : prof.comp[1];
+          const harpInBar = (candidatesByPart.harp ?? []).some((c) => c.startTick < barEnd && c.startTick + c.durationTicks > barStart);
+          const { pcs: pcs0, rootPc } = chordPcsAt(barStart);
+          const isPhraseStart = bar === secStart || (bar - secStart) % 4 === 0;
+          // the left-hand single root/fifth at phrase starts (derived — no
+          // draw): the fifth on the back half of the section. It rides the
+          // chord patterns only — never the eighth figures — and only on
+          // the harp-free templates (chamber, sonata): vocalbacking's
+          // shared windows sit at zero energy headroom, so their per-onset
+          // voice counts stay exactly the Phase 11 ones.
+          const lhPattern = patternOfBar(bar);
+          const lhApplies = !relief && !zoneFree && isPhraseStart && lhPattern !== null
+            && ['block', 'echo', 'callfill', 'offbeat', 'dyad'].includes(lhPattern);
+          const lhPitch = lhApplies
+            ? foldPc(((bar - secStart) % 8) >= 4 ? (rootPc + 7) % 12 : rootPc, zoneFree ? VB_LOW[0] : PIANO_LH[0], zoneFree ? VB_LOW[1] : PIANO_LH[1])
+            : null;
+          const rhCap = lhPitch !== null ? COMP_CHORD_VOICES - 1 : COMP_CHORD_VOICES;
+          // the ascending distinct-pitch-class chord (the Phase 11 count
+          // rule: min(cap, #pcs in the window)) with the strings-register
+          // check applied per tone. The tone placement WRAPS an octave
+          // down at the window top, so the count holds in every window.
+          const rhChord = (pcs: Set<number>, root: number, cap: number): number[] => {
+            const base0 = foldPc(root, loRH, hiRH);
+            if (base0 === null) return [];
             const chord: number[] = [];
-            const voicedPcs = new Set<number>();
-            for (let p = Math.max(prof.comp[0], lo); p <= Math.min(prof.comp[1] + 12, hi) && chord.length < COMP_CHORD_VOICES; p++) {
-              if (!pcsHere.has(pcOf(p))) continue;
-              if (voicedPcs.has(pcOf(p))) continue;
-              const shifted = zoneShift(p, lo, hi);
-              if (shifted === null || voicedPcs.has(pcOf(shifted)) || chord.includes(shifted)) continue;
-              chord.push(shifted);
-              voicedPcs.add(pcOf(p));
-              voicedPcs.add(pcOf(shifted));
+            const voiced = new Set<number>();
+            for (let off = 0; off < 12 && chord.length < cap; off++) {
+              const pc = ((root % 12) + 12 + off) % 12;
+              if (!pcs.has(pc) || voiced.has(pc)) continue;
+              let p = base0 + ((pc - base0) % 12 + 12) % 12;
+              if (p > hiRH) p -= 12;
+              if (p < loRH || p > hiRH) continue;
+              chord.push(outOfStringsBand(p, hiRH, bar));
+              voiced.add(pc);
             }
+            return chord.sort((a, b) => a - b);
+          };
+          const pushChord = (onset: number, chord: number[]) => {
             chord.forEach((pitch, i) => {
-              candidates.push({ pitch, startTick: onset, durationTicks: damp(onset, Math.min(beat, barEnd - onset)), ...(i > 0 ? { layer: 'kbd' as const } : {}), ...(relief ? { relief: true } : {}) });
+              candidates.push({
+                pitch, startTick: onset, durationTicks: damp(onset, Math.min(beat, barEnd - onset)),
+                ...(i > 0 ? { layer: 'kbd' as const } : {}), ...(relief ? { relief: true } : {}),
+              });
             });
+          };
+          if (relief) {
+            // the drive: the Phase 11 grid with the drawn voicing variant
+            const variant: PianoPattern = drawn && drawn.startsWith('drive') ? drawn : 'driveBlock';
+            for (const h of [0, 1, 2, 3]) {
+              const onset = barStart + h * beat;
+              if (onset >= barEnd) break;
+              const { pcs: pcsHere, rootPc: rootHere } = chordPcsAt(onset);
+              pushChord(onset, driveChord(pcsHere, rootHere, variant, loRH, hiRH, bar));
+            }
+          } else {
+            const pattern: PianoPattern = drawn && !drawn.startsWith('drive') ? drawn : 'block';
+            if (pattern === 'block' || pattern === 'sparkle' || (pattern === 'highArp' && harpInBar)) {
+              // the guide-tone chord on the downbeat (the Phase 11 comp,
+              // re-registered; the highArp's harp-shared fallback)
+              pushChord(barStart, rhChord(pcs0, rootPc, rhCap));
+            } else if (pattern === 'echo' || pattern === 'callfill') {
+              pushChord(barStart, rhChord(pcs0, rootPc, rhCap));
+              if (pattern === 'echo') {
+                // a single soft high echo of the chord's top tone in the
+                // rest (beat 3), an octave above when the cap allows
+                const chord = rhChord(pcs0, rootPc, COMP_CHORD_VOICES);
+                if (chord.length) {
+                  const cap = zoneFree ? VB_SPARKLE[1] : PIANO_SPARKLE_CAP;
+                  const echoPitch = Math.min(chord[chord.length - 1] + 12, cap);
+                  candidates.push({ pitch: outOfStringsBand(echoPitch, cap, bar), startTick: barStart + 2 * beat, durationTicks: damp(barStart + 2 * beat, Math.min(beat, barEnd - barStart - 2 * beat)), ramp: 0.25 });
+                }
+              } else if (fillBarSet.has(bar)) {
+                // the conductor's answer window: the strings rest there —
+                // the piano answers with four soft eighths (it never leads)
+                for (let i = 0; i < 4; i++) {
+                  const onset = barStart + (4 + i) * eighth;
+                  if (onset >= barEnd) break;
+                  const pool = figurePool(onset, loRH, hiRH);
+                  if (!pool.length) continue;
+                  candidates.push({ pitch: pool[(i + 1) % pool.length], startTick: onset, durationTicks: damp(onset, Math.min(eighth, barEnd - onset)), ramp: 0.25 });
+                }
+              }
+            } else if (pattern === 'offbeat') {
+              // the chord stabs on beats 2 and 4, ringing a beat each
+              for (const h of [1, 3]) {
+                const onset = barStart + h * beat;
+                if (onset >= barEnd) break;
+                const { pcs: pcsHere, rootPc: rootHere } = chordPcsAt(onset);
+                pushChord(onset, rhChord(pcsHere, rootHere, rhCap));
+              }
+            } else if (pattern === 'lowFifth') {
+              // the low root plus fifth below the vocal zone (vocalbacking)
+              const root = foldPc(rootPc, VB_LOW[0], VB_LOW[1]);
+              if (root !== null) {
+                const fifth = root + 7 <= VB_LOW[1] ? root + 7 : root - 5;
+                candidates.push({ pitch: root, startTick: barStart, durationTicks: damp(barStart, Math.min(beat, barEnd - barStart)) });
+                candidates.push({ pitch: fifth, startTick: barStart, durationTicks: damp(barStart, Math.min(beat, barEnd - barStart)), layer: 'kbd' });
+              }
+            } else if (pattern === 'dyad' || pattern === 'dyadHigh') {
+              // the sustained open fifth: root + fifth in the right-hand
+              // window; it rings the bar where the bar is the piano's own,
+              // one beat where the harp shares it (the window presence the
+              // Phase 11 math saw)
+              const base0 = foldPc(rootPc, loRH, hiRH);
+              if (base0 !== null) {
+                const fifth = base0 + 7 <= hiRH ? base0 + 7 : base0 - 5;
+                const dur = pattern === 'dyad' || !harpInBar ? damp(barStart, barEnd - barStart) : damp(barStart, Math.min(beat, barEnd - barStart));
+                candidates.push({ pitch: base0, startTick: barStart, durationTicks: dur });
+                candidates.push({ pitch: fifth, startTick: barStart, durationTicks: dur, layer: 'kbd' });
+              }
+            } else {
+              // the eighth figures: broken chords, the Alberti order, and
+              // the high-register broken-chord arpeggio (vocalbacking,
+              // harp-free bars only — the one-arpeggiator rule keeps the
+              // shared bars chord-only)
+              const alberti = pattern === 'alberti';
+              const nSlots = Math.max(1, Math.floor((barEnd - barStart) / eighth));
+              for (let i = 0; i < nSlots; i++) {
+                const onset = barStart + i * eighth;
+                const pool = figurePool(onset, loRH, hiRH);
+                if (!pool.length) continue;
+                const idx = alberti ? [0, 2, 1, 2][i % 4] % pool.length : i % pool.length;
+                candidates.push({ pitch: pool[idx], startTick: onset, durationTicks: damp(onset, Math.min(onset + eighth, barEnd) - onset) });
+              }
+            }
+            // the deliberate left-hand single note at phrase starts
+            if (lhPitch !== null) {
+              candidates.push({ pitch: lhPitch, startTick: barStart, durationTicks: damp(barStart, Math.min(beat, barEnd - barStart)), layer: 'kbd' });
+            }
           }
         } else if (kind === 'tutti') {
           // the tutti root hit: the downbeat chord's root, low, marcato, the

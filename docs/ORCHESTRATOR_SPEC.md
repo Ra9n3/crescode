@@ -877,14 +877,32 @@ The harp's illustrative sweet spot is 36–91; the extreme top and bottom
 octaves are reserved for the roots, the pulses, the tutti hits, the comping
 and the glissandos. The bed writes inside the sweet spot over about two
 octaves of chord tones; the low plucked roots fold into 23–35; the gliss
-runs may span the extremes. The piano's arpeggiator writes 55–84, the comp
-register is 48–67 (the search reaches one octave higher so vocalbacking's
-zone-shifted tones still yield four voices), the low pulse and the tutti
-hit fold into 33–52. In vocalbacking the VOCAL ZONE (A3..A5 = 57–81, the
-D6 default the strings already keep free) stays free of BOTH parts: a note
-that would land in it moves by octave (down first, then up) and is dropped
-when the track's range cannot take it; a gliss run's zone tones drop out of
-the run (holes, the sweep keeps its direction).
+runs may span the extremes.
+
+#### 16.2a The piano's register (Phase 11.1)
+
+The piano sits where a piano sounds good against strings: the right-hand
+material (the arpeggiator AND the comping) is centred in 62–84 with the
+chord's top voice around 72–84; the low octave pulse keeps 33–52 (that is
+its job); the tutti and final hits keep their low fold. A deliberate
+left-hand single root or fifth (40–55, one note, never a chord) may ride
+the chord patterns at phrase starts. The comp and arpeggio material checks
+the strings' register in the same bar: a candidate inside the octave band
+holding the violas'/cellos' median pitch there moves up an octave (the
+rule yields at the window's top). The chord-tone placement WRAPS an octave
+down at the window top so the per-onset voice count stays
+min(COMP_CHORD_VOICES, #pcs) in every window — the count the window math
+and the relief's energy were measured with (the vocalbacking chorus
+windows sit at the clamp; a count change there releases the safety pass
+and moves the clamped harp).
+
+In vocalbacking the VOCAL ZONE (A3..A5 = 57–81, the D6 default the strings
+already keep free) stays free of the piano BY CONSTRUCTION: the material
+lives in the sparkle register above the zone (82–96) or in the low
+root/fifth below it (40–56); the last-resort zone shift moves UP first —
+never an octave-down fallback for chords or arpeggios. The zone never
+holds a piano note (zero across the survey). (The harp keeps the Phase 11
+down-first shift and its zone-free gliss runs.)
 
 ### 16.3 Roles by template and energy
 
@@ -904,9 +922,10 @@ the run (holes, the sweep keeps its direction).
   1 beat to 1 bar; 16ths; a velocity ramp into the landing. The runs check
   their crossing bars free of near-silence at draw time; a soli covering a
   crossing bar deletes the kind at the voice map.
-- Piano arpeggiator: broken-chord eighths in 55–84 at low to mid energy in
-  cinematic and hybridstudio ONLY, drawn per SECTION TYPE (one arpeggiator
-  per section — never both a harp bed and a piano arp in one bar).
+- Piano arpeggiator: broken-chord eighths in 62–84 (§16.2a) at low to mid
+  energy in cinematic and hybridstudio ONLY, drawn per SECTION TYPE (one
+  arpeggiator per section — never both a harp bed and a piano arp in one
+  bar).
 - Low octave pulse: the root on quarters at high energy in ostinato or
   trailer textures (de facto cinematic); under the chorus relief it is the
   non-arpeggiating piano's drive line. Never faster than eighths.
@@ -915,6 +934,47 @@ the run (holes, the sweep keeps its direction).
   reserves, and — under the chorus relief — on EVERY QUARTER (the drive's
   grid line; the generator's own chorus comp was a quarter-grid block
   chord). One chord per onset, ringing a beat.
+
+#### 16.3a The piano's pattern menu (Phase 11.1)
+
+Each section instance draws ONE piano pattern per take on the piano's OWN
+salted stream (`hashString('piano-variety')` — the keys D8 stream and every
+existing draw stream untouched); the drawn index rotates with the take and
+the section ordinal so takes 1–10 stay distinct by construction, and a
+deterministic rotation guarantees the take's sections never all play the
+same pattern. chorus-type sections draw only the relief drive's VOICING
+variants — the grid (every quarter), the per-strike voice count, the ring
+length and the relief velocity are the Phase 11 relief's own, so the
+chorus energy (and the clamped harp) cannot move. The other sections draw:
+
+- chamber and sonata (the fill instrument that answers in the rests):
+  `block` (the guide-tone chord on the downbeat), `offbeat` (the chord
+  stabs on beats 2 and 4), `broken` (right-hand broken-chord eighths),
+  `alberti` (the low-high-middle-high order over the chord tones), `dyad`
+  (a sustained open fifth ringing the bar), `echo` (the downbeat chord
+  plus a single soft high echo of the chord's top tone in the rests),
+  `callfill` (the downbeat chord, answered by four soft eighths in the
+  conductor's fill windows — the piano never leads); 7 outcomes.
+- vocalbacking (the zone stays free): `sparkle` (the high chord on phrase
+  starts, 82–96), `lowFifth` (the low root plus fifth, 40–56), `highArp`
+  (the high-register broken-chord arpeggio above the zone — realized only
+  where the harp is silent, so the one-arpeggiator rule holds and the
+  shared windows keep their Phase 11 presence), `dyadHigh` (the sustained
+  high open fifth — one beat long where the harp shares the bar); 4
+  outcomes.
+- the relief drive variants: `driveBlock` (the Phase 11 placement),
+  `driveInvert`, `driveOpen`, `driveTight`; 4 outcomes, pitch placement
+  only.
+
+Where the harp shares a bar (cinematic, hybridstudio, vocalbacking), the
+piano keeps the Phase 11 window presence on the shared bars: downbeat
+events only, a beat long, the per-onset voice count of the Phase 11 chord
+rule. The eighth figures and the bar-long dyads run only where the harp is
+silent. The left-hand singles ride the chord patterns only, and only on
+the harp-free templates. Voicing, density and the rhythmic cell vary with
+the pattern; the register, the humanize, the gates and the clamp work as
+in Phase 11.
+
 - Tutti: the piano hits the downbeat's root (low, marcato, the drawn moment
   shape); the harp's glissando lands on the downbeat when drawn (weighted)
   and otherwise the harp is tacet. Unison: the keys do not join (tacet).
@@ -1017,3 +1077,53 @@ clamp — the clamp is never exceeded.
 - The half-bar chord walk: a bar spanning two chords (the dorian fixture's
   grid) reads the span at every onset — the bed, the arpeggio and the comp
   all change colour mid-bar.
+
+### 16.10 Phantom input (named)
+
+The engine's keys module owns the SOUND of the rostered harp/piano tracks,
+but the rules generator still WRITES its retired keys/wind/percussion
+rules every compose. Those notes never reach the final score — they are a
+PHANTOM INPUT that several pre-module window maths read to stay
+byte-identical. The set is pinned (16 rules, the generator's own
+spelling) by the Phase 11.1 guard test (`tests/phase111.test.ts`), which
+fails on any new wind, percussion or keys rule AND on the silent removal
+of a listed one.
+
+The 16 retired rules by role:
+
+- Winds (5): Verse `Clarinet line`; Chorus `Flutes double Vln I`;
+  Chorus `Oboes`; Chorus `Bassoons bass`; Bridge `Oboe solo`.
+- Percussion (5): Verse `Timpani downbeat`; Chorus `Timpani`; Chorus
+  `Snare`; Chorus `Cymbal crash`; Pre-Chorus `Snare roll fill`.
+- Keys (6): the pad-spread Intro `Harp arpeggio`; Verse `Piano chords`;
+  Chorus `Piano`; Chorus `Harp arp`; Outro `Harp final`; the catch-all
+  any-section `Keys sustain (any family Keys)`. (The `Added tracks pad`
+  rule targets the generic `keys` ROLE, which is not rostered and not
+  retired — §16.6.)
+
+What reads the phantom:
+
+- the phase-B role sets and velocity governors of the brass, the winds
+  and the percussion (`renderBrass`/`renderWinds`/`renderPercussion` and
+  their final safety passes — the window bounds are 127·clampMax·N/roles
+  over the roles sounding in each beat window, and the phantom's notes
+  put the wind, percussion and keys roles in those sets);
+- `governPadVelocities` (the string pad cap — its mixed-window role sets
+  and velocity sums include the phantom);
+- the `humanizeStrings` jitter caps (their role sets include the
+  phantom).
+
+Effect: the generator's rule-firing SHAPES VELOCITIES in the strings, the
+brass, the winds and the percussion. It never changes pitch or timing —
+the dry runs measured velocity-only deltas. The engine's OWN keys notes
+are read by nothing outside the keys module except `governKeysVelocities`
+(keys alone) and the energy measure; that is why the Phase 11.1 piano
+rewrite could not move another track (the dry run vs the 63a82f8 control
+stash: zero non-piano rows).
+
+Removal: retiring the phantom needs its own phase with sound re-approval.
+The Phase 11.2 dry run measured mean |Δv| up to 20.9 and CC-lane changes
+on five string tracks for the two honest replacement designs (plan-derived
+role presence, and the widened pad governor); the record lives in
+`scripts/phase112-dryrun.ts` and the stopped implementation on the local
+branch `phase112-dryrun-wip`.

@@ -37,7 +37,7 @@ export interface KeysProfile {
 /** §16.2 — the writing windows (ranges.ts wins; these mirror it). */
 export const KEYS_PROFILES: Record<KeysPart, KeysProfile> = {
   harp: { role: 'harp', timingMs: [0, 8], sweet: [36, 91], low: [23, 35], comp: [36, 91], rhythmFloor: 'eighth' },
-  piano: { role: 'piano', timingMs: [4, 12], sweet: [55, 84], low: [33, 52], comp: [48, 67], rhythmFloor: 'eighth' },
+  piano: { role: 'piano', timingMs: [4, 12], sweet: [62, 84], low: [33, 52], comp: [62, 84], rhythmFloor: 'eighth' },
 };
 
 export const KEYS_PARTS: readonly KeysPart[] = ['harp', 'piano'];
@@ -60,6 +60,33 @@ export const isChorusTypeK = (name: string | undefined): boolean => KEYS_CHORUS_
  *  doubling-'allowed' cinematic palette (§4.6), so the low octave pulse is
  *  de facto cinematic-only through its texture gate. */
 export const PIANO_ARP_TEMPLATES = new Set(['ensemble.cinematic', 'ensemble.hybridstudio']);
+
+/** §16.2a (Phase 11.1) the piano's register windows (MIDI, sounding):
+ *  the right-hand material is centred in 62-84 with the chord's top voice
+ *  around 72-84; the deliberate left-hand single root/fifth sits in 40-55
+ *  at phrase starts. vocalbacking keeps the vocal zone (57-81) free by
+ *  writing ABOVE it (the sparkle register, capped about 96) or below it
+ *  (the low root/fifth); it never falls back to octave-down for chords or
+ *  arpeggios. The octave pulse keeps its low window — that is its job. */
+export const PIANO_LH = [40, 55] as const;
+export const PIANO_SPARKLE_CAP = 96;
+export const VB_SPARKLE = [82, PIANO_SPARKLE_CAP] as const;
+export const VB_LOW = [40, 56] as const;
+
+/** §16.3a (Phase 11.1) the piano's per-section pattern menu, drawn per
+ *  section instance per take on its OWN salted stream (the existing draw
+ *  streams untouched). chorus-type sections draw the relief drive's
+ *  voicing variants (the drive's grid, note counts and velocities stay
+ *  exactly the Phase 11 relief's — only the voicing changes, so the chorus
+ *  energy is untouched); the other sections draw the comp menu (chamber,
+ *  sonata) or the vocalbacking menu. Every section type has ≥ 4 outcomes. */
+export type PianoPattern =
+  | 'block' | 'offbeat' | 'broken' | 'alberti' | 'dyad' | 'echo' | 'callfill'
+  | 'sparkle' | 'lowFifth' | 'highArp' | 'dyadHigh'
+  | 'driveBlock' | 'driveInvert' | 'driveOpen' | 'driveTight';
+export const PIANO_COMP_MENU: readonly PianoPattern[] = ['block', 'offbeat', 'broken', 'alberti', 'dyad', 'echo', 'callfill'];
+export const PIANO_VB_MENU: readonly PianoPattern[] = ['sparkle', 'lowFifth', 'highArp', 'dyadHigh'];
+export const PIANO_DRIVE_MENU: readonly PianoPattern[] = ['driveBlock', 'driveInvert', 'driveOpen', 'driveTight'];
 
 /** §16.2 weighted glissando draws (rare — at most 2 per piece, reported). */
 export const GLISS_WEIGHTS = { chorus: 0.35, tutti: 0.5, outro: 0.4 } as const;

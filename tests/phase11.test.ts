@@ -16,7 +16,7 @@ import { scalePitchClasses } from '../src/shared/schema/modes';
 import { momentForBar } from '../src/orchestrator/conductor/moments';
 import { inVocalZone } from '../src/orchestrator/profiles/strings';
 import {
-  KEYS_GATES, KEYS_PROFILES, RELIEF_VELOCITY,
+  KEYS_PROFILES,
   type KeysPart,
 } from '../src/orchestrator/keys/profile';
 import { COMP_CHORD_VOICES } from '../src/orchestrator/keys/render';
@@ -71,26 +71,6 @@ const soliBarsOf = (run: Run): Set<number> => {
     if (m.kind !== 'soli') continue;
     for (let b = m.startBar; b <= m.endBar; b++) out.add(b);
   }
-  return out;
-};
-const momentBarsOf = (run: Run): Set<number> => {
-  const out = new Set<number>();
-  for (const m of run.result.plan.moments) for (let b = m.startBar; b <= m.endBar; b++) out.add(b);
-  return out;
-};
-const nearSilenceBarsOf = (run: Run): Set<number> => {
-  const out = new Set<number>();
-  for (const a of run.result.plan.keys.bars) {
-    void a;
-  }
-  // the arc's own flag, recomputed deterministically from the same inputs
-  // the plan read (the arc is a pure function of (inputs, take))
-  const template = resolveTemplate(run.project.ensemble)!;
-  const clampMax = template.budget.energyClamp[1];
-  for (const b of run.result.plan.keys.bars) {
-    if ((run.result.plan.keys.bars[b.bar - 1]?.norm ?? 1) === 0) out.add(b.bar);
-  }
-  void clampMax;
   return out;
 };
 const secTypeAt = (bar: number): string => {
@@ -335,7 +315,6 @@ describe('Phase 11: the arpeggiator and the voice cap', () => {
 describe('Phase 11: humanize', () => {
   it('the lags sit in the part ranges (harp 0-8 ms, piano 4-12 ms) and never push a note across its bar', () => {
     for (const run of keysSurvey) {
-      const bt = barTicks(run.project.timeSignature);
       const bpm = run.project.tempoMap[0]?.bpm ?? 120;
       const ticksPerMs = (bpm / 60) * 960 / 1000;
       for (const role of KEYS_ROLES) {

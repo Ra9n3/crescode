@@ -8,6 +8,14 @@
  * are NOT 11.2 deltas. The measured 11.2 cleanup deltas (out of bounds —
  * the stop reason) were taken on the stopped WIP tree against a
  * stashed-tree capture at this HEAD and live in the phase report.
+ *
+ * Phase 11.1 REUSE (the user's baseline correction): `--baseline <dir>`
+ * reads the comparison side from a stashed-tree capture instead of
+ * golden102 — the 11.1 control is scripts/phase111-stash.ts output at
+ * 63a82f8. In baseline mode the harness adds the STRICT per-track byte
+ * gate: every non-piano track must be byte-identical (notes, cc) to the
+ * stash — any other role moving is a STOP. The chorus/below-floor section
+ * then compares live vs the stash (the live-vs-live 11.1 delta).
  * Prints per track:
  *  - the notes-changed count (structural: length/alignment mismatches);
  *  - WHICH field changed (pitch / startTick / durationTicks / articulation /
@@ -28,6 +36,15 @@ import { readFileSync } from 'node:fs';
 
 const TEMPLATES = ['ensemble.symphony', 'ensemble.chamber', 'ensemble.cinematic', 'ensemble.sonata', 'ensemble.vocalbacking', 'ensemble.hybridstudio'];
 
+// Phase 11.1 reuse: --baseline <dir> reads the comparison side from a
+// stashed-tree capture (the control) instead of tests/golden102.
+const baselineIdx = process.argv.indexOf('--baseline');
+const BASELINE_DIR = baselineIdx >= 0 ? process.argv[baselineIdx + 1] : null;
+const goldenUrl = (short: string, fixTag: string, take: number): URL =>
+  BASELINE_DIR
+    ? new URL(`${short}-${fixTag}-t${take}.json`, `file://${BASELINE_DIR}/`)
+    : new URL(`../tests/golden102/${short}-${fixTag}-t${take}.json`, import.meta.url);
+
 interface GTrack { id: string; role: string; notes: Note[]; cc?: unknown }
 interface Golden { templateId: string; fixture: string; take: number; tracks: GTrack[] }
 
@@ -46,6 +63,7 @@ const secTypeAt = (bar: number): string => {
 
 interface TrackStat { role: string; notes: number; lenMismatch: boolean; fields: Set<string>; velSum: number; velN: number; velMax: number; ccChanged: boolean }
 const perTemplate = new Map<string, Map<string, TrackStat>>();
+const byteFails: string[] = [];
 const noteKey = (n: Note): string => `${n.startTick}|${n.pitch}|${n.durationTicks}|${n.articulation ?? ''}`;
 
 let structuralFails = 0;
@@ -61,12 +79,18 @@ for (const templateId of TEMPLATES) {
   const short = templateId.replace('ensemble.', '');
   for (const [fixTag, doc] of [['three', threeChorus], ['dorian', dorian]] as const) {
     for (let take = 1; take <= 10; take++) {
-      const g: Golden = JSON.parse(readFileSync(new URL(`../tests/golden102/${short}-${fixTag}-t${take}.json`, import.meta.url), 'utf8'));
+      const g: Golden = JSON.parse(readFileSync(goldenUrl(short, fixTag, take), 'utf8'));
       const { project } = compose(doc, templateId, take);
       const gById = new Map(g.tracks.map((t) => [t.id, t]));
       for (const t of project.tracks) {
         if (!gById.has(t.id)) continue; // structural (added/removed) tracks cannot appear — ids are stable
         const gt = gById.get(t.id)!;
+        if (BASELINE_DIR && t.role !== 'piano') {
+          // the STRICT 11.1 gate: every non-piano track byte-identical
+          const a = JSON.stringify({ id: t.id, role: t.role, notes: t.notes, ...(t.cc !== undefined ? { cc: t.cc } : {}) });
+          const b = JSON.stringify({ id: gt.id, role: gt.role, notes: gt.notes, ...(gt.cc !== undefined ? { cc: gt.cc } : {}) });
+          if (a !== b) byteFails.push(`${short} ${fixTag} t${take} ${t.role} (${t.id})`);
+        }
         const s = statFor(templateId, t.role);
         const a = [...t.notes].sort((x, y) => x.startTick - y.startTick || x.pitch - y.pitch || x.durationTicks - y.durationTicks);
         const b = [...gt.notes].sort((x, y) => x.startTick - y.startTick || x.pitch - y.pitch || x.durationTicks - y.durationTicks);
@@ -92,7 +116,7 @@ for (const templateId of TEMPLATES) {
   }
 }
 
-console.log('=== dry run vs golden102: per template × track (10 takes aggregated) ===');
+console.log('=== dry run vs ' + (BASELINE_DIR ? `baseline stash ${BASELINE_DIR}` : 'golden102') + ': per template × track (10 takes aggregated) ===');
 let worstMean = 0, worstMax = 0, worstMeanRole = '', worstMaxRole = '';
 const nonVelocity = new Set<string>();
 for (const [templateId, tracks] of perTemplate) {
@@ -112,6 +136,9 @@ for (const [templateId, tracks] of perTemplate) {
 }
 console.log(`\nworst per-track mean |Δv|: ${worstMean.toFixed(2)} (${worstMeanRole})   worst max: ${worstMax} (${worstMaxRole})`);
 console.log(`non-velocity changes: ${nonVelocity.size ? [...nonVelocity].join(', ') : 'NONE'}`);
+if (BASELINE_DIR) {
+  console.log(`STRICT byte gate (non-piano tracks vs the stash): ${byteFails.length === 0 ? 'PASS — every non-piano track is byte-identical' : `FAIL — ${byteFails.length} track(s) moved:\n  ${byteFails.slice(0, 40).join('\n  ')}`}`);
+}
 
 console.log('\n=== chorus mean / below-floor vs golden102 (all-windows, takes 1-10 aggregated) ===');
 for (const templateId of TEMPLATES) {
@@ -130,7 +157,7 @@ for (const templateId of TEMPLATES) {
   };
   let bMean = 0, aMean = 0, bBelow = 0, aBelow = 0, dropped = 0;
   for (let take = 1; take <= 10; take++) {
-    const g: Golden = JSON.parse(readFileSync(new URL(`../tests/golden102/${short}-three-t${take}.json`, import.meta.url), 'utf8'));
+    const g: Golden = JSON.parse(readFileSync(goldenUrl(short, 'three', take), 'utf8'));
     const base: Project = projectFromFixture(JSON.parse(JSON.stringify(threeChorus)));
     base.ensemble = { templateId, overrides: {}, pins: {} };
     const beforeProj: Project = { ...base, tracks: base.tracks.map((x) => ({ ...x, notes: (g.tracks.find((y) => y.id === x.id)?.notes ?? []) })) };

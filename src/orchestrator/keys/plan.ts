@@ -57,8 +57,9 @@ import type { OrchestratorContext } from '../module';
 import { momentForBar } from '../conductor/moments';
 import {
   GLISS_MAX_PER_PIECE, GLISS_WEIGHTS, KEYS_GATES, KEYS_PARTS, OUTRO_LIKE, PIANO_ARP_TEMPLATES,
+  PIANO_COMP_MENU, PIANO_DRIVE_MENU, PIANO_VB_MENU,
   isChorusTypeK, keysRosterOf, levelForNormK,
-  type KeysLevel, type KeysPart,
+  type KeysLevel, type KeysPart, type PianoPattern,
 } from './profile';
 
 export type HarpVoiceKind = 'bed' | 'roots' | 'gliss' | 'final';
@@ -91,15 +92,30 @@ export interface KeysPlan {
   glisses: KeysGliss[];
   /** The drawn arpeggiator per section type (the one-arp-per-section rule). */
   arpeggiatorByType: Record<string, KeysPart>;
+  /** §16.3a (Phase 11.1): the drawn piano pattern per section instance
+   *  (startBar-keyed; the renderer realises the comp/drive kinds through
+   *  it). Empty where the template's piano has no menu (cinematic and
+   *  hybridstudio keep the arpeggiator). */
+  pianoPatterns: { startBar: number; pattern: PianoPattern }[];
+  /** §16.3a: the conductor's fillGating answer bars reserved for the piano
+   *  (the callfill pattern answers in them; the renderer reads the set). */
+  fillBars: number[];
   reports: string[];
 }
 
 /** The empty plan (no template / no keys roster): the module is silent. */
-export const EMPTY_KEYS_PLAN: KeysPlan = { bars: [], glisses: [], arpeggiatorByType: {}, reports: [] };
+export const EMPTY_KEYS_PLAN: KeysPlan = { bars: [], glisses: [], arpeggiatorByType: {}, pianoPatterns: [], fillBars: [], reports: [] };
 
 /** The salted keys stream (D8): a pure function of (inputs, take). */
 export const keysRng = (project: Project, take: number): (() => number) =>
   mulberry32((orchestrationSeedFor(project, { take }) ^ Math.imul(hashString('keys'), 0x85ebca6b)) >>> 0);
+
+/** §16.3a (Phase 11.1) the piano menu's OWN salted stream — a different
+ *  hash salt and mixer constant from the keys D8 stream, so the existing
+ *  draw streams are untouched byte-for-byte. A pure function of
+ *  (inputs, take). */
+export const pianoMenuRng = (project: Project, take: number): (() => number) =>
+  mulberry32((orchestrationSeedFor(project, { take }) ^ Math.imul(hashString('piano-variety'), 0x9e3779b9)) >>> 0);
 
 /** The section's phrase starts (§16.4): the first bar and every 4th bar of
  *  it — the hypermeter, the same reading the percussion's support uses. */
@@ -126,6 +142,38 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[]): Key
   if (!roster.length) return EMPTY_KEYS_PLAN;
 
   const rng = keysRng(project, take);
+  // §16.3a: the piano menu draw — ONE draw per section instance on the
+  // piano-variety stream (never the keys D8 stream). chorus-type sections
+  // draw the relief drive's voicing variants; the others draw the comp
+  // menu (chamber, sonata) or the vocalbacking menu. cinematic and
+  // hybridstudio keep the arpeggiator — no menu, no draw. The take and the
+  // section ordinal rotate the drawn index so the distinct-track target
+  // holds across takes 1-10 without depending on the stream's luck.
+  const pianoPatterns: { startBar: number; pattern: PianoPattern }[] = [];
+  const pianoMenuable = roster.includes('piano') && !PIANO_ARP_TEMPLATES.has(template.id);
+  if (pianoMenuable) {
+    const menuRng = pianoMenuRng(project, take);
+    const ordered = [...sections].sort((a, b) => a.startBar - b.startBar);
+    const drawn: PianoPattern[] = [];
+    ordered.forEach((sec, ordinal) => {
+      const chorusMenu = isChorusTypeK(sec.name);
+      const menu = chorusMenu ? PIANO_DRIVE_MENU : template.id === 'ensemble.vocalbacking' ? PIANO_VB_MENU : PIANO_COMP_MENU;
+      const idx = (Math.floor(menuRng() * menu.length) + (take - 1) + ordinal) % menu.length;
+      const pattern = menu[idx];
+      drawn.push(pattern);
+      pianoPatterns.push({ startBar: sec.startBar, pattern });
+    });
+    // within one take the sections must not all play the same pattern —
+    // the deterministic rotation (no extra stream consumption)
+    if (ordered.length > 1 && drawn.every((p) => p === drawn[0])) {
+      pianoPatterns.forEach((entry, ordinal) => {
+        const sec = ordered[ordinal];
+        const menu = isChorusTypeK(sec.name) ? PIANO_DRIVE_MENU : template.id === 'ensemble.vocalbacking' ? PIANO_VB_MENU : PIANO_COMP_MENU;
+        entry.pattern = menu[(menu.indexOf(entry.pattern) + ordinal) % menu.length];
+      });
+    }
+    reports.push(`keys piano menu (take ${take}): ${pianoPatterns.map((e) => `b${e.startBar}=${e.pattern}`).join(', ')}`);
+  }
   const bars = projectBars(project);
   const btBar = barTicks(project.timeSignature);
   const nearSilenceBars = new Set<number>();
@@ -212,6 +260,7 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[]): Key
   }
 
   const barPlans: KeysBarPlan[] = [];
+  const fillBarList = [...fillBars].sort((a, b) => a - b);
   for (let bar = 1; bar <= bars; bar++) {
     const target = arc[bar - 1]?.target ?? 0;
     const norm = clampMax > 0 ? target / clampMax : 0;
@@ -292,7 +341,7 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[]): Key
   const firstBars = barPlans.filter((b) => Object.values(b.voices).some((v) => v !== undefined)).slice(0, 12);
   if (firstBars.length) reports.push(`keys plan (take ${take}): ${firstBars.map((b) => `b${b.bar}[${b.level}] ${Object.entries(b.voices).map(([p, k]) => `${p}:${k}`).join(' | ')}`).join(' | ')}`);
 
-  return { bars: barPlans, glisses, arpeggiatorByType, reports };
+  return { bars: barPlans, glisses, arpeggiatorByType, pianoPatterns, fillBars: fillBarList, reports };
 }
 
 /** The keys tracks the plan annotates (the conductor's honesty list). */

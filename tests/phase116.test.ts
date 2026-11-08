@@ -276,7 +276,7 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
 });
 
 describe('Retired generator-rule guard', () => {
-  it('pins exactly the 16 retired wind, percussion and keys rules', () => {
+  it('the generator writes exactly the 16 retired rules of spec §16.10 — no more, none missing', () => {
     const windRoles = new Set(['clarinets', 'flutes', 'oboes', 'bassoons']);
     const percussionRoles = new Set(['timpani', 'snare', 'cymbals']);
     const keysRoles = new Set(['harp', 'piano']);

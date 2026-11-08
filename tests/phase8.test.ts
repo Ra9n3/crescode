@@ -40,7 +40,16 @@ const composeTake = (base: Project, templateId: string, take: number, moments = 
 };
 
 const noteSig = (n: Note): string =>
-  JSON.stringify([n.pitch, n.startTick, n.durationTicks, n.velocity, n.articulation ?? null, (n as { layer?: string }).layer ?? null]);
+  JSON.stringify([
+    n.pitch,
+    n.startTick,
+    n.durationTicks,
+    n.velocity,
+    n.articulation ?? null,
+    n.bow ?? null,
+    n.layer ?? null,
+    n.roleTag ?? null,
+  ]);
 
 describe('Phase 8: 1 — the vocalbacking hard findings (figuration exemption)', () => {
   it('zero hard findings across all six templates × takes 1–10 (three-chorus) and 1–6 (dorian)', () => {
@@ -161,7 +170,13 @@ describe('Phase 8: 4 — per-note seeding: notes outside moment bars are byte-id
           const other = withoutM.project.tracks.find((x) => x.id === t.id);
           if (!other) continue;
           const bNotes = other.notes.filter((n) => !inMoment(n.startTick));
-          const bByKey = new Map(bNotes.map((n) => [`${n.pitch}@${n.startTick}`, n]));
+          const bByKey = new Map<string, string[]>();
+          for (const n of bNotes) {
+            const key = `${n.pitch}@${n.startTick}`;
+            const signatures = bByKey.get(key) ?? [];
+            signatures.push(noteSig(n));
+            bByKey.set(key, signatures);
+          }
           for (const n of t.notes) {
             if (inMoment(n.startTick)) continue;
             // the Phase 10 allowances: a planned roll INTO a tutti is moment
@@ -175,14 +190,20 @@ describe('Phase 8: 4 — per-note seeding: notes outside moment bars are byte-id
             // the Phase 11 allowance: a planned glissando INTO a tutti is
             // moment content (see above) — keys notes in its bars are excluded
             if (KEYS_ROLES_P8.has(t.role) && glissBars.has(Math.floor(n.startTick / btBar) + 1)) continue;
-            const o = bByKey.get(`${n.pitch}@${n.startTick}`);
+            const key = `${n.pitch}@${n.startTick}`;
+            const signatures = bByKey.get(key) ?? [];
+            // A held anchor and an RH figure may retrigger the same pitch at
+            // the same tick with different durations; match them as a multiset
+            // rather than collapsing their shared pitch/start key.
+            const matchIndex = signatures.indexOf(noteSig(n));
             // a note whose written end reaches into a moment bar may join into
             // the moment's entry (the bow-change crossfade) — its TAIL is part
             // of rendering the moment; everything else is byte-identical
             const tailIntoMoment = inMoment(n.startTick + n.durationTicks);
-            expect(o, `${templateId} t${take} ${t.id} ${n.pitch}@${n.startTick} appears from nowhere`).toBeDefined();
-            if (o && !tailIntoMoment) {
-              expect(noteSig(n), `${templateId} t${take} ${t.id} ${n.pitch}@${n.startTick}`).toBe(noteSig(o));
+            expect(signatures.length, `${templateId} t${take} ${t.id} ${n.pitch}@${n.startTick} appears from nowhere`).toBeGreaterThan(0);
+            if (!tailIntoMoment) {
+              expect(matchIndex, `${templateId} t${take} ${t.id} ${n.pitch}@${n.startTick}`).toBeGreaterThanOrEqual(0);
+              if (matchIndex >= 0) signatures.splice(matchIndex, 1);
               checked++;
             }
           }

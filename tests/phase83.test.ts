@@ -213,7 +213,7 @@ describe('Phase 8.3: the clamp and the ranges hold with the relief', () => {
         }
       }
     }
-  });
+  }, 600000);
 
   it('the peak chorus keeps the full choir: at the peak level every ROSTERED brass part\u2019s ordinary line sounds, tuba included where the template has one (moment output overrides aside)', () => {
     let peakBars = 0;

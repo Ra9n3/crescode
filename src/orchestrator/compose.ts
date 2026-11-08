@@ -451,30 +451,34 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     });
   }
 
-  // Phase 11.4: the piano's absorption pass — over the windows holding the
-  // NEW mid-energy comping, the PIANO ALONE absorbs any clamp excess (the
-  // other families' caps never saw a keys role there), so the final keys
-  // safety pass below keeps firing exactly where — and only where — it
-  // fired at Phase 11.1 and the harp's bytes stay on golden103. Runs over
-  // the FINAL other notes (post-humanize, post-legato) — the same state the
-  // safety pass reads.
+  // Phase 11.6a: piano-only absorption over the final mix windows. Its
+  // order-independent per-note caps keep the held anchor and motion overlays
+  // inside the clamp without moving the harp's golden105 velocities. The
+  // final keys safety pass remains the hard guard (with the known
+  // vocalbacking-only harp velocity residual). Uses FINAL other notes after
+  // humanize/legato, matching the state the safety pass reads.
   const keysRosterRoleSet = new Set(keysRosterRoles);
   const pianoAbsorbTrackId = Object.keys(keysNotes).find((id) => project.tracks.find((t) => t.id === id)?.role === 'piano');
   const harpAbsorbTrackId = Object.keys(keysNotes).find((id) => project.tracks.find((t) => t.id === id)?.role === 'harp');
-  if (template && pianoAbsorbTrackId && keysResult.absorbWindows.length) {
-    absorbPianoVelocities({
-      template,
-      piano: { role: 'piano', notes: keysNotes[pianoAbsorbTrackId] },
-      harp: harpAbsorbTrackId ? { role: 'harp', notes: keysNotes[harpAbsorbTrackId] } : null,
-      otherNotes: [
-        ...ruleTracks.filter((t) => !stringsTrackIds.includes(t.id) && !brassRosterRoles.includes(t.role) && t.role !== BASSES_ROLE && !windRosterRoleSet.has(t.role) && !percRosterRoleSet.has(t.role) && !keysRosterRoleSet.has(t.role)).map((t) => ({ role: t.role, notes: t.notes })),
-        ...stringsTrackIds.map((id) => ({ role: project.tracks.find((t) => t.id === id)?.role ?? '', notes: notesByTrackId[id] ?? [] })),
-        ...brassOther,
-        ...windsOther,
-        ...percOther,
-      ],
-      windows: keysResult.absorbWindows,
-    });
+  if (template && pianoAbsorbTrackId) {
+    if (keysResult.absorbWindows.length) {
+      const absorption = absorbPianoVelocities({
+        template,
+        piano: { role: 'piano', notes: keysNotes[pianoAbsorbTrackId] },
+        harp: harpAbsorbTrackId ? { role: 'harp', notes: keysNotes[harpAbsorbTrackId] } : null,
+        otherNotes: [
+          ...ruleTracks.filter((t) => !stringsTrackIds.includes(t.id) && !brassRosterRoles.includes(t.role) && t.role !== BASSES_ROLE && !windRosterRoleSet.has(t.role) && !percRosterRoleSet.has(t.role) && !keysRosterRoleSet.has(t.role)).map((t) => ({ role: t.role, notes: t.notes })),
+          ...stringsTrackIds.map((id) => ({ role: project.tracks.find((t) => t.id === id)?.role ?? '', notes: notesByTrackId[id] ?? [] })),
+          ...brassOther,
+          ...windsOther,
+          ...percOther,
+        ],
+        windows: keysResult.absorbWindows,
+      });
+      ctx.lines!.reports.push(`piano absorption (take ${orchestration.take}): checked ${absorption.windows} windows; lowered ${absorption.loweredNotes} notes in ${absorption.loweredWindows} windows`);
+    } else {
+      ctx.lines!.reports.push(`piano absorption (take ${orchestration.take}): not needed (no piano windows)`);
+    }
   }
 
   // Phase 11: the final keys safety pass — the same contract, KEYS ALONE.
@@ -495,7 +499,6 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
       ],
     });
   }
-
   // Phase 8.2: materialize the two desks — the 'cb'-marked notes (the Cb
   // doubles, the sub-36 line notes, the wide-unison -24 notes) leave the
   // cello list and become the Double Basses track (inserted after the cellos

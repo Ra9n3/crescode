@@ -7,6 +7,9 @@ export const SCHEMA_VERSION = 1;
 
 export type PitchClass = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
 
+/** Planner-assigned piano event role. Figures are tagged separately from the held anchor. */
+export type NoteRoleTag = 'anchor' | 'lift' | 'settle' | 'bed' | 'atmosphere';
+
 export type ModeName =
   | 'Ionian' | 'Dorian' | 'Phrygian' | 'Lydian' | 'Mixolydian' | 'Aeolian' | 'Locrian'
   | 'Harmonic Minor' | 'Melodic Minor' | 'Whole Tone'
@@ -39,18 +42,15 @@ export type Articulation = (typeof ARTICULATIONS)[number];
 
 export interface Note {
   pitch: number; startTick: number; durationTicks: number; velocity: number;
+  /** Optional planner-assigned piano role: held anchor or motion overlay. */
+  roleTag?: NoteRoleTag;
   /** Optional performance data — old projects and fixtures have none. */
   articulation?: Articulation;
   bow?: 'down' | 'up';
-  /** The Vc+Cb layering step (Phase 4.5) marks its Cb-doubled notes 'cb'.
-   *  Additive, optional: export profiles split the cellosBasses track by it
-   *  (layer 'cb' → the bass part, everything else → the cello part).
-   *  'div2' (Phase 7 moments) marks the SECOND line of a divisi moment —
-   *  it exports with its parent part/channel and is never Cb-doubled.
-   *  'kbd' (Phase 11) marks an ADDITIONAL comping-chord voice on a keys
-   *  track — the one-voice cap's one sanctioned relaxation: the piano's
-   *  downbeat comp is a chord (the main voice + its 'kbd' sisters sound
-   *  together), exactly as 'div2' let one string track carry two lines. */
+  /**
+   * Optional layer annotation. 'cb' marks the doubled bass line, 'div2' marks
+   * a divisi voice, and 'kbd' is retained for legacy piano comping voices.
+   */
   layer?: 'cb' | 'div2' | 'kbd';
 }
 

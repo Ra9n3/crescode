@@ -72,6 +72,8 @@ export interface KeysBarPlan {
   pianoAnswer?: PianoAnswerPlan;
   /** Rare chamber/sonata peak allows RH ceiling 88 instead of 84. */
   pianoRarePeak?: boolean;
+  /** Planned tail-run immediately before an eligible chorus arrival. */
+  pianoFlourish?: { targetBar: number };
   /** Section-level owner of the single arpeggiator, when piano is rostered. */
   arpeggiatorOwner?: KeysPart;
   /** The slope comparison's local direction at a closing section bar. */
@@ -680,6 +682,30 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[] = [])
     });
   }
 
+  // A flourish is allowed only where the piano owns the section arpeggiator,
+  // the next chorus has a planned arrival chord, and no harp gliss occupies
+  // the preceding bar. Existing piano jobs/textures remain intact elsewhere.
+  const flourishTemplates = new Set(['ensemble.chamber', 'ensemble.sonata', 'ensemble.cinematic', 'ensemble.hybridstudio']);
+  if (flourishTemplates.has(template.id) && roster.includes('piano')) {
+    const flourishChoices = orderedSections
+      .filter((section) => isChorusTypeK(section.name) && section.startBar > 1)
+      .flatMap((section) => {
+        const prior = barPlans[section.startBar - 2];
+        const arrival = barPlans[section.startBar - 1];
+        if (!prior || !arrival || !prior.pianoJob || prior.arpeggiatorOwner !== 'piano') return [];
+        if (arrival.pianoArrival !== 'chorusDownbeat' || arrival.pianoRole !== 'anchor' || arrival.voices.piano !== 'anchor') return [];
+        if (prior.moment || arrival.moment || nearSilenceBars.has(prior.bar) || nearSilenceBars.has(arrival.bar)) return [];
+        if (prior.pianoRole && prior.voices.piano !== 'anchor') return [];
+        if (prior.pianoPower || prior.pianoRepeatedChord || prior.pianoFigure || prior.pianoPunctuation || prior.pianoArrival) return [];
+        const priorStart = (prior.bar - 1) * btBar;
+        const priorEnd = prior.bar * btBar;
+        if (glisses.some((gliss) => gliss.startTick < priorEnd && gliss.targetTick > priorStart)) return [];
+        return [{ prior, targetBar: section.startBar }];
+      })
+      .sort((a, b) => hashString(`piano-flourish:${take}:${a.targetBar}`) - hashString(`piano-flourish:${take}:${b.targetBar}`));
+    for (const choice of flourishChoices.slice(0, 2)) choice.prior.pianoFlourish = { targetBar: choice.targetBar };
+  }
+
   // Reconstruct the beat windows in which golden105 counted piano as a
   // sounding role. This lets the harp's phase-B velocity bound remain pinned
   // while the new held piano adds notes in other windows.
@@ -733,6 +759,7 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[] = [])
   const roleCountLine = `anchor=${pianoRoleCounts.anchor}`;
   reports.push(`keys (take ${take}): gates 0.30/0.50/0.72/0.90 of clamp ${clampMax}, piano held body+chord from 0.30 (chorus relief), harp modes ${harpModes}; glissandos ${glissLine} (budget ${GLISS_MAX_PER_PIECE})`);
   reports.push(`keys piano roles (take ${take}): ${roleCountLine} planned bars`);
+  reports.push(`keys piano flourishes planned (take ${take}): ${barPlans.filter((bar) => bar.pianoFlourish).map((bar) => `b${bar.bar}->b${bar.pianoFlourish!.targetBar}`).join(', ') || 'none'}`);
   if (pianoJobs.length) {
     reports.push(`keys piano energy slope (take ${take}): sign of next ArcBar.target minus current within section; section-end uses current minus previous; flat band ±max(1e-6, 0.5% of clamp ${clampMax})`);
     reports.push(`keys piano jobs (take ${take}, balanced section rotation): ${pianoJobs.map((entry) => `b${entry.startBar}-${entry.startBar + entry.lengthBars - 1}=${entry.job}/${entry.arpeggiatorOwner}${entry.vocalCellAllowed ? '/VB-cell' : ''}`).join(', ')}`);

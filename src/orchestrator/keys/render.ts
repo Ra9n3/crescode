@@ -192,7 +192,7 @@ function pianoStrikeId(c: KeysCandidate): string {
 
 function capPianoPunctuation(candidates: KeysCandidate[], shareLimit: number): { baseStrikes: number; punctuationStrikes: number; dropped: number } {
   const active = candidates.filter((c) => !c.drop);
-  const baseIds = new Set(active.filter((c) => c.roleTag !== 'punctuation').map(pianoStrikeId));
+  const baseIds = new Set(active.filter((c) => c.roleTag !== 'punctuation' && c.roleTag !== 'flourish').map(pianoStrikeId));
   const groups = new Map<string, KeysCandidate[]>();
   for (const c of active) {
     if (c.roleTag !== 'punctuation') continue;
@@ -250,7 +250,7 @@ function repairPianoOverlaps(
   let shifted = 0, shortened = 0, dropped = 0;
   const needsWholeChord = (c: KeysCandidate) => c.roleTag === 'arrival' || c.roleTag === 'punctuation';
   const isMotionOverlay = (c: KeysCandidate) => c.hand === 'rh'
-    && ['lift', 'settle', 'bed', 'atmosphere', 'answer'].includes(c.roleTag ?? '');
+    && ['lift', 'settle', 'bed', 'atmosphere', 'answer', 'flourish'].includes(c.roleTag ?? '');
   const isLowPriorityForOctaves = (c: KeysCandidate) => isMotionOverlay(c) || c.roleTag === 'power';
   const octaveInterval = (a: number, b: number) => Math.abs(a - b) > 0 && Math.abs(a - b) % 12 === 0;
   const harpCollisionAt = (c: KeysCandidate, pitch: number) => c.yieldToHarp === true && harpNotes.some((h) =>
@@ -642,7 +642,7 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
     if (answerEnabled && pianoTrack && answerCap > 0) {
       for (const bar of plan.bars) {
         if (bar.pianoRole !== 'anchor' || bar.voices.piano !== 'anchor' || bar.pianoPower
-          || bar.pianoRepeatedChord || bar.moment) continue;
+          || bar.pianoRepeatedChord || bar.pianoFlourish || bar.moment) continue;
         const section = ctx.sections.find((candidate) => bar.bar >= candidate.startBar && bar.bar < candidate.startBar + candidate.lengthBars);
         if (!section) continue;
         const phrase = Math.floor((bar.bar - section.startBar) / PIANO_ARRIVAL_PHRASE_BARS);
@@ -1515,6 +1515,57 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
     }
   }
 
+  const pianoCandidates = candidatesByPart.piano ?? [];
+  const flourishTemplates = new Set(['ensemble.chamber', 'ensemble.sonata', 'ensemble.cinematic', 'ensemble.hybridstudio']);
+  for (const planBar of plan.bars.filter((bar) => bar.pianoFlourish)) {
+    const targetBar = planBar.pianoFlourish!.targetBar;
+    const arrivalNotes = pianoCandidates.filter((candidate) => candidate.bar === targetBar && candidate.hand === 'rh'
+      && candidate.roleTag === 'arrival' && !candidate.drop);
+    const targetPitch = arrivalNotes.length ? Math.max(...arrivalNotes.map((candidate) => candidate.pitch)) : null;
+    const chamberSonata = template.id === 'ensemble.chamber' || template.id === 'ensemble.sonata';
+    const rhCeiling = Math.min(chamberSonata ? 84 : 96, pianoHi, pianoTrack?.highestNote ?? 108);
+    const rhFloor = Math.max(PIANO_RH[0], pianoLo, pianoTrack?.lowestNote ?? 0);
+    const diatonic = targetPitch === null ? [] : Array.from({ length: Math.max(0, targetPitch - rhFloor + 1) }, (_, index) => rhFloor + index)
+      .filter((pitch) => pitch <= targetPitch && pitch <= rhCeiling && scalePcs.has(pcOf(pitch)));
+    const runPitches = targetPitch !== null && targetPitch <= rhCeiling && diatonic.at(-1) === targetPitch
+      ? diatonic.slice(-8) : [];
+    const runWindowTicks = Math.min(2 * beat, btBar);
+    if (!flourishTemplates.has(template.id) || targetPitch === null || runPitches.length !== 8 || runWindowTicks < 8) {
+      delete planBar.pianoFlourish;
+      continue;
+    }
+
+    const barEnd = planBar.bar * btBar;
+    const runStart = barEnd - runWindowTicks;
+    // The preceding RH chord/figure releases at the written run start; LH
+    // candidates are deliberately untouched. No previous RH event can ring
+    // into the monophonic scale walk.
+    for (const candidate of pianoCandidates) {
+      if (candidate.bar !== planBar.bar || candidate.hand !== 'rh' || candidate.drop) continue;
+      if (candidate.startTick >= runStart) {
+        candidate.drop = true;
+      } else if (candidate.startTick + candidate.durationTicks > runStart) {
+        candidate.durationTicks = runStart - candidate.startTick;
+        if (candidate.durationTicks < 1) candidate.drop = true;
+      }
+    }
+    for (let index = 0; index < runPitches.length; index++) {
+      const startTick = runStart + Math.floor(index * runWindowTicks / runPitches.length);
+      const endTick = runStart + Math.floor((index + 1) * runWindowTicks / runPitches.length);
+      pianoCandidates.push({
+        pitch: runPitches[index], startTick, durationTicks: Math.max(1, endTick - startTick),
+        roleTag: 'flourish', hand: 'rh', bar: planBar.bar,
+        strikeId: `piano-flourish:${planBar.bar}:${index}`, collisionAlternatives: [],
+      });
+    }
+  }
+
+  const flourishTake = project.orchestration?.take ?? 0;
+  const flourishPlanIndex = plan.reports.findIndex((line) => line.startsWith(`keys piano flourishes planned (take ${flourishTake}):`));
+  if (flourishPlanIndex >= 0) {
+    plan.reports[flourishPlanIndex] = `keys piano flourishes planned (take ${flourishTake}): ${plan.bars.filter((bar) => bar.pianoFlourish).map((bar) => `b${bar.bar}->b${bar.pianoFlourish!.targetBar}`).join(', ') || 'none'}`;
+  }
+
   /** An answer is an indivisible line: if concurrency or a collision pass
    *  cuts any beat (especially its held final note), omit the whole answer. */
   const dropIncompleteAnswerLines = (candidates: KeysCandidate[]): number => {
@@ -1659,7 +1710,7 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
   // pass 2: micro-timing and final note events. The written note end is
   // unchanged by jitter, so all notes in a strike keep a common release.
   const renderedRoleCounts: Record<NoteRoleTag, number> = {
-    anchor: 0, lift: 0, settle: 0, bed: 0, atmosphere: 0, arrival: 0, punctuation: 0, power: 0, answer: 0,
+    anchor: 0, lift: 0, settle: 0, bed: 0, atmosphere: 0, arrival: 0, punctuation: 0, power: 0, answer: 0, flourish: 0,
   };
   for (const part of KEYS_PARTS) {
     const track = trackOf.get(part);
@@ -1742,6 +1793,7 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
     if (count) reports.push(`keys ${part}: ${count} notes (range ${track.lowestNote}-${track.highestNote}, lag ${msLo}-${msHi} ms)`);
   }
   reports.push(`keys piano role events (take ${project.orchestration?.take ?? 0}): ${Object.entries(renderedRoleCounts).map(([role, count]) => `${role}=${count}`).join(', ')}`);
+  reports.push(`keys piano flourish events (take ${project.orchestration?.take ?? 0}): ${renderedRoleCounts.flourish}`);
   const answerNotes = Object.values(notesByTrackId).flat().filter((note) => note.roleTag === 'answer');
   const answerNoteCounts = { leadEcho: 0, chordToneFragment: 0 };
   const answerBars = new Set<number>();

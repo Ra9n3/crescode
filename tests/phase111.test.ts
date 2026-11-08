@@ -16,7 +16,7 @@ describe('Phase 11.1 vocalbacking piano registers', () => {
     const { project } = vocalBacking(1);
     const piano = project.tracks.find((t) => t.role === 'piano')!;
     expect(piano.notes.length).toBeGreaterThan(0);
-    expect(piano.notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power'].includes(n.roleTag ?? ''))).toBe(true);
+    expect(piano.notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer', 'flourish'].includes(n.roleTag ?? ''))).toBe(true);
     expect(piano.notes.some((n) => n.roleTag === 'anchor')).toBe(true);
     expect(piano.notes.every((n) => (n.pitch >= 40 && n.pitch <= 56) || n.pitch >= 82 || (n.articulation === 'marcato' && n.pitch >= 36 && n.pitch < 40))).toBe(true);
     expect(piano.notes.some((n) => n.pitch >= 57 && n.pitch <= 81)).toBe(false);

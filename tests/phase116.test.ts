@@ -15,7 +15,7 @@ import { scalePitchClasses } from '../src/shared/schema/modes';
 import { buildMergedMidi, parseMidiFile } from '../src/export/midi';
 import {
   PIANO_ARRIVAL_PHRASE_BARS, PIANO_CONCURRENCY, PIANO_JOB_ROTATION, PIANO_MOTION_PHRASE_BARS,
-  PIANO_PUNCTUATION_SHARE, PIANO_REPEATED_CHORD_MAX_SHARE, PIANO_UP_MAX_SHARE, type PianoJob,
+  PIANO_PUNCTUATION_SHARE, PIANO_REPEATED_CHORD_MAX_SHARE, PIANO_UP_MAX_SHARE, isChorusTypeK, type PianoJob,
 } from '../src/orchestrator/keys/profile';
 
 const PIANO = 'piano';
@@ -46,6 +46,17 @@ function samePitchOverlapPairs(notes: Note[]): [Note, Note][] {
   for (let i = 0; i < notes.length; i++) for (let j = i + 1; j < notes.length; j++) {
     const a = notes[i], b = notes[j];
     if (a.pitch === b.pitch && a.startTick < b.startTick + b.durationTicks && b.startTick < a.startTick + a.durationTicks) pairs.push([a, b]);
+  }
+  return pairs;
+}
+
+function rhElevenThirteenOverlapPairs(notes: Note[]): [Note, Note][] {
+  const rh = notes.filter((note) => note.pitch >= 64);
+  const pairs: [Note, Note][] = [];
+  for (let i = 0; i < rh.length; i++) for (let j = i + 1; j < rh.length; j++) {
+    const a = rh[i], b = rh[j];
+    if ([11, 13].includes(Math.abs(a.pitch - b.pitch))
+      && a.startTick < b.startTick + b.durationTicks && b.startTick < a.startTick + a.durationTicks) pairs.push([a, b]);
   }
   return pairs;
 }
@@ -115,7 +126,7 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
       expect(result.reports.some((r) => r.startsWith(`keys piano answer role events (take ${generatedTake}):`))).toBe(true);
       expect(result.reports.some((r) => r.startsWith(`piano absorption (take ${generatedTake}):`))).toBe(true);
       expect(piano.length).toBeGreaterThan(0);
-      expect(piano.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer'].includes(n.roleTag ?? '')), `${template} t${take}: piano role tags are schema-approved`).toBe(true);
+      expect(piano.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer', 'flourish'].includes(n.roleTag ?? '')), `${template} t${take}: piano role tags are schema-approved`).toBe(true);
       expect(piano.some((n) => n.roleTag === 'anchor'), `${template} t${take}: held anchor remains present`).toBe(true);
       expect(project.tracks.find((t) => t.role === HARP)?.notes.every((n) => n.roleTag === undefined)).toBe(true);
       assertPianoPolyphony(piano, `${template} ${fixture} t${take}`);
@@ -152,7 +163,7 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
           expect(group.every((n) => n.roleTag === 'anchor')).toBe(true);
           const ends = group.map((n) => n.startTick + n.durationTicks);
           const body = group.filter((n) => n.pitch <= (templateId === 'ensemble.vocalbacking' ? 56 : 55));
-          if (!planBar.pianoPunctuation && !planBar.pianoFigure) {
+          if (!planBar.pianoPunctuation && !planBar.pianoFigure && !planBar.pianoFlourish) {
             expect(Math.max(...ends) - Math.min(...ends), `${templateId} t${take} b${planBar.bar}: unornamented strike releases together`).toBeLessThanOrEqual(16);
           }
           expect(Math.max(...ends), `${templateId} b${planBar.bar}: release does not pass its harmonic span`).toBeLessThanOrEqual(strike.release);
@@ -241,7 +252,7 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
       const { project, result } = composeTake(fixture, templateId, take);
       const notes = roleNotes(project, PIANO);
       expect(notes.length).toBeGreaterThan(0);
-      expect(notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer'].includes(n.roleTag ?? ''))).toBe(true);
+      expect(notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer', 'flourish'].includes(n.roleTag ?? ''))).toBe(true);
       expect(notes.some((n) => n.roleTag === 'anchor')).toBe(true);
       assertPianoPolyphony(notes, `${templateId} ${fixture} t${take}`);
       if (templateId === 'ensemble.vocalbacking') {
@@ -292,10 +303,13 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
     }
   }, 120000);
 
-  it('schema validation accepts anchor and rejects unknown role tags', () => {
+  it('schema validation accepts flourish and rejects unknown role tags', () => {
     const { project } = composeTake('three', 'ensemble.chamber', 1);
     const good = validateProject(project);
     expect(good.ok).toBe(true);
+    const tagged = structuredClone(project);
+    tagged.tracks.find((track) => track.role === PIANO)!.notes[0].roleTag = 'flourish';
+    expect(validateProject(tagged).ok, 'flourish is schema-approved').toBe(true);
     const altered = structuredClone(project);
     const piano = altered.tracks.find((t) => t.role === PIANO)!;
     piano.notes[0].roleTag = 'not-a-role' as never;
@@ -962,4 +976,73 @@ describe('Phase 11.6d-1: chamber and sonata piano answers', () => {
     expect(plans.every((bar) => bar.pianoAnswer?.kind === 'chordToneFragment')).toBe(true);
     expect(piano.notes.filter((note) => note.roleTag === 'answer').length).toBe(plans.reduce((n, bar) => n + bar.pianoAnswer!.pitches.length, 0));
   });
+});
+
+describe('Phase 11.6d-2: piano pre-chorus flourishes', () => {
+  it('keeps tail runs diatonic, piano-owned, collision-safe and landed on chorus arrivals', () => {
+    const eligibleTemplates = ['ensemble.chamber', 'ensemble.sonata', 'ensemble.cinematic', 'ensemble.hybridstudio'];
+    for (const templateId of eligibleTemplates) {
+      let flourishPieces = 0;
+      const upper = templateId === 'ensemble.chamber' || templateId === 'ensemble.sonata' ? 84 : 96;
+      for (let take = 0; take < 20; take++) {
+        const { project, result } = composeTake('three', templateId, take);
+        const piano = project.tracks.find((track) => track.role === PIANO)!;
+        const bt = barTicks(project.timeSignature);
+        const beat = beatTicks(project.timeSignature);
+        const barOf = (note: Note) => Math.floor(note.startTick / bt) + 1;
+        const flourishPlans = result.plan.keys.bars.filter((bar) => bar.pianoFlourish);
+        const flourishes = piano.notes.filter((note) => note.roleTag === 'flourish');
+        const flourishBars = new Map<number, Note[]>();
+        for (const note of flourishes) flourishBars.set(barOf(note), [...(flourishBars.get(barOf(note)) ?? []), note]);
+        expect(flourishPlans.length, `${templateId} t${result.orchestration.take}: at most two flourishes`).toBeLessThanOrEqual(2);
+        expect(flourishBars.size, `${templateId} t${result.orchestration.take}: every plan renders one run`).toBe(flourishPlans.length);
+
+        for (const planBar of flourishPlans) {
+          const run = (flourishBars.get(planBar.bar) ?? []).sort((a, b) => a.startTick - b.startTick);
+          const targetBar = planBar.pianoFlourish!.targetBar;
+          const targetPlan = result.plan.keys.bars.find((bar) => bar.bar === targetBar)!;
+          const targetSection = project.sections.find((section) => targetBar >= section.startBar && targetBar < section.startBar + section.lengthBars)!;
+          const preStart = (planBar.bar - 1) * bt;
+          const barEnd = planBar.bar * bt;
+          const runStart = barEnd - Math.min(2 * beat, bt);
+          expect(planBar.pianoJob, `${templateId} b${planBar.bar}: piano job owns the section`).toBeDefined();
+          expect(planBar.arpeggiatorOwner, `${templateId} b${planBar.bar}: piano owns the section arpeggiator`).toBe('piano');
+          expect(isChorusTypeK(targetSection.name), `${templateId} b${targetBar}: flourish targets a chorus`).toBe(true);
+          expect(targetPlan.pianoArrival).toBe('chorusDownbeat');
+          expect(result.plan.keys.glisses.some((gliss) => gliss.startTick < barEnd && gliss.targetTick > preStart), `${templateId} b${planBar.bar}: not a harp-gliss bar`).toBe(false);
+          expect(run).toHaveLength(8);
+          expect(run.every((note) => note.pitch <= upper), `${templateId} b${planBar.bar}: flourish RH ceiling`).toBe(true);
+          expect(run.every((note) => note.startTick >= runStart && note.startTick + note.durationTicks <= barEnd), `${templateId} b${planBar.bar}: run occupies only the final two beats`).toBe(true);
+          for (let i = 1; i < run.length; i++) {
+            expect(run[i].pitch, `${templateId} b${planBar.bar}: run ascends strictly without repeated pitches`).toBeGreaterThan(run[i - 1].pitch);
+          }
+          const scale = new Set(scalePitchClasses(project.key, project.mode).map(pcOf));
+          expect(run.every((note) => scale.has(pcOf(note.pitch))), `${templateId} b${planBar.bar}: all run notes are diatonic`).toBe(true);
+          const arrivalChord = piano.notes.filter((note) => barOf(note) === targetBar && note.roleTag === 'arrival' && note.pitch >= 64);
+          expect(arrivalChord.length, `${templateId} b${targetBar}: chorus-downbeat arrival chord remains present`).toBeGreaterThan(0);
+          expect(run.at(-1)!.pitch, `${templateId} b${planBar.bar}: lands on the arrival chord's top note`).toBe(Math.max(...arrivalChord.map((note) => note.pitch)));
+          const priorRh = piano.notes.filter((note) => barOf(note) === planBar.bar && note.pitch >= 64 && note.roleTag !== 'flourish');
+          expect(priorRh.every((note) => note.startTick + note.durationTicks <= runStart + 1), `${templateId} b${planBar.bar}: prior RH chord releases at run start`).toBe(true);
+          expect(run.every((note) => note.pitch >= 64), `${templateId} b${planBar.bar}: flourish is RH-only`).toBe(true);
+          if (planBar.pianoRole === 'anchor') {
+            expect(piano.notes.some((note) => barOf(note) === planBar.bar && note.pitch < 56 && note.roleTag === 'anchor'), `${templateId} b${planBar.bar}: LH body remains`).toBe(true);
+          }
+        }
+        if (flourishes.length) flourishPieces++;
+        expect(samePitchOverlapPairs(piano.notes), `${templateId} t${result.orchestration.take}: no same-pitch overlaps`).toHaveLength(0);
+        expect(rhElevenThirteenOverlapPairs(piano.notes), `${templateId} t${result.orchestration.take}: no RH 11/13-semitone pairs`).toHaveLength(0);
+        expect(sanitizeNotes(piano.notes, piano.lowestNote, piano.highestNote, projectEndTick(project)), `${templateId} t${result.orchestration.take}: sanitizer no-op`).toEqual(piano.notes);
+        assertPianoPolyphony(piano.notes, `${templateId} t${result.orchestration.take}`);
+      }
+      expect(flourishPieces, `${templateId}: at least one flourish is exercised in the 20-run audit`).toBeGreaterThan(0);
+    }
+
+    for (const templateId of ['ensemble.vocalbacking', 'ensemble.symphony']) {
+      for (let take = 0; take < 20; take++) {
+        const { project } = composeTake('three', templateId, take);
+        const piano = project.tracks.find((track) => track.role === PIANO)!;
+        expect(piano.notes.some((note) => note.roleTag === 'flourish'), `${templateId} t${take + 1}: no flourish`).toBe(false);
+      }
+    }
+  }, 1200000);
 });

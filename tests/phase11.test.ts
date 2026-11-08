@@ -20,7 +20,7 @@ describe('Phase 11 keys smoke contract', () => {
     expect(activeBars).toBeGreaterThan(0);
     expect(plan.pianoRoleCounts.anchor).toBe(activeBars);
     expect(piano.notes.length).toBeGreaterThan(0);
-    expect(piano.notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer'].includes(n.roleTag ?? ''))).toBe(true);
+    expect(piano.notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer', 'flourish'].includes(n.roleTag ?? ''))).toBe(true);
     expect(piano.notes.some((n) => n.roleTag === 'anchor')).toBe(true);
     expect(result.reports.some((line) => line.includes(`keys piano roles (take 1): anchor=${activeBars}, answer=${plan.pianoRoleCounts.answer} planned bars`))).toBe(true);
     expect(validateProject(project).ok).toBe(true);

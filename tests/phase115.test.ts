@@ -21,7 +21,7 @@ describe('Phase 11.5 deterministic keys plan', () => {
     );
     expect(JSON.stringify(a.project.tracks)).toBe(JSON.stringify(b.project.tracks));
     const pianoNotes = a.project.tracks.find((t) => t.role === 'piano')!.notes;
-    expect(pianoNotes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power'].includes(n.roleTag ?? ''))).toBe(true);
+    expect(pianoNotes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer', 'flourish'].includes(n.roleTag ?? ''))).toBe(true);
     expect(pianoNotes.some((n) => n.roleTag === 'anchor')).toBe(true);
   });
 });

@@ -41,7 +41,7 @@ import { EMPTY_WIND_PLAN } from './winds/plan';
 import { renderPercussion, governPercussionVelocities } from './percussion/render';
 import { PERC_PARTS } from './percussion/profile';
 import { EMPTY_PERC_PLAN } from './percussion/plan';
-import { renderKeys, governKeysVelocities, absorbPianoVelocities } from './keys/render';
+import { renderKeys, governKeysVelocities, absorbPianoVelocities, repairPianoOctavesAfterHumanize } from './keys/render';
 import { KEYS_PARTS } from './keys/profile';
 import { EMPTY_KEYS_PLAN } from './keys/plan';
 import type { OrchestratorContext } from './module';
@@ -388,6 +388,28 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     notesByTrackId,
   });
   for (const [id, notes] of Object.entries(overlapped)) notesByTrackId[id] = notes;
+  const pianoRepairTrackId = Object.keys(keysNotes).find((id) => project.tracks.find((track) => track.id === id)?.role === 'piano');
+  if (template && pianoRepairTrackId) {
+    const roleOfTrack = (id: string) => project.tracks.find((track) => track.id === id)?.role ?? '';
+    const finalOtherNotes = [
+      ...stringsTrackIds.map((id) => ({ role: roleOfTrack(id), trackId: id, notes: notesByTrackId[id] ?? [] })),
+      ...Object.entries(brassNotes).map(([trackId, notes]) => ({ role: roleOfTrack(trackId), trackId, notes })),
+      ...Object.entries(windNotes).map(([trackId, notes]) => ({ role: roleOfTrack(trackId), trackId, notes })),
+      ...Object.entries(percussionNotes).map(([trackId, notes]) => ({ role: roleOfTrack(trackId), trackId, notes })),
+      ...Object.entries(keysNotes).map(([trackId, notes]) => ({ role: roleOfTrack(trackId), trackId, notes })),
+      ...ruleTracks.filter((track) => keysRuleNotes.some((entry) => entry.notes === track.notes))
+        .map((track) => ({ role: track.role, trackId: track.id, notes: track.notes })),
+    ];
+    const octaveRepair = repairPianoOctavesAfterHumanize({
+      ctx,
+      template,
+      pianoTrackId: pianoRepairTrackId,
+      pianoNotes: keysNotes[pianoRepairTrackId],
+      candidates: keysResult.pianoOctaveRepairCandidates,
+      otherNotes: finalOtherNotes,
+    });
+    ctx.lines!.reports.push(`keys piano post-humanize octave repair: shifted ${octaveRepair.shifted}; hard pairs remaining ${octaveRepair.remainingHardPairs}`);
+  }
   governPadVelocities({
     project,
     template,

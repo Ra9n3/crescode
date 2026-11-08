@@ -11,7 +11,11 @@ import { projectEndTick, projectFromFixture, validateProject, type Note, type Pr
 import { resolveTemplate } from '../src/config/ensembles';
 import { msToTicks } from '../src/orchestrator/spine';
 import { cellGrid } from '../src/orchestrator/lines/ostinato';
-import { PIANO_CONCURRENCY, PIANO_MOTION_PHRASE_BARS, PIANO_UP_MAX_SHARE } from '../src/orchestrator/keys/profile';
+import { buildMergedMidi, parseMidiFile } from '../src/export/midi';
+import {
+  PIANO_ARRIVAL_PHRASE_BARS, PIANO_CONCURRENCY, PIANO_JOB_ROTATION, PIANO_MOTION_PHRASE_BARS,
+  PIANO_PUNCTUATION_SHARE, PIANO_REPEATED_CHORD_MAX_SHARE, PIANO_UP_MAX_SHARE, type PianoJob,
+} from '../src/orchestrator/keys/profile';
 
 const PIANO = 'piano';
 const HARP = 'harp';
@@ -35,6 +39,15 @@ const pcOf = (pitch: number): number => ((pitch % 12) + 12) % 12;
 const spansOf = (project: Project) => chordSpans(project);
 const spanAt = (spans: ReturnType<typeof chordSpans>, tick: number) =>
   spans.find((s) => s.startTick <= tick && tick < s.endTick) ?? spans[0];
+
+function samePitchOverlapPairs(notes: Note[]): [Note, Note][] {
+  const pairs: [Note, Note][] = [];
+  for (let i = 0; i < notes.length; i++) for (let j = i + 1; j < notes.length; j++) {
+    const a = notes[i], b = notes[j];
+    if (a.pitch === b.pitch && a.startTick < b.startTick + b.durationTicks && b.startTick < a.startTick + a.durationTicks) pairs.push([a, b]);
+  }
+  return pairs;
+}
 
 function lowStringsSoundInBar(project: Project, bar: number): boolean {
   const bt = barTicks(project.timeSignature);
@@ -100,7 +113,7 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
       expect(result.reports.some((r) => r.includes(`keys plan (take ${generatedTake}): roles anchor=${plannedAnchors} bars`))).toBe(true);
       expect(result.reports.some((r) => r.startsWith(`piano absorption (take ${generatedTake}):`))).toBe(true);
       expect(piano.length).toBeGreaterThan(0);
-      expect(piano.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere'].includes(n.roleTag ?? '')), `${template} t${take}: piano role tags are schema-approved`).toBe(true);
+      expect(piano.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power'].includes(n.roleTag ?? '')), `${template} t${take}: piano role tags are schema-approved`).toBe(true);
       expect(piano.some((n) => n.roleTag === 'anchor'), `${template} t${take}: held anchor remains present`).toBe(true);
       expect(project.tracks.find((t) => t.role === HARP)?.notes.every((n) => n.roleTag === undefined)).toBe(true);
       assertPianoPolyphony(piano, `${template} ${fixture} t${take}`);
@@ -128,7 +141,7 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
 
       for (const planBar of result.plan.keys.bars) {
         const kind = planBar.voices.piano;
-        if (!kind) continue;
+        if (!kind || planBar.pianoPower || planBar.pianoRepeatedChord) continue;
         const shape = result.plan.moments.find((m) => m.kind === 'tutti' && planBar.bar >= m.startBar && planBar.bar <= m.endBar)?.shape;
         for (const strike of strikesForBar(project, planBar.bar, kind, shape)) {
           const group = groupAt(anchors, strike.onset, jitterMax);
@@ -136,9 +149,15 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
           strikesSeen.add(`${planBar.bar}:${strike.onset}`);
           expect(group.every((n) => n.roleTag === 'anchor')).toBe(true);
           const ends = group.map((n) => n.startTick + n.durationTicks);
-          expect(Math.max(...ends) - Math.min(...ends), `${templateId} t${take} b${planBar.bar}: voices of one strike release together`).toBeLessThanOrEqual(16);
+          const body = group.filter((n) => n.pitch <= (templateId === 'ensemble.vocalbacking' ? 56 : 55));
+          if (!planBar.pianoPunctuation && !planBar.pianoFigure) {
+            expect(Math.max(...ends) - Math.min(...ends), `${templateId} t${take} b${planBar.bar}: unornamented strike releases together`).toBeLessThanOrEqual(16);
+          }
           expect(Math.max(...ends), `${templateId} b${planBar.bar}: release does not pass its harmonic span`).toBeLessThanOrEqual(strike.release);
-          expect(strike.release - Math.min(...ends), `${templateId} b${planBar.bar}: strike holds to the span end`).toBeLessThanOrEqual(jitterMax + 2);
+          if (body.length) {
+            const heldLowest = body.reduce((lowest, note) => note.pitch < lowest.pitch ? note : lowest);
+            expect(strike.release - (heldLowest.startTick + heldLowest.durationTicks), `${templateId} b${planBar.bar}: held body's lowest note reaches the span end`).toBeLessThanOrEqual(jitterMax + 2);
+          }
           expect(Math.max(...group.map((n) => n.durationTicks)), `${templateId} b${planBar.bar}: piano note exceeds a bar`).toBeLessThanOrEqual(bt);
 
           const rootPc = pcOf(strike.span.parsed.root);
@@ -167,6 +186,7 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
             expect([0, 7], `${templateId} b${planBar.bar}: LH uses root/octave/open fifth only`).toContain(interval);
             if (n.pitch < 55) expect([0, 7], `${templateId} b${planBar.bar}: no third/fourth below 55`).toContain(interval);
           }
+          if (planBar.pianoArrival && strike.onset === (planBar.bar - 1) * bt) continue; // rolled RH is checked in 11.6c
           const overlap = (templateId === 'ensemble.chamber' || templateId === 'ensemble.sonata') && lowStringsSoundInBar(project, planBar.bar);
           if (rh.length) {
             expect(Math.min(...rh.map((n) => n.pitch)), `${templateId} b${planBar.bar}: RH floor`).toBeGreaterThanOrEqual(isVocalBacking ? 82 : overlap ? 72 : 64);
@@ -175,11 +195,16 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
             for (let i = 1; i < sortedRh.length; i++) {
               expect(sortedRh[i] - sortedRh[i - 1], `${templateId} b${planBar.bar}: adjacent RH tones need at least a third`).toBeGreaterThanOrEqual(3);
             }
-            if (sortedRh.length >= 3) expect(sortedRh.at(-1)! - sortedRh[0]).toBeGreaterThanOrEqual(12);
+            if (sortedRh.length >= 3 && !planBar.pianoFigure && !planBar.pianoPunctuation) {
+              expect(sortedRh.at(-1)! - sortedRh[0]).toBeGreaterThanOrEqual(12);
+            }
             if (overlap) expect(sortedRh[0]).toBeGreaterThanOrEqual(72);
             const hasSeventh = strike.span.parsed.quality.toLowerCase().includes('7') || strike.span.parsed.intervals.some((i) => i === 10 || i === 11);
-            const expectedVoices = hasSeventh ? 4 : 3;
-            expect(rh.length, `${templateId} b${planBar.bar}: RH triad/seventh`).toBe(expectedVoices);
+            if (planBar.pianoFigure || planBar.pianoPunctuation) {
+              expect(rh.length, `${templateId} b${planBar.bar}: chord tones survive the planned overlay`).toBeGreaterThanOrEqual(2);
+            } else if (hasSeventh) {
+              expect([3, 4], `${templateId} b${planBar.bar}: retain or drop the seventh as needed`).toContain(rh.length);
+            } else expect(rh.length, `${templateId} b${planBar.bar}: RH triad`).toBe(3);
           } else {
             expect(overlap, `${templateId} b${planBar.bar}: LH-only is allowed only for low chamber/sonata strings`).toBe(true);
           }
@@ -214,7 +239,7 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
       const { project, result } = composeTake(fixture, templateId, take);
       const notes = roleNotes(project, PIANO);
       expect(notes.length).toBeGreaterThan(0);
-      expect(notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere'].includes(n.roleTag ?? ''))).toBe(true);
+      expect(notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power'].includes(n.roleTag ?? ''))).toBe(true);
       expect(notes.some((n) => n.roleTag === 'anchor')).toBe(true);
       assertPianoPolyphony(notes, `${templateId} ${fixture} t${take}`);
       if (templateId === 'ensemble.vocalbacking') {
@@ -235,13 +260,35 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
         const start = (pb.bar - 1) * bt;
         const notesInHit = notes.filter((n) => n.startTick >= start && n.startTick < start + beatTicks(project.timeSignature));
         for (const n of notesInHit) expect(n.pitch).toBeGreaterThanOrEqual(36);
-        expect(notesInHit.every((n) => n.roleTag === 'anchor')).toBe(true);
+        expect(notesInHit.every((n) => n.roleTag === 'anchor' || (pb.voices.piano === 'final' && n.roleTag === 'arrival'))).toBe(true);
       }
       const template = resolveTemplate({ templateId, overrides: {}, pins: {} })!;
       const energy = measureEnergy(project, template);
       expect(energy.violations.filter((v) => v.kind === 'aboveMax'), `${templateId}: energy clamp`).toHaveLength(0);
     }
   });
+
+  it('makes sanitizeNotes a no-op on each complete piano lane and preserves the collision-free lane in MIDI export', () => {
+    for (const [templateId, take] of [
+      ['ensemble.chamber', 1], ['ensemble.chamber', 7],
+      ['ensemble.sonata', 2], ['ensemble.sonata', 11],
+      ['ensemble.vocalbacking', 1], ['ensemble.vocalbacking', 9],
+      ['ensemble.cinematic', 3], ['ensemble.cinematic', 13],
+      ['ensemble.hybridstudio', 5], ['ensemble.hybridstudio', 17],
+    ] as const) {
+      const { project } = composeTake('three', templateId, take);
+      const piano = project.tracks.find((track) => track.role === PIANO)!;
+      expect(samePitchOverlapPairs(piano.notes), `${templateId} take ${take}: full piano lane`).toHaveLength(0);
+      expect(
+        sanitizeNotes(piano.notes, piano.lowestNote, piano.highestNote, projectEndTick(project)),
+        `${templateId} take ${take}: full-lane sanitizer no-op`,
+      ).toEqual(piano.notes);
+      const parsed = parseMidiFile(buildMergedMidi(project, project.tracks));
+      const midiPiano = parsed.tracks.find((track) => track.name === piano.name);
+      expect(midiPiano, `${templateId} take ${take}: piano MIDI track`).toBeDefined();
+      expect(samePitchOverlapPairs(midiPiano!.notes), `${templateId} take ${take}: exported piano MIDI lane`).toHaveLength(0);
+    }
+  }, 120000);
 
   it('schema validation accepts anchor and rejects unknown role tags', () => {
     const { project } = composeTake('three', 'ensemble.chamber', 1);
@@ -264,12 +311,8 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
     const template = resolveTemplate({ templateId: 'ensemble.vocalbacking', overrides: {}, pins: {} })!;
     expect(measureEnergy(first.project, template).violations.filter((v) => v.kind === 'aboveMax')).toHaveLength(0);
     const piano = first.project.tracks.find((t) => t.role === PIANO)!;
-    // The whole piano lane intentionally has same-pitch overlapping role layers;
-    // exercise sanitizeNotes on one valid event per role without flattening them.
-    for (const roleTag of new Set(piano.notes.map((n) => n.roleTag))) {
-      const note = piano.notes.find((n) => n.roleTag === roleTag)!;
-      expect(sanitizeNotes([note], piano.lowestNote, piano.highestNote, projectEndTick(first.project))).toEqual([note]);
-    }
+    expect(samePitchOverlapPairs(piano.notes)).toHaveLength(0);
+    expect(sanitizeNotes(piano.notes, piano.lowestNote, piano.highestNote, projectEndTick(first.project))).toEqual(piano.notes);
     const keysNotes = first.project.tracks.filter((t) => t.role === PIANO || t.role === HARP).flatMap((t) => t.notes);
     expect(keysNotes.every((n) => n.pitch <= 56 || n.pitch >= 82)).toBe(true);
   });
@@ -316,13 +359,14 @@ describe('Phase 11.6b: motion figures over the held anchor', () => {
       expect(jobs).toHaveLength(project.sections.length);
       jobs.forEach((section, ordinal) => {
         expect(section.job, `take ${outputTake}, ${section.sectionName} instance ${ordinal}`).toBe(
-          (outputTake - 1 + ordinal) % 2 === 0 ? 'support' : 'motion',
+          PIANO_JOB_ROTATION[(outputTake - 1 + ordinal) % PIANO_JOB_ROTATION.length],
         );
         expect(section.arpeggiatorOwner).toMatch(/^(harp|piano)$/);
         if (ordinal > 0) expect(section.job).not.toBe(jobs[ordinal - 1].job);
       });
-      const jobCounts = jobs.reduce((counts, section) => ({ ...counts, [section.job]: counts[section.job] + 1 }), { support: 0, motion: 0 });
-      expect(Math.abs(jobCounts.support - jobCounts.motion)).toBeLessThanOrEqual(1);
+      const jobCounts: Record<PianoJob, number> = { support: 0, motion: 0, power: 0 };
+      for (const section of jobs) jobCounts[section.job]++;
+      expect(Math.max(...Object.values(jobCounts)) - Math.min(...Object.values(jobCounts))).toBeLessThanOrEqual(1);
 
       for (const planBar of keysPlan.bars) {
         const section = project.sections.find((candidate) => planBar.bar >= candidate.startBar && planBar.bar < candidate.startBar + candidate.lengthBars);
@@ -355,13 +399,15 @@ describe('Phase 11.6b: motion figures over the held anchor', () => {
     for (const [fixture, templateId] of [
       ['three', 'ensemble.chamber'],
       ['dorian', 'ensemble.sonata'],
+      ['three', 'ensemble.cinematic'],
+      ['three', 'ensemble.hybridstudio'],
     ] as const) {
       const { project, result } = composeTake(fixture, templateId, 0); // output take 1
       const keysPlan = result.plan.keys;
       const jobsById = new Map(keysPlan.pianoJobs.map((section) => [section.sectionId, section]));
       for (const section of project.sections.filter((candidate) => /chorus|refrain|hook|drop/i.test(candidate.name) && candidate.lengthBars >= 4)) {
         const job = jobsById.get(section.id)!;
-        expect(job.job, `${templateId} take 1 ${section.name} job`).toBe('motion');
+        expect(job.job).toBeDefined();
         const phraseFamilies: string[] = [];
         const phraseFigures: string[] = [];
         const phraseCount = Math.ceil(section.lengthBars / PIANO_MOTION_PHRASE_BARS);
@@ -437,7 +483,7 @@ describe('Phase 11.6b: motion figures over the held anchor', () => {
     for (const [fixture, templateId, inputTake] of samples) {
       const { project, result } = composeTake(fixture, templateId, inputTake);
       const notes = roleNotes(project, PIANO);
-      const anchors = notes.filter((note) => note.roleTag === 'anchor');
+      const anchors = notes.filter((note) => note.roleTag === 'anchor' || note.roleTag === 'power');
       const bt = barTicks(project.timeSignature);
       const eighth = Math.floor(beatTicks(project.timeSignature) / 2);
       const jitterMax = Math.ceil(msToTicks(12, project.tempoMap)) + 2;
@@ -451,8 +497,8 @@ describe('Phase 11.6b: motion figures over the held anchor', () => {
           expect(planBar.norm).toBeGreaterThanOrEqual(0.9);
           expect((planBar.bar - section.startBar) % PIANO_MOTION_PHRASE_BARS).toBe(0);
         }
-        if (!planBar.pianoFigure) continue;
-        expect(planBar.pianoJob).toBe('motion');
+        if (!planBar.pianoFigure || planBar.pianoRepeatedChord) continue;
+        expect(planBar.pianoJob).toBeDefined();
         expect(planBar.pianoFigureRole).toBe(expectedRole[planBar.pianoFigure]);
         const barStart = (planBar.bar - 1) * bt;
         const barEnd = planBar.bar * bt;
@@ -467,7 +513,7 @@ describe('Phase 11.6b: motion figures over the held anchor', () => {
         checkedFigureBars++;
 
         for (const note of overlays) {
-          const bodyUnder = anchors.some((anchor) => anchor.pitch <= (templateId === 'ensemble.vocalbacking' ? 56 : 55)
+          const bodyUnder = anchors.some((anchor) => (anchor.roleTag === 'power' || anchor.pitch <= (templateId === 'ensemble.vocalbacking' ? 56 : 55))
             && anchor.startTick <= note.startTick + jitterMax
             && anchor.startTick + anchor.durationTicks > note.startTick - jitterMax);
           expect(bodyUnder, `${templateId} b${planBar.bar} ${planBar.pianoFigure}: LH held body sounds under figure note at ${note.startTick}`).toBe(true);
@@ -517,7 +563,11 @@ describe('Phase 11.6b: motion figures over the held anchor', () => {
             const span = spanAt(spans, note.startTick);
             const release = note.startTick + note.durationTicks;
             expect(release).toBeLessThanOrEqual(span.endTick);
-            expect(span.endTick - release, `b${planBar.bar}: cascade rings to harmonic span end`).toBeLessThanOrEqual(jitterMax + 2);
+            if (span.endTick - release > jitterMax + 2) {
+              const resolvedAtNewStrike = notes.some((other) => Math.abs(other.startTick - release) <= jitterMax
+                && (other.pitch === note.pitch || other.roleTag === 'punctuation' || other.roleTag === 'arrival'));
+              expect(resolvedAtNewStrike, `b${planBar.bar}: early cascade release is only at a conflicting strike`).toBe(true);
+            }
           }
         }
         if (planBar.pianoFigure === 'ostinatoCell') {
@@ -542,6 +592,221 @@ describe('Phase 11.6b: motion figures over the held anchor', () => {
         if (result.orchestration.take === 3) expect(cellSectionStarts.size, 'the selected VB cell section uses one sparse cell').toBe(1);
       }
       assertPianoPolyphony(notes, `${templateId} take ${result.orchestration.take} with motion overlays`);
+    }
+  });
+});
+
+describe('Phase 11.6c: collision-safe arrivals, punctuation and power', () => {
+  const samples = [
+    ['ensemble.chamber', 0], ['ensemble.sonata', 0], ['ensemble.vocalbacking', 0],
+    ['ensemble.cinematic', 0], ['ensemble.hybridstudio', 0],
+  ] as const;
+
+  it('keeps every complete piano lane collision-free, sanitizer-identical, voicing-safe and collision-free in MIDI', () => {
+    for (const [templateId, take] of samples) {
+      const { project, result } = composeTake('three', templateId, take);
+      const piano = project.tracks.find((track) => track.role === PIANO)!;
+      const label = `${templateId} take ${result.orchestration.take}`;
+      expect(samePitchOverlapPairs(piano.notes), `${label}: full piano lane`).toHaveLength(0);
+      expect(sanitizeNotes(piano.notes, piano.lowestNote, piano.highestNote, projectEndTick(project)), `${label}: sanitizeNotes is a no-op on the full lane`).toEqual(piano.notes);
+      assertPianoPolyphony(piano.notes, label);
+
+      const rhFloor = templateId === 'ensemble.vocalbacking' ? 82 : 64;
+      const rh = piano.notes.filter((note) => note.roleTag !== 'power' && note.pitch >= rhFloor);
+      for (let i = 0; i < rh.length; i++) for (let j = i + 1; j < rh.length; j++) {
+        const a = rh[i], b = rh[j];
+        if (a.startTick >= b.startTick + b.durationTicks || b.startTick >= a.startTick + a.durationTicks) continue;
+        expect([11, 13], `${label}: simultaneous RH interval ${a.pitch}-${b.pitch}`).not.toContain(Math.abs(a.pitch - b.pitch));
+      }
+      if (templateId === 'ensemble.chamber' || templateId === 'ensemble.sonata') {
+        const plans = new Map(result.plan.keys.bars.map((bar) => [bar.bar, bar]));
+        for (const note of piano.notes) {
+          const bar = Math.floor(note.startTick / barTicks(project.timeSignature)) + 1;
+          if (note.pitch <= 84) continue;
+          expect(plans.get(bar)?.pianoRarePeak, `${label} b${bar}: pitch ${note.pitch} is only allowed on a rare peak`).toBe(true);
+          expect(note.pitch).toBeLessThanOrEqual(88);
+        }
+        expect(piano.notes.some((note) => note.pitch === 91), `${label}: no overbright G6`).toBe(false);
+      }
+
+      const parsed = parseMidiFile(buildMergedMidi(project, project.tracks));
+      const midiPiano = parsed.tracks.find((track) => track.name === piano.name);
+      expect(midiPiano, `${label}: exported MIDI piano track`).toBeDefined();
+      expect(samePitchOverlapPairs(midiPiano!.notes), `${label}: MIDI piano lane`).toHaveLength(0);
+    }
+  });
+
+  it('rolls one held arrival per four-bar phrase and marks vocalbacking arrivals high', () => {
+    const jitter = Math.ceil(msToTicks(12, FIXTURES.three.tempoMap)) + 2;
+    const eighth = Math.floor(beatTicks(FIXTURES.three.timeSignature) / 2);
+    for (const [templateId, take] of samples) {
+      const { project, result } = composeTake('three', templateId, take);
+      const notes = roleNotes(project, PIANO);
+      const bt = barTicks(project.timeSignature);
+      const arrivals = notes.filter((note) => note.roleTag === 'arrival');
+      const planned = result.plan.keys.bars.filter((bar) => bar.pianoArrival);
+      expect(planned.length, `${templateId}: planned arrival bars`).toBeGreaterThan(0);
+      const phraseKeys = new Set<string>();
+      for (const barPlan of planned) {
+        const section = project.sections.find((candidate) => barPlan.bar >= candidate.startBar && barPlan.bar < candidate.startBar + candidate.lengthBars)!;
+        const phrase = `${section.id}:${Math.floor((barPlan.bar - section.startBar) / PIANO_ARRIVAL_PHRASE_BARS)}`;
+        expect(phraseKeys.has(phrase), `${templateId} b${barPlan.bar}: at most one arrival per phrase`).toBe(false);
+        phraseKeys.add(phrase);
+        if (barPlan.pianoArrival === 'closingChord') expect(barPlan.bar).toBe(projectBars(project));
+        else expect((barPlan.bar - section.startBar) % PIANO_ARRIVAL_PHRASE_BARS).toBe(0);
+
+        const start = (barPlan.bar - 1) * bt;
+        const group = arrivals.filter((note) => note.startTick >= start && note.startTick < start + bt);
+        expect(group.length, `${templateId} b${barPlan.bar}: rolled arrival rendered`).toBeGreaterThanOrEqual(3);
+        const onsets = group.map((note) => note.startTick).sort((a, b) => a - b);
+        expect(onsets[0]).toBeGreaterThanOrEqual(start);
+        expect(onsets[0] - start).toBeLessThanOrEqual(jitter);
+        expect(onsets.at(-1)! - onsets[0]).toBeLessThanOrEqual(eighth + jitter);
+        expect(group.filter((note) => note.durationTicks > eighth).length, `${templateId} b${barPlan.bar}: rolled chord has held tones`).toBeGreaterThanOrEqual(2);
+        if (templateId === 'ensemble.vocalbacking') expect(Math.min(...group.map((note) => note.pitch))).toBeGreaterThanOrEqual(82);
+      }
+      expect(arrivals.length).toBeGreaterThanOrEqual(planned.length * 3);
+    }
+  });
+
+  it('places short punctuation at derived cadences/phrase ends and reports total-strike share and harp yields', () => {
+    for (const [templateId, take] of samples) {
+      const { project, result } = composeTake('three', templateId, take);
+      const notes = roleNotes(project, PIANO);
+      const bt = barTicks(project.timeSignature);
+      const beat = beatTicks(project.timeSignature);
+      const sixteenth = Math.floor(beat / 4);
+      const jitter = Math.ceil(msToTicks(12, project.tempoMap)) + 2;
+      const plans = result.plan.keys.bars.filter((bar) => bar.pianoPunctuation);
+      const spans = spansOf(project);
+      const tonic = pcOf(project.key);
+      const dominant = pcOf(project.key + 7);
+      for (const planBar of plans) {
+        const section = project.sections.find((candidate) => planBar.bar >= candidate.startBar && planBar.bar < candidate.startBar + candidate.lengthBars)!;
+        if (planBar.pianoPunctuation === 'cadence') {
+          const start = (planBar.bar - 1) * bt;
+          const spanIndex = spans.findIndex((span) => span.startTick >= start && span.startTick < start + bt);
+          expect(spanIndex).toBeGreaterThan(0);
+          expect(pcOf(spans[spanIndex - 1].parsed.root)).toBe(dominant);
+          expect(pcOf(spans[spanIndex].parsed.root)).toBe(tonic);
+        }
+        if (planBar.pianoPunctuation === 'phraseEnd') {
+          const expectedEnd = Math.min(section.startBar + section.lengthBars - 1,
+            section.startBar + Math.floor((planBar.bar - section.startBar) / PIANO_ARRIVAL_PHRASE_BARS) * PIANO_ARRIVAL_PHRASE_BARS + PIANO_ARRIVAL_PHRASE_BARS - 1);
+          expect(planBar.bar).toBe(expectedEnd);
+        }
+        if (planBar.pianoPunctuation === 'preChorus') {
+          expect(planBar.bar).toBe(section.startBar + section.lengthBars - 1);
+          expect(project.sections.find((candidate) => candidate.startBar === section.startBar + section.lengthBars)?.name.toLowerCase()).toMatch(/chorus|refrain|hook|drop/);
+        }
+        if (planBar.pianoPunctuation === 'pump') {
+          expect(['ensemble.cinematic', 'ensemble.hybridstudio']).toContain(templateId);
+          expect(section.name.toLowerCase()).toMatch(/chorus|refrain|hook|drop/);
+          expect((planBar.bar - section.startBar) % PIANO_ARRIVAL_PHRASE_BARS).toBe(1);
+        }
+      }
+      for (let i = 1; i < plans.length; i++) expect(plans[i].bar - plans[i - 1].bar).not.toBe(1);
+
+      const punctuation = notes.filter((note) => note.roleTag === 'punctuation');
+      expect(punctuation.length, `${templateId}: short punctuation notes`).toBeGreaterThan(0);
+      const punctuationBars = [...new Set(punctuation.map((note) => Math.floor(note.startTick / bt) + 1))].sort((a, b) => a - b);
+      for (let i = 1; i < punctuationBars.length; i++) expect(punctuationBars[i] - punctuationBars[i - 1]).toBeGreaterThan(1);
+      for (const note of punctuation) expect(note.durationTicks).toBeLessThanOrEqual(sixteenth + jitter);
+      if (templateId === 'ensemble.vocalbacking') {
+        expect(punctuation.every((note) => note.pitch >= 82 && note.pitch <= 96)).toBe(true);
+        expect(punctuation.every((note) => note.velocity <= 84)).toBe(true);
+        for (const bar of punctuationBars) expect(plans.find((entry) => entry.bar === bar)?.pianoPunctuation).toBe('phraseEnd');
+      }
+      for (const note of punctuation) {
+        const bar = Math.floor(note.startTick / bt) + 1;
+        const hasHeldBody = notes.some((other) => other.roleTag === 'anchor' && other.pitch <= (templateId === 'ensemble.vocalbacking' ? 56 : 55)
+          && other.startTick <= note.startTick && other.startTick + other.durationTicks > note.startTick);
+        const strings = project.tracks.filter((track) => track.family === 'Strings');
+        const stringRest = strings.every((track) => !track.notes.some((other) => other.startTick < bar * bt && other.startTick + other.durationTicks > (bar - 1) * bt));
+        expect(hasHeldBody || stringRest, `${templateId} b${bar}: punctuation rides a held body or string rest`).toBe(true);
+      }
+
+      const report = result.reports.find((line) => line.startsWith('keys piano punctuation vs total strikes:'));
+      expect(report).toBeDefined();
+      const match = report!.match(/\((\d+\.\d+)%\); limit (\d+)%/);
+      expect(match).not.toBeNull();
+      const limit = templateId === 'ensemble.vocalbacking' ? PIANO_PUNCTUATION_SHARE.vocalbacking : PIANO_PUNCTUATION_SHARE.default;
+      expect(Number(match![1])).toBeLessThanOrEqual(limit * 100);
+      expect(result.reports.some((line) => line.startsWith('keys piano punctuation harp yields (take ') && line.length > 0)).toBe(true);
+    }
+  });
+
+  it('uses quarter/eighth power motion within the low floor and limits repeated chords to cinematic/hybrid choruses', () => {
+    const beat = beatTicks(FIXTURES.three.timeSignature);
+    const jitter = Math.ceil(msToTicks(12, FIXTURES.three.tempoMap)) + 2;
+    for (const [templateId, take] of samples) {
+      const { project, result } = composeTake('three', templateId, take);
+      const notes = roleNotes(project, PIANO);
+      const bt = barTicks(project.timeSignature);
+      const powerBars = result.plan.keys.bars.filter((bar) => bar.pianoPower);
+      const powerNotes = notes.filter((note) => note.roleTag === 'power');
+      expect(powerBars.length, `${templateId}: power-job bars`).toBeGreaterThan(0);
+      expect(powerNotes.length, `${templateId}: rendered power notes`).toBeGreaterThan(0);
+      expect(result.plan.keys.bars.filter((bar) => bar.norm >= 0.9).every((bar) => !bar.pianoPower)).toBe(true);
+      expect(powerNotes.every((note) => note.pitch >= 40)).toBe(true);
+      if (templateId === 'ensemble.vocalbacking') expect(powerNotes.every((note) => note.pitch <= 56 || note.pitch >= 82)).toBe(true);
+      if (!['ensemble.cinematic', 'ensemble.hybridstudio'].includes(templateId)) {
+        expect(powerBars.every((bar) => bar.pianoPower === 'quarter')).toBe(true);
+      }
+
+      for (const barPlan of powerBars) {
+        const start = (barPlan.bar - 1) * bt;
+        const barNotes = powerNotes.filter((note) => note.startTick >= start && note.startTick < start + bt);
+        expect(barNotes.length, `${templateId} b${barPlan.bar}: power figure sounds`).toBeGreaterThan(0);
+        if (barPlan.norm >= 0.72 && ['ensemble.cinematic', 'ensemble.hybridstudio'].includes(templateId)) expect(barPlan.pianoPower).toBe('eighth');
+        if (barPlan.norm >= 0.72 && !['ensemble.cinematic', 'ensemble.hybridstudio'].includes(templateId)) {
+          expect(new Set(barNotes.map((note) => Math.round((note.startTick - start) / beat))).size).toBeLessThanOrEqual(3);
+        }
+        const downbeat = barNotes.filter((note) => note.startTick <= start + jitter);
+        const template = resolveTemplate({ templateId, overrides: {}, pins: {} })!;
+        const forbidsOctaves = template.rules.some((rule) => rule.type === 'octaveDoubling' && rule.params.policy === 'forbidden');
+        if (forbidsOctaves) {
+          if (downbeat.length > 0) {
+            expect(downbeat.some((a) => downbeat.some((b) => {
+              const interval = Math.abs(a.pitch - b.pitch);
+              return interval > 0 && interval % 12 !== 0;
+            })) || downbeat.length === 1,
+              `${templateId} b${barPlan.bar}: forbidden-octave power uses non-octave chord tones or a single low tone`).toBe(true);
+          }
+          for (let i = 0; i < barNotes.length; i++) for (let j = i + 1; j < barNotes.length; j++) {
+            const a = barNotes[i], b = barNotes[j];
+            if (a.startTick < b.startTick + b.durationTicks && b.startTick < a.startTick + a.durationTicks) {
+              expect(Math.abs(a.pitch - b.pitch) % 12, `${templateId} b${barPlan.bar}: power avoids octave doubling`).not.toBe(0);
+            }
+          }
+        } else {
+          expect(downbeat.some((a) => downbeat.some((b) => Math.abs(a.pitch - b.pitch) === 12)), `${templateId} b${barPlan.bar}: downbeat LH octave`).toBe(true);
+        }
+        const lowEvents = barNotes.filter((note) => note.pitch < 55 && !barNotes.some((other) =>
+          other.pitch === note.pitch + 12 && Math.abs(other.startTick - note.startTick) <= jitter));
+        const lowOnsetBeats = [...new Set(lowEvents.map((note) => Math.round((note.startTick - start) / beat)))].sort((a, b) => a - b);
+        for (let i = 1; i < lowOnsetBeats.length; i++) expect(lowOnsetBeats[i] - lowOnsetBeats[i - 1]).toBeGreaterThanOrEqual(1);
+      }
+
+      const repeated = result.plan.keys.bars.filter((bar) => bar.pianoRepeatedChord);
+      if (['ensemble.cinematic', 'ensemble.hybridstudio'].includes(templateId)) {
+        expect(repeated.length).toBeGreaterThan(0);
+        for (const section of project.sections.filter((entry) => /chorus|refrain|hook|drop/i.test(entry.name))) {
+          const sectionBars = repeated.filter((bar) => bar.bar >= section.startBar && bar.bar < section.startBar + section.lengthBars);
+          expect(sectionBars.length).toBeLessThanOrEqual(Math.floor(section.lengthBars * PIANO_REPEATED_CHORD_MAX_SHARE));
+          if (sectionBars.length) expect(result.plan.keys.pianoJobs.find((job) => job.sectionId === section.id)?.job).not.toBe('power');
+          for (const barPlan of sectionBars) {
+            const start = (barPlan.bar - 1) * bt;
+            for (let beatIndex = 0; beatIndex < 4; beatIndex++) {
+              const onset = start + beatIndex * beat;
+              const chord = notes.filter((note) => note.roleTag === 'bed' && note.pitch >= 64
+                && note.startTick >= onset - jitter && note.startTick <= onset + jitter);
+              expect(chord.length, `${templateId} b${barPlan.bar} beat ${beatIndex + 1}: repeated held RH chord`).toBeGreaterThanOrEqual(3);
+              expect(chord.every((note) => note.durationTicks <= beat + jitter)).toBe(true);
+            }
+          }
+        }
+      } else expect(repeated).toHaveLength(0);
     }
   });
 });

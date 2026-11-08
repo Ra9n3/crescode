@@ -4,8 +4,8 @@
  * units the tests read (the note names in ranges.ts are written C4=60).
  *
  * The harp keeps its existing bed, roots, glissandos and closing descent.
- * The piano keeps the held two-hand anchor from 11.6a; 11.6b adds a
- * section-level support/motion choice and phrase-rotated RH figures over it.
+ * The piano keeps the held two-hand anchor from 11.6a; 11.6b adds section
+ * jobs and phrase-rotated RH figures, and 11.6c adds arrival/punctuation/power.
  */
 import { isInstrumentTrack, type NoteRoleTag, type Project, type ProjectEnsemble, type Track } from '../../shared/schema/types';
 import type { EnsembleTemplate } from '../../shared/schema/ensembleTemplate';
@@ -60,7 +60,7 @@ export const PIANO_CONCURRENCY = { total: 8, below55: 2, at55: 6 } as const;
 /** At least a minor sixth between the LH top and RH bottom. */
 export const PIANO_HAND_GAP = 8;
 
-export type PianoJob = 'support' | 'motion';
+export type PianoJob = 'support' | 'motion' | 'power';
 export type PianoFigure =
   | 'arpUp' | 'arpDown' | 'arpPendulum'
   | 'alberti' | 'cascade' | 'wideBroken' | 'ostinatoCell' | 'highSparkle';
@@ -68,7 +68,7 @@ export type PianoFigureFamily = 'arpeggio' | Exclude<PianoFigure, 'arpUp' | 'arp
 export type PianoEnergySlope = 'rising' | 'falling' | 'flat';
 
 /** A balanced alternating job ring; output take offsets the first section. */
-export const PIANO_JOB_ROTATION: readonly PianoJob[] = ['support', 'motion'];
+export const PIANO_JOB_ROTATION: readonly PianoJob[] = ['support', 'motion', 'power'];
 /** Motion figures are selected phrase-by-phrase; repeated sonata Alberti
  *  slots make it its heavy-weight figure without adjacent repeats. */
 export const PIANO_MOTION_MENUS: Record<string, readonly PianoFigureFamily[]> = {
@@ -85,6 +85,10 @@ export const PIANO_ARPEGGIATOR_FAMILIES = new Set<PianoFigureFamily>(['arpeggio'
 export const PIANO_UP_MAX_SHARE = 0.2;
 /** Figure rotation phrase unit: two bars guarantees two phrases in a 4-bar chorus. */
 export const PIANO_MOTION_PHRASE_BARS = 2;
+/** Arrival/punctuation phrases follow the established four-bar section grid. */
+export const PIANO_ARRIVAL_PHRASE_BARS = 4;
+export const PIANO_PUNCTUATION_SHARE = { default: 0.12, vocalbacking: 0.08 } as const;
+export const PIANO_REPEATED_CHORD_MAX_SHARE = 0.15;
 
 /* ------------------------------------------------------------------------
  * Harp vocabulary retained from Phase 11.5. These figures belong to the

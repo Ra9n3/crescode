@@ -8,7 +8,7 @@ export const SCHEMA_VERSION = 1;
 export type PitchClass = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
 
 /** Planner-assigned piano event role. Figures are tagged separately from the held anchor. */
-export type NoteRoleTag = 'anchor' | 'lift' | 'settle' | 'bed' | 'atmosphere';
+export type NoteRoleTag = 'anchor' | 'lift' | 'settle' | 'bed' | 'atmosphere' | 'arrival' | 'punctuation' | 'power';
 
 export type ModeName =
   | 'Ionian' | 'Dorian' | 'Phrygian' | 'Lydian' | 'Mixolydian' | 'Aeolian' | 'Locrian'

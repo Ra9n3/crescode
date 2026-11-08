@@ -1,16 +1,15 @@
 /**
- * Keys renderer (Phase 11.6b). The harp retains its Phase 11.5 bed, roots,
- * glissandos and closing descent. The piano keeps a held two-hand anchor
- * (LH root body plus RH triad/seventh at harmonic changes) and layers only
- * the planner's RH motion figure over it. Tutti and final hits are single
- * low roots. Planner-assigned role tags are copied onto every piano event.
+ * Keys renderer (Phase 11.6c). The harp retains its Phase 11.5 bed, roots,
+ * glissandos and closing descent. The piano keeps a held two-hand anchor,
+ * then renders planned arrivals, punctuation, power and RH figures. Tutti
+ * remains a low root; the closing bar may carry a rolled RH arrival. Role tags
+ * are copied onto each piano event, and collisions are repaired musically.
  *
- * The piano concurrency cap is applied twice: to the written candidate
- * schedule and again after micro-timing. Cap pressure trims or drops a whole
- *  strike group, so chord voices keep a common release. Velocity shaping uses
- *  the golden105 piano-role beat map to preserve harp's historical window
- *  bounds; compose absorbs newly added piano energy, though the final safety
- *  pass retains the known vocalbacking-only harp velocity residual.
+ * The piano concurrency cap runs on written and jittered schedules. Held
+ * body's lowest LH note is protected; other voices may yield at a new onset.
+ * The golden105 piano-role beat map preserves harp's historical velocity
+ * bounds; compose absorbs new piano energy, while the final safety pass keeps
+ * the known vocalbacking-only harp velocity residual.
  */
 import { chordTones } from '../voicing/chordTones';
 import { scalePitchClasses } from '../../shared/schema/modes';
@@ -18,6 +17,7 @@ import { PPQ, isInstrumentTrack, type Note, type NoteRoleTag, type Project, type
 import { barTicks, beatOffsets, beatTicks, projectBars } from '../../shared/schema/meter';
 import { hashString, sanitizeNotes } from '../../engine/generate';
 import { msToTicks } from '../spine';
+import { humanizeHeadTicks } from '../expression/timing';
 import { maxMeanVelocityFor } from '../energy';
 import { momentForBar } from '../conductor/moments';
 import { inVocalZone } from '../profiles/strings';
@@ -25,7 +25,7 @@ import { cellGrid } from '../lines/ostinato';
 import type { OrchestratorContext } from '../module';
 import {
   HARP_FIGURE_UNIT_BARS, KEYS_GATES, KEYS_PARTS, KEYS_PROFILES, PIANO_CONCURRENCY,
-  PIANO_HAND_GAP, PIANO_LH, PIANO_RH, VB_LOW, VB_RH, VB_SPARKLE_BODY, VB_SPARKLE_PEAK,
+  PIANO_HAND_GAP, PIANO_LH, PIANO_PUNCTUATION_SHARE, PIANO_RH, VB_LOW, VB_RH, VB_SPARKLE_BODY, VB_SPARKLE_PEAK,
   isChorusTypeK, keysRosterOf, type HarpFigure, type KeysPart,
 } from './profile';
 import type { KeysPlan } from './plan';
@@ -46,6 +46,19 @@ interface KeysCandidate {
   soft?: boolean;
   velScale?: number;
   roleTag?: NoteRoleTag;
+  hand?: 'lh' | 'rh';
+  /** The held anchor's lowest LH body voice is never shortened for collision repair. */
+  heldBodyLowest?: boolean;
+  /** Chord-tone/octave alternatives used before releasing a colliding event. */
+  collisionAlternatives?: number[];
+  /** Punctuation may yield to an exact-pitch harp overlap. */
+  yieldToHarp?: boolean;
+  bar?: number;
+  punctuationReason?: string;
+  /** RH seventh alternatives must remain above the current root voice. */
+  rootPc?: number;
+  seventhPc?: number;
+  rootPitch?: number;
   /** True when this new piano event has no golden105 role-presence window. */
   absorb?: boolean;
   /** All notes of one held piano strike share an id. */
@@ -73,9 +86,21 @@ export interface KeysRenderInput {
   ruleNotes: { role: string; notes: Note[] }[];
 }
 
+export interface PianoOctaveRepairCandidate {
+  pitch: number;
+  startTick: number;
+  durationTicks: number;
+  alternatives: number[];
+  roleTag: NoteRoleTag;
+  hand?: 'lh' | 'rh';
+  heldBodyLowest?: boolean;
+}
+
 export interface KeysRenderResult {
   notesByTrackId: Record<string, Note[]>;
   reports: string[];
+  /** Aligned with the piano note list; used after final string humanization. */
+  pianoOctaveRepairCandidates: PianoOctaveRepairCandidate[];
   /** Beat windows containing piano notes; compose caps those notes alone. */
   absorbWindows: { start: number; end: number }[];
 }
@@ -138,12 +163,16 @@ function enforcePianoConcurrency(candidates: KeysCandidate[]): number {
         }
         // Prefer releasing an older strike; if the incoming strike already
         // began under jitter, cut it as a whole rather than one chord voice.
+        const protectsHeldBody = (candidateKey: string) => (byKey.get(candidateKey) ?? []).some((note) => note.heldBodyLowest);
         const victim = activeGroups
-          .filter((candidateKey) => candidateKey !== key)
+          .filter((candidateKey) => candidateKey !== key && !protectsHeldBody(candidateKey))
           .sort((a, b) => Math.min(...(byKey.get(a) ?? []).map((n) => n.startTick)) - Math.min(...(byKey.get(b) ?? []).map((n) => n.startTick)))[0]
-          ?? (activeGroups.includes(key) ? key : undefined);
+          ?? (activeGroups.includes(key) && !protectsHeldBody(key) ? key : undefined);
         if (!victim) {
-          trimGroup(key, tick);
+          // The lowest voice of an already-held body may never be truncated.
+          // When every live group is protected, omit the incoming note instead.
+          if (protectsHeldBody(key)) { c.drop = true; droppedCount++; }
+          else trimGroup(key, tick);
           break;
         }
         trimGroup(victim, tick);
@@ -157,11 +186,261 @@ function enforcePianoConcurrency(candidates: KeysCandidate[]): number {
   return droppedCount;
 }
 
+function pianoStrikeId(c: KeysCandidate): string {
+  return c.strikeId ?? `piano:${c.startTick}:${c.pitch}`;
+}
+
+function capPianoPunctuation(candidates: KeysCandidate[], shareLimit: number): { baseStrikes: number; punctuationStrikes: number; dropped: number } {
+  const active = candidates.filter((c) => !c.drop);
+  const baseIds = new Set(active.filter((c) => c.roleTag !== 'punctuation').map(pianoStrikeId));
+  const groups = new Map<string, KeysCandidate[]>();
+  for (const c of active) {
+    if (c.roleTag !== 'punctuation') continue;
+    const id = pianoStrikeId(c);
+    groups.set(id, [...(groups.get(id) ?? []), c]);
+  }
+  const priority = (c: KeysCandidate): number => c.punctuationReason === 'cadence' ? 4
+    : c.punctuationReason === 'preChorus' ? 3
+      : c.punctuationReason === 'phraseEnd' ? 2 : 1;
+  const ordered = [...groups.entries()].sort((a, b) => {
+    const p = Math.max(...b[1].map(priority)) - Math.max(...a[1].map(priority));
+    return p || Math.min(...a[1].map((c) => c.bar ?? 0)) - Math.min(...b[1].map((c) => c.bar ?? 0));
+  });
+  const maxPunctuation = Math.floor(baseIds.size * shareLimit / Math.max(1e-9, 1 - shareLimit) + 1e-9);
+  let dropped = 0;
+  for (const [, group] of ordered.slice(maxPunctuation)) {
+    for (const c of group) { c.drop = true; dropped++; }
+  }
+  return { baseStrikes: baseIds.size, punctuationStrikes: Math.min(groups.size, maxPunctuation), dropped };
+}
+
+function intervalsOverlap(a: Pick<KeysCandidate, 'startTick' | 'durationTicks'>, b: Pick<KeysCandidate, 'startTick' | 'durationTicks'>): boolean {
+  return a.startTick < b.startTick + b.durationTicks && b.startTick < a.startTick + a.durationTicks;
+}
+
+function samePitchOverlapPairs(candidates: KeysCandidate[]): number {
+  let pairs = 0;
+  for (let i = 0; i < candidates.length; i++) {
+    const a = candidates[i];
+    for (let j = i + 1; j < candidates.length; j++) {
+      const b = candidates[j];
+      if (a.pitch === b.pitch && intervalsOverlap(a, b)) pairs++;
+    }
+  }
+  return pairs;
+}
+
+interface PianoCollisionAudit { shifted: number; shortened: number; dropped: number; harpYields: string[]; remainingSamePitchPairs: number }
+function repairPianoOverlaps(
+  candidates: KeysCandidate[],
+  harpNotes: Note[],
+  lo: number,
+  hi: number,
+  otherNotes: Note[] = [],
+  forbidOctaveDoubling = false,
+  ctx?: OrchestratorContext,
+  btBar = 0,
+): PianoCollisionAudit {
+  const heldPriority = (c: KeysCandidate): number => c.heldBodyLowest ? 0 : c.roleTag === 'anchor' ? 1 : 2;
+  const ordered = candidates.filter((c) => !c.drop).sort((a, b) =>
+    a.startTick - b.startTick || heldPriority(a) - heldPriority(b) || a.pitch - b.pitch);
+  const accepted: KeysCandidate[] = [];
+  const failedGroups = new Set<string>();
+  const harpYields: string[] = [];
+  let shifted = 0, shortened = 0, dropped = 0;
+  const needsWholeChord = (c: KeysCandidate) => c.roleTag === 'arrival' || c.roleTag === 'punctuation';
+  const isMotionOverlay = (c: KeysCandidate) => c.hand === 'rh'
+    && ['lift', 'settle', 'bed', 'atmosphere'].includes(c.roleTag ?? '');
+  const isLowPriorityForOctaves = (c: KeysCandidate) => isMotionOverlay(c) || c.roleTag === 'power';
+  const octaveInterval = (a: number, b: number) => Math.abs(a - b) > 0 && Math.abs(a - b) % 12 === 0;
+  const harpCollisionAt = (c: KeysCandidate, pitch: number) => c.yieldToHarp === true && harpNotes.some((h) =>
+    h.pitch === pitch && intervalsOverlap(c, { startTick: h.startTick, durationTicks: h.durationTicks }));
+  const forbiddenOctaveIsHard = (c: KeysCandidate, pitch: number, other: KeysCandidate | Note, sameTrack: boolean): boolean => {
+    if (!ctx) return true;
+    const tick = Math.max(c.startTick, other.startTick);
+    const chordAt = (at: number) => ctx.spans.find((span) => span.startTick <= at && at < span.endTick);
+    const forcedAt = (at: number): boolean => {
+      const span = chordAt(at);
+      if (!span) return false;
+      const tonePcs = chordTones(span.parsed).tones.map((tone) => pcOf(tone.pc));
+      if (!tonePcs.includes(pcOf(pitch))) return false;
+      const head = humanizeHeadTicks(ctx.project.tempoMap, at);
+      const pianoAt = [
+        ...accepted.filter((candidate) => candidate !== c && !candidate.drop).map((candidate) => ({
+          pitch: candidate.pitch,
+          startTick: candidate.startTick,
+          durationTicks: candidate.durationTicks,
+        })),
+        { pitch, startTick: c.startTick, durationTicks: c.durationTicks },
+      ];
+      const sounding = [...otherNotes, ...pianoAt].filter((note) =>
+        note.startTick <= at + head && note.startTick + note.durationTicks > at).length;
+      return sounding > tonePcs.length;
+    };
+    const head = humanizeHeadTicks(ctx.project.tempoMap, tick);
+    if (forcedAt(tick) || forcedAt(tick - head)) return false;
+    if (!sameTrack && btBar > 0) {
+      const shortDuration = Math.min(c.durationTicks, other.durationTicks);
+      const longDuration = Math.max(c.durationTicks, other.durationTicks);
+      if (shortDuration <= btBar / 2 && longDuration > shortDuration) {
+        const shortPitch = c.durationTicks <= other.durationTicks ? pitch : other.pitch;
+        const span = chordAt(tick);
+        if (span && chordTones(span.parsed).tones.some((tone) => pcOf(tone.pc) === pcOf(shortPitch))) return false;
+      }
+    }
+    return true;
+  };
+  const pianoConflictsAt = (c: KeysCandidate, pitch: number): boolean => {
+    const conflictsWithAccepted = accepted.some((other) => {
+      if (!intervalsOverlap(c, other)) return false;
+      const interval = Math.abs(other.pitch - pitch);
+      if (interval === 0) return true;
+      if (c.hand === 'rh' && other.hand === 'rh' && [11, 13].includes(interval)) return true;
+      return forbidOctaveDoubling && (isLowPriorityForOctaves(c) || isLowPriorityForOctaves(other))
+        && octaveInterval(pitch, other.pitch) && forbiddenOctaveIsHard(c, pitch, other, true);
+    });
+    return conflictsWithAccepted;
+  };
+
+  for (const c of ordered) {
+    const id = pianoStrikeId(c);
+    if (failedGroups.has(id)) { c.drop = true; dropped++; continue; }
+    if (forbidOctaveDoubling && !isLowPriorityForOctaves(c)) {
+      const displaced = accepted.filter((other) => isLowPriorityForOctaves(other)
+        && octaveInterval(c.pitch, other.pitch) && intervalsOverlap(c, other)
+        && forbiddenOctaveIsHard(c, c.pitch, other, true));
+      for (const other of displaced) {
+        if (other.startTick < c.startTick) {
+          other.durationTicks = c.startTick - other.startTick;
+          shortened++;
+        } else {
+          other.drop = true;
+          const at = accepted.indexOf(other);
+          if (at >= 0) accepted.splice(at, 1);
+          dropped++;
+        }
+      }
+    }
+    const original = c.pitch;
+    const harpAtOriginal = harpCollisionAt(c, original);
+    const choices = [...new Set([original, ...(c.collisionAlternatives ?? [])])]
+      .filter((pitch) => pitch >= lo && pitch <= hi);
+    let selected: number | undefined;
+    for (const pitch of choices) {
+      if (c.seventhPc !== undefined && c.rootPc !== undefined && pcOf(pitch) === c.seventhPc) {
+        const activeRoot = accepted.find((other) => other.strikeId === c.strikeId && pcOf(other.pitch) === c.rootPc)?.pitch;
+        const rootPitch = activeRoot ?? c.rootPitch;
+        if (rootPitch !== undefined && pitch <= rootPitch) continue;
+      }
+      if (c.yieldToHarp && harpCollisionAt(c, pitch)) continue;
+      if (!pianoConflictsAt(c, pitch)) { selected = pitch; break; }
+    }
+
+    if (selected !== undefined) {
+      c.pitch = selected;
+      if (selected !== original) shifted++;
+      if (harpAtOriginal && c.yieldToHarp) harpYields.push(`b${c.bar ?? '?'}:${original}->${selected}`);
+      accepted.push(c);
+      continue;
+    }
+
+    if (harpAtOriginal && c.yieldToHarp) {
+      c.drop = true;
+      if (needsWholeChord(c)) failedGroups.add(id);
+      dropped++;
+      harpYields.push(`b${c.bar ?? '?'}:${original}->dropped`);
+      continue;
+    }
+
+    const samePitchConflicts = accepted.filter((other) => other.pitch === original && intervalsOverlap(c, other));
+    if (samePitchConflicts.some((other) => other.heldBodyLowest)) {
+      c.drop = true;
+      if (needsWholeChord(c)) failedGroups.add(id);
+      dropped++;
+      continue;
+    }
+    for (const earlier of samePitchConflicts) {
+      const remaining = c.startTick - earlier.startTick;
+      if (remaining <= 0) {
+        earlier.drop = true;
+        const at = accepted.indexOf(earlier);
+        if (at >= 0) accepted.splice(at, 1);
+      } else {
+        earlier.durationTicks = remaining;
+      }
+      shortened++;
+    }
+    if (pianoConflictsAt(c, original)) {
+      c.drop = true;
+      if (needsWholeChord(c)) failedGroups.add(id);
+      dropped++;
+    } else {
+      accepted.push(c);
+    }
+  }
+
+  for (const c of candidates) {
+    if (failedGroups.has(pianoStrikeId(c)) && !c.drop) { c.drop = true; dropped++; }
+  }
+  const final = candidates.filter((c) => !c.drop);
+  if (forbidOctaveDoubling && ctx && final.length) {
+    const hasHardOctave = (candidate: KeysCandidate, pitch: number): boolean => final.some((other) => other !== candidate && !other.drop
+      && intervalsOverlap(candidate, other) && octaveInterval(pitch, other.pitch)
+      && forbiddenOctaveIsHard(candidate, pitch, other, true));
+    const hasPianoPitchCollision = (candidate: KeysCandidate, pitch: number): boolean => final.some((other) => {
+      if (other === candidate || other.drop || !intervalsOverlap(candidate, other)) return false;
+      const interval = Math.abs(pitch - other.pitch);
+      return interval === 0 || (candidate.hand === 'rh' && other.hand === 'rh' && [11, 13].includes(interval));
+    });
+    const repairRank = (candidate: KeysCandidate): number => {
+      if (candidate.heldBodyLowest) return 0;
+      if (candidate.roleTag === 'anchor' && candidate.hand === 'lh') return 1;
+      if (candidate.roleTag === 'anchor' && candidate.hand === 'rh') return 2;
+      if (candidate.roleTag === 'arrival') return 3;
+      if (candidate.roleTag === 'punctuation') return 4;
+      if (candidate.roleTag === 'power') return 5;
+      return 6;
+    };
+    // Resolve piano-internal hard octaves after overlap repair. Cross-track
+    // checks run later in compose, after strings receive their final timing.
+    for (let pass = 0; pass < final.length * 2; pass++) {
+      const hardPairs: { a: KeysCandidate; b: KeysCandidate }[] = [];
+      for (let i = 0; i < final.length; i++) {
+        const a = final[i];
+        for (let j = i + 1; j < final.length; j++) {
+          const b = final[j];
+          if (intervalsOverlap(a, b) && octaveInterval(a.pitch, b.pitch)
+            && forbiddenOctaveIsHard(a, a.pitch, b, true)) hardPairs.push({ a, b });
+        }
+      }
+      if (!hardPairs.length) break;
+      let repaired = false;
+      for (const pair of hardPairs) {
+        const victims = [pair.a, pair.b].sort((a, b) => repairRank(b) - repairRank(a));
+        for (const victim of victims) {
+          const choices = [...new Set(victim.collisionAlternatives ?? [])]
+            .filter((pitch) => pitch >= lo && pitch <= hi && pitch !== victim.pitch);
+          const alternative = choices.find((pitch) => !hasPianoPitchCollision(victim, pitch) && !hasHardOctave(victim, pitch));
+          if (alternative === undefined) continue;
+          victim.pitch = alternative;
+          shifted++;
+          repaired = true;
+          break;
+        }
+        if (repaired) break;
+      }
+      if (!repaired) break;
+    }
+  }
+  return { shifted, shortened, dropped, harpYields, remainingSamePitchPairs: samePitchOverlapPairs(final) };
+}
+
 export function renderKeys(input: KeysRenderInput): KeysRenderResult {
   const { ctx, plan, stringsNotes, brassNotes, windNotes, percNotes, ruleNotes } = input;
   const { project, template } = ctx;
   const notesByTrackId: Record<string, Note[]> = {};
   const reports: string[] = [];
+  let pianoOctaveRepairCandidates: PianoOctaveRepairCandidate[] = [];
   // every rostered keys track is CLAIMED up front (an empty list when the
   // part never sounds) — the generator's phantom keys notes must never
   // reach the final score through the assembly's generator fallback
@@ -174,7 +453,7 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
       notesByTrackId[t.id] = [];
     }
   }
-  if (!template || !plan.bars.length || !ctx.spans.length) return { notesByTrackId, reports, absorbWindows: [] };
+  if (!template || !plan.bars.length || !ctx.spans.length) return { notesByTrackId, reports, pianoOctaveRepairCandidates, absorbWindows: [] };
 
   const btBar = barTicks(project.timeSignature);
   const beat = beatTicks(project.timeSignature);
@@ -187,6 +466,8 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
   const scale = scalePitchClasses(project.key, project.mode);
   const scalePcs = new Set(scale.map((pc) => ((pc % 12) + 12) % 12));
   const zoneFree = template.id === 'ensemble.vocalbacking';
+  const forbidOctaveDoubling = template.rules.some((rule) =>
+    rule.type === 'octaveDoubling' && rule.params.policy === 'forbidden');
   const planByBar = new Map(plan.bars.map((b) => [b.bar, b]));
   const glissByBar = new Map<number, KeysPlan['glisses'][number]>();
   for (const g of plan.glisses) {
@@ -307,6 +588,7 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
     const root = foldPc(rootPc, Math.max(lhLo, pianoLo), Math.min(lhHi, pianoHi));
     if (root === null) return [];
     const slot = ((bar - sectionStart + take) % 3 + 3) % 3;
+    if (forbidOctaveDoubling) return [root];
     if (slot === 2 && root + 12 <= Math.min(lhHi, pianoHi)) return [root, root + 12];
     const fifthPc = pcOf(rootPc + 7);
     if ((slot === 1 || slot === 2) && pcs.has(fifthPc) && root + 7 <= Math.min(lhHi, pianoHi)) return [root, root + 7];
@@ -317,9 +599,8 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
    *  retained with a third/suspension, fifth and, for seventh symbols, a
    *  seventh. A power/no-third symbol gets a scale-quality third so the RH
    *  remains a triad as requested. */
-  const chordPcsForRh = (tick: number): number[] => {
-    const sp = spanAt(tick);
-    const parsed = sp.parsed;
+  const chordPcsForRh = (tick: number): { rootPc: number; pcs: number[]; seventhPc?: number } => {
+    const parsed = spanAt(tick).parsed;
     const rootPc = pcOf(parsed.root);
     const baseIntervals = parsed.intervals.filter((i) => i >= 0 && i < 12);
     let third = [3, 4, 2, 5].find((i) => baseIntervals.includes(i));
@@ -335,45 +616,62 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
     const seventh = [10, 11].find((i) => baseIntervals.includes(i))
       ?? (parsed.quality.toLowerCase().includes('dim7') && baseIntervals.includes(9) ? 9 : undefined);
     const pcs = [rootPc, pcOf(rootPc + third), pcOf(rootPc + fifth)];
-    if (seventh !== undefined) pcs.push(pcOf(rootPc + seventh));
-    return [...new Set(pcs)];
+    const seventhPc = seventh === undefined ? undefined : pcOf(rootPc + seventh);
+    if (seventhPc !== undefined) pcs.push(seventhPc);
+    return { rootPc, pcs: [...new Set(pcs)], ...(seventhPc !== undefined ? { seventhPc } : {}) };
   };
 
-  /** Choose an ascending RH triad/seventh in the allowed register. Every
-   *  adjacent voice is at least a minor third apart, the chord spans an
-   *  octave, and its bottom clears both the register floor and LH hand gap. */
-  const rhChordAt = (tick: number, rhFloor: number, lhTop: number): number[] => {
-    const chordPcs = chordPcsForRh(tick);
+  /** Choose an ascending RH triad/seventh in the allowed register. No pair
+   *  is 11 or 13 semitones apart. A seventh is kept only above a root voice;
+   *  otherwise the complete triad is the fallback. */
+  const rhChordAt = (tick: number, rhFloor: number, lhTop: number, ceiling = pianoHi, requireOctave = true): number[] => {
+    const chord = chordPcsForRh(tick);
     const lo = Math.max(rhFloor, lhTop + PIANO_HAND_GAP, pianoLo);
-    const hi = Math.min(pianoHi, 127);
+    const hi = Math.min(pianoHi, ceiling, 127);
     if (hi < lo) return [];
-    const options = chordPcs.map((pc) => {
-      const pitches: number[] = [];
-      for (let p = lo; p <= hi; p++) if (pcOf(p) === pc) pitches.push(p);
-      return pitches;
-    });
-    const voicings: number[][] = [];
-    const walk = (remaining: number[], chosen: number[]) => {
-      if (!remaining.length) {
-        if (chosen.length >= 3 && chosen[chosen.length - 1] - chosen[0] >= 12) voicings.push(chosen);
-        return;
-      }
-      for (let i = 0; i < remaining.length; i++) {
-        const optionIndex = remaining[i];
-        for (const pitch of options[optionIndex]) {
-          if (chosen.length && pitch - chosen[chosen.length - 1] < 3) continue;
-          walk(remaining.filter((_, j) => j !== i), [...chosen, pitch]);
-        }
-      }
-    };
-    walk(chordPcs.map((_, i) => i), []);
-    if (!voicings.length) return [];
     const score = (notes: number[]) => {
       const span = notes[notes.length - 1] - notes[0];
-      // Prefer the lowest comfortable inversion and the narrowest spacing
-      // that still supplies the required octave span.
       return (notes[0] - lo) * 4 + (span - 12) + Math.max(0, span - 24) * 2;
     };
+    const findVoicings = (pcs: number[], requireSeventh: boolean): number[][] => {
+      const options = pcs.map((pc) => {
+        const pitches: number[] = [];
+        for (let p = lo; p <= hi; p++) if (pcOf(p) === pc) pitches.push(p);
+        return pitches;
+      });
+      const voicings: number[][] = [];
+      const walk = (remaining: number[], chosen: number[]) => {
+        if (!remaining.length) {
+          if (chosen.length < 3 || (requireOctave && chosen[chosen.length - 1] - chosen[0] < 12)) return;
+          for (let i = 0; i < chosen.length; i++) {
+            for (let j = i + 1; j < chosen.length; j++) {
+              const gap = chosen[j] - chosen[i];
+              if (gap === 11 || gap === 13) return;
+            }
+          }
+          if (requireSeventh) {
+            const root = chosen.find((pitch) => pcOf(pitch) === chord.rootPc);
+            const seventh = chosen.find((pitch) => pcOf(pitch) === chord.seventhPc);
+            if (root === undefined || seventh === undefined || seventh <= root) return;
+          }
+          voicings.push(chosen);
+          return;
+        }
+        for (let i = 0; i < remaining.length; i++) {
+          const optionIndex = remaining[i];
+          for (const pitch of options[optionIndex]) {
+            if (chosen.length && pitch - chosen[chosen.length - 1] < 3) continue;
+            walk(remaining.filter((_, j) => j !== i), [...chosen, pitch]);
+          }
+        }
+      };
+      walk(pcs.map((_, i) => i), []);
+      return voicings;
+    };
+    const withSeventh = chord.seventhPc === undefined ? [] : findVoicings(chord.pcs, true);
+    const triadPcs = chord.pcs.filter((pc) => pc !== chord.seventhPc);
+    const voicings = withSeventh.length ? withSeventh : findVoicings(triadPcs, false);
+    if (!voicings.length) return [];
     voicings.sort((a, b) => score(a) - score(b) || a[0] - b[0]);
     return voicings[0];
   };
@@ -679,8 +977,97 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
         const roleTag = planBar.pianoRole;
         if (!roleTag) continue;
 
-        // Special hits remain single low roots. They are struck at harmonic
-        // changes inside the hit window, and never include an RH chord.
+        const chamberSonata = template.id === 'ensemble.chamber' || template.id === 'ensemble.sonata';
+        const chamberSonataOverlap = chamberSonata && stringsLowAt(bar);
+        const vbPhraseArrival = template.id === 'ensemble.vocalbacking' && planBar.pianoArrival !== undefined;
+        const rhFloor = Math.max(zoneFree ? VB_RH[0] : PIANO_RH[0], chamberSonataOverlap ? 72 : 0, vbPhraseArrival ? 82 : 0);
+        const rhCeiling = chamberSonata ? (planBar.pianoRarePeak ? 88 : 84) : pianoHi;
+        const powerLowAt = (tick: number): number | null => {
+          if (!planBar.pianoPower) return null;
+          const chord = chordPcsAt(tick);
+          if (template.id === 'ensemble.vocalbacking') {
+            // Keep vocalbacking's 57-81 register gap while retaining a true
+            // octave dyad: use a chord/scale tone in the only low octave range
+            // whose upper octave remains at or below MIDI 56.
+            for (let pitch = Math.max(lhLo, pianoLo); pitch <= Math.min(44, pianoHi); pitch++) {
+              if (chord.pcs.has(pcOf(pitch))) return pitch;
+            }
+            for (let pitch = Math.max(lhLo, pianoLo); pitch <= Math.min(44, pianoHi); pitch++) {
+              if (scalePcs.has(pcOf(pitch))) return pitch;
+            }
+          }
+          return foldPc(chord.rootPc, Math.max(lhLo, pianoLo), Math.min(lhHi, pianoHi));
+        };
+        const powerHighAt = (tick: number): number | null => {
+          const low = powerLowAt(tick);
+          const upperLimit = template.id === 'ensemble.vocalbacking' ? 56 : 67;
+          if (low === null) return null;
+          if (!forbidOctaveDoubling) return low + 12 <= Math.min(pianoHi, upperLimit) ? low + 12 : null;
+          const chord = chordPcsAt(tick);
+          const fifthPc = pcOf(chord.rootPc + 7);
+          const lo = Math.max(lhLo, pianoLo, template.id === 'ensemble.vocalbacking' ? 45 : 0);
+          const hi = Math.min(lhHi, pianoHi, upperLimit);
+          const fifths: number[] = [];
+          for (let pitch = lo; pitch <= hi; pitch++) {
+            if (pcOf(pitch) === fifthPc && pitch !== low && Math.abs(pitch - low) % 12 !== 0) fifths.push(pitch);
+          }
+          const chordTonesInRange: number[] = [];
+          for (let pitch = lo; pitch <= hi; pitch++) {
+            if (pitch !== low && chord.pcs.has(pcOf(pitch)) && Math.abs(pitch - low) % 12 !== 0) chordTonesInRange.push(pitch);
+          }
+          const options = fifths.length ? fifths : chordTonesInRange;
+          return options.sort((a, b) => Number(b > low) - Number(a > low) || Math.abs(a - low) - Math.abs(b - low) || a - b)[0] ?? null;
+        };
+        const powerAlternativesAt = (tick: number): number[] => {
+          if (!forbidOctaveDoubling) return [];
+          const chord = chordPcsAt(tick);
+          const lo = Math.max(lhLo, pianoLo, template.id === 'ensemble.vocalbacking' ? 40 : 0);
+          const hi = Math.min(lhHi, pianoHi, template.id === 'ensemble.vocalbacking' ? 44 : 55);
+          const preferredPcs = [chord.rootPc, pcOf(chord.rootPc + 7), ...chord.pcs];
+          const pitches: number[] = [];
+          for (const pc of [...new Set(preferredPcs)]) {
+            for (let pitch = lo; pitch <= hi; pitch++) if (pcOf(pitch) === pc && !pitches.includes(pitch)) pitches.push(pitch);
+          }
+          return pitches;
+        };
+        const lhCollisionAlternativesAt = (tick: number, original: number): number[] => {
+          if (!forbidOctaveDoubling) return [];
+          const rootPc = chordPcsAt(tick).rootPc;
+          const allowedPcs = [rootPc, pcOf(rootPc + 7)];
+          const choices: number[] = [];
+          for (const pc of allowedPcs) {
+            for (let pitch = Math.max(lhLo, pianoLo); pitch <= Math.min(lhHi, pianoHi); pitch++) {
+              if (pitch !== original && pcOf(pitch) === pc) choices.push(pitch);
+            }
+          }
+          return choices.sort((a, b) => Math.abs(a - original) - Math.abs(b - original) || a - b);
+        };
+        const powerTops = planBar.pianoPower
+          ? spanStrikes(barStart, barEnd).map((tick) => powerHighAt(tick) ?? powerLowAt(tick) ?? 0)
+          : [];
+        const rhFloorForBar = Math.max(rhFloor, ...(powerTops.length ? [Math.max(...powerTops) + PIANO_HAND_GAP] : []));
+        const rhAlternatives = (tick: number, floor: number, ceiling: number, pitches: number[]) => {
+          const chordPcs = chordPcsAt(tick).pcs;
+          const pool = figurePool(tick, floor, ceiling);
+          const bases = [...new Set([...pitches, ...pool])];
+          const octaveOptions = bases.flatMap((pitch) => [-24, -12, 12, 24, 36].map((delta) => pitch + delta));
+          return [...new Set([...bases, ...octaveOptions])]
+            .filter((pitch) => pitch >= floor && pitch <= ceiling && pitch >= pianoLo && pitch <= pianoHi && chordPcs.has(pcOf(pitch)));
+        };
+        const rhVoicingMeta = (tick: number, pitches: number[]) => {
+          const chord = chordPcsForRh(tick);
+          const rootPitch = pitches.find((pitch) => pcOf(pitch) === chord.rootPc);
+          return chord.seventhPc !== undefined && rootPitch !== undefined
+            ? { rootPc: chord.rootPc, seventhPc: chord.seventhPc, rootPitch }
+            : {};
+        };
+        const arrivalRollOrder = (tick: number, pitches: number[]): number[] => {
+          const rootPc = chordPcsForRh(tick).rootPc;
+          return [...pitches].sort((a, b) => Number(pcOf(a) === rootPc) - Number(pcOf(b) === rootPc) || a - b);
+        };
+
+        // Tutti remains a low root. The closing chord adds the explicitly
+        // allowed rolled RH arrival, replacing the former root-only ending.
         if (kind === 'final' || kind === 'tutti') {
           const moment = momentForBar(ctx.moments, bar);
           if (kind === 'tutti' && moment?.kind !== 'tutti') continue;
@@ -690,17 +1077,36 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
               : moment?.shape === 'decay' ? beat * 2 : btBar;
           const hitEnd = Math.min(barEnd, barStart + hitLen);
           const strikes = spanStrikes(barStart, hitEnd);
+          let closingRoot: number | null = null;
           strikes.forEach((onset, index) => {
             const until = Math.min(index + 1 < strikes.length ? strikes[index + 1] : hitEnd, hitEnd);
             const { rootPc } = chordPcsAt(onset);
             const pitch = foldPc(rootPc, Math.max(36, pianoLo), Math.min(lhHi, pianoHi));
             if (pitch === null) return;
+            if (onset === barStart) closingRoot = pitch;
             candidates.push({
               pitch, startTick: onset, durationTicks: Math.max(1, until - onset),
               articulation: 'marcato', ...(kind === 'tutti' ? { moment: true } : {}),
-              roleTag, strikeId: `piano:${bar}:${onset}`,
+              roleTag, hand: 'lh', heldBodyLowest: true, bar,
+              strikeId: `piano:${bar}:${onset}`,
             });
           });
+          if (kind === 'final' && planBar.pianoArrival === 'closingChord' && closingRoot !== null) {
+            const rh = rhChordAt(barStart, rhFloor, closingRoot, rhCeiling, false);
+            const holdEnd = Math.min(endTick, spanEndOf(barStart), barEnd);
+            const rollWindow = Math.max(1, Math.min(eighth, holdEnd - barStart));
+            const strikeId = `piano-arrival:${bar}:closingChord`;
+            const rootPc = chordPcsForRh(barStart).rootPc;
+            arrivalRollOrder(barStart, rh).forEach((pitch) => {
+              const onset = pcOf(pitch) === rootPc ? barStart + Math.max(1, Math.floor(rollWindow / 2)) : barStart;
+              candidates.push({
+                pitch, startTick: onset, durationTicks: Math.max(1, holdEnd - onset),
+                roleTag: 'arrival', hand: 'rh', bar, strikeId,
+                ...rhVoicingMeta(onset, rh),
+                collisionAlternatives: rhAlternatives(onset, rhFloor, rhCeiling, rh),
+              });
+            });
+          }
           continue;
         }
 
@@ -708,8 +1114,6 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
         const sec = ctx.sections.find((candidate) => bar >= candidate.startBar && bar < candidate.startBar + candidate.lengthBars);
         const sectionStart = sec?.startBar ?? 1;
         const relief = reliefAt(bar, planBar.norm);
-        const chamberSonataOverlap = (template.id === 'ensemble.chamber' || template.id === 'ensemble.sonata') && stringsLowAt(bar);
-        const rhFloor = Math.max(zoneFree ? VB_RH[0] : PIANO_RH[0], chamberSonataOverlap ? 72 : 0);
         const strikes = spanStrikes(barStart, barEnd);
         strikes.forEach((onset, index) => {
           const strikeEnd = Math.min(index + 1 < strikes.length ? strikes[index + 1] : barEnd, spanEndOf(onset), barEnd);
@@ -717,21 +1121,121 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
           const body = lhBodyAt(onset, bar, sectionStart);
           if (!body.length) return;
           const lhTop = body[body.length - 1];
-          const rh = rhChordAt(onset, rhFloor, lhTop);
-          const strikeId = `piano:${bar}:${onset}`;
-          const common = {
-            startTick: onset,
-            durationTicks: strikeEnd - onset,
-            ...(relief ? { relief: true } : {}),
-            roleTag,
-            strikeId,
-          };
-          for (const pitch of body) candidates.push({ pitch, ...common });
-          // Chamber/sonata can deliberately leave the RH silent when low
-          // strings occupy the chord's register. Otherwise the RH voicer is
-          // expected to return a complete triad or seventh.
-          for (const pitch of rh) candidates.push({ pitch, ...common });
+          const arrivalHere = planBar.pianoArrival !== undefined && onset === barStart;
+          const rh = rhChordAt(onset, rhFloorForBar, Math.max(lhTop, powerHighAt(onset) ?? 0), rhCeiling, !arrivalHere);
+          const bodyStrikeId = `piano-body:${bar}:${onset}`;
+          const rhStrikeId = `piano-rh-anchor:${bar}:${onset}`;
+          for (let i = 0; i < body.length; i++) {
+            if (planBar.pianoPower) continue; // power replaces the held LH body, never doubles its lowest pitch
+            candidates.push({
+              pitch: body[i], startTick: onset, durationTicks: strikeEnd - onset,
+              ...(relief ? { relief: true } : {}), roleTag, hand: 'lh',
+              ...(i === 0 ? { heldBodyLowest: true } : {}), bar, strikeId: bodyStrikeId,
+              collisionAlternatives: lhCollisionAlternativesAt(onset, body[i]),
+            });
+          }
+          if (!planBar.pianoRepeatedChord && !arrivalHere) {
+            for (const pitch of rh) candidates.push({
+              pitch, startTick: onset, durationTicks: strikeEnd - onset,
+              ...(relief ? { relief: true } : {}), roleTag, hand: 'rh', bar, strikeId: rhStrikeId,
+              ...rhVoicingMeta(onset, rh),
+              collisionAlternatives: rhAlternatives(onset, rhFloorForBar, rhCeiling, rh),
+            });
+          } else if (arrivalHere) {
+            const rollWindow = Math.max(1, Math.min(eighth, strikeEnd - onset));
+            const arrivalStrike = `piano-arrival:${bar}:${onset}`;
+            const rootPc = chordPcsForRh(onset).rootPc;
+            arrivalRollOrder(onset, rh).forEach((pitch) => {
+              const rolledOnset = pcOf(pitch) === rootPc ? onset + Math.max(1, Math.floor(rollWindow / 2)) : onset;
+              candidates.push({
+                pitch, startTick: rolledOnset, durationTicks: Math.max(1, strikeEnd - rolledOnset),
+                ...(relief ? { relief: true } : {}), roleTag: 'arrival', hand: 'rh', bar,
+                strikeId: arrivalStrike,
+                ...rhVoicingMeta(rolledOnset, rh),
+                collisionAlternatives: rhAlternatives(rolledOnset, rhFloorForBar, rhCeiling, rh),
+              });
+            });
+          }
         });
+
+        if (planBar.pianoPower) {
+          const step = planBar.pianoPower === 'eighth' ? eighth : beat;
+          const grid = Array.from({ length: Math.ceil(btBar / step) }, (_, i) => barStart + i * step)
+            .filter((onset) => onset < barEnd);
+          const thin = planBar.norm >= KEYS_GATES.high && planBar.pianoPower === 'quarter';
+          const chosen = grid.filter((_, i) => !thin || i <= 2);
+          let lastLowOnset = Number.NEGATIVE_INFINITY;
+          chosen.forEach((onset, index) => {
+            const until = Math.min(chosen[index + 1] ?? barEnd, spanEndOf(onset), barEnd, dampingEnd(onset));
+            if (until <= onset) return;
+            const low = powerLowAt(onset);
+            if (low === null) return;
+            const high = powerHighAt(onset);
+            const pitches = index === 0
+              ? [low, ...(high !== null ? [high] : [])]
+              : index % 2 === 1 ? (high !== null ? [high] : []) : [low];
+            if (pitches.includes(low) && onset - lastLowOnset < beat) return;
+            if (pitches.includes(low)) lastLowOnset = onset;
+            const strikeId = `piano-power:${bar}:${onset}`;
+            for (const pitch of pitches) candidates.push({
+              pitch, startTick: onset, durationTicks: until - onset,
+              ...(index === 0 ? { articulation: 'marcato' as const } : {}),
+              roleTag: 'power', hand: 'lh', bar, strikeId,
+              collisionAlternatives: powerAlternativesAt(onset),
+              ...(planBar.norm >= KEYS_GATES.high && planBar.pianoPower === 'eighth' ? { velScale: 0.78 } : {}),
+            });
+          });
+        }
+
+        if (planBar.pianoRepeatedChord) {
+          const onsets = [...new Set([...strikes, ...Array.from({ length: Math.ceil(btBar / beat) }, (_, i) => barStart + i * beat).filter((tick) => tick < barEnd)])]
+            .sort((a, b) => a - b);
+          onsets.forEach((onset, index) => {
+            const body = lhBodyAt(onset, bar, sectionStart);
+            const rh = rhChordAt(onset, rhFloor, body[body.length - 1] ?? 0, rhCeiling);
+            const until = Math.min(onsets[index + 1] ?? barEnd, spanEndOf(onset), barEnd);
+            const strikeId = `piano-repeated:${bar}:${onset}`;
+            rh.forEach((pitch) => candidates.push({
+              pitch, startTick: onset, durationTicks: Math.max(1, until - onset),
+              roleTag: 'bed', hand: 'rh', bar, strikeId,
+              ...rhVoicingMeta(onset, rh),
+              collisionAlternatives: rhAlternatives(onset, rhFloor, rhCeiling, rh),
+            }));
+          });
+        }
+
+        if (planBar.pianoPunctuation) {
+          const preferredPuncOnset = Math.min(barEnd - 1, barStart + (planBar.pianoPunctuation === 'pump' ? beat : beat * 3));
+          const bodyOnsets = [...new Set(candidates.filter((candidate) => candidate.hand === 'lh' && candidate.heldBodyLowest
+            && candidate.startTick >= barStart && candidate.startTick < barEnd).map((candidate) => candidate.startTick))].sort((a, b) => a - b);
+          const bodyAtPreferred = candidates.some((candidate) => candidate.hand === 'lh' && candidate.heldBodyLowest
+            && candidate.startTick <= preferredPuncOnset && candidate.startTick + candidate.durationTicks > preferredPuncOnset);
+          const puncOnset = Math.min(barEnd - 1, bodyAtPreferred ? preferredPuncOnset
+            : bodyOnsets.find((onset) => onset >= preferredPuncOnset) ?? bodyOnsets.at(-1) ?? preferredPuncOnset);
+          const heldBody = candidates.some((candidate) => candidate.hand === 'lh' && candidate.heldBodyLowest
+            && candidate.startTick <= puncOnset && candidate.startTick + candidate.durationTicks > puncOnset);
+          const rosterRoles = new Set(template.roster.map((entry) => entry.role));
+          const stringTracks = project.tracks.filter((track) => track.family === 'Strings' && isInstrumentTrack(track) && rosterRoles.has(track.role));
+          const stringRest = stringTracks.every((track) => !(stringsNotes[track.id] ?? []).some((note) =>
+            note.startTick < barEnd && note.startTick + note.durationTicks > barStart));
+          if (heldBody || stringRest) {
+            const lhTop = heldBody ? Math.max(...candidates.filter((candidate) => candidate.hand === 'lh' && candidate.startTick <= puncOnset
+              && candidate.startTick + candidate.durationTicks > puncOnset).map((candidate) => candidate.pitch)) : 0;
+            const puncFloor = template.id === 'ensemble.vocalbacking' ? Math.max(82, rhFloorForBar) : rhFloorForBar;
+            const puncCeiling = template.id === 'ensemble.vocalbacking' ? Math.min(rhCeiling, VB_SPARKLE_PEAK[1]) : rhCeiling;
+            const chord = rhChordAt(puncOnset, puncFloor, lhTop, puncCeiling, false);
+            const duration = Math.max(1, Math.min(Math.floor(eighth / 2), barEnd - puncOnset, endTick - puncOnset));
+            const strikeId = `piano-punctuation:${bar}:${puncOnset}`;
+            chord.forEach((pitch) => candidates.push({
+              pitch, startTick: puncOnset, durationTicks: duration, articulation: 'staccato',
+              roleTag: 'punctuation', hand: 'rh', bar, strikeId, yieldToHarp: true,
+              ...rhVoicingMeta(puncOnset, chord),
+              punctuationReason: planBar.pianoPunctuation,
+              ...(zoneFree ? { soft: true, velScale: 0.55 } : { velScale: 0.78 }),
+              collisionAlternatives: rhAlternatives(puncOnset, puncFloor, puncCeiling, chord),
+            }));
+          }
+        }
 
         // Motion figures are RH overlays: the LH root/body and the held RH
         // anchor above continue through their harmonic-span release. Every
@@ -742,23 +1246,26 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
           const sparkleTop = zoneFree
             ? (planBar.pianoSparkleTop === 96 ? VB_SPARKLE_PEAK[1] : VB_SPARKLE_BODY[1])
             : PIANO_RH[1];
-          const figureLo = Math.max(zoneFree ? VB_SPARKLE_BODY[0] : PIANO_RH[0], rhFloor, pianoLo);
-          const figureHi = Math.min(sparkleTop, pianoHi, PIANO_RH[1]);
+          const figureLo = Math.max(zoneFree ? VB_SPARKLE_BODY[0] : PIANO_RH[0], rhFloorForBar, pianoLo);
+          const figureHi = Math.min(sparkleTop, pianoHi, PIANO_RH[1], rhCeiling);
           const poolAt = (tick: number, lo = figureLo): number[] => {
             const high = Math.max(lo, figureHi);
             const pool = figurePool(tick, lo, high).filter((pitch) => pitch >= lo && pitch <= high);
             if (pool.length) return pool;
-            return rhChordAt(tick, lo, Math.max(0, lo - PIANO_HAND_GAP)).filter((pitch) => pitch >= lo && pitch <= high);
+            return rhChordAt(tick, lo, Math.max(0, lo - PIANO_HAND_GAP), rhCeiling).filter((pitch) => pitch >= lo && pitch <= high);
           };
           const pushFigure = (pitch: number, onset: number, until: number, soft = false, holdToSpan = false) => {
             const limit = holdToSpan ? endTick : barEnd;
             if (onset < barStart || onset >= barEnd || until <= onset || pitch < figureLo || pitch > figureHi) return;
+            const alternatives = [...new Set([...poolAt(onset), pitch - 12, pitch + 12])]
+              .filter((candidate) => candidate >= figureLo && candidate <= figureHi && candidate >= pianoLo && candidate <= pianoHi);
             candidates.push({
               pitch,
               startTick: onset,
               durationTicks: damp(onset, Math.min(until, limit) - onset),
-              roleTag: figureRole,
-              strikeId: `piano-figure:${bar}:${figure}:${onset}:${pitch}`,
+              roleTag: figureRole, hand: 'rh', bar,
+              strikeId: `piano-figure:${bar}:${figure}:${onset}`,
+              collisionAlternatives: alternatives,
               ...(soft ? { soft: true } : {}),
               ...(holdToSpan ? { holdToSpan: true } : {}),
             });
@@ -796,11 +1303,15 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
                 const spanEnd = Math.min(span.endTick, endTick);
                 const midpoint = span.startTick + Math.floor((spanEnd - span.startTick) / (2 * eighth)) * eighth;
                 const attacks = [span.startTick, ...(midpoint > span.startTick && midpoint < spanEnd ? [midpoint] : [])];
+                let previousPitch: number | undefined;
                 attacks.forEach((onset, attackIndex) => {
                   if (onset < barStart || onset >= barEnd) return;
                   const pool = poolAt(onset);
                   if (!pool.length) return;
-                  const pitch = pool[(spanIndex + attackIndex) % pool.length];
+                  const choices = attackIndex > 0 ? pool.filter((pitch) => pitch !== previousPitch) : pool;
+                  if (!choices.length) return; // do not cut a held cascade with a same-pitch re-strike
+                  const pitch = choices[(spanIndex + attackIndex) % choices.length];
+                  previousPitch = pitch;
                   pushFigure(pitch, onset, spanEnd, false, true);
                 });
               });
@@ -851,10 +1362,16 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
 
   /* ---------------- written-schedule polyphony cap ---------------------- */
   const pianoRaw = candidatesByPart.piano;
+  const punctuationLimit = template.id === 'ensemble.vocalbacking'
+    ? PIANO_PUNCTUATION_SHARE.vocalbacking : PIANO_PUNCTUATION_SHARE.default;
   if (pianoRaw?.length) {
     const dropped = enforcePianoConcurrency(pianoRaw);
+    const punctuationCap = capPianoPunctuation(pianoRaw, punctuationLimit);
     candidatesByPart.piano = pianoRaw.filter((c) => !c.drop);
     reports.push(`keys piano: written cap enforced over ${pianoRaw.length} notes (${dropped} dropped)`);
+    const punctuationTotal = punctuationCap.baseStrikes + punctuationCap.punctuationStrikes;
+    const punctuationPct = punctuationTotal ? (100 * punctuationCap.punctuationStrikes / punctuationTotal).toFixed(1) : '0.0';
+    reports.push(`keys piano punctuation cap: ${punctuationCap.punctuationStrikes}/${punctuationTotal} strike groups (${punctuationPct}%, limit ${Math.round(punctuationLimit * 100)}%; ${punctuationCap.dropped} notes removed)`);
   }
 
   /* ---------------- phase B: velocities over the whole mix ---------------- */
@@ -963,7 +1480,9 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
 
   // pass 2: micro-timing and final note events. The written note end is
   // unchanged by jitter, so all notes in a strike keep a common release.
-  const renderedRoleCounts: Record<NoteRoleTag, number> = { anchor: 0, lift: 0, settle: 0, bed: 0, atmosphere: 0 };
+  const renderedRoleCounts: Record<NoteRoleTag, number> = {
+    anchor: 0, lift: 0, settle: 0, bed: 0, atmosphere: 0, arrival: 0, punctuation: 0, power: 0,
+  };
   for (const part of KEYS_PARTS) {
     const track = trackOf.get(part);
     const candidates = candidatesByPart[part];
@@ -987,8 +1506,22 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
     if (part === 'piano') {
       const before = ordered.length;
       const dropped = enforcePianoConcurrency(ordered);
+      capPianoPunctuation(ordered, punctuationLimit);
+      const harpTrack = trackOf.get('harp');
+      const harpNotes = harpTrack ? (notesByTrackId[harpTrack.id] ?? []) : [];
+      const collisionAudit = repairPianoOverlaps(
+        ordered,
+        harpNotes,
+        track.lowestNote,
+        track.highestNote,
+        [],
+        forbidOctaveDoubling,
+        ctx,
+        btBar,
+      );
       const finalCandidates = ordered.filter((c) => !c.drop);
-      const notes: Note[] = finalCandidates.map((c) => ({
+      const pianoOutputCandidates = [...finalCandidates].sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
+      const notes: Note[] = pianoOutputCandidates.map((c) => ({
         pitch: c.pitch,
         startTick: c.startTick,
         durationTicks: c.durationTicks,
@@ -997,9 +1530,24 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
         ...(c.articulation !== undefined ? { articulation: c.articulation } : {}),
         ...(c.layer !== undefined ? { layer: c.layer } : {}),
       }));
+      pianoOctaveRepairCandidates = pianoOutputCandidates.map((candidate) => ({
+        pitch: candidate.pitch,
+        startTick: candidate.startTick,
+        durationTicks: candidate.durationTicks,
+        alternatives: [...(candidate.collisionAlternatives ?? [])],
+        roleTag: candidate.roleTag ?? 'anchor',
+        ...(candidate.hand ? { hand: candidate.hand } : {}),
+        ...(candidate.heldBodyLowest ? { heldBodyLowest: true } : {}),
+      }));
       notesByTrackId[track.id] = notes;
       for (const n of notes) renderedRoleCounts[n.roleTag ?? 'anchor']++;
       reports.push(`keys piano: post-jitter cap enforced over ${before} notes (${dropped} dropped)`);
+      reports.push(`keys piano collision repair: shifted ${collisionAudit.shifted}, shortened ${collisionAudit.shortened}, dropped ${collisionAudit.dropped}; same-pitch pairs remaining ${collisionAudit.remainingSamePitchPairs}`);
+      reports.push(`keys piano punctuation harp yields (take ${project.orchestration?.take ?? 0}): ${collisionAudit.harpYields.join(', ') || 'none'}`);
+      const punctuationStrikes = new Set(finalCandidates.filter((c) => c.roleTag === 'punctuation').map(pianoStrikeId)).size;
+      const totalStrikes = new Set(finalCandidates.map(pianoStrikeId)).size;
+      const punctuationShare = totalStrikes ? (100 * punctuationStrikes / totalStrikes).toFixed(1) : '0.0';
+      reports.push(`keys piano punctuation vs total strikes: ${punctuationStrikes}/${totalStrikes} (${punctuationShare}%); limit ${Math.round(punctuationLimit * 100)}%`);
     } else {
       const notes: Note[] = ordered.map((c) => ({
         pitch: c.pitch,
@@ -1016,7 +1564,193 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
   }
   reports.push(`keys piano role events (take ${project.orchestration?.take ?? 0}): ${Object.entries(renderedRoleCounts).map(([role, count]) => `${role}=${count}`).join(', ')}`);
 
-  return { notesByTrackId, reports, absorbWindows: windows.filter((w) => w.pianoIdx.length > 0).map((w) => ({ start: w.start, end: w.end })) };
+  return {
+    notesByTrackId,
+    reports,
+    pianoOctaveRepairCandidates,
+    absorbWindows: windows.filter((w) => w.pianoIdx.length > 0).map((w) => ({ start: w.start, end: w.end })),
+  };
+}
+
+export interface PianoOctaveRepairReport { shifted: number; remainingHardPairs: number }
+
+/** Revoice piano candidates against the final other-part timing. Strings are
+ * humanized and legato-extended after the keys module runs, so this pass must
+ * see their completed notes rather than their pre-humanized input. */
+export function repairPianoOctavesAfterHumanize(input: {
+  ctx: OrchestratorContext;
+  template: NonNullable<OrchestratorContext['template']>;
+  pianoTrackId: string;
+  pianoNotes: Note[];
+  candidates: PianoOctaveRepairCandidate[];
+  otherNotes: { role: string; trackId: string; notes: Note[] }[];
+}): PianoOctaveRepairReport {
+  const { ctx, template, pianoTrackId, pianoNotes, candidates, otherNotes } = input;
+  const forbidden = template.rules.some((rule) => rule.type === 'octaveDoubling' && rule.params.policy === 'forbidden');
+  if (!forbidden || !pianoNotes.length) return { shifted: 0, remainingHardPairs: 0 };
+  const pianoTrack = ctx.project.tracks.find((track) => track.id === pianoTrackId);
+  if (!pianoTrack) return { shifted: 0, remainingHardPairs: 0 };
+
+  interface RepairNote { note: Note; trackId: string; candidate?: PianoOctaveRepairCandidate }
+  const piano = pianoNotes.map((note, index): RepairNote => ({ note, trackId: pianoTrackId, candidate: candidates[index] }));
+  const rosterRoles = new Set(template.roster.map((entry) => entry.role));
+  const external: RepairNote[] = otherNotes
+    .filter((entry) => entry.role !== 'piano' && rosterRoles.has(entry.role))
+    .flatMap((entry) => entry.notes.map((note) => ({ note, trackId: entry.trackId })));
+  const all = [...piano, ...external];
+  const btBar = barTicks(ctx.project.timeSignature);
+  const spanAt = (tick: number) => ctx.spans.find((span) => span.startTick <= tick && tick < span.endTick) ?? null;
+  const octaveInterval = (a: number, b: number) => Math.abs(a - b) > 0 && Math.abs(a - b) % 12 === 0;
+
+  const isHardOctave = (a: RepairNote, b: RepairNote, override?: { target: RepairNote; pitch: number }): boolean => {
+    const pitchA = override?.target === a ? override.pitch : a.note.pitch;
+    const pitchB = override?.target === b ? override.pitch : b.note.pitch;
+    if (!intervalsOverlap(a.note, b.note) || !octaveInterval(pitchA, pitchB)) return false;
+    const tick = Math.max(a.note.startTick, b.note.startTick);
+    const forcedAt = (at: number): boolean => {
+      const span = spanAt(at);
+      if (!span) return false;
+      const tonePcs = chordTones(span.parsed).tones.map((tone) => tone.pc);
+      if (!tonePcs.includes(pcOf(pitchA))) return false;
+      const head = humanizeHeadTicks(ctx.project.tempoMap, at);
+      const sounding = all.filter((item) => item.note.startTick <= at + head
+        && item.note.startTick + item.note.durationTicks > at).length;
+      return sounding > tonePcs.length;
+    };
+    const head = humanizeHeadTicks(ctx.project.tempoMap, tick);
+    if (forcedAt(tick) || forcedAt(tick - head)) return false;
+    if (a.trackId !== b.trackId) {
+      const shortNote = a.note.durationTicks <= b.note.durationTicks ? a.note : b.note;
+      const longNote = shortNote === a.note ? b.note : a.note;
+      const chord = spanAt(tick);
+      if (shortNote.durationTicks <= btBar / 2 && longNote.durationTicks > shortNote.durationTicks
+        && chord && chordTones(chord.parsed).tones.some((tone) => tone.pc === pcOf(shortNote.pitch))) return false;
+    }
+    return true;
+  };
+  const pianoByStart = [...piano].sort((a, b) => a.note.startTick - b.note.startTick);
+  const externalByStart = [...external].sort((a, b) => a.note.startTick - b.note.startTick);
+  const hardPairs = (): { a: RepairNote; b: RepairNote }[] => {
+    const pairs: { a: RepairNote; b: RepairNote }[] = [];
+    for (let i = 0; i < pianoByStart.length; i++) {
+      const a = pianoByStart[i];
+      for (let j = i + 1; j < pianoByStart.length && pianoByStart[j].note.startTick < a.note.startTick + a.note.durationTicks; j++) {
+        const b = pianoByStart[j];
+        if (isHardOctave(a, b)) pairs.push({ a, b });
+      }
+      for (const b of externalByStart) {
+        if (b.note.startTick >= a.note.startTick + a.note.durationTicks) break;
+        if (isHardOctave(a, b)) pairs.push({ a, b });
+      }
+    }
+    return pairs;
+  };
+  const isRh = (item: RepairNote): boolean => item.candidate?.hand === 'rh'
+    || (item.candidate?.hand === undefined && item.note.pitch >= (template.id === 'ensemble.vocalbacking' ? 82 : 64));
+  const hasPianoPitchCollision = (candidate: RepairNote, pitch: number): boolean => piano.some((other) => {
+    if (other === candidate || !intervalsOverlap(candidate.note, other.note)) return false;
+    const interval = Math.abs(pitch - other.note.pitch);
+    return interval === 0 || (isRh(candidate) && isRh(other) && [11, 13].includes(interval));
+  });
+  const repairRank = (item: RepairNote): number => {
+    if (item.candidate?.heldBodyLowest) return 0;
+    if (item.candidate?.roleTag === 'anchor' && item.candidate.hand === 'lh') return 1;
+    if (item.candidate?.roleTag === 'anchor' && item.candidate.hand === 'rh') return 2;
+    if (item.candidate?.roleTag === 'arrival') return 3;
+    if (item.candidate?.roleTag === 'punctuation') return 4;
+    if (item.candidate?.roleTag === 'power') return 5;
+    return 6;
+  };
+  const externalConflict = (candidate: RepairNote): boolean => externalByStart.some((other) => isHardOctave(candidate, other));
+  const snapshotPitches = () => piano.map((item) => item.note.pitch);
+  const restorePitches = (snapshot: number[]) => piano.forEach((item, index) => { item.note.pitch = snapshot[index]; });
+  const tryRevoice = (candidate: RepairNote, pitch: number, visited: Set<RepairNote>): boolean => {
+    if (visited.has(candidate) || visited.size >= 4) return false;
+    const original = snapshotPitches();
+    candidate.note.pitch = pitch;
+    if (hasPianoPitchCollision(candidate, pitch) || externalConflict(candidate)) {
+      restorePitches(original);
+      return false;
+    }
+    const nextVisited = new Set(visited);
+    nextVisited.add(candidate);
+    let guard = 0;
+    while (guard++ < piano.length) {
+      const blocker = piano.find((other) => other !== candidate && isHardOctave(candidate, other));
+      if (!blocker) return true;
+      if (nextVisited.has(blocker) || !blocker.candidate) {
+        restorePitches(original);
+        return false;
+      }
+      const choices = [...new Set(blocker.candidate.alternatives)]
+        .filter((alternative) => alternative !== blocker.note.pitch && alternative >= pianoTrack.lowestNote && alternative <= pianoTrack.highestNote);
+      let blockerResolved = false;
+      for (const alternative of choices) {
+        const branch = snapshotPitches();
+        if (tryRevoice(blocker, alternative, nextVisited) && !isHardOctave(candidate, blocker)) {
+          blockerResolved = true;
+          break;
+        }
+        restorePitches(branch);
+      }
+      if (!blockerResolved) {
+        restorePitches(original);
+        return false;
+      }
+    }
+    restorePitches(original);
+    return false;
+  };
+
+  const emergencyBodyAlternatives = (item: RepairNote): number[] => {
+    if (item.candidate?.roleTag !== 'anchor' || item.candidate.hand !== 'lh') return [];
+    const span = spanAt(item.note.startTick);
+    if (!span) return [];
+    const thirdPcs = chordTones(span.parsed).tones.filter((tone) => tone.tier === 'third').map((tone) => tone.pc);
+    const low = Math.max(40, pianoTrack.lowestNote);
+    const high = Math.min(template.id === 'ensemble.vocalbacking' ? 56 : 55, pianoTrack.highestNote);
+    const pitches: number[] = [];
+    for (const pc of thirdPcs) for (let pitch = low; pitch <= high; pitch++) {
+      if (pcOf(pitch) === pc && pitch !== item.note.pitch) pitches.push(pitch);
+    }
+    return pitches.sort((a, b) => Math.abs(a - item.note.pitch) - Math.abs(b - item.note.pitch) || a - b);
+  };
+  let shifted = 0;
+  for (let pass = 0; pass < piano.length * 2; pass++) {
+    const pairs = hardPairs();
+    if (!pairs.length) break;
+    let repaired = false;
+    for (const pair of pairs) {
+      const victims = pair.b.trackId === pianoTrackId
+        ? [pair.a, pair.b].sort((a, b) => repairRank(b) - repairRank(a))
+        : [pair.a];
+      for (const victim of victims) {
+        const meta = victim.candidate;
+        if (!meta) continue;
+        const repairChoices = [...new Set([...meta.alternatives, ...emergencyBodyAlternatives(victim)])]
+          .filter((pitch) => pitch !== victim.note.pitch && pitch >= pianoTrack.lowestNote && pitch <= pianoTrack.highestNote);
+        for (const alternative of repairChoices) {
+          const before = snapshotPitches();
+          if (!tryRevoice(victim, alternative, new Set())) continue;
+          let changed = 0;
+          piano.forEach((item, index) => {
+            if (item.note.pitch !== before[index]) {
+              if (item.candidate) item.candidate.pitch = item.note.pitch;
+              changed++;
+            }
+          });
+          shifted += changed;
+          repaired = true;
+          break;
+        }
+        if (repaired) break;
+      }
+      if (repaired) break;
+    }
+    if (!repaired) break;
+  }
+  const remainingPairs = hardPairs();
+  return { shifted, remainingHardPairs: remainingPairs.length };
 }
 
 /**

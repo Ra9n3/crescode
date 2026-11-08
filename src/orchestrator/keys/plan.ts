@@ -1,8 +1,8 @@
 /**
- * Keys planner (Phase 11.6b). The harp keeps its existing figure and
- * glissando plan. The piano keeps its held anchor, then draws a balanced
- * support/motion job per section and a slope-aware RH figure per two-bar
- * phrase. Job/figure decisions are planned here, never made by the renderer.
+ * Keys planner (Phase 11.6c). The harp keeps its existing figure and
+ * glissando plan. The piano keeps its held anchor, then draws balanced
+ * support/motion/power jobs, phrase RH figures, arrivals and punctuation.
+ * Job/figure decisions are planned here, never made by the renderer.
  *
  * The harp's deterministic bed/root owner draw keeps the existing D8 slot.
  * Its figure/timing output remains stable; a piano motion figure yields when
@@ -20,7 +20,8 @@ import { momentForBar } from '../conductor/moments';
 import {
   GLISS_MAX_PER_PIECE, GLISS_WEIGHTS, HARP_FIGURE_MENU, HARP_FIGURE_UNIT_BARS, HARP_ROTATION_OFFSET,
   KEYS_GATES, KEYS_PARTS, OUTRO_LIKE, PIANO_ARPEGGIATOR_FAMILIES, PIANO_JOB_ROTATION,
-  PIANO_MOTION_MENUS, PIANO_MOTION_PHRASE_BARS, PIANO_UP_MAX_SHARE,
+  PIANO_MOTION_MENUS, PIANO_MOTION_PHRASE_BARS, PIANO_ARRIVAL_PHRASE_BARS,
+  PIANO_REPEATED_CHORD_MAX_SHARE, PIANO_UP_MAX_SHARE,
   isChorusTypeK, keysRosterOf, levelForNormK,
   type HarpFigure, type KeysLevel, type KeysPart, type PianoEnergySlope, type PianoFigure,
   type PianoFigureFamily, type PianoJob, type PianoRoleTag,
@@ -52,6 +53,16 @@ export interface KeysBarPlan {
   pianoCell?: OstinatoCellId;
   /** The rare vocalbacking peak phrase-start upper sparkle window. */
   pianoSparkleTop?: 91 | 96;
+  /** Rolled RH chord trigger and its musical placement. */
+  pianoArrival?: 'sectionStart' | 'chorusDownbeat' | 'phraseStart' | 'closingChord';
+  /** Short RH stab placement; renderer verifies a held LH body underneath. */
+  pianoPunctuation?: 'cadence' | 'phraseEnd' | 'preChorus' | 'pump';
+  /** Power-job LH subdivision; absent at peak/tacet bars. */
+  pianoPower?: 'quarter' | 'eighth';
+  /** Cinematic/hybrid chorus RH chord repeated on each beat. */
+  pianoRepeatedChord?: boolean;
+  /** Rare chamber/sonata peak allows RH ceiling 88 instead of 84. */
+  pianoRarePeak?: boolean;
   /** Section-level owner of the single arpeggiator, when piano is rostered. */
   arpeggiatorOwner?: KeysPart;
   /** The slope comparison's local direction at a closing section bar. */
@@ -89,7 +100,7 @@ export interface KeysPlan {
   harpModeByType: Record<string, 'bed' | 'roots'>;
   /** The single arpeggiator owner per section type (preserving the owner draw). */
   arpeggiatorOwnerByType: Record<string, KeysPart>;
-  /** Balanced support/motion job assignment per section instance. */
+  /** Balanced support/motion/power job assignment per section instance. */
   pianoJobs: PianoSectionPlan[];
   /** §16.6: harp bed figure per two-bar unit per section instance. */
   harpFigures: { startBar: number; figures: HarpFigure[] }[];
@@ -248,8 +259,8 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[] = [])
   const nearSilenceBars = new Set<number>();
   for (const a of arc) if (a.nearSilence) nearSilenceBars.add(a.bar);
 
-  // The job rotates per section INSTANCE, not per section type. Alternating
-  // support/motion is a perfectly balanced ring; output take offsets its head.
+  // The job rotates per section INSTANCE, not per section type. The three-job
+  // support/motion/power ring is balanced and cannot repeat adjacently.
   const orderedSections = [...sections].sort((a, b) => a.startBar - b.startBar);
   const basePianoJobs = roster.includes('piano')
     ? orderedSections.map((sec, ordinal) => {
@@ -266,16 +277,101 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[] = [])
         };
       })
     : [];
-  const vbMotionSections = template.id === 'ensemble.vocalbacking'
-    ? basePianoJobs.filter((entry) => entry.job === 'motion')
+  const vbFigureSections = template.id === 'ensemble.vocalbacking'
+    ? basePianoJobs.filter((entry) => isChorusTypeK(entry.sectionName) && entry.lengthBars >= 4)
     : [];
-  const vbCellSectionStart = vbMotionSections.length
-    ? vbMotionSections[((take - 1) % vbMotionSections.length + vbMotionSections.length) % vbMotionSections.length].startBar
+  const vbCellSectionStart = vbFigureSections.length
+    ? vbFigureSections[((take - 1) % vbFigureSections.length + vbFigureSections.length) % vbFigureSections.length].startBar
     : -1;
   const pianoJobs: PianoSectionPlan[] = basePianoJobs.map((entry) => ({
     ...entry,
     vocalCellAllowed: template.id === 'ensemble.vocalbacking' && entry.startBar === vbCellSectionStart,
   }));
+
+  const planNormAt = (bar: number): number => {
+    const target = arc.find((entry) => entry.bar === bar)?.target ?? 0;
+    return clampMax > 0 ? target / clampMax : 0;
+  };
+  const arrivalByBar = new Map<number, NonNullable<KeysBarPlan['pianoArrival']>>();
+  for (const section of orderedSections) {
+    const sectionEnd = section.startBar + section.lengthBars - 1;
+    for (let phraseStart = section.startBar; phraseStart <= sectionEnd; phraseStart += PIANO_ARRIVAL_PHRASE_BARS) {
+      const phraseEnd = Math.min(sectionEnd, phraseStart + PIANO_ARRIVAL_PHRASE_BARS - 1);
+      const selectedBar = phraseEnd === bars ? phraseEnd : phraseStart;
+      const reason = selectedBar === bars ? 'closingChord'
+        : selectedBar === section.startBar && isChorusTypeK(section.name) ? 'chorusDownbeat'
+          : selectedBar === section.startBar ? 'sectionStart' : 'phraseStart';
+      const moment = momentForBar(moments, selectedBar);
+      if (moment?.kind !== 'tutti' && !nearSilenceBars.has(selectedBar)) arrivalByBar.set(selectedBar, reason);
+    }
+  }
+
+  const preChorusBars = new Set<number>();
+  orderedSections.forEach((section, index) => {
+    if (isChorusTypeK(orderedSections[index + 1]?.name)) {
+      preChorusBars.add(section.startBar + section.lengthBars - 1);
+    }
+  });
+  const isCadenceBar = (bar: number): boolean => {
+    const start = (bar - 1) * btBar;
+    const end = bar * btBar;
+    const tonic = ((project.key % 12) + 12) % 12;
+    const dominant = (tonic + 7) % 12;
+    for (let i = 1; i < ctx.spans.length; i++) {
+      const previous = ctx.spans[i - 1];
+      const current = ctx.spans[i];
+      const previousRoot = ((previous.parsed.root % 12) + 12) % 12;
+      const currentRoot = ((current.parsed.root % 12) + 12) % 12;
+      if (current.startTick >= start && current.startTick < end && previousRoot === dominant && currentRoot === tonic) return true;
+    }
+    return false;
+  };
+  const punctuationByBar = new Map<number, NonNullable<KeysBarPlan['pianoPunctuation']>>();
+  for (const section of orderedSections) {
+    const sectionEnd = section.startBar + section.lengthBars - 1;
+    for (let phraseStart = section.startBar, phraseIndex = 0; phraseStart <= sectionEnd; phraseStart += PIANO_ARRIVAL_PHRASE_BARS, phraseIndex++) {
+      const phraseEnd = Math.min(sectionEnd, phraseStart + PIANO_ARRIVAL_PHRASE_BARS - 1);
+      let bar = phraseEnd;
+      let reason: NonNullable<KeysBarPlan['pianoPunctuation']> = 'phraseEnd';
+      if (template.id !== 'ensemble.vocalbacking') {
+        const cadence = Array.from({ length: phraseEnd - phraseStart + 1 }, (_, i) => phraseStart + i).filter(isCadenceBar);
+        if (cadence.length) { bar = cadence[cadence.length - 1]; reason = 'cadence'; }
+        else if (preChorusBars.has(phraseEnd)) { bar = phraseEnd; reason = 'preChorus'; }
+        else if ((template.id === 'ensemble.cinematic' || template.id === 'ensemble.hybridstudio')
+          && isChorusTypeK(section.name) && phraseStart + 1 <= phraseEnd) {
+          bar = phraseStart + 1;
+          reason = 'pump';
+        }
+      }
+      const moment = momentForBar(moments, bar);
+      if (arrivalByBar.has(bar) || nearSilenceBars.has(bar) || moment?.kind === 'tutti' || moment?.kind === 'soli' || moment?.kind === 'unison') continue;
+      if (planNormAt(bar) >= KEYS_GATES.peak) continue;
+      punctuationByBar.set(bar, reason);
+    }
+  }
+  // Chopped-only bars are never scheduled consecutively, even when an odd
+  // section length places one phrase-end next to the following section.
+  for (const [bar] of [...punctuationByBar].sort((a, b) => a[0] - b[0])) {
+    if (punctuationByBar.has(bar - 1)) punctuationByBar.delete(bar);
+  }
+
+  const repeatedChordBars = new Set<number>();
+  if (template.id === 'ensemble.cinematic' || template.id === 'ensemble.hybridstudio') {
+    for (const section of orderedSections) {
+      if (!isChorusTypeK(section.name)) continue;
+      const sectionJob = pianoJobs.find((job) => job.sectionId === section.id);
+      if (sectionJob?.job === 'power') continue;
+      const sectionEnd = section.startBar + section.lengthBars - 1;
+      const budget = Math.floor(section.lengthBars * PIANO_REPEATED_CHORD_MAX_SHARE + 1e-9);
+      const eligible = Array.from({ length: section.lengthBars }, (_, i) => section.startBar + i)
+        .filter((bar) => bar <= sectionEnd && !arrivalByBar.has(bar) && !punctuationByBar.has(bar)
+          && !nearSilenceBars.has(bar) && planNormAt(bar) >= KEYS_GATES.mid && planNormAt(bar) < KEYS_GATES.peak
+          && momentForBar(moments, bar)?.kind !== 'tutti');
+      eligible.sort((a, b) => hashString(`piano-repeat:${take}:${section.id}:${a}`) - hashString(`piano-repeat:${take}:${section.id}:${b}`));
+      for (const bar of eligible.slice(0, budget)) repeatedChordBars.add(bar);
+    }
+  }
+
   // Chorus-entry, outro and tutti glissandos. The harp-only D8 prefix above
   // deliberately retains the old draw count, so these draws remain stable.
   const glisses: KeysGliss[] = [];
@@ -340,10 +436,7 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[] = [])
 
   const sectionOrdinalByStart = new Map(orderedSections.map((section, ordinal) => [section.startBar, ordinal]));
   const jobByStart = new Map(pianoJobs.map((section) => [section.startBar, section]));
-  const normAtBar = (bar: number): number => {
-    const target = arc.find((entry) => entry.bar === bar)?.target ?? 0;
-    return clampMax > 0 ? target / clampMax : 0;
-  };
+  const normAtBar = planNormAt;
   const activeFigureBar = (bar: number, ignoreMoments = false): boolean => {
     const sec = sections.find((candidate) => bar >= candidate.startBar && bar < candidate.startBar + candidate.lengthBars);
     if (!sec || !roster.includes('piano')) return false;
@@ -405,11 +498,12 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[] = [])
     return choice;
   };
 
-  // The denominator is the section-job grid, not sounding notes: every bar
-  // assigned `motion` counts, including an energy/moment-rest bar. Keeping it
-  // independent of moments makes both the 20% cap and later up slots stable.
-  const motionBars = pianoJobs.reduce((sum, section) =>
-    sum + (section.job === 'motion' ? section.lengthBars : 0), 0);
+  // The denominator is the planned figure grid, not sounding notes. A 4+ bar
+  // chorus carries two or more RH figures even when its LH job is support or
+  // power; all such bars count independent of moments for the stable 20% cap.
+  const hasFigureJob = (section: PianoSectionPlan): boolean =>
+    section.job === 'motion' || (isChorusTypeK(section.sectionName) && section.lengthBars >= 4);
+  const motionBars = pianoJobs.reduce((sum, section) => sum + (hasFigureJob(section) ? section.lengthBars : 0), 0);
   const upLimit = Math.floor(motionBars * PIANO_UP_MAX_SHARE + 1e-9);
   let upBars = 0;
   // Reserve up-arp slots over the moment-independent potential motion grid.
@@ -480,10 +574,27 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[] = [])
     let pianoFigureYieldedFrom: PianoFigure | undefined;
     let pianoCell: OstinatoCellId | undefined;
     let pianoSparkleTop: 91 | 96 | undefined;
+    const pianoPower: KeysBarPlan['pianoPower'] = jobPlan?.job === 'power' && pianoRole === 'anchor' && special === null
+      && norm >= KEYS_GATES.low && norm < KEYS_GATES.peak && !repeatedChordBars.has(bar)
+      ? (['ensemble.cinematic', 'ensemble.hybridstudio'].includes(template.id) && norm >= KEYS_GATES.high ? 'eighth' : 'quarter')
+      : undefined;
+    const pianoArrival = pianoRole && (special === null || special === 'final') ? arrivalByBar.get(bar) : undefined;
+    const pianoPunctuation = pianoRole === 'anchor' && special === null && !pianoPower && !repeatedChordBars.has(bar)
+      ? punctuationByBar.get(bar) : undefined;
+    const pianoRepeatedChord = pianoRole === 'anchor' && special === null && !pianoPower && repeatedChordBars.has(bar);
+    const phraseStart4 = sectionPosition % PIANO_ARRIVAL_PHRASE_BARS === 0;
+    const pianoRarePeak = (template.id === 'ensemble.chamber' || template.id === 'ensemble.sonata')
+      && pianoRole === 'anchor' && norm >= KEYS_GATES.peak && phraseStart4
+      && hashString(`piano-rare-peak:${take}:${secHere?.id ?? 'none'}:${bar}`) % 12 === 0;
 
-    const potentialMotionBar = jobPlan?.job === 'motion' && secHere && activeFigureBar(bar, true);
+    const barPhraseIndex = Math.floor(sectionPosition / PIANO_MOTION_PHRASE_BARS);
+    const preserveVocalCellArrival = !!jobPlan && template.id === 'ensemble.vocalbacking' && jobPlan.vocalCellAllowed
+      && phraseChoiceFor(jobPlan, barPhraseIndex).family === 'ostinatoCell';
+    const suppressArrivalFigure = arrivalByBar.has(bar) && !preserveVocalCellArrival;
+    const potentialMotionBar = !!jobPlan && hasFigureJob(jobPlan) && secHere && !pianoRepeatedChord
+      && !suppressArrivalFigure && activeFigureBar(bar, true);
     if (potentialMotionBar && secHere && jobPlan) {
-      const phraseIndex = Math.floor(sectionPosition / PIANO_MOTION_PHRASE_BARS);
+      const phraseIndex = barPhraseIndex;
       const phraseChoice = phraseChoiceFor(jobPlan, phraseIndex);
       let figure: PianoFigure;
       if (phraseChoice.family === 'arpeggio') {
@@ -546,6 +657,11 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[] = [])
       ...(pianoFigureYieldedFrom ? { pianoFigureYieldedFrom } : {}),
       ...(pianoCell ? { pianoCell } : {}),
       ...(pianoSparkleTop !== undefined ? { pianoSparkleTop } : {}),
+      ...(pianoArrival ? { pianoArrival } : {}),
+      ...(pianoPunctuation ? { pianoPunctuation } : {}),
+      ...(pianoPower ? { pianoPower } : {}),
+      ...(pianoRepeatedChord ? { pianoRepeatedChord: true } : {}),
+      ...(pianoRarePeak ? { pianoRarePeak: true } : {}),
       ...(isTutti && !isSoli ? { moment: 'tutti' as const } : isSoli ? { moment: 'soli' as const } : isUnison ? { moment: 'unison' as const } : {}),
     });
   }
@@ -606,6 +722,10 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[] = [])
   if (pianoJobs.length) {
     reports.push(`keys piano energy slope (take ${take}): sign of next ArcBar.target minus current within section; section-end uses current minus previous; flat band ±max(1e-6, 0.5% of clamp ${clampMax})`);
     reports.push(`keys piano jobs (take ${take}, balanced section rotation): ${pianoJobs.map((entry) => `b${entry.startBar}-${entry.startBar + entry.lengthBars - 1}=${entry.job}/${entry.arpeggiatorOwner}${entry.vocalCellAllowed ? '/VB-cell' : ''}`).join(', ')}`);
+    reports.push(`keys piano arrivals (take ${take}, four-bar phrase grid): ${barPlans.filter((bar) => bar.pianoArrival).map((bar) => `b${bar.bar}=${bar.pianoArrival}`).join(', ') || 'none'}`);
+    reports.push(`keys piano punctuation plan (take ${take}, V-I cadence/phrase end/pre-chorus/pump): ${barPlans.filter((bar) => bar.pianoPunctuation).map((bar) => `b${bar.bar}=${bar.pianoPunctuation}`).join(', ') || 'none'}`);
+    reports.push(`keys piano power job (take ${take}; thin at 0.72, tacet at 0.90): ${barPlans.filter((bar) => bar.pianoPower).map((bar) => `b${bar.bar}=${bar.pianoPower}`).join(', ') || 'none'}`);
+    reports.push(`keys repeated RH chords (take ${take}, max 15% chorus bars): ${barPlans.filter((bar) => bar.pianoRepeatedChord).map((bar) => `b${bar.bar}`).join(', ') || 'none'}`);
     const mapLine = barPlans.filter((bar) => bar.pianoJob).map((bar) => {
       const figure = bar.pianoFigure ?? '—';
       const yielded = bar.pianoFigureYieldedFrom ? `,yielded:${bar.pianoFigureYieldedFrom}` : '';

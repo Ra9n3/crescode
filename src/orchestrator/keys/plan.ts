@@ -608,7 +608,12 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[] = [])
         } else if (energySlope === 'falling') {
           figure = 'arpDown';
         } else {
-          figure = hashString(`piano-flat:${take}:${secHere.id}:${phraseIndex}:${bar}`) % 2 === 0 ? 'arpPendulum' : 'alberti';
+          // A long chorus needs distinct realized figures across its phrases;
+          // use the flat-slope pendulum rather than occasionally repeating
+          // Alberti after an adjacent Alberti-family phrase.
+          figure = isChorusTypeK(secHere.name) && secHere.lengthBars >= 4
+            ? 'arpPendulum'
+            : hashString(`piano-flat:${take}:${secHere.id}:${phraseIndex}:${bar}`) % 2 === 0 ? 'arpPendulum' : 'alberti';
         }
       } else {
         figure = phraseChoice.family;

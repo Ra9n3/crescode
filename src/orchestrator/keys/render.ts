@@ -642,7 +642,7 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
     if (answerEnabled && pianoTrack && answerCap > 0) {
       for (const bar of plan.bars) {
         if (bar.pianoRole !== 'anchor' || bar.voices.piano !== 'anchor' || bar.pianoPower
-          || bar.pianoRepeatedChord || bar.pianoFlourish || bar.moment) continue;
+          || bar.pianoRepeatedChord || bar.moment) continue;
         const section = ctx.sections.find((candidate) => bar.bar >= candidate.startBar && bar.bar < candidate.startBar + candidate.lengthBars);
         if (!section) continue;
         const phrase = Math.floor((bar.bar - section.startBar) / PIANO_ARRIVAL_PHRASE_BARS);
@@ -1517,6 +1517,39 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
 
   const pianoCandidates = candidatesByPart.piano ?? [];
   const flourishTemplates = new Set(['ensemble.chamber', 'ensemble.sonata', 'ensemble.cinematic', 'ensemble.hybridstudio']);
+  const flourishRosterRoles = new Set(template.roster.map((entry) => entry.role));
+  const externalOctaveNotes: Note[] = [];
+  const appendExternalTracks = (tracks: Record<string, Note[]>) => {
+    for (const [trackId, notes] of Object.entries(tracks)) {
+      const role = project.tracks.find((track) => track.id === trackId)?.role;
+      if (role && role !== 'piano' && flourishRosterRoles.has(role)) externalOctaveNotes.push(...notes);
+    }
+  };
+  appendExternalTracks(stringsNotes);
+  appendExternalTracks(brassNotes);
+  appendExternalTracks(windNotes);
+  appendExternalTracks(percNotes);
+  appendExternalTracks(notesByTrackId);
+  for (const entry of ruleNotes) if (entry.role !== 'piano' && flourishRosterRoles.has(entry.role)) externalOctaveNotes.push(...entry.notes);
+  const hasExternalHardOctave = (pitch: number, startTick: number, durationTicks: number): boolean => {
+    if (!forbidOctaveDoubling) return false;
+    const maxLegatoTicks = msToTicks(30, project.tempoMap);
+    return externalOctaveNotes.some((other) => {
+      const interval = Math.abs(pitch - other.pitch);
+      if (!interval || interval % 12 !== 0) return false;
+      const tick = Math.max(startTick, other.startTick);
+      if (startTick >= other.startTick + other.durationTicks + maxLegatoTicks
+        || other.startTick >= startTick + durationTicks) return false;
+      const shortDuration = Math.min(durationTicks, other.durationTicks);
+      const longDuration = Math.max(durationTicks, other.durationTicks);
+      if (shortDuration <= btBar / 2 && longDuration > shortDuration) {
+        const shortPitch = durationTicks <= other.durationTicks ? pitch : other.pitch;
+        const span = ctx.spans.find((candidate) => candidate.startTick <= tick && tick < candidate.endTick);
+        if (span && chordTones(span.parsed).tones.some((tone) => pcOf(tone.pc) === pcOf(shortPitch))) return false;
+      }
+      return true;
+    });
+  };
   for (const planBar of plan.bars.filter((bar) => bar.pianoFlourish)) {
     const targetBar = planBar.pianoFlourish!.targetBar;
     const arrivalNotes = pianoCandidates.filter((candidate) => candidate.bar === targetBar && candidate.hand === 'rh'
@@ -1537,6 +1570,18 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
 
     const barEnd = planBar.bar * btBar;
     const runStart = barEnd - runWindowTicks;
+    const runEvents = runPitches.map((pitch, index) => {
+      const startTick = runStart + Math.floor(index * runWindowTicks / runPitches.length);
+      const endTick = runStart + Math.floor((index + 1) * runWindowTicks / runPitches.length);
+      return { pitch, startTick, durationTicks: Math.max(1, endTick - startTick) };
+    });
+    // A piano-owned flourish must not introduce a forbidden octave with a
+    // rostered part. Drop only this optional run when no collision-free walk
+    // exists; the source tracks and the downbeat arrival remain untouched.
+    if (runEvents.some((event) => hasExternalHardOctave(event.pitch, event.startTick, event.durationTicks))) {
+      delete planBar.pianoFlourish;
+      continue;
+    }
     // The preceding RH chord/figure releases at the written run start; LH
     // candidates are deliberately untouched. No previous RH event can ring
     // into the monophonic scale walk.
@@ -1549,11 +1594,9 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
         if (candidate.durationTicks < 1) candidate.drop = true;
       }
     }
-    for (let index = 0; index < runPitches.length; index++) {
-      const startTick = runStart + Math.floor(index * runWindowTicks / runPitches.length);
-      const endTick = runStart + Math.floor((index + 1) * runWindowTicks / runPitches.length);
+    for (const [index, event] of runEvents.entries()) {
       pianoCandidates.push({
-        pitch: runPitches[index], startTick, durationTicks: Math.max(1, endTick - startTick),
+        ...event,
         roleTag: 'flourish', hand: 'rh', bar: planBar.bar,
         strikeId: `piano-flourish:${planBar.bar}:${index}`, collisionAlternatives: [],
       });

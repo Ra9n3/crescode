@@ -989,6 +989,8 @@ describe('Phase 11.6d-2: piano flourishes and last-chorus register shifts', () =
       const upper = templateId === 'ensemble.chamber' || templateId === 'ensemble.sonata' ? 84 : 96;
       for (let take = 0; take < 20; take++) {
         const { project, result } = composeTake('three', templateId, take);
+        const template = resolveTemplate(project.ensemble!);
+        expect(checkTemplateRules(project, template!, result.plan).filter((finding) => finding.severity === 'hard'), `${templateId} t${result.orchestration.take}: no hard findings`).toHaveLength(0);
         const piano = project.tracks.find((track) => track.role === PIANO)!;
         const bt = barTicks(project.timeSignature);
         const beat = beatTicks(project.timeSignature);

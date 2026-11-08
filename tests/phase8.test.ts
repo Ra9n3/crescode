@@ -136,6 +136,10 @@ describe('Phase 8: 4 — per-note seeding: notes outside moment bars are byte-id
         // the bar(s) before the tutti) exist only when the moments do.
         const KEYS_ROLES_P8 = new Set(['harp', 'piano']);
         const glissBars = new Set<number>();
+        const pianoFlourishBars = new Set<number>([
+          ...withM.result.plan.keys.bars.filter((bar) => bar.pianoFlourish).map((bar) => bar.bar),
+          ...withoutM.result.plan.keys.bars.filter((bar) => bar.pianoFlourish).map((bar) => bar.bar),
+        ]);
         const rollBars = new Set<number>();
         const landingWindows: [number, number][] = [];
         const btBarP8 = 3840;
@@ -179,6 +183,9 @@ describe('Phase 8: 4 — per-note seeding: notes outside moment bars are byte-id
           }
           for (const n of t.notes) {
             if (inMoment(n.startTick)) continue;
+            // Phase 11.6d-2: a planned piano flourish replaces RH content in
+            // its pre-chorus bar; compare neither side of that planned bar.
+            if (t.role === 'piano' && pianoFlourishBars.has(Math.floor(n.startTick / btBar) + 1)) continue;
             // the Phase 10 allowances: a planned roll INTO a tutti is moment
             // content (see above) — percussion notes in its bars are excluded;
             // a percussion note inside a wind pickup-run's landing beat window

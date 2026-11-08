@@ -57,14 +57,15 @@ import type { OrchestratorContext } from '../module';
 import { momentForBar } from '../conductor/moments';
 import {
   GLISS_MAX_PER_PIECE, GLISS_WEIGHTS, HARP_FIGURE_MENU, HARP_FIGURE_UNIT_BARS, HARP_ROTATION_OFFSET,
-  KEYS_GATES, KEYS_PARTS, OUTRO_LIKE, PIANO_ARP_TEMPLATES,
-  PIANO_BLOCK_FAMILY, PIANO_CHORUS_FIGURE_MENU, PIANO_COMP_MENU, PIANO_DRIVE_MENU, PIANO_VB_MENU, PIANO_VB_MENU_NON_ARP,
+  KEYS_GATES, KEYS_PARTS, OUTRO_LIKE, PIANO_ARP_FIGURES,
+  PIANO_COLOR_MENUS, PIANO_JOB_FALLBACK, PIANO_JOB_MENUS, PIANO_L1_MENU, PIANO_MOTION_MENUS,
+  PIANO_POWER_FIGURES, PIANO_RHYTHM_MENUS,
   isChorusTypeK, keysRosterOf, levelForNormK,
-  type HarpFigure, type KeysLevel, type KeysPart, type PianoPattern,
+  type HarpFigure, type KeysLevel, type KeysPart, type PianoFigure, type PianoJob, type PianoL1,
 } from './profile';
 
 export type HarpVoiceKind = 'bed' | 'roots' | 'gliss' | 'final';
-export type PianoVoiceKind = 'arp' | 'pulse' | 'comp' | 'tutti' | 'final';
+export type PianoVoiceKind = 'job' | 'tutti' | 'final';
 export type KeysVoiceKind = HarpVoiceKind | PianoVoiceKind;
 
 export interface KeysBarPlan {
@@ -93,20 +94,16 @@ export interface KeysPlan {
   glisses: KeysGliss[];
   /** The drawn arpeggiator per section type (the one-arp-per-section rule). */
   arpeggiatorByType: Record<string, KeysPart>;
-  /** §16.3a (Phase 11.1): the drawn piano pattern per section instance
-   *  (startBar-keyed; the renderer realises the comp/drive kinds through
-   *  it). Empty where the template's piano has no menu (cinematic and
-   *  hybridstudio keep the arpeggiator). */
-  pianoPatterns: { startBar: number; pattern: PianoPattern }[];
   /** §16.3a: the conductor's fillGating answer bars reserved for the piano
-   *  (the callfill pattern answers in them; the renderer reads the set). */
+   *  (the answer figure plays in them; the renderer reads the set). */
   fillBars: number[];
-  /** §16.5 (Phase 11.5): the chorus piano figure per four-bar phrase per
-   *  chorus section instance (the rotation draws the figure menu per chorus
-   *  occurrence and changes it at phrase level; the block slot is resolved
-   *  to a concrete drive variant here — the renderer never sees the
-   *  sentinel). startBar-keyed like pianoPatterns. */
-  chorusFigures: { startBar: number; figures: PianoPattern[] }[];
+  /** §16.9 (Phase 11.6): the piano JOB per section instance — the balanced
+   *  rotation offset per take (the same job never repeats in two
+   *  consecutive sections of one take), the L1 chord variant, the job's
+   *  figure per four-bar phrase (the phrase-level hash rotation; a chorus
+   *  of 4+ bars always holds at least 2 figures), and the last-chorus
+   *  octave shift where the range allows. startBar-keyed. */
+  pianoJobs: { startBar: number; job: PianoJob; l1: PianoL1; figures: PianoFigure[]; octaveShift: boolean }[];
   /** §16.6 (Phase 11.5): the harp's bed figure per two-bar unit per section
    *  instance — the balanced rotation offset from the piano's, plus the
    *  hash-stepped unit walk (a chorus of at least 4 bars always holds at
@@ -116,7 +113,7 @@ export interface KeysPlan {
 }
 
 /** The empty plan (no template / no keys roster): the module is silent. */
-export const EMPTY_KEYS_PLAN: KeysPlan = { bars: [], glisses: [], arpeggiatorByType: {}, pianoPatterns: [], fillBars: [], chorusFigures: [], harpFigures: [], reports: [] };
+export const EMPTY_KEYS_PLAN: KeysPlan = { bars: [], glisses: [], arpeggiatorByType: {}, pianoJobs: [], fillBars: [], harpFigures: [], reports: [] };
 
 /** The salted keys stream (D8): a pure function of (inputs, take). */
 export const keysRng = (project: Project, take: number): (() => number) =>
@@ -177,65 +174,61 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[]): Key
     return arpeggiatorByType[sectionTypeNameAtBar(ctx, bar)] ?? null;
   };
 
-  // §16.3a: the piano menu — ONE pattern per section instance. Phase 11.4:
-  // the draw is a DETERMINISTIC BALANCED ROTATION — the take and the
-  // section ordinal index the menu — replacing the random draw. The
-  // diversity targets are hard caps measured on realized notes (the most
-  // frequent realized pattern ≤ 40% per section type), and the bridge and
-  // outro types hold only 10 instances across the 20-run survey: over a
-  // 3-4 pattern menu, multinomial noise puts the top pattern at 50%+ (and
-  // sometimes never draws a pattern at all) — the rotation guarantees the
-  // top share at ceil(instances/menu) ≤ 40% for every menu of ≥ 3
-  // outcomes, and every pattern realises. The harp-owned vocalbacking
-  // sections rotate the non-arpeggio subset (the one-arpeggiator rule).
-  // §16.5 (Phase 11.5): chorus-type sections rotate the FIGURE menu per
-  // four-bar phrase (the chorus is no longer only quarter-note block
-  // strikes; the block slot resolves to the relief drive's own six
-  // voicing variants rotating across the phrases that drew it — the
-  // block share of chorus bars is 1 of the 7 menu slots, well under the
-  // 25% cap). The other sections keep the 11.4 rotation (the comp menu
-  // on chamber and sonata, the vocalbacking menu — or its non-arpeggio
-  // subset under a harp-owned arpeggiator). cinematic and hybridstudio
-  // keep the arpeggiator — no menu.
-  const pianoPatterns: { startBar: number; pattern: PianoPattern }[] = [];
-  const chorusFigures: { startBar: number; figures: PianoPattern[] }[] = [];
-  const pianoMenuable = roster.includes('piano') && !PIANO_ARP_TEMPLATES.has(template.id);
-  const isVB = template.id === 'ensemble.vocalbacking';
-  const menuFor = (sec: { name: string }): readonly PianoPattern[] => {
-    if (isChorusTypeK(sec.name)) return PIANO_DRIVE_MENU;
-    if (isVB && arpeggiatorByType[sec.name.trim().toLowerCase() || '*'] === 'harp') return PIANO_VB_MENU_NON_ARP;
-    return isVB ? PIANO_VB_MENU : PIANO_COMP_MENU;
-  };
+  // §16.9 (Phase 11.6): the piano JOB per section instance — a DETERMINISTIC
+  // BALANCED ROTATION, the take and the section ordinal indexing the
+  // template's job menu (adjacent menu entries land on adjacent sections,
+  // so the same job never repeats in two consecutive sections of one
+  // take). The draw consumes NO stream — a pure function of (inputs, take)
+  // — so the keys stream's consumption order (the arpeggiator draw, the
+  // glissandos) is untouched and the harp's bytes stay on golden105. Each
+  // section also draws its L1 chord variant (the same rotation family) and
+  // its FIGURE per four-bar phrase: the job's own menu walked with a
+  // salted-hash phase — consecutive phrases never repeat, so a chorus of
+  // 4+ bars always uses at least 2 figures, and every figure in the menu
+  // realises over the 20-run survey by construction. Where the HARP owns a
+  // section type's arpeggiator the motion menu drops the arpeggio figures
+  // (the one-arpeggiator rule). The LAST chorus may shift its figure up an
+  // octave where the range allows (never vocalbacking — the sparkle cap
+  // bounds the band). The renderer realises the layers through the energy
+  // arc: L0 body everywhere the piano is active, L1+L2 from the mid gate
+  // (the chorus relief from the LOW gate), L3 at high energy, the thinning
+  // and tacet bands by ABSOLUTE energy (0.72 / 0.90 — the chamber, sonata
+  // and vocalbacking clamps never reach them).
+  const pianoJobs: { startBar: number; job: PianoJob; l1: PianoL1; figures: PianoFigure[]; octaveShift: boolean }[] = [];
+  const pianoMenuable = roster.includes('piano');
   if (pianoMenuable) {
-    const ordered = [...sections].sort((a, b) => a.startBar - b.startBar);
-    let chorusOrdinal = 0;
-    let blockOrdinal = 0;
-    ordered.forEach((sec, ordinal) => {
-      if (isChorusTypeK(sec.name)) {
-        // the chorus figure rotation: the base indexes the chorus
-        // occurrence, each phrase steps one menu slot — consecutive
-        // phrases never repeat, so a multi-phrase chorus always uses two
-        // or more figures. The BLOCK slots number their own draws (the
-        // k-th block over the take) and resolve to the relief drive's
-        // variants in that order — every variant realises within six
-        // block draws regardless of where the slots land.
-        const figures: PianoPattern[] = [];
-        const nPhrases = Math.max(1, Math.ceil(sec.lengthBars / 4));
-        for (let p = 0; p < nPhrases; p++) {
-          const drawn = PIANO_CHORUS_FIGURE_MENU[(take - 1 + chorusOrdinal + p) % PIANO_CHORUS_FIGURE_MENU.length];
-          figures.push(drawn === PIANO_BLOCK_FAMILY ? PIANO_DRIVE_MENU[((take - 1) * 2 + blockOrdinal++) % PIANO_DRIVE_MENU.length] : drawn);
-        }
-        chorusFigures.push({ startBar: sec.startBar, figures });
-        pianoPatterns.push({ startBar: sec.startBar, pattern: figures[0] });
-        chorusOrdinal++;
-        return;
+    const jobMenu = PIANO_JOB_MENUS[template.id] ?? PIANO_JOB_FALLBACK;
+    const orderedSecs = [...sections].sort((a, b) => a.startBar - b.startBar);
+    const lastChorusStart = [...orderedSecs].reverse().find((s) => isChorusTypeK(s.name))?.startBar ?? -1;
+    const figureOrdinal = new Map<string, number>();
+    orderedSecs.forEach((sec, ordinal) => {
+      const chorus = isChorusTypeK(sec.name);
+      const job = jobMenu[(take - 1 + ordinal) % jobMenu.length];
+      const figK = figureOrdinal.get(job) ?? 0;
+      figureOrdinal.set(job, figK + 1);
+      const l1 = PIANO_L1_MENU[(take - 1 + ordinal) % PIANO_L1_MENU.length];
+      let menu: readonly PianoFigure[] = [];
+      if (job === 'motion') {
+        const base = PIANO_MOTION_MENUS[template.id] ?? PIANO_MOTION_MENUS['ensemble.chamber'];
+        const harpOwns = arpeggiatorByType[sec.name.trim().toLowerCase() || '*'] === 'harp';
+        menu = harpOwns ? base.filter((f) => !PIANO_ARP_FIGURES.includes(f)) : base;
+        if (!menu.length) menu = base.filter((f) => !PIANO_ARP_FIGURES.includes(f));
+      } else if (job === 'rhythm') menu = PIANO_RHYTHM_MENUS[template.id] ?? ['pump'];
+      else if (job === 'color') menu = PIANO_COLOR_MENUS[template.id] ?? ['highSparkle'];
+      else if (job === 'power') menu = PIANO_POWER_FIGURES;
+      const nPhrases = Math.max(1, Math.ceil(sec.lengthBars / 4));
+      const base = menu.length ? (take - 1 + figK) % menu.length : 0;
+      const figures: PianoFigure[] = [];
+      for (let p = 0; p < nPhrases; p++) {
+        if (menu.length) figures.push(menu[(base + p) % menu.length]);
       }
-      const menu = menuFor(sec);
-      const pattern = menu[(take - 1 + ordinal) % menu.length];
-      pianoPatterns.push({ startBar: sec.startBar, pattern });
+      const octaveShift = chorus && sec.startBar === lastChorusStart
+        && template.id !== 'ensemble.vocalbacking'
+        && hashString(`piano-shift:${take}:${sec.startBar}`) % 2 === 0;
+      pianoJobs.push({ startBar: sec.startBar, job, l1, figures, octaveShift });
     });
-    reports.push(`keys piano menu (take ${take}, balanced rotation): ${pianoPatterns.map((e) => `b${e.startBar}=${e.pattern}`).join(', ')}`);
-    reports.push(`keys chorus figures (take ${take}, phrase rotation): ${chorusFigures.map((e) => `b${e.startBar}=[${e.figures.join(' | ')}]`).join(', ') || 'none'}`);
+    reports.push(`keys piano jobs (take ${take}, balanced rotation): ${pianoJobs.map((e) => `b${e.startBar}=${e.job}${e.octaveShift ? '+8ve' : ''}`).join(', ')}`);
+    reports.push(`keys piano figures (take ${take}, phrase rotation): ${pianoJobs.map((e) => `b${e.startBar}=[${e.figures.join(' | ')}]`).join(', ') || 'none'}`);
   }
 
   // §16.6 (Phase 11.5): the harp's bed figure per section instance — a
@@ -369,8 +362,6 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[]): Key
     const glissHere = roster.includes('harp') ? glissByBar.get(bar) : undefined;
     const arpOwner = arpeggiatorFor(bar);
     const harpArps = arpOwner === 'harp';
-    const canArp = PIANO_ARP_TEMPLATES.has(template.id);
-    const arpMine = canArp && arpOwner === 'piano';
 
     // HARP (§16.2): a glissando owns its bars; a tutti reduces the harp to
     // its drawn glissando; the high gates thin it to glissandos or rests
@@ -397,33 +388,23 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[]): Key
       }
     }
 
-    // PIANO (§16.3): the arpeggiator (drawn, cinematic/hybridstudio) at low
-    // to mid energy and under the chorus relief; the low octave pulse at
-    // high energy in ostinato/trailer textures; the comping (chamber,
-    // sonata, vocalbacking) on phrase starts at low to mid energy, on the
-    // fillGating answer bars, and on every chorus bar downbeat; the tutti
-    // root hit; the closing figure on the final bar.
+    // PIANO (§16.9, Phase 11.6): the section's JOB realises bar by bar
+    // through the energy arc — L0 body everywhere the piano is active, the
+    // L1 chord and the L2 figure from the mid gate (the chorus relief from
+    // the LOW gate — the chorus never thins), L3 at high energy. The
+    // thinning and tacet bands read ABSOLUTE energy (norm * clampMax):
+    // above 0.72 the non-chorus piano thins to L0 plus an L3 downbeat hit;
+    // at 0.90 and above it is tacet except the tutti hit and the final bar
+    // (the chamber/sonata/vocalbacking clamps are 0.65-0.70 — they never
+    // reach either band). The tutti root hit and the final-bar anchor keep
+    // their Phase 11 shapes.
     if (roster.includes('piano')) {
       if (bar === bars) voices.piano = 'final';
       else if (isTutti) voices.piano = 'tutti';
       else if (!tacet) {
-        const isOstTex = tex.id === 'singleOstinato' || tex.id === 'interlockingOstinato' || tex.id === 'trailer';
-        if (arpMine && ((norm >= KEYS_GATES.low && norm < KEYS_GATES.high) || chorusRelief)) voices.piano = 'arp';
-        else if (isOstTex && norm >= KEYS_GATES.high) voices.piano = 'pulse';
-        else if (chorusRelief && canArp) voices.piano = 'pulse';
-        else if (!canArp) {
-          if (chorusRelief) voices.piano = 'comp';
-          // §16.4 (11.4): the comp gate moves from the low band to the
-          // PEAK gate — the menu patterns sound at low AND mid energy, and
-          // the renderer thins them toward tacet above the HIGH gate (the
-          // pre-flight: the bridge phrase starts sit at 0.72-0.80 on sonata
-          // and vocalbacking, so a hard stop at the high gate would leave
-          // them permanently tacet; the thinning carries them). The fill
-          // answer bars keep their own gate (low and above, any level —
-          // the strings rest there; the piano answers).
-          else if (norm >= KEYS_GATES.low && norm < KEYS_GATES.peak && (phraseStartOf(secStart, bar) || fillBars.has(bar))) voices.piano = 'comp';
-          else if (fillBars.has(bar) && norm >= KEYS_GATES.low) voices.piano = 'comp';
-        }
+        const energy = norm * clampMax;
+        const peakStop = !inChorus && energy >= 0.9;
+        if (!peakStop && norm >= KEYS_GATES.low) voices.piano = 'job';
       }
     }
 
@@ -438,7 +419,7 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[]): Key
   const firstBars = barPlans.filter((b) => Object.values(b.voices).some((v) => v !== undefined)).slice(0, 12);
   if (firstBars.length) reports.push(`keys plan (take ${take}): ${firstBars.map((b) => `b${b.bar}[${b.level}] ${Object.entries(b.voices).map(([p, k]) => `${p}:${k}`).join(' | ')}`).join(' | ')}`);
 
-  return { bars: barPlans, glisses, arpeggiatorByType, pianoPatterns, fillBars: fillBarList, chorusFigures, harpFigures, reports };
+  return { bars: barPlans, glisses, arpeggiatorByType, pianoJobs, fillBars: fillBarList, harpFigures, reports };
 }
 
 /** The keys tracks the plan annotates (the conductor's honesty list). */

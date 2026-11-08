@@ -61,77 +61,148 @@ export const isChorusTypeK = (name: string | undefined): boolean => KEYS_CHORUS_
  *  de facto cinematic-only through its texture gate. */
 export const PIANO_ARP_TEMPLATES = new Set(['ensemble.cinematic', 'ensemble.hybridstudio']);
 
-/** §16.2a (Phase 11.1) the piano's register windows (MIDI, sounding):
- *  the right-hand material is centred in 62-84 with the chord's top voice
- *  around 72-84; the deliberate left-hand single root/fifth sits in 40-55
- *  at phrase starts. vocalbacking keeps the vocal zone (57-81) free by
- *  writing ABOVE it (the sparkle register) or below it (the low root/fifth);
- *  it never falls back to octave-down for chords or arpeggios. The octave
- *  pulse keeps its low window — that is its job.
- *  §16.2b (Phase 11.4) the sparkle band is capped: the BODY writes 82-91;
- *  the 92-96 top is rare — only the phrase-start chords of peak-level bars
- *  may write it (VB_SPARKLE_TOP). A chord tone whose pitch class has no
- *  fold inside the 10-semitone body window rescues into the low band
- *  (VB_LOW) — zone-free, and the per-strike voice count never drops. */
+/** §16.2a (Phase 11.6 rewrite) the piano's register windows (MIDI,
+ *  sounding): the deliberate left hand sits in 40-55 (vocalbacking 40-56,
+ *  below the vocal zone); the right hand starts at 64 or above
+ *  (vocalbacking 82 or above — the sparkle band above the zone). The band
+ *  56-63 stays empty on the non-vocalbacking templates (the hand split),
+ *  and 57-81 stays empty on vocalbacking (the vocal zone). The high
+ *  sparkle writes 84 and above within the hard range.  §16.2b (Phase 11.4)
+ *  the sparkle band is capped: the BODY writes 82-91; the 92-96 top is
+ *  rare — only the phrase-start chords of peak-level bars may write it
+ *  (VB_SPARKLE_TOP). */
 export const PIANO_LH = [40, 55] as const;
+export const PIANO_RH = [64, 84] as const;
 export const PIANO_SPARKLE_CAP = 96;
+export const PIANO_SPARKLE_FLOOR = 84;
 export const VB_SPARKLE = [82, 91] as const;
 export const VB_SPARKLE_TOP = 96;
 export const VB_LOW = [40, 56] as const;
-/** §16.3a (Phase 11.4) the relief drive's low register (below the vocal
- *  zone / below 57): the driveLow variant folds the whole chord in here.
- *  §16.6 (Phase 11.5) the low-interval rule (the groups below MIDI 48 sit
- *  a fifth or wider apart) re-voices the ascending selection — the root's
- *  octave joins the candidate set and a too-close tone lifts an octave —
- *  so every root keeps three or four voices inside 40-56. Only the
- *  REGISTER changes; the grid and the velocities stay the relief's own. */
-export const DRIVE_LOW = VB_LOW;
 
-/** §16.3a (Phase 11.1) the piano's per-section pattern menu, drawn per
- *  section instance per take on its OWN salted stream (the existing draw
- *  streams untouched). chorus-type sections draw the relief drive's
- *  voicing variants (the drive's grid, note counts and velocities stay
- *  exactly the Phase 11 relief's — only the voicing changes, so the chorus
- *  energy is untouched); the other sections draw the comp menu (chamber,
- *  sonata) or the vocalbacking menu. Every section type has ≥ 4 outcomes.
- *  §16.3a (Phase 11.4): the drive menu grows the LOW and SPLIT variants —
- *  the chorus is no longer always high. The low variant folds the drive's
- *  chord below the vocal zone (40-56); the split strikes a low root with
- *  the remaining chord tones above the zone (82+), nothing in 57-81. Both
- *  keep the drive's grid, per-strike voice count and velocities exactly
- *  (the relief's energy contract). When the HARP owns a section's
- *  arpeggiator the vocalbacking piano draws only its non-arpeggio patterns
- *  (the one-arpeggiator rule — highArp is the menu's only figure). */
-export type PianoPattern =
-  | 'block' | 'offbeat' | 'broken' | 'alberti' | 'dyad' | 'echo' | 'callfill'
-  | 'sparkle' | 'lowFifth' | 'highArp' | 'dyadHigh'
-  | 'driveBlock' | 'driveInvert' | 'driveOpen' | 'driveTight' | 'driveLow' | 'driveSplit'
-  | 'figRoll' | 'figBroken' | 'figAlberti' | 'figSyncopate' | 'figTopVoice' | 'figOctavePulse'
-  | 'blockFamily';
-export const PIANO_COMP_MENU: readonly PianoPattern[] = ['block', 'offbeat', 'broken', 'alberti', 'dyad', 'echo', 'callfill'];
-export const PIANO_VB_MENU: readonly PianoPattern[] = ['sparkle', 'lowFifth', 'highArp', 'dyadHigh'];
-export const PIANO_DRIVE_MENU: readonly PianoPattern[] = ['driveBlock', 'driveInvert', 'driveOpen', 'driveTight', 'driveLow', 'driveSplit'];
-/** §16.5 (Phase 11.5) the chorus figure menu — the chorus is no longer only
- *  quarter-note block strikes. Six rhythmic figures, drawn per chorus
- *  occurrence and changing at phrase level (one chorus can use two or more),
- *  plus TWO block slots at indices 4 and 7 (never adjacent, so consecutive
- *  phrases never both draw blocks): when a block slot draws, the relief
- *  drive's own six voicing variants rotate across the phrases that drew it
- *  — the existing block-drive variants stay in the menu at exactly the 25%
- *  cap of chorus bars, and their windows are the ones the chorus-mean floor
- *  is measured against. The block slot is resolved to a concrete drive
- *  variant by the plan before the renderer ever sees it. */
-export const PIANO_CHORUS_FIGURE_MENU: readonly PianoPattern[] = [
-  'figRoll', 'figBroken', 'figAlberti', 'figSyncopate', 'blockFamily', 'figTopVoice', 'figOctavePulse', 'blockFamily',
-];
-/** The sentinel the chorus rotation draws for the block-drive slot (the plan
- *  resolves it to one of PIANO_DRIVE_MENU; the renderer never sees it). */
-export const PIANO_BLOCK_FAMILY = 'blockFamily' as const;
-/** The vocalbacking patterns that are not arpeggio figures — the menu the
- *  piano draws from where the harp owns the section's arpeggiator. */
-export const PIANO_VB_MENU_NON_ARP: readonly PianoPattern[] = ['sparkle', 'lowFifth', 'dyadHigh'];
-/** The relief drive's variants that write the deliberate low register. */
-export const DRIVE_LOW_VARIANTS: readonly PianoPattern[] = ['driveLow', 'driveSplit'];
+/** §16.9 (Phase 11.6) the piano's polyphony cap — the engine enforces it
+ *  over the realised candidates: at most 8 simultaneous notes, at most 2 of
+ *  them below MIDI 55, at most 6 at or above 55. When a new note would
+ *  exceed its band the EARLIEST still-sounding note in that band ends at
+ *  the new onset (the cascade's own release rule — the ring stays inside
+ *  the cap). */
+export const PIANO_CONCURRENCY = { total: 8, below55: 2, at55: 6 } as const;
+/** §16.9 (Phase 11.6) the share caps the draw and the renderer obey. */
+export const PIANO_STAB_MAX = 0.10;
+export const PIANO_REPEATED_MAX = 0.15;
+export const PIANO_BLOCK_MAX = 0.25;
+export const PIANO_ARPUP_MAX = 0.20;
+export const PIANO_PEDAL_MAX = 0.10;
+/** The hand-split gap: at least a sixth (8 semitones) between the LH top
+ *  note and the RH bottom note of a strike. */
+export const PIANO_HAND_GAP = 8;
+
+/* ------------------------------------------------------------------------
+ * §16.9 (Phase 11.6) the piano FROM SCRATCH: jobs, layers, figures. The
+ * old comping menu, the six drive variants, the chorus figure rotation,
+ * the piano arpeggiator kind and the octave pulse kind are DELETED (their
+ * tests retire with them). Every piano event belongs to a hand:
+ *   LH — a single root, an octave or an open fifth (root plus fifth, no
+ *        third), lowest note 40-55 (vocalbacking 40-56); never a third or
+ *        a fourth below 55; at most 2 notes below 55 sound at once.
+ *   RH — chords and figures whose lowest note is 64+ (vocalbacking 82+);
+ *        the minimum interval inside an RH chord is a third; at least a
+ *        sixth between the LH top and the RH bottom; every chord of 3+
+ *        notes spans at least an octave. Inversions exist only inside RH.
+ * The bass note — the lowest sounding note of every strike — is the chord
+ * root (or the fifth on a deliberate pedal point, at most 10% of strikes):
+ * the LH only ever writes the root below its fifth or octave, so the rule
+ * holds by construction. Layers, added bar by bar by the energy arc:
+ *   L0 Body   — the LH, struck at the chord change and held to the end of
+ *               the harmonic span (at most 1 bar, never past a tacet bar
+ *               or a moment boundary);
+ *   L1 Chord  — the RH chord held the same way: block held, rolled
+ *               (staggered inside the first eighth, then held), pad with
+ *               one slow stepwise inner voice;
+ *   L2 Figure — the moving part (the catalog below);
+ *   L3 Power  — octave doubling or broken octaves, at high energy only.
+ * Above 0.72 ABSOLUTE energy the non-chorus piano thins to L0 plus an L3
+ * hit on downbeats; at 0.90 ABSOLUTE and above it is tacet except the
+ * tutti hit and the final bar (the chamber/sonata/vocalbacking clamps are
+ * 0.65-0.70 — they never reach either band; cinematic and hybridstudio
+ * do). The chorus relief keeps the full job from the LOW gate — the
+ * chorus must not get thinner.
+ * ---------------------------------------------------------------------- */
+
+export type PianoJob = 'support' | 'motion' | 'rhythm' | 'color' | 'melody' | 'power';
+
+/** The L2 figure catalog (one per section phrase, realised by the renderer). */
+export type PianoFigure =
+  | 'alberti'            // low-high-mid-high in the RH over the held LH root (chamber, sonata — heavy in sonata)
+  | 'arpUp' | 'arpDown' | 'arpPendulum' // eighth broken chords, RH, over the held body
+  | 'wideBroken'         // LH root, a gap, then high chord tones (the main motion in vocalbacking)
+  | 'cascade'            // slow arpeggio, each note held to the span end (cap-trimmed)
+  | 'ostinatoCell'       // a 3-4 note cell from the existing ostinato vocabulary over the held body
+  | 'sparkleCell'        // the sparse sparkle cell (vocalbacking color, at most one section per take)
+  | 'pump'               // the 3+3+2 syncopated pump, each strike held to the next
+  | 'repeatedChords'     // RH chords on every beat, each held to the next
+  | 'stab'               // short dry chord on beat 1 (cinematic, hybridstudio)
+  | 'brokenOctaves'      // LH low-high octave alternation (the power job)
+  | 'octavePulse'        // LH octave on the beat under the held RH chord (the power job)
+  | 'flourish'           // diatonic upward run landing on a chorus downbeat (not vocalbacking)
+  | 'highSparkle'        // single high notes at 84+, soft, low energy
+  | 'highRoll'           // the high rolled chord (the color job's third outcome)
+  | 'answer';            // the echo of the strings' lead in the answer windows (chamber, sonata)
+
+/** The L1 chord variants (the support and melody jobs hold one per section). */
+export type PianoL1 = 'blockHeld' | 'rolled' | 'pad';
+export const PIANO_L1_MENU: readonly PianoL1[] = ['blockHeld', 'rolled', 'pad'];
+
+/** The job menu per template — drawn per SECTION INSTANCE by a balanced
+ *  rotation offset per take (the same rotation family the 11.4 menu used),
+ *  so adjacent menu entries land on adjacent sections and the same job
+ *  never repeats in two consecutive sections of one take. Chamber and
+ *  sonata keep the melody job (the answers in the string rests) and a
+ *  limited rhythm job (the pump); cinematic and hybridstudio draw the five
+ *  non-melody jobs (their fillGating targets the percussion, so a melody
+ *  job there would never leave the support layers); vocalbacking has no
+ *  melody and no stabs. */
+export const PIANO_JOB_MENUS: Record<string, readonly PianoJob[]> = {
+  'ensemble.chamber': ['support', 'motion', 'melody', 'rhythm', 'power'],
+  'ensemble.sonata': ['support', 'motion', 'melody', 'rhythm', 'power'],
+  'ensemble.vocalbacking': ['support', 'motion', 'rhythm', 'color', 'power'],
+  'ensemble.cinematic': ['support', 'motion', 'rhythm', 'color', 'power'],
+  'ensemble.hybridstudio': ['support', 'motion', 'rhythm', 'color', 'power'],
+};
+export const PIANO_JOB_FALLBACK: readonly PianoJob[] = ['support', 'motion', 'rhythm', 'color', 'power'];
+
+/** The figure menu per template and job (the phrase-level rotation walks
+ *  the job's own menu; every figure realises over the 20-run survey by
+ *  construction). Chamber leans on the arpeggios and the cascade; sonata
+ *  leans on the Alberti (the heavy weight — two of six menu slots);
+ *  cinematic leans on the arpeggio and the ostinato cell; hybridstudio on
+ *  the cell and the stab; vocalbacking's motion is the high cascade, the
+ *  pendulum and the wide-broken, its color the sparse sparkle (the
+ *  flourish stays out — the zone). */
+export const PIANO_MOTION_MENUS: Record<string, readonly PianoFigure[]> = {
+  'ensemble.chamber': ['arpUp', 'arpDown', 'arpPendulum', 'cascade', 'wideBroken', 'alberti'],
+  'ensemble.sonata': ['alberti', 'arpPendulum', 'alberti', 'cascade', 'wideBroken'],
+  'ensemble.vocalbacking': ['cascade', 'arpPendulum', 'wideBroken'],
+  'ensemble.cinematic': ['arpUp', 'arpDown', 'arpPendulum', 'cascade', 'wideBroken', 'ostinatoCell'],
+  'ensemble.hybridstudio': ['arpUp', 'arpPendulum', 'cascade', 'wideBroken', 'ostinatoCell'],
+};
+export const PIANO_RHYTHM_MENUS: Record<string, readonly PianoFigure[]> = {
+  'ensemble.chamber': ['pump'],
+  'ensemble.sonata': ['pump'],
+  'ensemble.vocalbacking': ['pump'],
+  'ensemble.cinematic': ['ostinatoCell', 'stab', 'pump'],
+  'ensemble.hybridstudio': ['ostinatoCell', 'stab', 'pump'],
+};
+export const PIANO_COLOR_MENUS: Record<string, readonly PianoFigure[]> = {
+  'ensemble.chamber': ['highSparkle', 'flourish', 'highRoll'],
+  'ensemble.sonata': ['highSparkle', 'flourish', 'highRoll'],
+  'ensemble.vocalbacking': ['highSparkle', 'sparkleCell'],
+  'ensemble.cinematic': ['highSparkle', 'flourish', 'highRoll'],
+  'ensemble.hybridstudio': ['highSparkle', 'flourish', 'highRoll'],
+};
+export const PIANO_POWER_FIGURES: readonly PianoFigure[] = ['brokenOctaves', 'octavePulse'];
+/** The arpeggio figures — excluded where the harp owns the section type's
+ *  arpeggiator (the one-arpeggiator rule). */
+export const PIANO_ARP_FIGURES: readonly PianoFigure[] = ['arpUp', 'arpDown', 'arpPendulum'];
 
 /** §16.6 (Phase 11.5) the harp's per-section figure menu. The bed realises
  *  the drawn figure instead of the single broken-chord-eighths shape; the

@@ -13,9 +13,8 @@ import { chunksForTrack } from '../src/export/profile';
 import { EXPORT_PROFILES } from '../src/export/profiles';
 import { buildMergedMidi } from '../src/export/midi';
 import {
-  KEYS_GATES, PIANO_COMP_MENU, PIANO_DRIVE_MENU, PIANO_VB_MENU,
-  VB_LOW, VB_SPARKLE, VB_SPARKLE_TOP,
-  type KeysPart, type PianoPattern,
+  KEYS_GATES, VB_SPARKLE, VB_SPARKLE_TOP,
+  type KeysPart,
 } from '../src/orchestrator/keys/profile';
 
 /**
@@ -41,7 +40,7 @@ const PIANO: KeysPart = 'piano';
 const THREE = (): Project => projectFromFixture(JSON.parse(JSON.stringify(threeChorus)));
 const DORIAN = (): Project => projectFromFixture(JSON.parse(JSON.stringify(dorian)));
 
-interface Run { templateId: string; take: number; fixture: string; project: Project; result: ReturnType<typeof composeAllTracks>; planPatterns: { startBar: number; pattern: PianoPattern }[] }
+interface Run { templateId: string; take: number; fixture: string; project: Project; result: ReturnType<typeof composeAllTracks>; pianoJobs: { startBar: number; job: string; figures: string[] }[] }
 const SURVEY: Run[] = [];
 const composeTake = (fixture: 'three' | 'dorian', templateId: string, take: number, record = true) => {
   const p = fixture === 'three' ? THREE() : DORIAN();
@@ -49,7 +48,7 @@ const composeTake = (fixture: 'three' | 'dorian', templateId: string, take: numb
   p.orchestration = { take };
   const result = composeAllTracks(p, { seed: 11 });
   const project = { ...p, tracks: result.tracks, orchestration: result.orchestration } as Project;
-  const run: Run = { templateId, take, fixture, project, result, planPatterns: result.plan.keys.pianoPatterns };
+  const run: Run = { templateId, take, fixture, project, result, pianoJobs: result.plan.keys.pianoJobs.map((j) => ({ startBar: j.startBar, job: j.job, figures: j.figures as string[] })) };
   if (record) SURVEY.push(run);
   return run;
 };
@@ -68,11 +67,10 @@ const isChorusName = (name: string): boolean => /chorus|refrain|hook|drop/.test(
  *  phrase's own figure from the plan's chorusFigures; the non-chorus
  *  sections read the section pattern as before. Returns null when the
  *  section's piano never sounded. */
-const realizedPatternOf = (run: Run, sec: { name: string; startBar: number; lengthBars: number }): PianoPattern | null => {
-  const isChorusSec = isChorusName(sec.name);
-  const drawn = isChorusSec
-    ? (run.result.plan.keys.chorusFigures.find((e) => e.startBar === sec.startBar)?.figures ?? [run.planPatterns.find((e) => e.startBar === sec.startBar)?.pattern])[0] ?? null
-    : run.planPatterns.find((e) => e.startBar === sec.startBar)?.pattern ?? null;
+/** Phase 11.6 UPDATE (named): the realized reading is the JOB per section
+ *  instance (the phrase figures live in the job's own list). */
+const realizedPatternOf = (run: Run, sec: { name: string; startBar: number; lengthBars: number }): string | null => {
+  const drawn = run.pianoJobs.find((e) => e.startBar === sec.startBar)?.job ?? null;
   if (!drawn) return null;
   const bt = barTicks(run.project.timeSignature);
   const bars = run.result.plan.keys.bars.length;
@@ -80,20 +78,15 @@ const realizedPatternOf = (run: Run, sec: { name: string; startBar: number; leng
   if (!piano) return null;
   // the 11.5 chorus reading: only the DRAWN PHRASE's bars count (the
   // section's other phrases play their own figures)
-  const phraseEnd = isChorusSec ? sec.startBar + 4 : sec.startBar + sec.lengthBars;
   const notes: Note[] = [];
   for (const n of piano.notes) {
     const bar = Math.floor(n.startTick / bt) + 1;
-    if (bar < sec.startBar || bar >= Math.min(phraseEnd, sec.startBar + sec.lengthBars) || bar > bars) continue;
-    const kind = run.result.plan.keys.bars[bar - 1]?.voices.piano;
-    if (kind !== 'comp') continue;
+    if (bar < sec.startBar || bar >= sec.startBar + sec.lengthBars || bar > bars) continue;
+    if (run.result.plan.keys.bars[bar - 1]?.voices.piano !== 'job') continue;
     notes.push(n);
   }
   if (!notes.length) return null;
-  if (drawn === 'lowFifth') {
-    // the low root plus fifth: every note below the vocal zone
-    return notes.every((n) => n.pitch < 57) ? drawn : null;
-  }
+  void drawn;
   if (drawn === 'sparkle' || drawn === 'dyadHigh' || drawn === 'highArp') {
     // the above-the-zone patterns: every note outside 57-81
     return notes.every((n) => !inVocalZone(n.pitch)) ? drawn : null;
@@ -140,42 +133,22 @@ describe('Phase 11.4: the byte pins', () => {
   // carries the 11.5 velocity-only allowance (no pitch, timing or layer
   // change; the velocity delta is reported — the measured delta over the
   // survey is printed). The symphony has no piano and keeps its pin.
-  it('cinematic and hybridstudio piano keep every non-velocity field byte-identical to golden103 (the 11.5 velocity-only allowance; the symphony piano keeps its full pin)', () => {
-    let velN = 0;
-    let velSum = 0;
-    let velMax = 0;
-    for (const templateId of ['ensemble.cinematic', 'ensemble.hybridstudio', 'ensemble.symphony']) {
+  // Phase 11.6 UPDATE (named): the cinematic and hybridstudio piano are
+  // the phase's own movers now (the from-scratch piano engine writes every
+  // template) — the golden103 pin is superseded by the phase116 battery's
+  // golden105 pins (the non-piano tracks byte-identical everywhere).
+  it('the cinematic and hybridstudio piano are the phase\u2019s own movers (they differ from golden105; the other tracks do not \u2014 pinned in phase116)', () => {
+    for (const templateId of ['ensemble.cinematic', 'ensemble.hybridstudio']) {
       const short = templateId.replace('ensemble.', '');
-      for (const [fixTag, fixture] of [['three', 'three'], ['dorian', 'dorian']] as const) {
-        for (let take = 1; take <= 10; take++) {
-          const golden = JSON.parse(readFileSync(new URL(`./golden103/${short}-${fixTag}-t${take}.json`, import.meta.url), 'utf8'));
-          const run = composeTake(fixture, templateId, take, false);
-          const goldPiano = golden.tracks.find((t: { role: string }) => t.role === PIANO);
-          const piano = run.project.tracks.find((t) => t.role === PIANO);
-          if (templateId === 'ensemble.symphony') {
-            expect(stableTrack(piano!), `${short} ${fixTag} t${take}: the piano moved`).toBe(stableTrack(goldPiano));
-            continue;
-          }
-          const gn = goldPiano.notes as Note[];
-          const ln = piano!.notes;
-          expect(ln.length, `${short} ${fixTag} t${take}: the piano note count moved`).toBe(gn.length);
-          for (let j = 0; j < Math.min(gn.length, ln.length); j++) {
-            const x = ln[j];
-            const y = gn[j];
-            expect(
-              `${x.pitch}|${x.startTick}|${x.durationTicks}|${x.articulation ?? ''}|${x.layer ?? ''}`,
-              `${short} ${fixTag} t${take}: the piano moved beyond velocity at note ${j}`,
-            ).toBe(`${y.pitch}|${y.startTick}|${y.durationTicks}|${y.articulation ?? ''}|${y.layer ?? ''}`);
-            if (x.velocity !== y.velocity) { velN++; velSum += Math.abs(x.velocity - y.velocity); velMax = Math.max(velMax, Math.abs(x.velocity - y.velocity)); }
-          }
-        }
-      }
+      const g = JSON.parse(readFileSync(new URL(`./golden105/${short}-three-t1.json`, import.meta.url), 'utf8'));
+      const run = composeTake('three', templateId, 1, false);
+      const piano = run.project.tracks.find((t) => t.role === PIANO);
+      const gp = (g.tracks as { role: string; notes: Note[] }[]).find((t) => t.role === PIANO);
+      expect(piano?.notes.length, `${templateId}: the piano wrote nothing`).toBeGreaterThan(0);
+      expect(JSON.stringify(piano?.notes), `${templateId}: the piano did not move`).not.toBe(JSON.stringify(gp?.notes));
     }
-    console.log(`PHASE114 cinematic/hybridstudio piano velocity-only delta vs golden103: ${velN} notes, mean |dv| ${(velSum / Math.max(1, velN)).toFixed(2)}, max ${velMax}`);
   }, 900000);
 });
-
-/* ---------------- 2. the presence targets ---------------------------------- */
 
 describe('Phase 11.4: the comping presence', () => {
   it('the comp and menu patterns sound at mid energy: non-chorus piano notes per run clear the 11.1 baseline several times over (chamber ~6, sonata ~4, vocalbacking 0 before)', () => {
@@ -296,232 +269,103 @@ describe('Phase 11.4: the vocalbacking register', () => {
     expect(low / total, `the low band holds ${(100 * low / total).toFixed(1)}% of ${total} notes`).toBeGreaterThanOrEqual(0.25);
   }, 900000);
 
-  it('lowFifth realises in verses, bridges and outros (the low band carries the sections the vocal sits over)', () => {
-    const realizedByType = new Map<string, number>();
-    for (const run of SURVEY) {
-      if (run.templateId !== 'ensemble.vocalbacking') continue;
+  // Phase 11.6 UPDATE (named): the lowFifth PATTERN is deleted; the
+  // vocalbacking low band is the LH body (the root and its fifth below the
+  // zone) — the band realises in the verses, the bridges and the outros.
+  it('the vocalbacking low band realises in verses, bridges and outros (the LH body below the zone carries the sections the vocal sits over)', () => {
+    for (const run of SURVEY.filter((r) => r.templateId === 'ensemble.vocalbacking')) {
+      const bt = barTicks(run.project.timeSignature);
+      const piano = run.project.tracks.find((t) => t.role === PIANO);
       const secs = sectionsOf(run.fixture === 'three' ? threeChorus : dorian);
       for (const sec of secs) {
         if (isChorusName(sec.name)) continue;
-        const type = sec.name.trim().toLowerCase();
-        if (realizedPatternOf(run, sec) === 'lowFifth') realizedByType.set(type, (realizedByType.get(type) ?? 0) + 1);
+        const lo = (sec.startBar - 1) * bt;
+        const hi = (sec.startBar - 1 + sec.lengthBars) * bt;
+        const lowNotes = (piano?.notes ?? []).filter((n) => n.startTick >= lo && n.startTick < hi && n.pitch <= 56);
+        expect(lowNotes.length, `${run.fixture} t${run.take}: the low band never realised in the ${sec.name} at b${sec.startBar}`).toBeGreaterThan(0);
       }
     }
-    for (const type of ['verse', 'bridge', 'outro']) {
-      expect(realizedByType.get(type) ?? 0, `lowFifth never realised in a ${type}`).toBeGreaterThanOrEqual(1);
-    }
-    console.log(`PHASE114 lowFifth realisations: ${[...realizedByType.entries()].sort().map(([t, c]) => `${t} ${c}`).join(', ')}`);
   }, 900000);
 });
-
-/** The realized reading for ONE chorus phrase (the 11.5 update): the drawn
- *  figure's own register checks over that phrase's comp notes. */
-const realizedPhraseOf = (run: Run, sec: { name: string; startBar: number; lengthBars: number }, phrase: number, drawn: PianoPattern | undefined): PianoPattern | null => {
-  if (!drawn) return null;
-  const bt = barTicks(run.project.timeSignature);
-  const bars = run.result.plan.keys.bars.length;
-  const piano = run.project.tracks.find((t) => t.role === PIANO);
-  if (!piano) return null;
-  const b0 = sec.startBar + phrase * 4;
-  const b1 = Math.min(b0 + 4, sec.startBar + sec.lengthBars);
-  const notes: Note[] = [];
-  for (const n of piano.notes) {
-    const bar = Math.floor(n.startTick / bt) + 1;
-    if (bar < b0 || bar >= b1 || bar > bars) continue;
-    if (run.result.plan.keys.bars[bar - 1]?.voices.piano !== 'comp') continue;
-    notes.push(n);
-  }
-  if (!notes.length) return null;
-  if (drawn === 'lowFifth') return notes.every((n) => n.pitch < 57) ? drawn : null;
-  if (drawn === 'driveLow') return notes.every((n) => n.pitch >= VB_LOW[0] && n.pitch <= VB_LOW[1]) ? drawn : null;
-  if (drawn === 'driveSplit') {
-    const low = notes.filter((n) => n.pitch < 57).length;
-    const high = notes.filter((n) => n.pitch >= 82).length;
-    return low > 0 && high > 0 && notes.every((n) => n.pitch < 57 || n.pitch >= 82) ? drawn : null;
-  }
-  return drawn;
-};
-
-/* ---------------- 4. the drive variants ------------------------------------- */
 
 describe('Phase 11.4: the drive variants', () => {
-  // Phase 11.5 UPDATE (named): the chorus draws per PHRASE now — the
-  // drive variants realise through the block slots of the figure rotation,
-  // so the register assertion reads the plan's chorusFigures per phrase
-  // and checks only that phrase's bars.
-  it('the drive menu holds six variants; the low variant writes only 40-56 and the split pairs a low root with sparkle tones, nothing in 57-81 (per phrase — the 11.5 update)', () => {
-    expect(PIANO_DRIVE_MENU.length).toBe(6);
-    for (const p of ['driveLow', 'driveSplit']) expect(PIANO_DRIVE_MENU).toContain(p);
-    const seen: Record<string, number> = {};
+  // Phase 11.6 UPDATE (named): the six drive variants are deleted; the
+  // register contracts they carried live in the phase116 battery (the
+  // vocalbacking bands, the hand split, the one-arpeggiator rule) and in
+  // the phase111 updates. The realized reading keeps the section ->
+  // job mapping alive for the diversity tests.
+  it('every section instance draws exactly one job, and the chorus uses at least two figures across its phrases', () => {
     for (const run of SURVEY) {
       if (!MENU_TEMPLATES.includes(run.templateId)) continue;
-      const bt = barTicks(run.project.timeSignature);
-      const bars = run.result.plan.keys.bars.length;
-      const piano = run.project.tracks.find((t) => t.role === PIANO);
       const secs = sectionsOf(run.fixture === 'three' ? threeChorus : dorian);
       for (const sec of secs) {
-        if (!isChorusName(sec.name)) continue;
-        const figs = run.result.plan.keys.chorusFigures.find((e) => e.startBar === sec.startBar)?.figures ?? [];
-        const nPhrases = Math.max(1, Math.ceil(sec.lengthBars / 4));
-        for (let ph = 0; ph < nPhrases; ph++) {
-          const drawn = figs[ph];
-          if (drawn !== 'driveLow' && drawn !== 'driveSplit') continue;
-          seen[drawn] = (seen[drawn] ?? 0) + 1;
-          const b0 = sec.startBar + ph * 4;
-          const b1 = Math.min(b0 + 4, sec.startBar + sec.lengthBars);
-          for (const n of piano?.notes ?? []) {
-            const bar = Math.floor(n.startTick / bt) + 1;
-            if (bar < b0 || bar >= b1 || bar > bars) continue;
-            if (run.result.plan.keys.bars[bar - 1]?.voices.piano !== 'comp') continue;
-            if (drawn === 'driveLow') {
-              expect(n.pitch, `${run.templateId} ${run.fixture} t${run.take}: a driveLow note at ${n.pitch}`).toBeGreaterThanOrEqual(VB_LOW[0]);
-              expect(n.pitch, `${run.templateId} ${run.fixture} t${run.take}: a driveLow note at ${n.pitch}`).toBeLessThanOrEqual(VB_LOW[1]);
-            } else {
-              expect(
-                n.pitch < 57 || n.pitch >= 82,
-                `${run.templateId} ${run.fixture} t${run.take}: a driveSplit note in the middle (${n.pitch})`,
-              ).toBe(true);
-            }
+        const job = run.pianoJobs.find((e) => e.startBar === sec.startBar);
+        expect(job, `${run.templateId} ${run.fixture} t${run.take}: the section at b${sec.startBar} drew no job`).toBeTruthy();
+        // the figure-carrying jobs only (the support and the melody draw
+        // no figures — their choruses ride the L1 chord); the rhythm
+        // job's chamber/sonata/vocalbacking menu is the pump alone (the
+        // limited rhythm job — a single-figure rotation is its own shape)
+        if (isChorusName(sec.name) && sec.lengthBars >= 4 && job!.figures.length > 0 && job!.job !== 'rhythm') {
+          expect(job!.figures.length, `${run.templateId} ${run.fixture} t${run.take}: the chorus at b${sec.startBar} drew one figure`).toBeGreaterThanOrEqual(2);
+          for (let i = 1; i < job!.figures.length; i++) {
+            expect(job!.figures[i], `${run.templateId} ${run.fixture} t${run.take}: consecutive phrases repeat`).not.toBe(job!.figures[i - 1]);
           }
         }
       }
     }
-    expect(seen.driveLow ?? 0, 'driveLow never drew').toBeGreaterThanOrEqual(1);
-    expect(seen.driveSplit ?? 0, 'driveSplit never drew').toBeGreaterThanOrEqual(1);
-    console.log(`PHASE114 drive variant phrase draws (20 runs, 3 templates): driveLow ${seen.driveLow ?? 0}, driveSplit ${seen.driveSplit ?? 0}`);
-  }, 900000);
-
-  it('the arpeggio owner is respected: a harp-owned vocalbacking section never draws highArp, and highArp realises as an arpeggio where it is drawn', () => {
-    let harpOwnedHighArp = 0;
-    let pianoOwnedHighArp = 0;
-    let realized = 0;
-    for (const run of SURVEY) {
-      if (run.templateId !== 'ensemble.vocalbacking') continue;
-      const bt = barTicks(run.project.timeSignature);
-      const piano = run.project.tracks.find((t) => t.role === PIANO);
-      const harp = run.project.tracks.find((t) => t.role === 'harp');
-      const harpBars = new Set<number>((harp?.notes ?? []).map((n) => Math.floor(n.startTick / bt) + 1));
-      const secs = sectionsOf(run.fixture === 'three' ? threeChorus : dorian);
-      for (const sec of secs) {
-        if (isChorusName(sec.name)) continue;
-        const drawn = run.planPatterns.find((e) => e.startBar === sec.startBar)?.pattern;
-        if (drawn !== 'highArp') continue;
-        const owner = run.result.plan.keys.arpeggiatorByType[sec.name.trim().toLowerCase() || '*'];
-        if (owner === 'harp') harpOwnedHighArp++;
-        else pianoOwnedHighArp++;
-        // realised as the arpeggio figure: at least one harp-free bar with
-        // four or more piano eighths
-        for (let b = sec.startBar; b < sec.startBar + sec.lengthBars; b++) {
-          if (harpBars.has(b)) continue;
-          const inBar = (piano?.notes ?? []).filter((n) => Math.floor(n.startTick / bt) + 1 === b);
-          if (inBar.length >= 4) { realized++; break; }
-        }
-      }
-    }
-    expect(harpOwnedHighArp, 'highArp drawn on a harp-owned section').toBe(0);
-    expect(pianoOwnedHighArp, 'highArp never drawn').toBeGreaterThanOrEqual(1);
-    expect(realized, 'highArp never realised as an arpeggio figure').toBeGreaterThanOrEqual(1);
-    console.log(`PHASE114 highArp: ${pianoOwnedHighArp} draws on piano-owned sections, ${realized} realised as the figure`);
   }, 900000);
 });
-
-/* ---------------- 5. the realized pattern diversity -------------------------- */
 
 describe('Phase 11.4: the realized pattern diversity (measured on the output notes)', () => {
-  // Phase 11.5 UPDATE (named): the chorus sections draw per PHRASE — the
-  // coverage reads every phrase's own realized figure, not the section's
-  // phrase-0 draw alone.
-  it('every menu pattern realises at least once per template over the 20 runs (the comp menu, the vocalbacking menu and the six drive variants — per phrase, the 11.5 update)', () => {
-    for (const templateId of MENU_TEMPLATES) {
-      const realized = new Map<string, number>();
-      const runs = SURVEY.filter((r) => r.templateId === templateId);
-      const secs = sectionsOf(runs[0].fixture === 'three' ? threeChorus : dorian);
-      const dorianSecs = sectionsOf(dorian);
-      for (const run of runs) {
-        const all = run.fixture === 'three' ? secs : dorianSecs;
-        for (const sec of all) {
-          if (isChorusName(sec.name)) {
-            const figs = run.result.plan.keys.chorusFigures.find((e) => e.startBar === sec.startBar)?.figures ?? [];
-            const nPhrases = Math.max(1, Math.ceil(sec.lengthBars / 4));
-            for (let ph = 0; ph < nPhrases; ph++) {
-              const rp = realizedPhraseOf(run, sec, ph, figs[ph]);
-              if (rp) realized.set(rp, (realized.get(rp) ?? 0) + 1);
-            }
-            continue;
-          }
-          const rp = realizedPatternOf(run, sec);
-          if (rp) realized.set(rp, (realized.get(rp) ?? 0) + 1);
-        }
-      }
-      const menu = templateId === 'ensemble.vocalbacking'
-        ? [...PIANO_VB_MENU, ...PIANO_DRIVE_MENU]
-        : [...PIANO_COMP_MENU, ...PIANO_DRIVE_MENU];
-      const missing = menu.filter((p) => !realized.has(p));
-      expect(missing, `${templateId}: unrealised menu patterns ${missing.join(', ')} (realized: ${[...realized.entries()].sort().map(([p, c]) => `${p} ${c}`).join(', ')})`).toEqual([]);
-    }
-  }, 900000);
-
-  // Phase 11.5 UPDATE (named): the chorus sections read per PHRASE (the
-  // figure rotation's own diversity), the other sections per instance.
-  it("each section type's most frequent realised pattern stays at or under 40% (no samey section class — the 11.5 per-phrase update)", () => {
-    for (const templateId of MENU_TEMPLATES) {
+  // Phase 11.6 UPDATE (named): the realized reading is the JOB per section
+  // instance; the coverage and the caps are pinned in the phase116 battery
+  // (the jobs and the figures describe) — these keep the phase114-style
+  // realized-notes reading (a job counts as realised when its section's
+  // bars carry piano notes under the job kind).
+  it('every job in each template\u2019s rotation realises at least once over the 20 runs, and the top share stays at or under 40%', () => {
+    for (const templateId of TEMPLATES) {
+      if (templateId === 'ensemble.symphony') continue; // no piano in band
       const byType = new Map<string, Map<string, number>>();
-      const runs = SURVEY.filter((r) => r.templateId === templateId);
-      const secs = sectionsOf(runs[0].fixture === 'three' ? threeChorus : dorian);
-      const dorianSecs = sectionsOf(dorian);
-      for (const run of runs) {
-        const all = run.fixture === 'three' ? secs : dorianSecs;
-        for (const sec of all) {
-          const type = sec.name.trim().toLowerCase();
-          if (isChorusName(sec.name)) {
-            const figs = run.result.plan.keys.chorusFigures.find((e) => e.startBar === sec.startBar)?.figures ?? [];
-            const nPhrases = Math.max(1, Math.ceil(sec.lengthBars / 4));
-            for (let ph = 0; ph < nPhrases; ph++) {
-              const rp = realizedPhraseOf(run, sec, ph, figs[ph]);
-              if (!rp) continue;
-              if (!byType.has(type)) byType.set(type, new Map());
-              const m = byType.get(type)!;
-              m.set(rp, (m.get(rp) ?? 0) + 1);
-            }
-            continue;
-          }
-          const rp = realizedPatternOf(run, sec);
-          if (!rp) continue;
+      const seen: Record<string, number> = {};
+      for (const run of SURVEY.filter((r) => r.templateId === templateId)) {
+        const secs = sectionsOf(run.fixture === 'three' ? threeChorus : dorian);
+        for (const sec of secs) {
+          const drawn = realizedPatternOf(run, sec);
+          if (!drawn) continue;
+          seen[drawn] = (seen[drawn] ?? 0) + 1;
+          const type = sec.name.trim().toLowerCase() || '*';
           if (!byType.has(type)) byType.set(type, new Map());
           const m = byType.get(type)!;
-          m.set(rp, (m.get(rp) ?? 0) + 1);
+          m.set(drawn, (m.get(drawn) ?? 0) + 1);
         }
       }
-      for (const [type, m] of [...byType.entries()].sort()) {
+      expect(Object.keys(seen).length, `${templateId}: only ${Object.keys(seen).length} jobs realised`).toBeGreaterThanOrEqual(5);
+      for (const [type, m] of byType) {
         const total = [...m.values()].reduce((a, b) => a + b, 0);
-        const [top, topN] = [...m.entries()].sort((a, b) => b[1] - a[1])[0];
-        expect(topN / total, `${templateId} ${type}: ${top} realises ${topN}/${total} (over the 40% cap)`).toBeLessThanOrEqual(0.4);
+        const top = Math.max(...m.values());
+        expect(top / total, `${templateId} ${type}: the top job holds ${(top / total * 100).toFixed(1)}%`).toBeLessThanOrEqual(0.40 + 1e-9);
       }
     }
   }, 900000);
 
-  it('distinct realised per-section sequences are at least 12 of 20 runs for chamber, sonata and vocalbacking', () => {
-    for (const templateId of MENU_TEMPLATES) {
-      const sequences = new Set<string>();
-      const runs = SURVEY.filter((r) => r.templateId === templateId);
-      const secs = sectionsOf(runs[0].fixture === 'three' ? threeChorus : dorian);
-      const dorianSecs = sectionsOf(dorian);
-      for (const run of runs) {
-        const all = (run.fixture === 'three' ? secs : dorianSecs).slice().sort((a, b) => a.startBar - b.startBar);
-        const seq: string[] = [];
-        for (const sec of all) {
-          const rp = realizedPatternOf(run, sec);
-          if (rp) seq.push(`${sec.name.trim().toLowerCase()}:${rp}`);
+  it('distinct realised per-section job sequences are at least 14 of 20 runs for chamber, sonata and vocalbacking', () => {
+    for (const templateId of ['ensemble.chamber', 'ensemble.sonata', 'ensemble.vocalbacking']) {
+      const seqs = new Set<string>();
+      for (const run of SURVEY.filter((r) => r.templateId === templateId)) {
+        const secs = sectionsOf(run.fixture === 'three' ? threeChorus : dorian);
+        const parts: string[] = [];
+        for (const sec of secs) {
+          const drawn = realizedPatternOf(run, sec);
+          if (!drawn) continue;
+          const figs = run.pianoJobs.find((e) => e.startBar === sec.startBar)?.figures ?? [];
+          parts.push(`${sec.startBar}${drawn[0]}${figs[0]?.[0] ?? '-'}`);
         }
-        if (seq.length) sequences.add(seq.join(' '));
+        seqs.add(parts.join('|'));
       }
-      expect(sequences.size, `${templateId}: only ${sequences.size} distinct realised sequences over 20 runs`).toBeGreaterThanOrEqual(12);
-      console.log(`PHASE114 ${templateId.replace('ensemble.', '')}: ${sequences.size}/20 distinct realised sequences`);
+      expect(seqs.size, `${templateId}: only ${seqs.size} distinct realised sequences`).toBeGreaterThanOrEqual(14);
     }
   }, 900000);
 });
-
-/* ---------------- 6. the clamp, the chorus-mean floor, hygiene --------------- */
 
 describe('Phase 11.4: the clamp, the chorus-mean floor, hygiene', () => {
   it('energy never exceeds the clamp max across six templates × both fixtures × takes 1-10 (zero aboveMax); hard findings stay 0', () => {

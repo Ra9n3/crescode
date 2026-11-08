@@ -14,8 +14,8 @@ import { chunksForTrack } from '../src/export/profile';
 import { EXPORT_PROFILES } from '../src/export/profiles';
 import { buildMergedMidi } from '../src/export/midi';
 import {
-  HARP_FIGURE_MENU, PIANO_DRIVE_MENU, VB_LOW, VB_SPARKLE,
-  type HarpFigure, type PianoPattern,
+  HARP_FIGURE_MENU, VB_LOW, VB_SPARKLE,
+  type HarpFigure,
 } from '../src/orchestrator/keys/profile';
 
 /**
@@ -87,26 +87,22 @@ describe('Phase 11.5: the byte pins', () => {
     }
   }, 900000);
 
-  it('cinematic and hybridstudio piano stay byte-identical to golden104 (no pattern change was requested; the measured velocity delta is zero)', () => {
-    let velN = 0;
+  // Phase 11.6 UPDATE (named): the cinematic and hybridstudio piano are
+  // the phase's own movers now — the golden104 pin is superseded by the
+  // phase116 battery (the golden105 pins: the non-piano tracks everywhere,
+  // the harp velocity-only allowance reported for the ruling).
+  it('the cinematic and hybridstudio piano are the 11.6 movers (they differ from golden105; the harp\u2019s pitch and timing never move \u2014 pinned in phase116)', () => {
     for (const templateId of ['ensemble.cinematic', 'ensemble.hybridstudio']) {
       const short = templateId.replace('ensemble.', '');
-      for (const [fixTag, fixture] of [['three', 'three'], ['dorian', 'dorian']] as const) {
-        for (let take = 1; take <= 10; take++) {
-          const golden = JSON.parse(readFileSync(new URL(`./golden104/${short}-${fixTag}-t${take}.json`, import.meta.url), 'utf8'));
-          const run = composeTake(fixture, templateId, take, false);
-          const goldPiano = golden.tracks.find((t: { role: string }) => t.role === PIANO);
-          const piano = run.project.tracks.find((t) => t.role === PIANO);
-          expect(stableTrack(piano!), `${short} ${fixTag} t${take}: the piano moved`).toBe(stableTrack(goldPiano));
-          velN++;
-        }
-      }
+      const g = JSON.parse(readFileSync(new URL(`./golden105/${short}-three-t1.json`, import.meta.url), 'utf8'));
+      const run = composeTake('three', templateId, 1, false);
+      const piano = run.project.tracks.find((t) => t.role === PIANO);
+      const gp = (g.tracks as { role: string; notes: Note[] }[]).find((t) => t.role === PIANO);
+      expect(piano?.notes.length).toBeGreaterThan(0);
+      expect(JSON.stringify(piano?.notes), `${templateId}: the piano did not move`).not.toBe(JSON.stringify(gp?.notes));
     }
-    console.log(`PHASE115 cinematic/hybridstudio piano pin: ${velN} runs byte-identical to golden104 (velocity delta 0)`);
   }, 900000);
 });
-
-/* ---------------- 2. the vocal zone and the low-interval rule --------------- */
 
 describe('Phase 11.5: the vocal zone and the low register', () => {
   it('vocalbacking keeps ZERO piano AND harp notes inside 57-81 across all 20 runs (the figures live in the low band and the sparkle band)', () => {
@@ -205,54 +201,58 @@ describe('Phase 11.5: the harp ergonomics', () => {
 /* ---------------- 4. the chorus piano figures ------------------------------- */
 
 describe('Phase 11.5: the chorus piano figures', () => {
-  it('at least 3 distinct rhythmic figures realise per template, and the block drive stays at most 25% of the chorus bars (realized)', () => {
-    const FIGURES: PianoPattern[] = ['figRoll', 'figBroken', 'figAlberti', 'figSyncopate', 'figTopVoice', 'figOctavePulse'];
+  // Phase 11.6 UPDATE (named): the chorus figures are the job rotation's
+  // phrase figures now — the block-drive cap became the block-chord cap
+  // (the blockHeld L1 variant at most a quarter of the piano bars), and
+  // the figure coverage/caps are pinned in the phase116 battery. These
+  // keep the phase115 readings on the new vocabulary.
+  it('at least 3 distinct figures realise per template over the 20 runs, and the block chords stay at most a quarter of the chorus piano bars (realized)', () => {
     for (const templateId of MENU_TEMPLATES) {
-      const short = templateId.replace('ensemble.', '');
       const byFigure = new Map<string, number>();
       let blockBars = 0;
       let totalBars = 0;
       for (const run of SURVEY) {
         if (run.templateId !== templateId) continue;
         const bt = barTicks(run.project.timeSignature);
-        const bars = run.result.plan.keys.bars.length;
         const piano = run.project.tracks.find((t) => t.role === PIANO);
         const secs = sectionsOf(run.fixture === 'three' ? threeChorus : dorian);
         for (const sec of secs) {
           if (!isChorusName(sec.name)) continue;
-          const figs = run.result.plan.keys.chorusFigures.find((e) => e.startBar === sec.startBar)?.figures ?? [];
+          const job = run.result.plan.keys.pianoJobs.find((e) => e.startBar === sec.startBar);
+          const figs = job?.figures ?? [];
           const nPhrases = Math.max(1, Math.ceil(sec.lengthBars / 4));
           for (let ph = 0; ph < nPhrases; ph++) {
-            const fig = figs[ph] ?? '?';
+            const fig = figs[ph] ?? job?.job ?? '?';
             const b0 = sec.startBar + ph * 4;
             const b1 = Math.min(b0 + 4, sec.startBar + sec.lengthBars);
             let sounded = false;
             for (const n of piano?.notes ?? []) {
               const bar = Math.floor(n.startTick / bt) + 1;
-              if (bar >= b0 && bar < b1 && bar <= bars) { sounded = true; break; }
+              if (bar >= b0 && bar < b1) { sounded = true; break; }
             }
             if (!sounded) continue;
             byFigure.set(fig, (byFigure.get(fig) ?? 0) + (b1 - b0));
             totalBars += b1 - b0;
-            if (!FIGURES.includes(fig as PianoPattern)) blockBars += b1 - b0;
+            if (job?.job === 'support' && job?.l1 === 'blockHeld') blockBars += b1 - b0;
           }
         }
       }
-      const distinct = [...byFigure.keys()].filter((f) => FIGURES.includes(f as PianoPattern)).length;
-      expect(distinct, `${templateId}: only ${distinct} distinct rhythmic figures realised (${[...byFigure.entries()].map(([k, v]) => `${k} ${v}`).join(', ')})`).toBeGreaterThanOrEqual(3);
+      const distinct = byFigure.size;
+      expect(distinct, `${templateId}: only ${distinct} distinct figures realised`).toBeGreaterThanOrEqual(3);
       const share = blockBars / Math.max(1, totalBars);
-      expect(share, `${templateId}: the block drive holds ${(100 * share).toFixed(1)}% of the chorus bars`).toBeLessThanOrEqual(0.25);
-      console.log(`PHASE115 ${short} chorus figures: ${[...byFigure.entries()].sort().map(([k, v]) => `${k} ${v}`).join(', ')} | block ${(100 * share).toFixed(1)}%`);
+      expect(share, `${templateId}: the block chords hold ${(100 * share).toFixed(1)}% of the chorus bars`).toBeLessThanOrEqual(0.25);
     }
   }, 900000);
 
-  it('the chorus figure rotation changes at phrase level: consecutive phrases never repeat, and a multi-phrase chorus always uses two or more figures', () => {
+  it('the figure rotation changes at phrase level for the multi-figure jobs: consecutive phrases never repeat, and a multi-phrase chorus of a figure-carrying job uses two or more figures', () => {
     for (const run of SURVEY) {
       if (!MENU_TEMPLATES.includes(run.templateId)) continue;
       const secs = sectionsOf(run.fixture === 'three' ? threeChorus : dorian);
       for (const sec of secs) {
         if (!isChorusName(sec.name)) continue;
-        const figs = run.result.plan.keys.chorusFigures.find((e) => e.startBar === sec.startBar)?.figures ?? [];
+        const job = run.result.plan.keys.pianoJobs.find((e) => e.startBar === sec.startBar);
+        const figs = job?.figures ?? [];
+        if (!figs.length || job?.job === 'rhythm') continue; // the pump's single-figure menu
         for (let ph = 1; ph < figs.length; ph++) {
           expect(figs[ph], `${run.templateId} ${run.fixture} t${run.take}: chorus at b${sec.startBar} repeats ${figs[ph]} across phrases ${ph - 1}/${ph}`).not.toBe(figs[ph - 1]);
         }
@@ -497,6 +497,6 @@ describe('Phase 11.5: the clamp, the chorus-mean floor, hygiene', () => {
   }, 600000);
 });
 
-void PIANO_DRIVE_MENU;
+
 void VB_SPARKLE;
 void VB_LOW;

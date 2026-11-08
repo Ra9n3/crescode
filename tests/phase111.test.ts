@@ -11,9 +11,8 @@ import { resolveTemplate } from '../src/config/ensembles';
 import { defaultRules } from '../src/config/generation-rules';
 import { inVocalZone } from '../src/orchestrator/profiles/strings';
 import {
-  PIANO_COMP_MENU, PIANO_DRIVE_MENU, PIANO_VB_MENU,
-  KEYS_GATES, PIANO_LH, VB_LOW, VB_SPARKLE, VB_SPARKLE_TOP,
-  type KeysPart, type PianoPattern,
+  KEYS_GATES, VB_LOW, VB_SPARKLE,
+  type KeysPart,
 } from '../src/orchestrator/keys/profile';
 
 /**
@@ -36,7 +35,7 @@ const PIANO: KeysPart = 'piano';
 const THREE = (): Project => projectFromFixture(JSON.parse(JSON.stringify(threeChorus)));
 const DORIAN = (): Project => projectFromFixture(JSON.parse(JSON.stringify(dorian)));
 
-interface Run { templateId: string; take: number; fixture: string; project: Project; result: ReturnType<typeof composeAllTracks>; planPatterns: { startBar: number; pattern: PianoPattern }[] }
+interface Run { templateId: string; take: number; fixture: string; project: Project; result: ReturnType<typeof composeAllTracks>; pianoJobs: { startBar: number; job: string; figures: string[] }[] }
 const SURVEY: Run[] = [];
 const composeTake = (fixture: 'three' | 'dorian', templateId: string, take: number, record = true) => {
   const p = fixture === 'three' ? THREE() : DORIAN();
@@ -44,7 +43,7 @@ const composeTake = (fixture: 'three' | 'dorian', templateId: string, take: numb
   p.orchestration = { take };
   const result = composeAllTracks(p, { seed: 11 });
   const project = { ...p, tracks: result.tracks, orchestration: result.orchestration } as Project;
-  const run: Run = { templateId, take, fixture, project, result, planPatterns: result.plan.keys.pianoPatterns };
+  const run: Run = { templateId, take, fixture, project, result, pianoJobs: result.plan.keys.pianoJobs.map((j) => ({ startBar: j.startBar, job: j.job, figures: j.figures as string[] })) };
   if (record) SURVEY.push(run);
   return run;
 };
@@ -71,55 +70,41 @@ describe('Phase 11.1: the piano register', () => {
   // (the figures' own register, asserted in phase115.test.ts) — the
   // mean-pitch population reads the comp/arp notes OUTSIDE the chorus
   // sections (the drive-variant exclusion folds into it).
-  it('comp and arpeggiator mean pitch is at least MIDI 66 outside the low-register drive variants and the 11.5 chorus figure bars, every sub-60 note sits in the low window 40-56, and the sub-60 share stays under 15% on chamber and sonata', () => {
-    for (const templateId of TEMPLATES) {
-      const runs = SURVEY.filter((r) => r.templateId === templateId);
-      const bt = barTicks(runs[0].project.timeSignature);
-      const compArp: number[] = [];
-      const lowNotes: { run: Run; n: Note; bar: number }[] = [];
-      for (const run of runs) {
-        const piano = run.project.tracks.find((t) => t.role === PIANO);
-        if (!piano) continue;
-        const lowVariantBars = new Set<number>();
-        for (const e of run.planPatterns) {
-          if (e.pattern !== 'driveLow' && e.pattern !== 'driveSplit') continue;
-          const sec = run.project.sections.find((s) => s.startBar === e.startBar);
-          if (sec) for (let b = sec.startBar; b < sec.startBar + sec.lengthBars; b++) lowVariantBars.add(b);
+  // Phase 11.6 UPDATE (named): the mean-pitch register is superseded by
+  // the hand model — the LH body lives in 40-55 (vocalbacking 40-56) and
+  // the RH starts at 64 (vocalbacking 82); the bands are pinned in
+  // phase116.test.ts and re-asserted here on the sub-60 population.
+  it('every sub-60 piano note sits in the low window 40-56 (the LH body band; the hand-split gap 56-63 stays empty outside the octave form)', () => {
+    for (const run of SURVEY) {
+      const piano = run.project.tracks.find((t) => t.role === PIANO);
+      const bt = barTicks(run.project.timeSignature);
+      for (const n of piano?.notes ?? []) {
+        if (n.pitch >= 60) continue;
+        // the tutti and the final anchors sit at the floor of 36
+        const bt0 = barTicks(run.project.timeSignature);
+        const bar0 = Math.floor(n.startTick / bt0) + 1;
+        const kind0 = run.result.plan.keys.bars[bar0 - 1]?.voices.piano;
+        if (kind0 === 'tutti' || kind0 === 'final') {
+          expect(n.pitch, `${run.templateId} t${run.take}: a moment hit below the floor of 36`).toBeGreaterThanOrEqual(36);
+          continue;
         }
-        for (const sec of run.project.sections) {
-          if (/chorus|refrain|hook|drop/.test(sec.name.trim().toLowerCase())) {
-            for (let b = sec.startBar; b < sec.startBar + sec.lengthBars; b++) lowVariantBars.add(b);
-          }
+        expect(n.pitch, `${run.templateId} t${run.take}: a sub-60 note below the low window`).toBeGreaterThanOrEqual(40);
+        if (n.pitch > 56) {
+          // the octave form's upper note crosses the gap with its partner
+          const barNotes = (piano?.notes ?? []).filter((o) => Math.floor(o.startTick / bt) === Math.floor(n.startTick / bt));
+          const partner = barNotes.some((o) => o.pitch === n.pitch - 12 && Math.abs(o.startTick - n.startTick) <= bt / 2);
+          expect(partner, `${run.templateId} t${run.take}: a ${n.pitch} note in the gap without its octave partner`).toBe(true);
+          continue;
         }
-        const kindByBar = new Map<number, string>();
-        for (const b of run.result.plan.keys.bars) if (b.voices.piano) kindByBar.set(b.bar, b.voices.piano);
-        for (const n of piano.notes) {
-          const bar = Math.floor(n.startTick / bt) + 1;
-          const kind = kindByBar.get(bar);
-          if (kind !== 'comp' && kind !== 'arp') continue;
-          if (lowVariantBars.has(bar)) continue;
-          compArp.push(n.pitch);
-          if (n.pitch < 60) lowNotes.push({ run, n, bar });
-        }
-      }
-      if (!compArp.length) continue; // symphony: no piano in band
-      const mean = compArp.reduce((a, p) => a + p, 0) / compArp.length;
-      expect(mean, `${templateId}: comp/arp mean ${mean.toFixed(1)} below 66`).toBeGreaterThanOrEqual(66);
-      // the only sub-60 comp notes are the deliberate low band: the
-      // left-hand singles (40-55), vocalbacking's lowFifth and the
-      // body-window rescues (40-56)
-      for (const { run, n } of lowNotes) {
-        expect(n.pitch, `${templateId} t${run.take}: a sub-60 note below the low window`).toBeGreaterThanOrEqual(40);
-        expect(n.pitch, `${templateId} t${run.take}: a sub-60 note above the low window`).toBeLessThanOrEqual(56);
-      }
-      if (templateId !== 'ensemble.vocalbacking') {
-        const below = lowNotes.length / compArp.length;
-        expect(below, `${templateId}: ${(100 * below).toFixed(1)}% of comp/arp notes below 60`).toBeLessThanOrEqual(0.15);
+        expect(n.pitch, `${run.templateId} t${run.take}: a sub-60 note above the low window`).toBeLessThanOrEqual(56);
       }
     }
   }, 900000);
 
-  it('the right-hand material sits in its window: 62-84 (chamber, sonata, the arpeggiator), the sparkle body 82-91 with the 92-96 top only on phrase-start chords at peak bars, and 40-56 below it (vocalbacking) — the Phase 11.4 sparkle cap', () => {
+  // Phase 11.6 UPDATE (named): the RH window moves to 64+ (vocalbacking
+  // 82+); the sparkle cap (the 92-96 top only on the phrase-start chords
+  // of peak bars) and the vocal zone carry over unchanged.
+  it('the right-hand material starts at 64 (vocalbacking 82), the sparkle body caps at 91 with the 92-96 top only on phrase-start chords at peak bars, and the notes cap at 96', () => {
     for (const run of SURVEY) {
       const piano = run.project.tracks.find((t) => t.role === PIANO);
       if (!piano) continue;
@@ -127,13 +112,9 @@ describe('Phase 11.1: the piano register', () => {
       const bt = barTicks(run.project.timeSignature);
       for (const n of piano.notes) {
         if (isVB) {
-          expect(
-            (n.pitch >= VB_SPARKLE[0] && n.pitch <= VB_SPARKLE_TOP) || (n.pitch >= VB_LOW[0] && n.pitch <= VB_LOW[1]) || n.pitch < VB_LOW[0],
-            `${run.templateId} t${run.take}: piano note ${n.pitch} outside the sparkle and low windows`,
-          ).toBe(true);
+          expect(n.pitch >= VB_SPARKLE[0] || n.pitch <= VB_LOW[1], `${run.templateId} t${run.take}: piano note ${n.pitch} outside the sparkle and low windows`).toBe(true);
           expect(n.pitch >= 57 && n.pitch <= 81, `${run.templateId} t${run.take}: piano note ${n.pitch} inside the vocal zone`).toBe(false);
           if (n.pitch > VB_SPARKLE[1]) {
-            // the 92-96 top: only the phrase-start chords of peak-level bars
             const bar = Math.floor(n.startTick / bt) + 1;
             const sec = run.project.sections.find((s) => bar >= s.startBar && bar < s.startBar + s.lengthBars);
             const secStart = sec?.startBar ?? 1;
@@ -143,13 +124,14 @@ describe('Phase 11.1: the piano register', () => {
               `${run.templateId} t${run.take}: a ${n.pitch} note outside the phrase-start peak allowance`,
             ).toBe(true);
           }
+        } else if (n.pitch >= 56 && n.pitch <= 63) {
+          // the hand-split gap: only the octave form's upper note crosses
+          // it (its exact-octave partner sounds in the same strike)
+          const barNotes = piano.notes.filter((o) => Math.floor(o.startTick / bt) === Math.floor(n.startTick / bt));
+          const partner = barNotes.some((o) => o.pitch === n.pitch - 12 && Math.abs(o.startTick - n.startTick) <= bt / 2);
+          expect(partner, `${run.templateId} t${run.take}: a ${n.pitch} note in the gap without its octave partner`).toBe(true);
         } else {
-          // the low events are the pulse, the tutti/final hits and the
-          // left-hand singles — everything else stays in 62-84
-          if (n.pitch < 62) {
-            expect(n.pitch, `${run.templateId} t${run.take}: a low note below the left-hand window`).toBeGreaterThanOrEqual(33);
-            expect(n.pitch, `${run.templateId} t${run.take}: a low note in the 57-61 gap`).toBeLessThan(57);
-          }
+          expect(n.pitch >= 64 || n.pitch <= 55, `${run.templateId} t${run.take}: piano note ${n.pitch} outside the hand bands`).toBe(true);
         }
         expect(n.pitch, `${run.templateId} t${run.take}: a note above the sparkle cap`).toBeLessThanOrEqual(96);
       }
@@ -157,34 +139,182 @@ describe('Phase 11.1: the piano register', () => {
   }, 900000);
 
   // Phase 11.5 UPDATE (named): the chorus relief now realises the 11.5
+  // figures, whose held left-hand pedals live in 40-55 on every chorus bar
+  // (the figures' own register, asserted in phase115.test.ts) — the
+  // mean-pitch population reads the comp/arp notes OUTSIDE the chorus
+  // sections (the drive-variant exclusion folds into it).
+  // Phase 11.6 UPDATE (named): the mean-pitch register is superseded by
+  // the hand model — the LH body lives in 40-55 (vocalbacking 40-56) and
+  // the RH starts at 64 (vocalbacking 82); the bands are pinned in
+  // phase116.test.ts and re-asserted here on the sub-60 population.
+  it('every sub-60 piano note sits in the low window 40-56 (the LH body band; the hand-split gap 56-63 stays empty outside the octave form)', () => {
+    for (const run of SURVEY) {
+      const piano = run.project.tracks.find((t) => t.role === PIANO);
+      const bt = barTicks(run.project.timeSignature);
+      for (const n of piano?.notes ?? []) {
+        if (n.pitch >= 60) continue;
+        // the tutti and the final anchors sit at the floor of 36
+        const bt0 = barTicks(run.project.timeSignature);
+        const bar0 = Math.floor(n.startTick / bt0) + 1;
+        const kind0 = run.result.plan.keys.bars[bar0 - 1]?.voices.piano;
+        if (kind0 === 'tutti' || kind0 === 'final') {
+          expect(n.pitch, `${run.templateId} t${run.take}: a moment hit below the floor of 36`).toBeGreaterThanOrEqual(36);
+          continue;
+        }
+        expect(n.pitch, `${run.templateId} t${run.take}: a sub-60 note below the low window`).toBeGreaterThanOrEqual(40);
+        if (n.pitch > 56) {
+          // the octave form's upper note crosses the gap with its partner
+          const barNotes = (piano?.notes ?? []).filter((o) => Math.floor(o.startTick / bt) === Math.floor(n.startTick / bt));
+          const partner = barNotes.some((o) => o.pitch === n.pitch - 12 && Math.abs(o.startTick - n.startTick) <= bt / 2);
+          expect(partner, `${run.templateId} t${run.take}: a ${n.pitch} note in the gap without its octave partner`).toBe(true);
+          continue;
+        }
+        expect(n.pitch, `${run.templateId} t${run.take}: a sub-60 note above the low window`).toBeLessThanOrEqual(56);
+      }
+    }
+  }, 900000);
+
+  // Phase 11.5 UPDATE (named): the chorus relief now realises the 11.5
+  // figures, whose held left-hand pedals live in 40-55 on every chorus bar
+  // (the figures' own register, asserted in phase115.test.ts) — the
+  // mean-pitch population reads the comp/arp notes OUTSIDE the chorus
+  // sections (the drive-variant exclusion folds into it).
+  // Phase 11.6 UPDATE (named): the mean-pitch register is superseded by
+  // the hand model — the LH body lives in 40-55 (vocalbacking 40-56) and
+  // the RH starts at 64 (vocalbacking 82); the bands are pinned in
+  // phase116.test.ts and re-asserted here on the sub-60 population.
+  it('every sub-60 piano note sits in the low window 40-56 (the LH body band; the hand-split gap 56-63 stays empty outside the octave form)', () => {
+    for (const run of SURVEY) {
+      const piano = run.project.tracks.find((t) => t.role === PIANO);
+      const bt = barTicks(run.project.timeSignature);
+      for (const n of piano?.notes ?? []) {
+        if (n.pitch >= 60) continue;
+        // the tutti and the final anchors sit at the floor of 36
+        const bt0 = barTicks(run.project.timeSignature);
+        const bar0 = Math.floor(n.startTick / bt0) + 1;
+        const kind0 = run.result.plan.keys.bars[bar0 - 1]?.voices.piano;
+        if (kind0 === 'tutti' || kind0 === 'final') {
+          expect(n.pitch, `${run.templateId} t${run.take}: a moment hit below the floor of 36`).toBeGreaterThanOrEqual(36);
+          continue;
+        }
+        expect(n.pitch, `${run.templateId} t${run.take}: a sub-60 note below the low window`).toBeGreaterThanOrEqual(40);
+        if (n.pitch > 56) {
+          // the octave form's upper note crosses the gap with its partner
+          const barNotes = (piano?.notes ?? []).filter((o) => Math.floor(o.startTick / bt) === Math.floor(n.startTick / bt));
+          const partner = barNotes.some((o) => o.pitch === n.pitch - 12 && Math.abs(o.startTick - n.startTick) <= bt / 2);
+          expect(partner, `${run.templateId} t${run.take}: a ${n.pitch} note in the gap without its octave partner`).toBe(true);
+          continue;
+        }
+        expect(n.pitch, `${run.templateId} t${run.take}: a sub-60 note above the low window`).toBeLessThanOrEqual(56);
+      }
+    }
+  }, 900000);
+
+  // Phase 11.6 UPDATE (named): the RH window moves to 64+ (vocalbacking
+  // 82+); the sparkle cap (the 92-96 top only on the phrase-start chords
+  // of peak bars) and the vocal zone carry over unchanged.
+  it('the right-hand material starts at 64 (vocalbacking 82), the sparkle body caps at 91 with the 92-96 top only on phrase-start chords at peak bars, and the notes cap at 96', () => {
+    for (const run of SURVEY) {
+      const piano = run.project.tracks.find((t) => t.role === PIANO);
+      if (!piano) continue;
+      const isVB = run.templateId === 'ensemble.vocalbacking';
+      const bt = barTicks(run.project.timeSignature);
+      for (const n of piano.notes) {
+        if (isVB) {
+          expect(n.pitch >= VB_SPARKLE[0] || n.pitch <= VB_LOW[1], `${run.templateId} t${run.take}: piano note ${n.pitch} outside the sparkle and low windows`).toBe(true);
+          expect(n.pitch >= 57 && n.pitch <= 81, `${run.templateId} t${run.take}: piano note ${n.pitch} inside the vocal zone`).toBe(false);
+          if (n.pitch > VB_SPARKLE[1]) {
+            const bar = Math.floor(n.startTick / bt) + 1;
+            const sec = run.project.sections.find((s) => bar >= s.startBar && bar < s.startBar + s.lengthBars);
+            const secStart = sec?.startBar ?? 1;
+            const norm = run.result.plan.keys.bars[bar - 1]?.norm ?? 0;
+            expect(
+              (bar === secStart || (bar - secStart) % 4 === 0) && norm >= KEYS_GATES.peak,
+              `${run.templateId} t${run.take}: a ${n.pitch} note outside the phrase-start peak allowance`,
+            ).toBe(true);
+          }
+        } else if (n.pitch >= 56 && n.pitch <= 63) {
+          // the hand-split gap: only the octave form's upper note crosses
+          // it (its exact-octave partner sounds in the same strike)
+          const barNotes = piano.notes.filter((o) => Math.floor(o.startTick / bt) === Math.floor(n.startTick / bt));
+          const partner = barNotes.some((o) => o.pitch === n.pitch - 12 && Math.abs(o.startTick - n.startTick) <= bt / 2);
+          expect(partner, `${run.templateId} t${run.take}: a ${n.pitch} note in the gap without its octave partner`).toBe(true);
+        } else {
+          expect(n.pitch >= 64 || n.pitch <= 55, `${run.templateId} t${run.take}: piano note ${n.pitch} outside the hand bands`).toBe(true);
+        }
+        expect(n.pitch, `${run.templateId} t${run.take}: a note above the sparkle cap`).toBeLessThanOrEqual(96);
+      }
+    }
+  }, 900000);
+
+  // Phase 11.5 UPDATE (named): the chorus relief now realises the 11.5
+  // figures, whose held left-hand pedals live in 40-55 on every chorus bar
+  // (the figures' own register, asserted in phase115.test.ts) — the
+  // mean-pitch population reads the comp/arp notes OUTSIDE the chorus
+  // sections (the drive-variant exclusion folds into it).
+  // Phase 11.6 UPDATE (named): the mean-pitch register is superseded by
+  // the hand model — the LH body lives in 40-55 (vocalbacking 40-56) and
+  // the RH starts at 64 (vocalbacking 82); the bands are pinned in
+  // phase116.test.ts and re-asserted here on the sub-60 population.
+  it('every sub-60 piano note sits in the low window 40-56 (the LH body band; the hand-split gap 56-63 stays empty outside the octave form)', () => {
+    for (const run of SURVEY) {
+      const piano = run.project.tracks.find((t) => t.role === PIANO);
+      const bt = barTicks(run.project.timeSignature);
+      for (const n of piano?.notes ?? []) {
+        if (n.pitch >= 60) continue;
+        // the tutti and the final anchors sit at the floor of 36
+        const bt0 = barTicks(run.project.timeSignature);
+        const bar0 = Math.floor(n.startTick / bt0) + 1;
+        const kind0 = run.result.plan.keys.bars[bar0 - 1]?.voices.piano;
+        if (kind0 === 'tutti' || kind0 === 'final') {
+          expect(n.pitch, `${run.templateId} t${run.take}: a moment hit below the floor of 36`).toBeGreaterThanOrEqual(36);
+          continue;
+        }
+        expect(n.pitch, `${run.templateId} t${run.take}: a sub-60 note below the low window`).toBeGreaterThanOrEqual(40);
+        if (n.pitch > 56) {
+          // the octave form's upper note crosses the gap with its partner
+          const barNotes = (piano?.notes ?? []).filter((o) => Math.floor(o.startTick / bt) === Math.floor(n.startTick / bt));
+          const partner = barNotes.some((o) => o.pitch === n.pitch - 12 && Math.abs(o.startTick - n.startTick) <= bt / 2);
+          expect(partner, `${run.templateId} t${run.take}: a ${n.pitch} note in the gap without its octave partner`).toBe(true);
+          continue;
+        }
+        expect(n.pitch, `${run.templateId} t${run.take}: a sub-60 note above the low window`).toBeLessThanOrEqual(56);
+      }
+    }
+  }, 900000);
+
+
+
+  // Phase 11.5 UPDATE (named): the chorus relief now realises the 11.5
   // figures, whose held left-hand pedals (the broken and Alberti basses)
   // sit in 40-55 on EVERY chorus bar, not only phrase starts — the
   // assertion exempts the chorus sections (their low register is the
   // 11.5 figure register, asserted in phase115.test.ts).
-  it('the left-hand singles are single notes (no chord) at phrase starts, inside 40-55 (the drive-variant bars and the 11.5 chorus figure bars excluded)', () => {
+  // Phase 11.6 UPDATE (named): the left-hand body is the fifth-or-single
+  // form at every span strike (no phrase-start gate any more); the closed
+  // triads and the thirds below 55 are banned (pinned in phase116).
+  it('the left-hand notes are single notes or open fifths (at most two notes below 55 sound at once, never a third or a fourth below 55)', () => {
     for (const run of SURVEY) {
-      if (run.templateId === 'ensemble.vocalbacking' || run.templateId === 'ensemble.cinematic' || run.templateId === 'ensemble.hybridstudio') continue;
+      if (run.templateId === 'ensemble.vocalbacking') continue;
       const piano = run.project.tracks.find((t) => t.role === PIANO);
       if (!piano) continue;
       const bt = barTicks(run.project.timeSignature);
-      const exemptBars = new Set<number>();
-      for (const e of run.planPatterns) {
-        if (e.pattern !== 'driveLow' && e.pattern !== 'driveSplit') continue;
-        const sec = run.project.sections.find((s) => s.startBar === e.startBar);
-        if (sec) for (let b = sec.startBar; b < sec.startBar + sec.lengthBars; b++) exemptBars.add(b);
-      }
-      for (const sec of run.project.sections) {
-        if (/chorus|refrain|hook|drop/.test(sec.name.trim().toLowerCase())) {
-          for (let b = sec.startBar; b < sec.startBar + sec.lengthBars; b++) exemptBars.add(b);
-        }
-      }
+      const byBar = new Map<number, Note[]>();
       for (const n of piano.notes) {
-        if (n.pitch >= PIANO_LH[0] && n.pitch <= PIANO_LH[1]) {
-          const bar = Math.floor(n.startTick / bt) + 1;
-          if (exemptBars.has(bar)) continue;
-          const sec = run.project.sections.find((s) => bar >= s.startBar && bar < s.startBar + s.lengthBars);
-          const secStart = sec?.startBar ?? 1;
-          expect(bar === secStart || (bar - secStart) % 4 === 0, `${run.templateId} t${run.take}: a left-hand note off a phrase start`).toBe(true);
+        const bar = Math.floor(n.startTick / bt) + 1;
+        const arr = byBar.get(bar) ?? [];
+        arr.push(n);
+        byBar.set(bar, arr);
+      }
+      for (const [, barNotes] of byBar) {
+        for (const onset of [...new Set(barNotes.map((n) => n.startTick))]) {
+          const low = barNotes.filter((n) => n.pitch < 55 && n.startTick < onset + 60 && n.startTick + n.durationTicks >= onset);
+          expect(low.length, `${run.templateId} t${run.take}: ${low.length} notes below 55 at once`).toBeLessThanOrEqual(2);
+          const sorted = low.map((n) => n.pitch).sort((a, b) => a - b);
+          for (let i = 1; i < sorted.length; i++) {
+            const iv = sorted[i] - sorted[i - 1];
+            expect(iv === 3 || iv === 4, `${run.templateId} t${run.take}: a third below 55 (${sorted[i - 1]}+${sorted[i]})`).toBe(false);
+          }
         }
       }
     }
@@ -208,43 +338,32 @@ describe('Phase 11.1: the vocal zone', () => {
 /* ---------------- 3. the pattern menu and the variety --------------------- */
 
 describe('Phase 11.1: the pattern menu', () => {
-  it('every menu has at least 4 outcomes per section class (comp, vocalbacking, the relief drive)', () => {
-    expect(PIANO_COMP_MENU.length).toBeGreaterThanOrEqual(4);
-    expect(PIANO_VB_MENU.length).toBeGreaterThanOrEqual(4);
-    expect(PIANO_DRIVE_MENU.length).toBeGreaterThanOrEqual(4);
-    // the menus are disjoint from the drive (chorus draws only drive variants)
-    for (const p of [...PIANO_COMP_MENU, ...PIANO_VB_MENU]) expect((PIANO_DRIVE_MENU as readonly string[]).includes(p)).toBe(false);
-  });
-
-  // Phase 11.5 UPDATE (named): the chorus sections draw the 11.5 FIGURE
-  // menu per phrase (the six rhythmic figures + the block slots resolving
-  // to the relief drive's own variants) — the pianoPatterns entry holds
-  // the phrase-0 draw; the assertion reads the plan's chorusFigures.
-  it('chorus-type sections draw only the 11.5 chorus figure menu (the six figures + the drive variants); the other sections draw their template menu', () => {
-    for (const run of SURVEY) {
-      if (!run.planPatterns.length) continue;
-      const chorusMenu = [...PIANO_DRIVE_MENU, 'figRoll', 'figBroken', 'figAlberti', 'figSyncopate', 'figTopVoice', 'figOctavePulse'];
-      for (const e of run.planPatterns) {
-        const sec = run.project.sections.find((s) => s.startBar === e.startBar);
-        const isChorus = /chorus|refrain|hook|drop/.test((sec?.name ?? '').trim().toLowerCase());
-        if (isChorus) {
-          const figs = run.result.plan.keys.chorusFigures.find((f) => f.startBar === e.startBar)?.figures ?? [e.pattern];
-          for (const fig of figs) {
-            expect(chorusMenu.includes(fig), `${run.templateId} ${run.fixture} t${run.take}: chorus phrase drew ${fig}`).toBe(true);
-          }
-        } else {
-          const menu = run.templateId === 'ensemble.vocalbacking' ? PIANO_VB_MENU : PIANO_COMP_MENU;
-          expect(menu.includes(e.pattern), `${run.templateId} ${run.fixture} t${run.take}: section at b${e.startBar} drew ${e.pattern}`).toBe(true);
+  // Phase 11.6 UPDATE (named): the menus are the JOB menus (at least 5
+  // outcomes per template) and the per-job FIGURE menus; the comp, the
+  // vocalbacking and the relief-drive menus are deleted.
+  it('every template draws from a job menu of at least 5 outcomes, and the figure menus are non-empty', () => {
+    for (const templateId of TEMPLATES) {
+      const jobs = new Set<string>();
+      const figures = new Set<string>();
+      for (const run of SURVEY.filter((r) => r.templateId === templateId)) {
+        if (!run.pianoJobs.length) continue; // the symphony: no piano in band
+        void templateId;
+        for (const j of run.pianoJobs) {
+          jobs.add(j.job);
+          for (const f of j.figures) figures.add(f);
         }
       }
+      if (!jobs.size) continue; // the symphony: no piano in band
+      expect(jobs.size, `${templateId}: only ${jobs.size} distinct jobs drew`).toBeGreaterThanOrEqual(5);
+      expect(figures.size, `${templateId}: no figures drew`).toBeGreaterThanOrEqual(3);
     }
-  }, 900000);
+  });
 
-  it('within one take the sections never all play the same pattern', () => {
+  it('within one take the sections never all play the same job', () => {
     for (const run of SURVEY) {
-      if (run.planPatterns.length < 2) continue;
-      const allSame = run.planPatterns.every((e) => e.pattern === run.planPatterns[0].pattern);
-      expect(allSame, `${run.templateId} ${run.fixture} t${run.take}: every section plays ${run.planPatterns[0].pattern}`).toBe(false);
+      if (run.pianoJobs.length < 2) continue;
+      const allSame = run.pianoJobs.every((j) => j.job === run.pianoJobs[0].job);
+      expect(allSame, `${run.templateId} ${run.fixture} t${run.take}: every section plays the ${run.pianoJobs[0].job} job`).toBe(false);
     }
   }, 900000);
 

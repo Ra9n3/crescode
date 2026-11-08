@@ -4,13 +4,14 @@ import threeChorus from '../fixtures/three-chorus-40bars.json';
 import dorian from '../fixtures/dorian-16bars.json';
 import { composeAllTracks } from '../src/orchestrator/compose';
 import { defaultRules } from '../src/config/generation-rules';
-import { measureEnergy } from '../src/orchestrator/energy';
+import { checkTemplateRules, measureEnergy } from '../src/orchestrator/energy';
 import { chordSpans, sanitizeNotes } from '../src/engine/generate';
 import { barTicks, beatOffsets, beatTicks, projectBars } from '../src/shared/schema/meter';
 import { projectEndTick, projectFromFixture, validateProject, type Note, type Project } from '../src/shared/schema';
 import { resolveTemplate } from '../src/config/ensembles';
 import { msToTicks } from '../src/orchestrator/spine';
 import { cellGrid } from '../src/orchestrator/lines/ostinato';
+import { scalePitchClasses } from '../src/shared/schema/modes';
 import { buildMergedMidi, parseMidiFile } from '../src/export/midi';
 import {
   PIANO_ARRIVAL_PHRASE_BARS, PIANO_CONCURRENCY, PIANO_JOB_ROTATION, PIANO_MOTION_PHRASE_BARS,
@@ -109,11 +110,12 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
       expect(plan.pianoRoleCounts.anchor, `${template} t${take}: plan role count`).toBe(plannedAnchors);
       expect(plan.bars.some((b) => b.voices.piano === 'anchor')).toBe(true);
       const generatedTake = result.orchestration.take;
-      expect(result.reports.some((r) => r.includes(`keys piano roles (take ${generatedTake}): anchor=${plannedAnchors} planned bars`))).toBe(true);
-      expect(result.reports.some((r) => r.includes(`keys plan (take ${generatedTake}): roles anchor=${plannedAnchors} bars`))).toBe(true);
+      expect(result.reports.some((r) => r.includes(`keys piano roles (take ${generatedTake}): anchor=${plannedAnchors}, answer=`))).toBe(true);
+      expect(result.reports.some((r) => r.includes(`keys plan (take ${generatedTake}): roles anchor=${plannedAnchors}, answer=`))).toBe(true);
+      expect(result.reports.some((r) => r.startsWith(`keys piano answer role events (take ${generatedTake}):`))).toBe(true);
       expect(result.reports.some((r) => r.startsWith(`piano absorption (take ${generatedTake}):`))).toBe(true);
       expect(piano.length).toBeGreaterThan(0);
-      expect(piano.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power'].includes(n.roleTag ?? '')), `${template} t${take}: piano role tags are schema-approved`).toBe(true);
+      expect(piano.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer'].includes(n.roleTag ?? '')), `${template} t${take}: piano role tags are schema-approved`).toBe(true);
       expect(piano.some((n) => n.roleTag === 'anchor'), `${template} t${take}: held anchor remains present`).toBe(true);
       expect(project.tracks.find((t) => t.role === HARP)?.notes.every((n) => n.roleTag === undefined)).toBe(true);
       assertPianoPolyphony(piano, `${template} ${fixture} t${take}`);
@@ -141,7 +143,7 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
 
       for (const planBar of result.plan.keys.bars) {
         const kind = planBar.voices.piano;
-        if (!kind || planBar.pianoPower || planBar.pianoRepeatedChord) continue;
+        if (!kind || planBar.pianoPower || planBar.pianoRepeatedChord || planBar.pianoAnswer) continue;
         const shape = result.plan.moments.find((m) => m.kind === 'tutti' && planBar.bar >= m.startBar && planBar.bar <= m.endBar)?.shape;
         for (const strike of strikesForBar(project, planBar.bar, kind, shape)) {
           const group = groupAt(anchors, strike.onset, jitterMax);
@@ -239,7 +241,7 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
       const { project, result } = composeTake(fixture, templateId, take);
       const notes = roleNotes(project, PIANO);
       expect(notes.length).toBeGreaterThan(0);
-      expect(notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power'].includes(n.roleTag ?? ''))).toBe(true);
+      expect(notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer'].includes(n.roleTag ?? ''))).toBe(true);
       expect(notes.some((n) => n.roleTag === 'anchor')).toBe(true);
       assertPianoPolyphony(notes, `${templateId} ${fixture} t${take}`);
       if (templateId === 'ensemble.vocalbacking') {
@@ -816,6 +818,9 @@ describe('Phase 11.6a: non-piano preservation', () => {
     const otherFailures: string[] = [];
     const harpStructureFailures: string[] = [];
     const velocityDiffs: Record<string, number> = {};
+    let vocalHarpDeltaSum = 0;
+    let vocalHarpDeltaNotes = 0;
+    let vocalHarpDeltaMax = 0;
     let checkedAbsorptionWindows = 0;
     let loweredPianoNotes = 0;
     let loweredWindows = 0;
@@ -851,7 +856,13 @@ describe('Phase 11.6a: non-piano preservation', () => {
               if (JSON.stringify(currentShape) !== JSON.stringify(baselineShape)) {
                 harpStructureFailures.push(`${short} ${fixture} t${take} #${i}: pitch/timing/articulation/layer changed`);
               }
+              const velocityDelta = Math.abs(currentVelocity - baselineVelocity);
               if (currentVelocity !== baselineVelocity) velocityDiffs[short]++;
+              if (short === 'vocalbacking') {
+                vocalHarpDeltaSum += velocityDelta;
+                vocalHarpDeltaNotes++;
+                vocalHarpDeltaMax = Math.max(vocalHarpDeltaMax, velocityDelta);
+              }
             }
             if (JSON.stringify(track.cc ?? null) !== JSON.stringify(baseline.cc ?? null)) {
               harpStructureFailures.push(`${short} ${fixture} t${take}: harp CC changed`);
@@ -873,8 +884,82 @@ describe('Phase 11.6a: non-piano preservation', () => {
       expect(velocityDiffs[template], `${template}: harp velocities changed`).toBe(0);
     }
     expect(velocityDiffs.vocalbacking, 'vocalbacking should retain only the known velocity-only safety-pass delta').toBeGreaterThan(0);
+    const vocalHarpMeanDelta = vocalHarpDeltaNotes ? vocalHarpDeltaSum / vocalHarpDeltaNotes : 0;
+    expect(vocalHarpMeanDelta, 'vocalbacking harp mean absolute velocity delta').toBeLessThanOrEqual(3);
+    expect(vocalHarpDeltaMax, 'vocalbacking harp maximum absolute velocity delta').toBeLessThanOrEqual(10);
     expect(loweredPianoNotes).toBeGreaterThan(0);
-    console.log(`PHASE116 harp vs golden105: exact pitch/timing/articulation/layer/CC; velocity-only deltas ${velocityDiffs.vocalbacking} in vocalbacking`);
+    console.log(`PHASE116 harp vs golden105: exact pitch/timing/articulation/layer/CC; vocalbacking velocity deltas ${velocityDiffs.vocalbacking}, mean |dv| ${vocalHarpMeanDelta.toFixed(2)}, max ${vocalHarpDeltaMax}`);
     console.log(`PHASE116 piano absorption: ${checkedAbsorptionWindows} windows checked; ${loweredPianoNotes} notes lowered in ${loweredWindows} windows`);
   }, 1200000);
+});
+
+describe('Phase 11.6d-1: chamber and sonata piano answers', () => {
+  it('keeps answer lines monophonic, diatonic, in RH rests, phrase-capped and lead-safe', () => {
+    for (const templateId of TEMPLATES) {
+      const { project, result } = composeTake('three', templateId, 0); // output take 1
+      const piano = project.tracks.find((track) => track.role === PIANO)!;
+      const answers = piano.notes.filter((note) => note.roleTag === 'answer');
+      const answerPlans = result.plan.keys.bars.filter((bar) => bar.pianoAnswer);
+      const allowed = templateId === 'ensemble.chamber' || templateId === 'ensemble.sonata';
+      expect(answerPlans.length, `${templateId}: allowed templates only`).toBe(allowed ? answerPlans.length : 0);
+      expect(result.plan.keys.pianoRoleCounts.answer).toBe(answerPlans.length);
+      expect(result.reports.some((line) => line.includes(`answer=${answerPlans.length} planned bars`))).toBe(true);
+      expect(result.reports.some((line) => line.startsWith(`keys piano answer role events (take ${result.orchestration.take}):`))).toBe(true);
+      expect(answerPlans.length).toBeLessThanOrEqual(Math.floor(result.plan.keys.pianoRoleCounts.anchor * 0.15));
+      if (allowed) expect(answerPlans.length, `${templateId}: answer line present in take 1`).toBeGreaterThan(0);
+
+      const lead = project.tracks.find((track) => track.role === 'violins1')?.notes ?? [];
+      const scale = new Set(scalePitchClasses(project.key, project.mode));
+      const phraseKeys = new Set<string>();
+      for (const planBar of answerPlans) {
+        const answer = planBar.pianoAnswer!;
+        const section = project.sections.find((candidate) => planBar.bar >= candidate.startBar && planBar.bar < candidate.startBar + candidate.lengthBars)!;
+        const phraseKey = `${section.id}:${Math.floor((planBar.bar - section.startBar) / PIANO_ARRIVAL_PHRASE_BARS)}`;
+        expect(phraseKeys.has(phraseKey), `${templateId} b${planBar.bar}: one answer per phrase`).toBe(false);
+        phraseKeys.add(phraseKey);
+        expect(planBar.pianoRole).toBe('anchor');
+        expect(planBar.moment).toBeUndefined();
+        expect(answer.pitches.length).toBeGreaterThanOrEqual(3);
+        expect(answer.pitches.length).toBeLessThanOrEqual(5);
+        const start = (planBar.bar - 1) * barTicks(project.timeSignature);
+        const notes = answers.filter((note) => note.startTick >= start && note.startTick < answer.windowEndTick).sort((a, b) => a.startTick - b.startTick);
+        expect(notes).toHaveLength(answer.pitches.length);
+        expect(notes.every((note) => scale.has(pcOf(note.pitch)))).toBe(true);
+        expect(Math.min(...notes.map((note) => note.pitch))).toBeGreaterThanOrEqual(lowStringsSoundInBar(project, planBar.bar) ? 72 : 64);
+        expect(notes.at(-1)!.startTick + notes.at(-1)!.durationTicks).toBe(answer.windowEndTick);
+        for (const note of notes) {
+          expect(lead.some((lineNote) => note.startTick < lineNote.startTick + lineNote.durationTicks
+            && lineNote.startTick < note.startTick + note.durationTicks), `${templateId} b${planBar.bar}: answer never overlaps violins1`).toBe(false);
+        }
+        for (let i = 0; i < notes.length; i++) for (let j = i + 1; j < notes.length; j++) {
+          expect(notes[i].startTick + notes[i].durationTicks).toBeLessThanOrEqual(notes[j].startTick);
+        }
+        expect(piano.notes.filter((note) => note.roleTag !== 'answer' && note.pitch >= 64
+          && note.startTick < answer.windowEndTick && note.startTick + note.durationTicks > start)).toHaveLength(0);
+      }
+      expect(piano.cc ?? []).toEqual([]);
+      expect(validateProject(project).ok).toBe(true);
+      expect(samePitchOverlapPairs(piano.notes)).toHaveLength(0);
+      expect(sanitizeNotes(piano.notes, piano.lowestNote, piano.highestNote, projectEndTick(project))).toEqual(piano.notes);
+      assertPianoPolyphony(piano.notes, `${templateId} take ${result.orchestration.take}`);
+      const template = resolveTemplate(project.ensemble)!;
+      expect(checkTemplateRules(project, template, result.plan).filter((finding) => finding.severity === 'hard')).toHaveLength(0);
+      expect(measureEnergy(project, template).violations.filter((violation) => violation.kind === 'aboveMax')).toHaveLength(0);
+    }
+  });
+
+  it('uses diatonic chord-tone fragments when violins1 has no lead', () => {
+    const project = projectFromFixture(JSON.parse(JSON.stringify(FIXTURES.three)) as Project);
+    project.ensemble = { templateId: 'ensemble.chamber', overrides: {}, pins: {} };
+    project.orchestration = { take: 0 };
+    const leadTrack = project.tracks.find((track) => track.role === 'violins1')!;
+    leadTrack.locked = true;
+    const result = composeAllTracks(project, { seed: 11 });
+    const composed = { ...project, tracks: result.tracks, orchestration: result.orchestration } as Project;
+    const piano = composed.tracks.find((track) => track.role === PIANO)!;
+    const plans = result.plan.keys.bars.filter((bar) => bar.pianoAnswer);
+    expect(plans.length).toBeGreaterThan(0);
+    expect(plans.every((bar) => bar.pianoAnswer?.kind === 'chordToneFragment')).toBe(true);
+    expect(piano.notes.filter((note) => note.roleTag === 'answer').length).toBe(plans.reduce((n, bar) => n + bar.pianoAnswer!.pitches.length, 0));
+  });
 });

@@ -24,11 +24,11 @@ import { inVocalZone } from '../profiles/strings';
 import { cellGrid } from '../lines/ostinato';
 import type { OrchestratorContext } from '../module';
 import {
-  HARP_FIGURE_UNIT_BARS, KEYS_GATES, KEYS_PARTS, KEYS_PROFILES, PIANO_CONCURRENCY,
-  PIANO_HAND_GAP, PIANO_LH, PIANO_PUNCTUATION_SHARE, PIANO_RH, VB_LOW, VB_RH, VB_SPARKLE_BODY, VB_SPARKLE_PEAK,
+  HARP_FIGURE_UNIT_BARS, KEYS_GATES, KEYS_PARTS, KEYS_PROFILES, PIANO_ARRIVAL_PHRASE_BARS, PIANO_CONCURRENCY,
+  PIANO_HAND_GAP, PIANO_LH, PIANO_PUNCTUATION_SHARE, PIANO_RH, PIANO_UP_MAX_SHARE, VB_LOW, VB_RH, VB_SPARKLE_BODY, VB_SPARKLE_PEAK,
   isChorusTypeK, keysRosterOf, type HarpFigure, type KeysPart,
 } from './profile';
-import type { KeysPlan } from './plan';
+import type { KeysBarPlan, KeysPlan, PianoAnswerPlan } from './plan';
 
 /** Ordinary keys shaping ceiling and the existing chorus relief level. */
 export const KEYS_VELOCITY_CEILING = 84;
@@ -250,7 +250,7 @@ function repairPianoOverlaps(
   let shifted = 0, shortened = 0, dropped = 0;
   const needsWholeChord = (c: KeysCandidate) => c.roleTag === 'arrival' || c.roleTag === 'punctuation';
   const isMotionOverlay = (c: KeysCandidate) => c.hand === 'rh'
-    && ['lift', 'settle', 'bed', 'atmosphere'].includes(c.roleTag ?? '');
+    && ['lift', 'settle', 'bed', 'atmosphere', 'answer'].includes(c.roleTag ?? '');
   const isLowPriorityForOctaves = (c: KeysCandidate) => isMotionOverlay(c) || c.roleTag === 'power';
   const octaveInterval = (a: number, b: number) => Math.abs(a - b) > 0 && Math.abs(a - b) % 12 === 0;
   const harpCollisionAt = (c: KeysCandidate, pitch: number) => c.yieldToHarp === true && harpNotes.some((h) =>
@@ -566,6 +566,141 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
     stringsLowCache.set(bar, found);
     return found;
   };
+
+  /** Assign complete, one-bar answers only after the actual strings line is
+   *  available. Full violins1-rest bars are conservative answer windows, so
+   *  the later positive humanize/legato passes cannot create a lead overlap. */
+  const assignPianoAnswers = (): void => {
+    plan.bars.forEach((bar) => { delete bar.pianoAnswer; });
+    plan.pianoRoleCounts.answer = 0;
+    const activePianoBars = plan.pianoRoleCounts.anchor;
+    const answerCap = Math.floor(activePianoBars * 0.15 + 1e-9);
+    const answerEnabled = template.id === 'ensemble.chamber' || template.id === 'ensemble.sonata';
+    const leadNotes = Object.entries(stringsNotes)
+      .filter(([id]) => project.tracks.find((track) => track.id === id)?.role === 'violins1')
+      .flatMap(([, notes]) => notes)
+      .sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
+    const makeAnswer = (bar: KeysBarPlan, section: typeof ctx.sections[number]): PianoAnswerPlan | null => {
+      const windowStart = (bar.bar - 1) * btBar;
+      const windowEnd = Math.min(endTick, bar.bar * btBar);
+      if (leadNotes.some((note) => note.startTick < windowEnd && note.startTick + note.durationTicks > windowStart)) return null;
+      const noteCount = Math.min(4, Math.floor((windowEnd - windowStart) / beat));
+      if (noteCount < 3) return null;
+      const floor = stringsLowAt(bar.bar) ? 72 : 64;
+      const ceiling = Math.min(PIANO_RH[1], pianoHi, bar.pianoRarePeak ? 88 : 84);
+      if (ceiling < floor) return null;
+      const sectionStartTick = (section.startBar - 1) * btBar;
+      const sectionEndTick = Math.min(endTick, (section.startBar + section.lengthBars - 1) * btBar);
+      const sectionLead = leadNotes.filter((note) => note.startTick < sectionEndTick
+        && note.startTick + note.durationTicks > sectionStartTick);
+      const priorLead = sectionLead.filter((note) => note.startTick + note.durationTicks <= windowStart);
+
+      if (priorLead.length) {
+        const diatonic = priorLead.filter((note) => scalePcs.has(pcOf(note.pitch))).slice(-noteCount);
+        if (diatonic.length !== noteCount) return null;
+        const sourcePitches = diatonic.map((note) => note.pitch);
+        const shifts = [12, 24, 0, 36, -12, 48, -24, 60, -36, -48];
+        const sharedShift = shifts.find((shift) => sourcePitches.every((pitch) => pitch + shift >= floor && pitch + shift <= ceiling));
+        let pitches: number[];
+        if (sharedShift !== undefined) pitches = sourcePitches.map((pitch) => pitch + sharedShift);
+        else {
+          pitches = [];
+          for (const source of sourcePitches) {
+            const options: number[] = [];
+            for (let shift = -60; shift <= 60; shift += 12) {
+              const pitch = source + shift;
+              if (pitch >= floor && pitch <= ceiling) options.push(pitch);
+            }
+            if (!options.length) return null;
+            options.sort((a, b) => Math.abs(a - (source + 12)) - Math.abs(b - (source + 12)) || a - b);
+            pitches.push(options[0]);
+          }
+        }
+        return { kind: 'leadEcho', pitches, windowEndTick: windowEnd };
+      }
+
+      // There is no preceding lead phrase to quote in this section: use one
+      // diatonic chord tone per beat, still as a single line (never a voicing).
+      const pitches: number[] = [];
+      for (let index = 0; index < noteCount; index++) {
+        const onset = windowStart + index * beat;
+        const chord = chordPcsAt(onset);
+        const options: number[] = [];
+        for (let pitch = floor; pitch <= ceiling; pitch++) {
+          if (chord.pcs.has(pcOf(pitch)) && scalePcs.has(pcOf(pitch))) options.push(pitch);
+        }
+        if (!options.length) return null;
+        const distinct = options.filter((pitch) => pitch !== pitches.at(-1));
+        const choices = distinct.length ? distinct : options;
+        pitches.push(choices[hashString(`piano-answer-fragment:${take}:${bar.bar}:${index}`) % choices.length]);
+      }
+      return { kind: 'chordToneFragment', pitches, windowEndTick: windowEnd };
+    };
+
+    type AnswerChoice = { bar: KeysBarPlan; section: typeof ctx.sections[number]; phrase: number; answer: PianoAnswerPlan };
+    const byPhrase = new Map<string, AnswerChoice[]>();
+    if (answerEnabled && pianoTrack && answerCap > 0) {
+      for (const bar of plan.bars) {
+        if (bar.pianoRole !== 'anchor' || bar.voices.piano !== 'anchor' || bar.pianoPower
+          || bar.pianoRepeatedChord || bar.moment) continue;
+        const section = ctx.sections.find((candidate) => bar.bar >= candidate.startBar && bar.bar < candidate.startBar + candidate.lengthBars);
+        if (!section) continue;
+        const phrase = Math.floor((bar.bar - section.startBar) / PIANO_ARRIVAL_PHRASE_BARS);
+        const answer = makeAnswer(bar, section);
+        if (!answer) continue;
+        const key = `${section.id}:${phrase}`;
+        byPhrase.set(key, [...(byPhrase.get(key) ?? []), { bar, section, phrase, answer }]);
+      }
+    }
+    const phraseChoices = [...byPhrase.values()].map((choices) =>
+      choices.sort((a, b) => b.bar.bar - a.bar.bar)[0]);
+    phraseChoices.sort((a, b) => Number(isChorusTypeK(b.section.name)) - Number(isChorusTypeK(a.section.name))
+      || hashString(`piano-answer:${take}:${a.section.id}:${a.phrase}`) - hashString(`piano-answer:${take}:${b.section.id}:${b.phrase}`));
+    const selected = phraseChoices.slice(0, answerCap);
+    for (const choice of selected) {
+      if (choice.bar.pianoFigure === 'arpUp') plan.pianoMotionStats.upBars = Math.max(0, plan.pianoMotionStats.upBars - 1);
+      delete choice.bar.pianoFigure;
+      delete choice.bar.pianoFigureFamily;
+      delete choice.bar.pianoFigureRole;
+      delete choice.bar.pianoArrival;
+      delete choice.bar.pianoPunctuation;
+      choice.bar.pianoAnswer = choice.answer;
+    }
+    plan.pianoRoleCounts.answer = selected.length;
+
+    const takeLabel = project.orchestration?.take ?? 0;
+    const roles = `anchor=${plan.pianoRoleCounts.anchor}, answer=${plan.pianoRoleCounts.answer}`;
+    const roleIndex = plan.reports.findIndex((line) => line.startsWith(`keys piano roles (take ${takeLabel}):`));
+    if (roleIndex >= 0) plan.reports[roleIndex] = `keys piano roles (take ${takeLabel}): ${roles} planned bars`;
+    const arrivalsIndex = plan.reports.findIndex((line) => line.startsWith(`keys piano arrivals (take ${takeLabel},`));
+    if (arrivalsIndex >= 0) plan.reports[arrivalsIndex] = `keys piano arrivals (take ${takeLabel}, four-bar phrase grid): ${plan.bars.filter((bar) => bar.pianoArrival).map((bar) => `b${bar.bar}=${bar.pianoArrival}`).join(', ') || 'none'}`;
+    const punctuationIndex = plan.reports.findIndex((line) => line.startsWith(`keys piano punctuation plan (take ${takeLabel},`));
+    if (punctuationIndex >= 0) plan.reports[punctuationIndex] = `keys piano punctuation plan (take ${takeLabel}, V-I cadence/phrase end/pre-chorus/pump): ${plan.bars.filter((bar) => bar.pianoPunctuation).map((bar) => `b${bar.bar}=${bar.pianoPunctuation}`).join(', ') || 'none'}`;
+    const planIndex = plan.reports.findIndex((line) => line.startsWith(`keys plan (take ${takeLabel}):`));
+    if (planIndex >= 0) {
+      const firstBars = plan.bars.filter((bar) => Object.values(bar.voices).some((voice) => voice !== undefined)).slice(0, 12);
+      plan.reports[planIndex] = `keys plan (take ${takeLabel}): roles ${roles} bars; ${firstBars.map((bar) => `b${bar.bar}[${bar.level}] ${Object.entries(bar.voices).map(([part, kind]) => part === 'piano' ? `piano:${bar.pianoAnswer ? 'answer' : bar.pianoRole ?? kind}` : `${part}:${kind}`).join(' | ')}`).join(' | ')}`;
+    }
+    const mapIndex = plan.reports.findIndex((line) => line.startsWith(`keys piano map (take ${takeLabel},`));
+    if (mapIndex >= 0) {
+      const map = plan.bars.filter((bar) => bar.pianoJob).map((bar) => {
+        const figure = bar.pianoAnswer ? `answer:${bar.pianoAnswer.kind}` : bar.pianoFigure ?? '—';
+        const yielded = bar.pianoFigureYieldedFrom ? `,yielded:${bar.pianoFigureYieldedFrom}` : '';
+        return `b${bar.bar}=${bar.pianoJob}/${figure}${yielded}/${bar.energySlope}`;
+      }).join(' ');
+      plan.reports[mapIndex] = `keys piano map (take ${takeLabel}, ${PIANO_ARRIVAL_PHRASE_BARS}-bar answer phrases): ${map}`;
+    }
+    const upIndex = plan.reports.findIndex((line) => line.startsWith(`keys piano up-arps (take ${takeLabel}):`));
+    if (upIndex >= 0) plan.reports[upIndex] = `keys piano up-arps (take ${takeLabel}): ${plan.pianoMotionStats.upBars}/${plan.pianoMotionStats.motionBars} motion bars, cap ${Math.floor(PIANO_UP_MAX_SHARE * 100)}% (limit ${plan.pianoMotionStats.upLimit})`;
+    const answerKindCounts = {
+      leadEcho: selected.filter((choice) => choice.answer.kind === 'leadEcho').length,
+      chordToneFragment: selected.filter((choice) => choice.answer.kind === 'chordToneFragment').length,
+    };
+    const share = activePianoBars ? (100 * selected.length / activePianoBars).toFixed(1) : '0.0';
+    plan.reports.push(`keys piano answer plan (take ${takeLabel}): leadEcho=${answerKindCounts.leadEcho}, chordToneFragment=${answerKindCounts.chordToneFragment} planned bars; ${selected.length}/${activePianoBars} piano bars (${share}%, cap 15%)`);
+    plan.reports.push(`keys piano answer windows (take ${takeLabel}): ${selected.map((choice) => `b${choice.bar.bar}=${choice.answer.kind}`).join(', ') || 'none'}`);
+  };
+  assignPianoAnswers();
 
   /** Strike at the bar start and every chord-span boundary within the bar. */
   const spanStrikes = (onset: number, until: number): number[] => {
@@ -1134,7 +1269,7 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
               collisionAlternatives: lhCollisionAlternativesAt(onset, body[i]),
             });
           }
-          if (!planBar.pianoRepeatedChord && !arrivalHere) {
+          if (!planBar.pianoRepeatedChord && !arrivalHere && !planBar.pianoAnswer) {
             for (const pitch of rh) candidates.push({
               pitch, startTick: onset, durationTicks: strikeEnd - onset,
               ...(relief ? { relief: true } : {}), roleTag, hand: 'rh', bar, strikeId: rhStrikeId,
@@ -1356,9 +1491,50 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
             }
           }
         }
+
+        if (planBar.pianoAnswer) {
+          const { pitches, windowEndTick } = planBar.pianoAnswer;
+          pitches.forEach((pitch, index) => {
+            const onset = barStart + index * beat;
+            const until = Math.min(windowEndTick, index + 1 < pitches.length ? barStart + (index + 1) * beat : windowEndTick);
+            if (onset >= until || onset >= barEnd) return;
+            const alternatives: number[] = [];
+            for (let alternative = rhFloorForBar; alternative <= Math.min(rhCeiling, pianoHi); alternative++) {
+              if (alternative !== pitch && scalePcs.has(pcOf(alternative))) alternatives.push(alternative);
+            }
+            alternatives.sort((a, b) => Math.abs(a - pitch) - Math.abs(b - pitch) || a - b);
+            candidates.push({
+              pitch, startTick: onset, durationTicks: until - onset,
+              roleTag: 'answer', hand: 'rh', bar,
+              strikeId: `piano-answer:${bar}:${index}`,
+              collisionAlternatives: alternatives,
+            });
+          });
+        }
       }
     }
   }
+
+  /** An answer is an indivisible line: if concurrency or a collision pass
+   *  cuts any beat (especially its held final note), omit the whole answer. */
+  const dropIncompleteAnswerLines = (candidates: KeysCandidate[]): number => {
+    let dropped = 0;
+    for (const bar of plan.bars) {
+      const answer = bar.pianoAnswer;
+      if (!answer) continue;
+      const group = candidates.filter((candidate) => candidate.roleTag === 'answer' && candidate.bar === bar.bar && !candidate.drop)
+        .sort((a, b) => a.startTick - b.startTick);
+      const start = (bar.bar - 1) * btBar;
+      const complete = answer.pitches.length >= 3 && answer.pitches.length <= 5
+        && group.length === answer.pitches.length
+        && group.every((candidate, index) => candidate.startTick + candidate.durationTicks
+          === Math.min(answer.windowEndTick, start + (index + 1) * beat));
+      if (!complete) {
+        for (const candidate of group) { candidate.drop = true; dropped++; }
+      }
+    }
+    return dropped;
+  };
 
   /* ---------------- written-schedule polyphony cap ---------------------- */
   const pianoRaw = candidatesByPart.piano;
@@ -1367,8 +1543,9 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
   if (pianoRaw?.length) {
     const dropped = enforcePianoConcurrency(pianoRaw);
     const punctuationCap = capPianoPunctuation(pianoRaw, punctuationLimit);
+    const droppedAnswerNotes = dropIncompleteAnswerLines(pianoRaw);
     candidatesByPart.piano = pianoRaw.filter((c) => !c.drop);
-    reports.push(`keys piano: written cap enforced over ${pianoRaw.length} notes (${dropped} dropped)`);
+    reports.push(`keys piano: written cap enforced over ${pianoRaw.length} notes (${dropped + droppedAnswerNotes} dropped)`);
     const punctuationTotal = punctuationCap.baseStrikes + punctuationCap.punctuationStrikes;
     const punctuationPct = punctuationTotal ? (100 * punctuationCap.punctuationStrikes / punctuationTotal).toFixed(1) : '0.0';
     reports.push(`keys piano punctuation cap: ${punctuationCap.punctuationStrikes}/${punctuationTotal} strike groups (${punctuationPct}%, limit ${Math.round(punctuationLimit * 100)}%; ${punctuationCap.dropped} notes removed)`);
@@ -1462,9 +1639,10 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
       let v: number;
       if (c.moment) v = Math.min(momentVelocity(bar), bound);
       else if (c.relief) {
-        // the chorus relief rides the ABSOLUTE scale (the percussion drive's
-        // rule): the clamp guarantee stays with the final safety pass
-        v = Math.max(1, Math.round(RELIEF_VELOCITY * (c.ramp !== undefined ? 0.45 + 0.35 * c.ramp : 1) * (c.velScale ?? 1)));
+        // The high-drive vocalbacking harp relief is kept within its golden105
+        // velocity-only allowance; piano and other templates retain the absolute level.
+        const reliefBase = part === 'harp' && template.id === 'ensemble.vocalbacking' && norm >= 0.9 ? 86 : RELIEF_VELOCITY;
+        v = Math.max(1, Math.round(reliefBase * (c.ramp !== undefined ? 0.45 + 0.35 * c.ramp : 1) * (c.velScale ?? 1)));
       } else {
         const shaped = Math.max(1, Math.round(1 + (Math.min(bound, KEYS_VELOCITY_CEILING) - 1) * Math.min(1, Math.max(0, norm))));
         const accent = c.articulation === 'marcato' ? 8 : 0;
@@ -1481,7 +1659,7 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
   // pass 2: micro-timing and final note events. The written note end is
   // unchanged by jitter, so all notes in a strike keep a common release.
   const renderedRoleCounts: Record<NoteRoleTag, number> = {
-    anchor: 0, lift: 0, settle: 0, bed: 0, atmosphere: 0, arrival: 0, punctuation: 0, power: 0,
+    anchor: 0, lift: 0, settle: 0, bed: 0, atmosphere: 0, arrival: 0, punctuation: 0, power: 0, answer: 0,
   };
   for (const part of KEYS_PARTS) {
     const track = trackOf.get(part);
@@ -1519,6 +1697,7 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
         ctx,
         btBar,
       );
+      dropIncompleteAnswerLines(ordered);
       const finalCandidates = ordered.filter((c) => !c.drop);
       const pianoOutputCandidates = [...finalCandidates].sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
       const notes: Note[] = pianoOutputCandidates.map((c) => ({
@@ -1563,6 +1742,16 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
     if (count) reports.push(`keys ${part}: ${count} notes (range ${track.lowestNote}-${track.highestNote}, lag ${msLo}-${msHi} ms)`);
   }
   reports.push(`keys piano role events (take ${project.orchestration?.take ?? 0}): ${Object.entries(renderedRoleCounts).map(([role, count]) => `${role}=${count}`).join(', ')}`);
+  const answerNotes = Object.values(notesByTrackId).flat().filter((note) => note.roleTag === 'answer');
+  const answerNoteCounts = { leadEcho: 0, chordToneFragment: 0 };
+  const answerBars = new Set<number>();
+  for (const note of answerNotes) {
+    const bar = Math.floor(note.startTick / btBar) + 1;
+    const kind = planByBar.get(bar)?.pianoAnswer?.kind;
+    if (kind) answerNoteCounts[kind]++;
+    answerBars.add(bar);
+  }
+  reports.push(`keys piano answer role events (take ${project.orchestration?.take ?? 0}): leadEcho=${answerNoteCounts.leadEcho} notes, chordToneFragment=${answerNoteCounts.chordToneFragment} notes; completed lines=${answerBars.size}`);
 
   return {
     notesByTrackId,

@@ -61,7 +61,7 @@
       "properties": {
         "pitch": { "type": "integer", "minimum": 0, "maximum": 127 }, "startTick": { "type": "integer", "minimum": 0 }, "durationTicks": { "type": "integer", "minimum": 1 }, "velocity": { "type": "integer", "minimum": 1, "maximum": 127 },
         "articulation": { "enum": ["legato", "detache", "marcato", "staccato", "spiccato", "pizz", "tremolo", "portato", "sulTasto", "sulPont", "conSord"] },
-        "roleTag": { "enum": ["anchor", "lift", "settle", "bed", "atmosphere", "arrival", "punctuation", "power"], "description": "Planner-assigned piano role: held anchor, motion, arrival, punctuation, power, bed figure, or cascade atmosphere." },
+        "roleTag": { "enum": ["anchor", "lift", "settle", "bed", "atmosphere", "arrival", "punctuation", "power", "answer"], "description": "Planner-assigned piano role: held anchor, motion, arrival, punctuation, power, bed figure, cascade atmosphere, or answer line." },
         "bow": { "enum": ["down", "up"] },
         "layer": { "enum": ["cb", "div2", "kbd"], "description": "The Vc+Cb layering marks its Cb-doubled notes ('cb'); a divisi moment marks its second line ('div2'); legacy piano comping voices may be marked 'kbd'. Export profiles split the cellosBasses track by 'cb'; 'div2' and 'kbd' notes export with their parent part." }
       }

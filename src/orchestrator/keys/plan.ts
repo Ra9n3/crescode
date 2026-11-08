@@ -31,6 +31,13 @@ export type HarpVoiceKind = 'bed' | 'roots' | 'gliss' | 'final';
 export type PianoVoiceKind = 'anchor' | 'tutti' | 'final';
 export type KeysVoiceKind = HarpVoiceKind | PianoVoiceKind;
 
+export interface PianoAnswerPlan {
+  kind: 'leadEcho' | 'chordToneFragment';
+  /** One monophonic pitch per beat; the final pitch releases at windowEndTick. */
+  pitches: number[];
+  windowEndTick: number;
+}
+
 export interface KeysBarPlan {
   bar: number;
   level: KeysLevel;
@@ -61,6 +68,8 @@ export interface KeysBarPlan {
   pianoPower?: 'quarter' | 'eighth';
   /** Cinematic/hybrid chorus RH chord repeated on each beat. */
   pianoRepeatedChord?: boolean;
+  /** Chamber/sonata monophonic RH answer in a violins1 rest window. */
+  pianoAnswer?: PianoAnswerPlan;
   /** Rare chamber/sonata peak allows RH ceiling 88 instead of 84. */
   pianoRarePeak?: boolean;
   /** Section-level owner of the single arpeggiator, when piano is rostered. */
@@ -104,8 +113,8 @@ export interface KeysPlan {
   pianoJobs: PianoSectionPlan[];
   /** §16.6: harp bed figure per two-bar unit per section instance. */
   harpFigures: { startBar: number; figures: HarpFigure[] }[];
-  /** Number of planned piano bars for the held-anchor role. */
-  pianoRoleCounts: Record<'anchor', number>;
+  /** Planned role bars, including answer-line bars assigned after strings render. */
+  pianoRoleCounts: Record<'anchor' | 'answer', number>;
   /** Piano motion denominator and hard up-arp share for this take. */
   pianoMotionStats: { motionBars: number; upBars: number; upLimit: number };
   /** Beat-window piano role presence in the immutable golden105 reference.
@@ -118,7 +127,7 @@ export interface KeysPlan {
 /** The empty plan (no template / no keys roster): the module is silent. */
 export const EMPTY_KEYS_PLAN: KeysPlan = {
   bars: [], glisses: [], harpModeByType: {}, arpeggiatorOwnerByType: {}, pianoJobs: [], harpFigures: [],
-  pianoRoleCounts: { anchor: 0 }, pianoMotionStats: { motionBars: 0, upBars: 0, upLimit: 0 },
+  pianoRoleCounts: { anchor: 0, answer: 0 }, pianoMotionStats: { motionBars: 0, upBars: 0, upLimit: 0 },
   golden105PianoRoleBeats: [], reports: [],
 };
 
@@ -509,7 +518,7 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[] = [])
   // Reserve up-arp slots over the moment-independent potential motion grid.
   // A later figure must not change when moments are toggled on/off.
   let reservedUpBars = 0;
-  const pianoRoleCounts: Record<'anchor', number> = { anchor: 0 };
+  const pianoRoleCounts: Record<'anchor' | 'answer', number> = { anchor: 0, answer: 0 };
   const barPlans: KeysBarPlan[] = [];
   for (let bar = 1; bar <= bars; bar++) {
     const target = arc.find((entry) => entry.bar === bar)?.target ?? 0;

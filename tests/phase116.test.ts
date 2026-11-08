@@ -126,7 +126,7 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
       expect(result.reports.some((r) => r.startsWith(`keys piano answer role events (take ${generatedTake}):`))).toBe(true);
       expect(result.reports.some((r) => r.startsWith(`piano absorption (take ${generatedTake}):`))).toBe(true);
       expect(piano.length).toBeGreaterThan(0);
-      expect(piano.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer', 'flourish'].includes(n.roleTag ?? '')), `${template} t${take}: piano role tags are schema-approved`).toBe(true);
+      expect(piano.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer', 'flourish', 'shift'].includes(n.roleTag ?? '')), `${template} t${take}: piano role tags are schema-approved`).toBe(true);
       expect(piano.some((n) => n.roleTag === 'anchor'), `${template} t${take}: held anchor remains present`).toBe(true);
       expect(project.tracks.find((t) => t.role === HARP)?.notes.every((n) => n.roleTag === undefined)).toBe(true);
       assertPianoPolyphony(piano, `${template} ${fixture} t${take}`);
@@ -144,7 +144,7 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
     for (const [fixture, templateId, take] of samples) {
       const { project, result } = composeTake(fixture, templateId, take);
       const notes = roleNotes(project, PIANO);
-      const anchors = notes.filter((note) => note.roleTag === 'anchor');
+      const anchors = notes.filter((note) => note.roleTag === 'anchor' || note.roleTag === 'shift');
       const bt = barTicks(project.timeSignature);
       const jitterMax = Math.ceil(msToTicks(12, project.tempoMap)) + 2;
       const bars = projectBars(project);
@@ -160,7 +160,7 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
           const group = groupAt(anchors, strike.onset, jitterMax);
           expect(group.length, `${templateId} t${take} b${planBar.bar}: planned strike at ${strike.onset} is rendered`).toBeGreaterThan(0);
           strikesSeen.add(`${planBar.bar}:${strike.onset}`);
-          expect(group.every((n) => n.roleTag === 'anchor')).toBe(true);
+          expect(group.every((n) => n.roleTag === 'anchor' || n.roleTag === 'shift')).toBe(true);
           const ends = group.map((n) => n.startTick + n.durationTicks);
           const body = group.filter((n) => n.pitch <= (templateId === 'ensemble.vocalbacking' ? 56 : 55));
           if (!planBar.pianoPunctuation && !planBar.pianoFigure && !planBar.pianoFlourish) {
@@ -252,7 +252,7 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
       const { project, result } = composeTake(fixture, templateId, take);
       const notes = roleNotes(project, PIANO);
       expect(notes.length).toBeGreaterThan(0);
-      expect(notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer', 'flourish'].includes(n.roleTag ?? ''))).toBe(true);
+      expect(notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer', 'flourish', 'shift'].includes(n.roleTag ?? ''))).toBe(true);
       expect(notes.some((n) => n.roleTag === 'anchor')).toBe(true);
       assertPianoPolyphony(notes, `${templateId} ${fixture} t${take}`);
       if (templateId === 'ensemble.vocalbacking') {
@@ -303,13 +303,15 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
     }
   }, 120000);
 
-  it('schema validation accepts flourish and rejects unknown role tags', () => {
+  it('schema validation accepts current piano role tags and rejects unknown tags', () => {
     const { project } = composeTake('three', 'ensemble.chamber', 1);
     const good = validateProject(project);
     expect(good.ok).toBe(true);
-    const tagged = structuredClone(project);
-    tagged.tracks.find((track) => track.role === PIANO)!.notes[0].roleTag = 'flourish';
-    expect(validateProject(tagged).ok, 'flourish is schema-approved').toBe(true);
+    for (const roleTag of ['flourish', 'shift'] as const) {
+      const tagged = structuredClone(project);
+      tagged.tracks.find((track) => track.role === PIANO)!.notes[0].roleTag = roleTag;
+      expect(validateProject(tagged).ok, `${roleTag} is schema-approved`).toBe(true);
+    }
     const altered = structuredClone(project);
     const piano = altered.tracks.find((t) => t.role === PIANO)!;
     piano.notes[0].roleTag = 'not-a-role' as never;
@@ -978,11 +980,12 @@ describe('Phase 11.6d-1: chamber and sonata piano answers', () => {
   });
 });
 
-describe('Phase 11.6d-2: piano pre-chorus flourishes', () => {
-  it('keeps tail runs diatonic, piano-owned, collision-safe and landed on chorus arrivals', () => {
+describe('Phase 11.6d-2: piano flourishes and last-chorus register shifts', () => {
+  it('keeps tail runs diatonic and piano-owned, and limits octave-up shifts to one RH strike in the last chorus', () => {
     const eligibleTemplates = ['ensemble.chamber', 'ensemble.sonata', 'ensemble.cinematic', 'ensemble.hybridstudio'];
     for (const templateId of eligibleTemplates) {
       let flourishPieces = 0;
+      let shiftPieces = 0;
       const upper = templateId === 'ensemble.chamber' || templateId === 'ensemble.sonata' ? 84 : 96;
       for (let take = 0; take < 20; take++) {
         const { project, result } = composeTake('three', templateId, take);
@@ -1029,19 +1032,35 @@ describe('Phase 11.6d-2: piano pre-chorus flourishes', () => {
           }
         }
         if (flourishes.length) flourishPieces++;
+
+        const shiftNotes = piano.notes.filter((note) => note.roleTag === 'shift');
+        const shiftBars = [...new Set(shiftNotes.map(barOf))];
+        expect(shiftBars.length, `${templateId} t${result.orchestration.take}: at most one shifted strike`).toBeLessThanOrEqual(1);
+        if (shiftNotes.length) {
+          shiftPieces++;
+          const lastChorus = [...project.sections].filter((section) => isChorusTypeK(section.name)).sort((a, b) => a.startBar - b.startBar).at(-1)!;
+          expect(shiftNotes.length).toBeGreaterThanOrEqual(2);
+          expect(shiftNotes.every((note) => note.pitch >= 64 && note.pitch <= upper), `${templateId}: all shifted RH notes remain in range`).toBe(true);
+          expect(shiftNotes.every((note) => {
+            const bar = barOf(note);
+            return bar >= lastChorus.startBar && bar < lastChorus.startBar + lastChorus.lengthBars;
+          }), `${templateId}: shift occurs only in the last chorus`).toBe(true);
+          expect(shiftNotes.every((note) => note.pitch - 12 >= 64), `${templateId}: every shifted note is an octave above an RH source pitch`).toBe(true);
+        }
         expect(samePitchOverlapPairs(piano.notes), `${templateId} t${result.orchestration.take}: no same-pitch overlaps`).toHaveLength(0);
         expect(rhElevenThirteenOverlapPairs(piano.notes), `${templateId} t${result.orchestration.take}: no RH 11/13-semitone pairs`).toHaveLength(0);
         expect(sanitizeNotes(piano.notes, piano.lowestNote, piano.highestNote, projectEndTick(project)), `${templateId} t${result.orchestration.take}: sanitizer no-op`).toEqual(piano.notes);
         assertPianoPolyphony(piano.notes, `${templateId} t${result.orchestration.take}`);
       }
       expect(flourishPieces, `${templateId}: at least one flourish is exercised in the 20-run audit`).toBeGreaterThan(0);
+      expect(shiftPieces, `${templateId}: at least one shift is exercised in the 20-run audit`).toBeGreaterThan(0);
     }
 
     for (const templateId of ['ensemble.vocalbacking', 'ensemble.symphony']) {
       for (let take = 0; take < 20; take++) {
         const { project } = composeTake('three', templateId, take);
         const piano = project.tracks.find((track) => track.role === PIANO)!;
-        expect(piano.notes.some((note) => note.roleTag === 'flourish'), `${templateId} t${take + 1}: no flourish`).toBe(false);
+        expect(piano.notes.some((note) => note.roleTag === 'flourish' || note.roleTag === 'shift'), `${templateId} t${take + 1}: no flourish or shift`).toBe(false);
       }
     }
   }, 1200000);

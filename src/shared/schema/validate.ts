@@ -160,8 +160,8 @@ export function validateProject(input: unknown): ValidationResult {
       if (!isInt(n.startTick) || n.startTick < 0) err(np, `${nm}: note startTick must be an integer ≥ 0`);
       if (!isInt(n.durationTicks) || n.durationTicks < 1) err(np, `${nm}: note has zero or negative length`);
       if (!isInt(n.velocity) || n.velocity < 1 || n.velocity > 127) err(np, `${nm}: velocity must be 1–127 (got ${n.velocity})`);
-      if (n.roleTag !== undefined && !['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer', 'flourish'].includes(n.roleTag)) {
-        err(`${np}.roleTag`, `${nm}: unknown role tag ${JSON.stringify(n.roleTag)} (expected anchor/lift/settle/bed/atmosphere/arrival/punctuation/power/answer/flourish)`);
+      if (n.roleTag !== undefined && !['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer', 'flourish', 'shift'].includes(n.roleTag)) {
+        err(`${np}.roleTag`, `${nm}: unknown role tag ${JSON.stringify(n.roleTag)} (expected anchor/lift/settle/bed/atmosphere/arrival/punctuation/power/answer/flourish/shift)`);
       }
       if (n.articulation !== undefined && !ARTICULATIONS.includes(n.articulation)) {
         err(`${np}.articulation`, `${nm}: unknown articulation ${JSON.stringify(n.articulation)} (expected one of ${ARTICULATIONS.join(', ')})`);

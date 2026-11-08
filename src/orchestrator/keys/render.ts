@@ -248,7 +248,7 @@ function repairPianoOverlaps(
   const failedGroups = new Set<string>();
   const harpYields: string[] = [];
   let shifted = 0, shortened = 0, dropped = 0;
-  const needsWholeChord = (c: KeysCandidate) => c.roleTag === 'arrival' || c.roleTag === 'punctuation';
+  const needsWholeChord = (c: KeysCandidate) => c.roleTag === 'arrival' || c.roleTag === 'punctuation' || c.roleTag === 'shift';
   const isMotionOverlay = (c: KeysCandidate) => c.hand === 'rh'
     && ['lift', 'settle', 'bed', 'atmosphere', 'answer', 'flourish'].includes(c.roleTag ?? '');
   const isLowPriorityForOctaves = (c: KeysCandidate) => isMotionOverlay(c) || c.roleTag === 'power';
@@ -1560,6 +1560,56 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
     }
   }
 
+  // Raise one complete RH chord strike in the final chorus, if every note
+  // clears the template ceiling and the shift creates no piano RH collision.
+  if (flourishTemplates.has(template.id) && pianoTrack) {
+    const choruses = ctx.sections.filter((section) => isChorusTypeK(section.name)).sort((a, b) => a.startBar - b.startBar);
+    const lastChorus = choruses.at(-1);
+    if (lastChorus) {
+      const upper = Math.min(template.id === 'ensemble.chamber' || template.id === 'ensemble.sonata' ? 84 : 96,
+        pianoHi, pianoTrack.highestNote);
+      const flourishLandingBars = new Set(plan.bars.filter((bar) => bar.pianoFlourish)
+        .map((bar) => bar.pianoFlourish!.targetBar));
+      const groups = new Map<string, KeysCandidate[]>();
+      for (const candidate of pianoCandidates) {
+        if (candidate.drop || candidate.hand !== 'rh' || !candidate.strikeId
+          || !['anchor', 'arrival'].includes(candidate.roleTag ?? '')
+          || candidate.bar === undefined || candidate.bar < lastChorus.startBar
+          || candidate.bar >= lastChorus.startBar + lastChorus.lengthBars) continue;
+        const groupBar = planByBar.get(candidate.bar);
+        if (groupBar?.voices.piano === 'final' || groupBar?.pianoArrival === 'closingChord') continue;
+        if (candidate.roleTag === 'arrival' && flourishLandingBars.has(candidate.bar)) continue;
+        groups.set(candidate.strikeId, [...(groups.get(candidate.strikeId) ?? []), candidate]);
+      }
+      const orderedGroups = [...groups.entries()].filter(([, group]) => group.length >= 2)
+        .sort((a, b) => Math.max(...b[1].map((candidate) => candidate.startTick)) - Math.max(...a[1].map((candidate) => candidate.startTick))
+          || a[0].localeCompare(b[0]));
+      const hasForbiddenCollision = (group: KeysCandidate[]): boolean => {
+        const groupSet = new Set(group);
+        for (const candidate of group) {
+          const shiftedPitch = candidate.pitch + 12;
+          if (shiftedPitch > upper || shiftedPitch > pianoTrack.highestNote) return true;
+          for (const other of pianoCandidates) {
+            if (groupSet.has(other) || other.drop || !intervalsOverlap(candidate, other)) continue;
+            const interval = Math.abs(shiftedPitch - other.pitch);
+            if (interval === 0 || (other.hand === 'rh' && [11, 13].includes(interval))) return true;
+          }
+        }
+        return false;
+      };
+      const selected = orderedGroups.find(([, group]) => !hasForbiddenCollision(group));
+      if (selected) {
+        for (const candidate of selected[1]) {
+          candidate.pitch += 12;
+          candidate.roleTag = 'shift';
+          candidate.collisionAlternatives = (candidate.collisionAlternatives ?? [])
+            .map((pitch) => pitch + 12).filter((pitch) => pitch <= upper && pitch <= pianoTrack.highestNote);
+          if (candidate.rootPitch !== undefined) candidate.rootPitch += 12;
+        }
+      }
+    }
+  }
+
   const flourishTake = project.orchestration?.take ?? 0;
   const flourishPlanIndex = plan.reports.findIndex((line) => line.startsWith(`keys piano flourishes planned (take ${flourishTake}):`));
   if (flourishPlanIndex >= 0) {
@@ -1710,7 +1760,7 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
   // pass 2: micro-timing and final note events. The written note end is
   // unchanged by jitter, so all notes in a strike keep a common release.
   const renderedRoleCounts: Record<NoteRoleTag, number> = {
-    anchor: 0, lift: 0, settle: 0, bed: 0, atmosphere: 0, arrival: 0, punctuation: 0, power: 0, answer: 0, flourish: 0,
+    anchor: 0, lift: 0, settle: 0, bed: 0, atmosphere: 0, arrival: 0, punctuation: 0, power: 0, answer: 0, flourish: 0, shift: 0,
   };
   for (const part of KEYS_PARTS) {
     const track = trackOf.get(part);
@@ -1793,7 +1843,7 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
     if (count) reports.push(`keys ${part}: ${count} notes (range ${track.lowestNote}-${track.highestNote}, lag ${msLo}-${msHi} ms)`);
   }
   reports.push(`keys piano role events (take ${project.orchestration?.take ?? 0}): ${Object.entries(renderedRoleCounts).map(([role, count]) => `${role}=${count}`).join(', ')}`);
-  reports.push(`keys piano flourish events (take ${project.orchestration?.take ?? 0}): ${renderedRoleCounts.flourish}`);
+  reports.push(`keys piano flourish/shift events (take ${project.orchestration?.take ?? 0}): flourish=${renderedRoleCounts.flourish}, shift=${renderedRoleCounts.shift}`);
   const answerNotes = Object.values(notesByTrackId).flat().filter((note) => note.roleTag === 'answer');
   const answerNoteCounts = { leadEcho: 0, chordToneFragment: 0 };
   const answerBars = new Set<number>();

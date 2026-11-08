@@ -26,7 +26,7 @@ describe('Phase 11.4 chamber piano clearance', () => {
         .some((t) => t.notes.some((s) => s.pitch <= 71 && s.startTick < end && s.startTick + s.durationTicks > start));
       if (lowStrings && n.pitch >= 64) expect(n.pitch, `bar ${bar}: piano RH clears the strings`).toBeGreaterThanOrEqual(72);
     }
-    expect(piano.notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer', 'flourish'].includes(n.roleTag ?? ''))).toBe(true);
+    expect(piano.notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer', 'flourish', 'shift'].includes(n.roleTag ?? ''))).toBe(true);
     expect(piano.notes.some((n) => n.roleTag === 'anchor')).toBe(true);
   });
 });

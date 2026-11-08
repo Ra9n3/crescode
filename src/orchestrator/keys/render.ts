@@ -1517,23 +1517,25 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
 
   const pianoCandidates = candidatesByPart.piano ?? [];
   const flourishTemplates = new Set(['ensemble.chamber', 'ensemble.sonata', 'ensemble.cinematic', 'ensemble.hybridstudio']);
-  const flourishRosterRoles = new Set(template.roster.map((entry) => entry.role));
   const externalOctaveNotes: Note[] = [];
-  const appendExternalTracks = (tracks: Record<string, Note[]>) => {
-    for (const [trackId, notes] of Object.entries(tracks)) {
-      const role = project.tracks.find((track) => track.id === trackId)?.role;
-      if (role && role !== 'piano' && flourishRosterRoles.has(role)) externalOctaveNotes.push(...notes);
-    }
-  };
-  appendExternalTracks(stringsNotes);
-  appendExternalTracks(brassNotes);
-  appendExternalTracks(windNotes);
-  appendExternalTracks(percNotes);
-  appendExternalTracks(notesByTrackId);
-  for (const entry of ruleNotes) if (entry.role !== 'piano' && flourishRosterRoles.has(entry.role)) externalOctaveNotes.push(...entry.notes);
+  const maxLegatoTicks = forbidOctaveDoubling ? msToTicks(30, project.tempoMap) : 0;
+  if (forbidOctaveDoubling) {
+    const flourishRosterRoles = new Set(template.roster.map((entry) => entry.role));
+    const appendExternalTracks = (tracks: Record<string, Note[]>) => {
+      for (const [trackId, notes] of Object.entries(tracks)) {
+        const role = project.tracks.find((track) => track.id === trackId)?.role;
+        if (role && role !== 'piano' && flourishRosterRoles.has(role)) externalOctaveNotes.push(...notes);
+      }
+    };
+    appendExternalTracks(stringsNotes);
+    appendExternalTracks(brassNotes);
+    appendExternalTracks(windNotes);
+    appendExternalTracks(percNotes);
+    appendExternalTracks(notesByTrackId);
+    for (const entry of ruleNotes) if (entry.role !== 'piano' && flourishRosterRoles.has(entry.role)) externalOctaveNotes.push(...entry.notes);
+  }
   const hasExternalHardOctave = (pitch: number, startTick: number, durationTicks: number): boolean => {
     if (!forbidOctaveDoubling) return false;
-    const maxLegatoTicks = msToTicks(30, project.tempoMap);
     return externalOctaveNotes.some((other) => {
       const interval = Math.abs(pitch - other.pitch);
       if (!interval || interval % 12 !== 0) return false;

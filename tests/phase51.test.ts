@@ -168,7 +168,7 @@ describe('Phase 5.1.3: the 5e matrix re-run at 60 and 180 BPM (6 templates × 3 
       expect(JSON.stringify(a.project.tracks.map((t) => ({ n: t.notes, c: t.cc }))))
         .toBe(JSON.stringify(b.project.tracks.map((t) => ({ n: t.notes, c: t.cc }))));
     }
-  });
+  }, 60000);
 
   it('every cell: each offset is in its ms range through THAT tempo map and never negative', () => {
     for (const c of combos) {

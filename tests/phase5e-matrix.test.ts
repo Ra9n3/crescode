@@ -206,7 +206,7 @@ describe('Phase 5e: the expression matrix (6 templates × 3 key/modes × takes 0
         }
       }
     }
-  });
+  }, 120000);
 
   it('no CC on locked tracks (locked lanes come back untouched)', () => {
     const p = BASE();

@@ -1,12 +1,13 @@
 /**
  * Phase 6: realize a Phase 5 piano intention plan as piano MIDI notes.
  *
- * This module is deliberately piano-only and standalone. It reads the
- * Composer's already-resolved harmonic, phrase, motif, dynamics, and
- * orchestration intentions; it never edits a Track, analyzes other parts, or
- * enters the production compose/render/export path.
+ * This module writes Piano notes only. It reads the Composer's resolved
+ * harmonic, phrase, motif, dynamics, and orchestration intentions, plus the
+ * immutable non-Piano note snapshot used to enforce the template's forbidden
+ * octave policy. It never mutates or renders any non-Piano part.
  */
-import { PPQ, type Note, type Track } from '../../shared/schema/types';
+import { PPQ, type Note, type TempoEntry, type TimeSignature, type Track } from '../../shared/schema/types';
+import { applyPianoOctavePolicy, type PianoOctavePolicyReport, type PianoPolicyExternalTrack } from './piano-octave-policy';
 import type {
   PianoComposerPlan,
   PianoHarmonicEvent,
@@ -24,6 +25,11 @@ export interface PianoRealizerInput {
   readonly targetTrack: PianoRealizerTarget | null;
   /** Project tick boundary supplied by the caller; no song length is inferred. */
   readonly projectEndTick: number;
+  /** Final roster notes used by the template's Piano octave-policy guard. */
+  readonly externalTracks?: readonly PianoPolicyExternalTrack[];
+  /** Existing project timing used only for the rule audit's head/figuration exemptions. */
+  readonly tempoMap?: readonly TempoEntry[];
+  readonly timeSignature?: TimeSignature;
 }
 
 export interface PianoSuspensionAudit {
@@ -1276,10 +1282,10 @@ function resolveOctaveDoublings(notes: DraftNote[]): void {
       } else if (a.suspensionPart || b.suspensionPart) {
         const planned = a.suspensionPart ? a : b;
         const other = planned === a ? b : a;
-        // Never create an octave conflict with an unpaired left-hand anchor;
-        // otherwise preserve the specifically planned voice over incidental
-        // chord/motif color that can be revoiced on its next onset.
-        winner = other.hand === 'left' ? other : planned;
+        // Never create an octave conflict with an unpaired left-hand anchor.
+        // A left-hand `lift`, however, is only an optional approach gesture;
+        // preserve the explicitly planned suspension and yield that approach.
+        winner = other.hand === 'left' && other.note.roleTag !== 'lift' ? other : planned;
       } else {
         const aPriority = NOTE_TAG_PRIORITY[a.note.roleTag ?? 'bed'];
         const bPriority = NOTE_TAG_PRIORITY[b.note.roleTag ?? 'bed'];
@@ -1299,7 +1305,28 @@ function normalizeCandidates(
   target: PianoRealizerTarget,
   projectEndTick: number,
 ): Note[] {
-  const fixed = drafts.flatMap(({ note }) => {
+  // A motif/bed can independently choose the same pitch as a prepared
+  // suspension. Do not let its later onset split the planned held note before
+  // the chord boundary; trim an earlier ordinary note at the preparation, or
+  // drop an ordinary attack that falls inside the protected suspension.
+  const protectedSuspensions = drafts
+    .filter((draft) => draft.suspensionPart !== undefined)
+    .map((draft) => ({ pitch: draft.note.pitch, start: draft.note.startTick, end: endOf(draft.note) }))
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+  const conflictFreeDrafts = drafts.flatMap((draft) => {
+    if (draft.suspensionPart !== undefined) return [draft];
+    const note = { ...draft.note };
+    let end = endOf(note);
+    for (const suspension of protectedSuspensions) {
+      if (suspension.pitch !== note.pitch || note.startTick >= suspension.end || end <= suspension.start) continue;
+      if (note.startTick < suspension.start) end = Math.min(end, suspension.start);
+      else return [];
+    }
+    return end > note.startTick
+      ? [{ ...draft, note: { ...note, durationTicks: end - note.startTick } }]
+      : [];
+  });
+  const fixed = conflictFreeDrafts.flatMap(({ note }) => {
     if (!isInteger(note.pitch) || note.pitch < target.lowestNote || note.pitch > target.highestNote
       || !isInteger(note.startTick) || note.startTick < 0 || note.startTick >= projectEndTick
       || !isInteger(note.durationTicks) || note.durationTicks < 1
@@ -1397,7 +1424,16 @@ function suspensionAuditForNotes(
 export interface PianoRealizationWithAudit {
   readonly notes: readonly Note[];
   readonly suspensions: readonly PianoSuspensionAudit[];
+  readonly octavePolicy: PianoOctavePolicyReport;
 }
+
+const emptyOctavePolicyReport = (plan: PianoComposerPlan): PianoOctavePolicyReport => ({
+  policy: plan.templateConstraints.octaveDoubling === 'forbidden' ? 'forbidden' : 'not-required',
+  revoiced: 0,
+  shortened: 0,
+  dropped: 0,
+  remainingHardPairs: 0,
+});
 
 /**
  * Realize a Phase 5 piano plan into validated piano-only Note values and retain
@@ -1410,17 +1446,26 @@ export function realizePianoPlanWithAudit(input: PianoRealizerInput): PianoReali
     return {
       notes: freezeNotes([]),
       suspensions: suspensionAuditForNotes(input.plan, [], new Map(), reason),
+      octavePolicy: emptyOctavePolicyReport(input.plan),
     };
   }
   const { plan, targetTrack, projectEndTick } = input;
   if (!targetTrack) {
     const reason = 'No writable piano target was supplied to the Realizer.';
-    return { notes: freezeNotes([]), suspensions: suspensionAuditForNotes(plan, [], new Map(), reason) };
+    return {
+      notes: freezeNotes([]),
+      suspensions: suspensionAuditForNotes(plan, [], new Map(), reason),
+      octavePolicy: emptyOctavePolicyReport(plan),
+    };
   }
   const chords = makeRealizedChords(plan, targetTrack, projectEndTick);
   if (!chords.length) {
     const reason = 'No valid harmonic span remains inside the supplied project endpoint.';
-    return { notes: freezeNotes([]), suspensions: suspensionAuditForNotes(plan, [], new Map(), reason) };
+    return {
+      notes: freezeNotes([]),
+      suspensions: suspensionAuditForNotes(plan, [], new Map(), reason),
+      octavePolicy: emptyOctavePolicyReport(plan),
+    };
   }
   const chordNotes = realizeChordTones(plan, chords, projectEndTick);
   const suspensionAttempt = realizeSuspensions(plan, chords, targetTrack, projectEndTick, chordNotes);
@@ -1433,10 +1478,20 @@ export function realizePianoPlanWithAudit(input: PianoRealizerInput): PianoReali
   ];
   const permittedDrafts = suppressRestrictedAttacks(plan, drafts);
   resolveOctaveDoublings(permittedDrafts);
-  const notes = freezeNotes(normalizeCandidates(permittedDrafts, targetTrack, projectEndTick));
+  const normalized = normalizeCandidates(permittedDrafts, targetTrack, projectEndTick);
+  const policy = applyPianoOctavePolicy({
+    plan,
+    targetTrack,
+    notes: normalized,
+    externalTracks: input.externalTracks,
+    tempoMap: input.tempoMap,
+    timeSignature: input.timeSignature,
+  });
+  const notes = freezeNotes(policy.notes);
   return {
     notes,
     suspensions: suspensionAuditForNotes(plan, notes, suspensionAttempt.records),
+    octavePolicy: policy.report,
   };
 }
 

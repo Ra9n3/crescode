@@ -28,7 +28,7 @@ import { maxMeanVelocityFor } from './energy';
 import { chordTones } from './voicing/chordTones';
 import { leadingTonePcOf } from './voicing/voiceLead';
 import { scalePitchClasses } from '../shared/schema/modes';
-import { barTicks, beatTicks, projectBars } from '../shared/schema/meter';
+import { barTicks, beatTicks, projectBars, projectEndTick } from '../shared/schema/meter';
 import { buildCcLanes } from './expression/cc';
 import { humanizeStrings } from './expression/humanize';
 import { overlapLegato } from './expression/legato';
@@ -45,6 +45,9 @@ import { renderKeys, governKeysVelocities, absorbPianoVelocities, repairPianoOct
 import { KEYS_PARTS } from './keys/profile';
 import { EMPTY_KEYS_PLAN } from './keys/plan';
 import { buildPianoEngineInput, type PianoEngineInput } from './keys/piano-engine';
+import { analyzePianoInput } from './keys/piano-analyzer';
+import { composePianoPlan } from './keys/piano-composer';
+import { realizePianoPlanWithAudit } from './keys/piano-realizer';
 import type { OrchestratorContext } from './module';
 
 export interface ComposeOptions {
@@ -68,8 +71,8 @@ export interface ComposeResult {
   /** Phase 4: renderer notes for the report (fallbacks, skipped layerings). */
   reports: string[];
   /**
-   * Phase 4A's ephemeral, read-only PianoEngine handoff. It is non-enumerable
-   * and not part of Project, persistence, MIDI, or UVI output; the legacy keys path is unchanged.
+   * Ephemeral, immutable Piano Engine V2 input used during this compose.
+   * It is non-enumerable and never enters Project persistence or export.
    */
   readonly pianoEngineInput: PianoEngineInput;
 }
@@ -682,9 +685,11 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     tracks = insertBassesTrack(tracks, cc ? { ...basses, cc } : basses);
   }
 
-  // Phase 4A is a read-only handoff only. Reuse the resolved spine, arc,
-  // conductor, template and seed already used above; do not rerun planning or
-  // feed this input back into the legacy piano/harp renderer.
+  // Piano Engine V2 runs after every non-Piano part (including Harp) has
+  // been composed and finalized. Its frozen analysis snapshot reads those
+  // actual notes and arrangement; the V1 piano candidates above are retained
+  // only as compatibility inputs for legacy non-Piano/Harp governance and
+  // are never copied to the Piano output track.
   const pianoEngineInput = buildPianoEngineInput({
     project,
     ensemble,
@@ -696,6 +701,56 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     seed,
     finalizedTracks: tracks,
   });
+  const pianoAnalyzerReport = analyzePianoInput(pianoEngineInput);
+  const pianoPlanV2 = composePianoPlan(pianoEngineInput, pianoAnalyzerReport);
+  const pianoTrack = project.tracks.find((track) => isInstrumentTrack(track)
+    && track.family === 'Keys' && track.role === 'piano' && !track.locked
+    && isInBand(track.role, ensemble, template));
+  const pianoRealization = realizePianoPlanWithAudit({
+    plan: pianoPlanV2,
+    targetTrack: pianoTrack ?? null,
+    projectEndTick: projectEndTick(project),
+    externalTracks: template
+      ? pianoEngineInput.analysis.tracks
+        .filter((track) => template.roster.some((entry) => entry.role === track.role))
+        .map(({ id, role, notes }) => ({ id, role, notes }))
+      : [],
+    tempoMap: project.tempoMap,
+    timeSignature: project.timeSignature,
+  });
+  if (pianoTrack) {
+    const pianoNotes = pianoEngineInput.context.template.pianoEligible
+      ? pianoRealization.notes.map((note) => ({ ...note }))
+      : [];
+    tracks = tracks.map((track) => track.id === pianoTrack.id && isInstrumentTrack(track)
+      ? { ...track, notes: pianoNotes, cc: undefined }
+      : track);
+
+    // Run the final mix safety guard against the real, finalized arrangement.
+    // Piano is the only mutable key lane here; Harp and all other roles retain
+    // their established velocities.
+    if (pianoEngineInput.context.template.pianoEligible && template) {
+      const outputPiano = tracks.find((track) => track.id === pianoTrack.id);
+      if (outputPiano && isInstrumentTrack(outputPiano)) {
+        governKeysVelocities({
+          project: ctx.project,
+          template,
+          keys: [{ role: 'piano', notes: outputPiano.notes }],
+          otherNotes: tracks
+            .filter((track) => isInstrumentTrack(track) && track.role !== 'piano')
+            .map((track) => ({ role: track.role, notes: track.notes })),
+        });
+      }
+    }
+    const completeSuspensions = pianoRealization.suspensions.filter((audit) => audit.complete).length;
+    const octaveAudit = pianoRealization.octavePolicy;
+    const octaveSummary = octaveAudit.policy === 'forbidden'
+      ? `; forbidden octave policy revoiced ${octaveAudit.revoiced}, shortened ${octaveAudit.shortened}, removed ${octaveAudit.dropped}; hard pairs remaining ${octaveAudit.remainingHardPairs}`
+      : '';
+    ctx.lines!.reports.push(
+      `piano engine V2 (take ${orchestration.take}): ${pianoEngineInput.context.template.pianoEligible ? `${pianoRealization.notes.length} notes` : 'ineligible'}; suspensions ${completeSuspensions}/${pianoRealization.suspensions.length}${octaveSummary}`,
+    );
+  }
 
   const result: Omit<ComposeResult, 'pianoEngineInput'> = {
     tracks,

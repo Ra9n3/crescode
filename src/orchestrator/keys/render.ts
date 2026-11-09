@@ -1754,9 +1754,9 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
         for (let i = 0; i < cands.length; i++) {
           const c = cands[i];
           if (c.startTick < end && c.startTick + c.durationTicks > start) {
-            // Match the old role set exactly: baseline piano strikes count
-            // as a piano role; newly added strikes remain outside the bound
-            // and are capped by compose's piano-only absorption pass.
+            // Absorb-tagged piano is new keys presence: keep the harp's
+            // phase-B role count pinned to the legacy window, while retaining
+            // all piano candidates in the piano-only absorption list.
             if (!(r.role === 'piano' && c.absorb)) roles.add(r.role);
             if (r.role === 'piano') pianoIdx.push(i);
           }

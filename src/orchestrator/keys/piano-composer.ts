@@ -1276,6 +1276,7 @@ function composeHarmonicEvents(
   analyzer: PianoAnalyzerReport,
   phrases: readonly PhraseWindow[],
   phrasePlans: readonly PianoPhraseIntention[],
+  fillPlans: readonly PianoFillDecision[],
   profile: StyleProfile,
 ): PianoHarmonicEvent[] {
   const chords = [...input.context.harmony].sort((a, b) => a.startTick - b.startTick || a.endTick - b.endTick);
@@ -1302,7 +1303,14 @@ function composeHarmonicEvents(
     const inversion = inversionFor(material, bass);
     const selectedExtensions = rightHand.filter((tone) => material.extensions.includes(tone));
     const omitted = material.tones.filter((tone) => tone !== bass && !rightHand.includes(tone));
-    const suspension = suspensionFor(previousChord, chord, material, bass, octaveRule(input), profile, input.context.seed);
+    const candidateSuspension = suspensionFor(previousChord, chord, material, bass, octaveRule(input), profile, input.context.seed);
+    const suspensionResolveTick = chord.startTick + Math.min(PPQ / 2,
+      Math.max(1, Math.round((chord.endTick - chord.startTick) * 0.18)));
+    const leaveSpaceBlocksResolution = candidateSuspension !== null && fillPlans.some((decision) =>
+      decision.target.toLowerCase() === 'piano'
+      && decision.decision === 'leave-space'
+      && suspensionResolveTick >= decision.startTick && suspensionResolveTick < decision.endTick);
+    const suspension = leaveSpaceBlocksResolution ? null : candidateSuspension;
     const sectionIds = sectionIdsFor(input, chord.startTick, chord.endTick);
     const selectedPhrase = phrasePlan;
     const nearSilence = selectedPhrase?.dynamics.sourceEnergy.nearSilence ?? false;
@@ -1631,10 +1639,10 @@ export function composePianoPlan(input: PianoEngineInput, analyzer: PianoAnalyze
   const sectionIntentions = input.context.template.pianoEligible
     ? sections.map((section, index) => sectionIntention(section, index, sections.length, phrasePlans, input))
     : [];
-  const harmonicEvents = input.context.template.pianoEligible
-    ? composeHarmonicEvents(input, analyzer, phraseWindowsForPlan, phrasePlans, profile)
-    : [];
   const fillPlans = input.context.template.pianoEligible ? fillDecisions(input, analyzer, sections, profile) : [];
+  const harmonicEvents = input.context.template.pianoEligible
+    ? composeHarmonicEvents(input, analyzer, phraseWindowsForPlan, phrasePlans, fillPlans, profile)
+    : [];
   const status: PianoPlanStatus = !input.context.template.pianoEligible
     ? 'ineligible'
     : input.context.harmony.length ? 'composed' : 'insufficient-harmony';

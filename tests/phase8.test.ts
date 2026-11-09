@@ -13,18 +13,17 @@ import { humanizeHeadTicks } from '../src/orchestrator/expression/timing';
 
 /**
  * Phase 8 — post-moments hardening, four answers:
- *   1. the vocalbacking hard findings are a FALSE POSITIVE (a short chord-tone
- *      figuration note under a longer sustained note is not a layer double):
- *      the checker exempts exactly that shape, so all six templates × takes 1–10
- *      report ZERO hard findings; the exemption is pinned narrow by unit tests.
+ *   1. all six templates have zero hard findings over three-chorus takes 1–10
+ *      and Dorian takes 1–6. The narrow short-note figuration exemption remains
+ *      pinned, and Piano Engine V2 revoices its forbidden-policy octave pairs.
  *   2. divisi in exports (UVI profile): keyswitches unduplicated/misplaced-free,
  *      the per-pitch tremolo merge keeps both divisi lines, cbLayer 'omit' and
  *      the range guard drop nothing, the preview plans both lines.
- *   3. soft findings (overlapAvoid, octaveDoubling climaxOnly) do not RISE with
- *      moments on (pinned ≤ the moments:false counts; numbers printed).
- *   4. humanize/legato jitter is seeded PER NOTE (track, start, pitch) and the
- *      legato overlap PER JOIN, so every note outside the moment bars is
- *      byte-identical to the moments:false run.
+ *   3. non-Piano soft findings (overlapAvoid, octaveDoubling climaxOnly) do not
+ *      RISE with moments on (pinned ≤ the moments:false counts; numbers printed).
+ *   4. non-Piano humanize/legato jitter is seeded PER NOTE (track, start, pitch)
+ *      and the legato overlap PER JOIN, so every non-Piano note outside moment
+ *      bars is byte-identical to the moments:false run.
  */
 const TEMPLATES = ['ensemble.symphony', 'ensemble.chamber', 'ensemble.cinematic', 'ensemble.sonata', 'ensemble.vocalbacking', 'ensemble.hybridstudio'];
 const PROFILE = EXPORT_PROFILES[0].profile;
@@ -51,7 +50,15 @@ const noteSig = (n: Note): string =>
     n.roleTag ?? null,
   ]);
 
-describe('Phase 8: 1 — the vocalbacking hard findings (figuration exemption)', () => {
+// The V2 Piano engine has separate eligibility, realization, and export
+// contracts. The hard-finding sweep includes its final score output; other
+// legacy-only soft-rule comparisons below remain scoped to non-Piano tracks.
+const withoutPiano = (project: Project): Project => ({
+  ...project,
+  tracks: project.tracks.filter((track) => track.role !== 'piano'),
+});
+
+describe('Phase 8: 1 — orchestration hard findings (figuration exemption)', () => {
   it('zero hard findings across all six templates × takes 1–10 (three-chorus) and 1–6 (dorian)', () => {
     const lines: string[] = [];
     for (const templateId of TEMPLATES) {
@@ -134,12 +141,11 @@ describe('Phase 8: 4 — per-note seeding: notes outside moment bars are byte-id
         // tutti is the moment's own content spread one bar early — the harp
         // notes the plan ran into a tutti moment (the run's 16ths live in
         // the bar(s) before the tutti) exist only when the moments do.
-        const KEYS_ROLES_P8 = new Set(['harp', 'piano']);
+        // Harp glissandi are part of the legacy keys planner's moment-aware
+        // contract. Piano Engine V2 has separate production tests and is not
+        // compared through the retired V1 keys plan here.
+        const HARP_ROLE_P8 = 'harp';
         const glissBars = new Set<number>();
-        const pianoFlourishBars = new Set<number>([
-          ...withM.result.plan.keys.bars.filter((bar) => bar.pianoFlourish).map((bar) => bar.bar),
-          ...withoutM.result.plan.keys.bars.filter((bar) => bar.pianoFlourish).map((bar) => bar.bar),
-        ]);
         const rollBars = new Set<number>();
         const landingWindows: [number, number][] = [];
         const btBarP8 = 3840;
@@ -171,21 +177,15 @@ describe('Phase 8: 4 — per-note seeding: notes outside moment bars are byte-id
         const inMoment = (tick: number) => covered.has(Math.floor(tick / btBar) + 1)
           || covered.has(Math.floor((tick - headAfter(tick)) / btBar) + 1);
         for (const t of withM.project.tracks) {
+          if (t.role === 'piano') continue;
           const other = withoutM.project.tracks.find((x) => x.id === t.id);
           if (!other) continue;
           const bNotes = other.notes.filter((n) => !inMoment(n.startTick));
-          const bByKey = new Map<string, string[]>();
-          for (const n of bNotes) {
-            const key = `${n.pitch}@${n.startTick}`;
-            const signatures = bByKey.get(key) ?? [];
-            signatures.push(noteSig(n));
-            bByKey.set(key, signatures);
-          }
+          const bByKey = new Map<string, Note>(
+            bNotes.map((note) => [`${note.pitch}@${note.startTick}`, note]),
+          );
           for (const n of t.notes) {
             if (inMoment(n.startTick)) continue;
-            // Phase 11.6d-2: a planned piano flourish replaces RH content in
-            // its pre-chorus bar; compare neither side of that planned bar.
-            if (t.role === 'piano' && pianoFlourishBars.has(Math.floor(n.startTick / btBar) + 1)) continue;
             // the Phase 10 allowances: a planned roll INTO a tutti is moment
             // content (see above) — percussion notes in its bars are excluded;
             // a percussion note inside a wind pickup-run's landing beat window
@@ -194,23 +194,20 @@ describe('Phase 8: 4 — per-note seeding: notes outside moment bars are byte-id
               if (rollBars.has(Math.floor(n.startTick / btBar) + 1)) continue;
               if (landingWindows.some(([s, e]) => n.startTick >= s && n.startTick < e)) continue;
             }
-            // the Phase 11 allowance: a planned glissando INTO a tutti is
-            // moment content (see above) — keys notes in its bars are excluded
-            if (KEYS_ROLES_P8.has(t.role) && glissBars.has(Math.floor(n.startTick / btBar) + 1)) continue;
+            // A planned Harp glissando into a tutti is moment content (see
+            // above); the run's notes in the bars before that moment are
+            // compared by the Harp-specific regression suite instead.
+            if (t.role === HARP_ROLE_P8 && glissBars.has(Math.floor(n.startTick / btBar) + 1)) continue;
             const key = `${n.pitch}@${n.startTick}`;
-            const signatures = bByKey.get(key) ?? [];
-            // A held anchor and an RH figure may retrigger the same pitch at
-            // the same tick with different durations; match them as a multiset
-            // rather than collapsing their shared pitch/start key.
-            const matchIndex = signatures.indexOf(noteSig(n));
+            const otherNote = bByKey.get(key);
+            const matches = otherNote !== undefined && noteSig(n) === noteSig(otherNote);
             // a note whose written end reaches into a moment bar may join into
             // the moment's entry (the bow-change crossfade) — its TAIL is part
             // of rendering the moment; everything else is byte-identical
             const tailIntoMoment = inMoment(n.startTick + n.durationTicks);
-            expect(signatures.length, `${templateId} t${take} ${t.id} ${n.pitch}@${n.startTick} appears from nowhere`).toBeGreaterThan(0);
+            expect(otherNote, `${templateId} t${take} ${t.id} ${n.pitch}@${n.startTick} appears from nowhere`).toBeDefined();
             if (!tailIntoMoment) {
-              expect(matchIndex, `${templateId} t${take} ${t.id} ${n.pitch}@${n.startTick}`).toBeGreaterThanOrEqual(0);
-              if (matchIndex >= 0) signatures.splice(matchIndex, 1);
+              expect(matches, `${templateId} t${take} ${t.id} ${n.pitch}@${n.startTick}`).toBe(true);
               checked++;
             }
           }
@@ -218,7 +215,7 @@ describe('Phase 8: 4 — per-note seeding: notes outside moment bars are byte-id
       }
     }
     console.log(`PHASE8 jitter identity: ${checked} notes outside moment bars byte-identical to the moments:false runs`);
-    expect(checked).toBeGreaterThan(40000);
+    expect(checked).toBeGreaterThan(25000);
   }, 300000);
 
   it('humanize jitter is a pure function of (track, start, pitch): identical inputs, identical offsets', () => {
@@ -343,7 +340,7 @@ describe('Phase 8: 3 — soft findings do not rise with moments on', () => {
           const takes = fixN === 'three' ? 10 : 6;
           for (let take = 1; take <= takes; take++) {
             const { project, result } = composeTake(fix(), templateId, take, moments);
-            const findings = checkTemplateRules(project, resolveTemplate({ templateId, overrides: {}, pins: {} })!, result.plan);
+            const findings = checkTemplateRules(withoutPiano(project), resolveTemplate({ templateId, overrides: {}, pins: {} })!, result.plan);
             oa += findings.filter((f) => f.rule === 'overlapAvoid').length;
             co += findings.filter((f) => f.rule === 'octaveDoubling' && f.severity === 'soft').length;
             // Phase 9 allowance: the wind moment joins (§14.7 — tutti hits,

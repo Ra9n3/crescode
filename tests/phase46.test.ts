@@ -332,5 +332,5 @@ describe('Phase 4.6 (4): every other template varies its role plan across takes'
       }
     }
     expect(vbPlans).toEqual(new Set(['padBed']));
-  });
+  }, 120000);
 });

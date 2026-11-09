@@ -6,8 +6,9 @@
  * immutable non-Piano note snapshot used to enforce the template's forbidden
  * octave policy. It never mutates or renders any non-Piano part.
  */
-import { PPQ, type Note, type TempoEntry, type TimeSignature, type Track } from '../../shared/schema/types';
+import { PPQ, type CcLane, type Note, type TempoEntry, type TimeSignature, type Track } from '../../shared/schema/types';
 import { applyPianoOctavePolicy, type PianoOctavePolicyReport, type PianoPolicyExternalTrack } from './piano-octave-policy';
+import { generatePianoPedalLane } from './piano-pedal';
 import type {
   PianoComposerPlan,
   PianoHarmonicEvent,
@@ -1440,6 +1441,8 @@ function suspensionAuditForNotes(
 
 export interface PianoRealizationWithAudit {
   readonly notes: readonly Note[];
+  /** Generated Piano-only controller lanes; CC64 is composed by V2, not MIDI export. */
+  readonly controllers: readonly CcLane[];
   readonly suspensions: readonly PianoSuspensionAudit[];
   readonly octavePolicy: PianoOctavePolicyReport;
 }
@@ -1462,6 +1465,7 @@ export function realizePianoPlanWithAudit(input: PianoRealizerInput): PianoReali
     const reason = invalidInputReason(input);
     return {
       notes: freezeNotes([]),
+      controllers: Object.freeze([]),
       suspensions: suspensionAuditForNotes(input.plan, [], new Map(), reason),
       octavePolicy: emptyOctavePolicyReport(input.plan),
     };
@@ -1471,6 +1475,7 @@ export function realizePianoPlanWithAudit(input: PianoRealizerInput): PianoReali
     const reason = 'No writable piano target was supplied to the Realizer.';
     return {
       notes: freezeNotes([]),
+      controllers: Object.freeze([]),
       suspensions: suspensionAuditForNotes(plan, [], new Map(), reason),
       octavePolicy: emptyOctavePolicyReport(plan),
     };
@@ -1480,6 +1485,7 @@ export function realizePianoPlanWithAudit(input: PianoRealizerInput): PianoReali
     const reason = 'No valid harmonic span remains inside the supplied project endpoint.';
     return {
       notes: freezeNotes([]),
+      controllers: Object.freeze([]),
       suspensions: suspensionAuditForNotes(plan, [], new Map(), reason),
       octavePolicy: emptyOctavePolicyReport(plan),
     };
@@ -1505,8 +1511,10 @@ export function realizePianoPlanWithAudit(input: PianoRealizerInput): PianoReali
     timeSignature: input.timeSignature,
   });
   const notes = freezeNotes(policy.notes);
+  const pedalLane = generatePianoPedalLane(plan, notes, projectEndTick);
   return {
     notes,
+    controllers: Object.freeze(pedalLane ? [pedalLane] : []),
     suspensions: suspensionAuditForNotes(plan, notes, suspensionAttempt.records),
     octavePolicy: policy.report,
   };

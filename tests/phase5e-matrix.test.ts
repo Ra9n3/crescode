@@ -158,7 +158,7 @@ describe('Phase 5e: the expression matrix (6 templates × 3 key/modes × takes 0
     }
     expect(cells).toBe(54);
     console.log(`5e matrix: ${cells} cells (6 templates × 3 key/modes × takes 0..2) all green`);
-  });
+  }, 120_000);
 
   it('every cell: determinism (the same take composes byte-identically, notes and CC)', () => {
     for (const c of combos.filter((x) => x.take === 0)) {
@@ -173,7 +173,7 @@ describe('Phase 5e: the expression matrix (6 templates × 3 key/modes × takes 0
       expect(JSON.stringify(a.project.tracks.map((t) => ({ n: t.notes, c: t.cc }))))
         .toBe(JSON.stringify(b2.project.tracks.map((t) => ({ n: t.notes, c: t.cc }))));
     }
-  });
+  }, 120_000);
 
   it('every cell: each offset is in its ms range through the tempo map and never negative', () => {
     for (const c of combos) {

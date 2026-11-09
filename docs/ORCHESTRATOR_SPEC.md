@@ -1038,10 +1038,11 @@ Micro-timing is per-note, hash-seeded from (track, start, pitch) — no
 Math.random — stored IN the notes so the preview and the export show the
 same offsets: harp +0..8 ms, piano +4..12 ms, lags only; a note never
 crosses its bar or a moment boundary because of the jitter (the start
-clamps inside the written bar; the end stays where the figure put it). No
-CC lane reaches a keys track — no sustain pedal, no new CC (the generator
-writes none today). The planner runs at the conductor level on its OWN
-salted D8 stream (`hashString('keys')` over the (inputs, take) seed),
+clamps inside the written bar; the end stays where the figure put it). The conductor-level keys module emits no CC lanes; Piano Engine V2 adds its
+own deterministic CC64 lane after final note realization, aligned with the
+Piano's attacks, harmonic boundaries, rests, and phrase endings. Other keys
+tracks still receive no generated CC. The planner runs at the conductor level
+on its OWN salted D8 stream (`hashString('keys')` over the (inputs, take) seed),
 planned after the percussion; draw order is fixed and position-stable (the
 arpeggiator per section type, then the chorus-entry glissandos in bar
 order, then the outro glissando, then the tutti glissandos in bar order —
@@ -1165,7 +1166,7 @@ file-only part (another file's arrangement is not a doubling candidate).
 | Cymbals | none | — | 48 | none | every note → the long-crash key 48 |
 | Aux | unmapped (`profile.unmapped`) | — | — | — | left out of the export; the notes stay in the project |
 | Harp | Harp 1 Sustain = 12 (once per part) | 12–22 | 23 | none | as written; no transposition, no CC |
-| Piano (IRCAM Prepared Piano 2, Octavo Grand) | none | — | whole keyboard (21) | none | as written; no keyswitch, no CC, no transposition — Phase 11.5's note lengths remain the sustain mechanism |
+| Piano (UVI Grand Model D) | none | — | whole keyboard (21) | none | exported MIDI name: Piano; no keyswitch or transposition; Piano Engine V2 generates CC64 sustain events from its realized notes and harmonic/phrase plan; authored CC64 points are retained when supplied |
 
 The winds have no marcato/tremolo/legato samples: those articulations fall
 back to sustain through the fallback chains (staccato stays staccato), the

@@ -15,7 +15,7 @@
  */
 import { generate } from '../engine/generate';
 import { freshEnsemble, isInBand } from '../shared/schema/band';
-import { isInstrumentTrack, type Note, type OrchestrationState, type Project, type Track } from '../shared/schema/types';
+import { isInstrumentTrack, type CcLane, type CcPoint, type Note, type OrchestrationState, type Project, type Track } from '../shared/schema/types';
 import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
 import { resolveTemplate } from '../config/ensembles';
 import { chordSpans, sectionMap, orchestrationSeedFor, energyCurve } from './spine';
@@ -75,6 +75,69 @@ export interface ComposeResult {
    * It is non-enumerable and never enters Project persistence or export.
    */
   readonly pianoEngineInput: PianoEngineInput;
+}
+
+/** Merge V2-generated pedal automation with authored CC64 when supplied. */
+function composePianoCc64(
+  generatedControllers: readonly CcLane[],
+  authoredControllers: readonly CcLane[] | undefined,
+  projectEndTick: number,
+): CcLane[] | undefined {
+  const generated = generatedControllers.find((lane) => lane.cc === 64);
+  const authored = authoredControllers?.find((lane) => lane.cc === 64);
+  if (!generated && !authored) return undefined;
+
+  const samePoints = (left: readonly CcPoint[], right: readonly CcPoint[]): boolean =>
+    left.length === right.length && left.every((point, index) =>
+      point.tick === right[index].tick && point.value === right[index].value);
+  // The merged MIDI lane is stored on the project track. On a later Compose,
+  // recover its original source events instead of feeding the previous take's
+  // generated points back in as if they had been authored.
+  const provenance = authored?.pianoV2Pedal;
+  const authoredPoints = provenance && samePoints(authored.points, provenance.mergedPoints)
+    ? provenance.authoredPoints
+    : authored?.points ?? [];
+
+  const byTick = new Map<number, { value: number; priority: number; order: number }>();
+  let order = 0;
+  const add = (source: readonly CcPoint[], priority: number) => {
+    for (const point of source) {
+      if (!Number.isInteger(point.tick) || !Number.isInteger(point.value)) continue;
+      const tick = Math.max(0, Math.min(projectEndTick, point.tick));
+      const value = Math.max(0, Math.min(127, point.value));
+      const existing = byTick.get(tick);
+      if (!existing || priority > existing.priority || (priority === existing.priority && order > existing.order)) {
+        byTick.set(tick, { value, priority, order });
+      }
+      order++;
+    }
+  };
+  // Preserve source events, while V2's planned value wins at a shared tick.
+  add(authoredPoints, 0);
+  add(generated?.points ?? [], 1);
+
+  const points: CcPoint[] = [];
+  for (const [tick, event] of [...byTick.entries()].sort((a, b) => a[0] - b[0])) {
+    if (points[points.length - 1]?.value === event.value) continue;
+    points.push({ tick, value: event.value });
+  }
+  const last = points[points.length - 1];
+  if (last && last.value !== 0) {
+    if (last.tick === projectEndTick) last.value = 0;
+    else points.push({ tick: projectEndTick, value: 0 });
+  }
+  if (!points.length) return undefined;
+  const copyPoints = (source: readonly CcPoint[]) => source.map(({ tick, value }) => ({ tick, value }));
+  const mergedPoints = copyPoints(points);
+  return [{
+    cc: 64,
+    points: mergedPoints,
+    pianoV2Pedal: {
+      generatedPoints: copyPoints(generated?.points ?? []),
+      authoredPoints: copyPoints(authoredPoints),
+      mergedPoints: copyPoints(mergedPoints),
+    },
+  }];
 }
 
 export function composeAllTracks(project: Project, options: ComposeOptions): ComposeResult {
@@ -304,8 +367,8 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   // the pad governor's, the humanize jitter caps' and the brass/wind/perc
   // caps' window math byte-identical to HEAD — §16.4); the module's notes
   // REPLACE the phantom at assembly, so the module owns the sound while the
-  // architecture stays pinned. No CC lanes for keys (the generator writes
-  // none today; no sustain pedal — §16.7).
+  // architecture stays pinned. The generic keys module emits no CC; the
+  // Piano Engine V2 CC64 lane is composed separately after final realization.
   const keysPlan = ctx.keysPlan ?? EMPTY_KEYS_PLAN;
   const keysRuleNotes = ruleTracks
     .filter((t) => !stringsTrackIds.includes(t.id) && !brassRosterRoles.includes(t.role) && t.role !== BASSES_ROLE && !windRosterRolesC.includes(t.role) && !percRosterRoles.includes(t.role) && !keysRosterRoles.includes(t.role))
@@ -671,9 +734,9 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
       return { ...t, notes: percussionNotes[t.id], cc: undefined };
     }
     if (keysNotes[t.id] !== undefined) {
-      // the module owns the sound; no CC lanes for keys (§16.7 — the
-      // generator writes none today, no sustain pedal), and a stale
-      // pre-compose cc must not leak through the spread (the winds rule)
+      // This intermediate belongs to the generic keys renderer, which emits
+      // no CC; Piano is replaced below by V2, including its generated CC64.
+      // Clear stale pre-compose lanes so only the current owner writes CC.
       return { ...t, notes: keysNotes[t.id], cc: undefined };
     }
     const gen = ruleTracks.find((r) => r.id === t.id);
@@ -722,8 +785,15 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     const pianoNotes = pianoEngineInput.context.template.pianoEligible
       ? pianoRealization.notes.map((note) => ({ ...note }))
       : [];
+    // Piano Engine V2 supplies its own CC64 lane. Authored CC64 points, when
+    // present, are retained in that same lane; generated values win at ties.
+    const pianoPedalCc = composePianoCc64(
+      pianoRealization.controllers,
+      pianoTrack.cc,
+      projectEndTick(project),
+    );
     tracks = tracks.map((track) => track.id === pianoTrack.id && isInstrumentTrack(track)
-      ? { ...track, notes: pianoNotes, cc: undefined }
+      ? { ...track, notes: pianoNotes, cc: pianoPedalCc?.length ? pianoPedalCc : undefined }
       : track);
 
     // Run the final mix safety guard against the real, finalized arrangement.

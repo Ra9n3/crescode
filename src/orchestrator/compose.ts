@@ -44,6 +44,7 @@ import { EMPTY_PERC_PLAN } from './percussion/plan';
 import { renderKeys, governKeysVelocities, absorbPianoVelocities, repairPianoOctavesAfterHumanize } from './keys/render';
 import { KEYS_PARTS } from './keys/profile';
 import { EMPTY_KEYS_PLAN } from './keys/plan';
+import { buildPianoEngineInput, type PianoEngineInput } from './keys/piano-engine';
 import type { OrchestratorContext } from './module';
 
 export interface ComposeOptions {
@@ -66,6 +67,11 @@ export interface ComposeResult {
   plan: ConductorPlan;
   /** Phase 4: renderer notes for the report (fallbacks, skipped layerings). */
   reports: string[];
+  /**
+   * Phase 4A's ephemeral, read-only PianoEngine handoff. It is non-enumerable
+   * and not part of Project, persistence, MIDI, or UVI output; the legacy keys path is unchanged.
+   */
+  readonly pianoEngineInput: PianoEngineInput;
 }
 
 export function composeAllTracks(project: Project, options: ComposeOptions): ComposeResult {
@@ -676,5 +682,33 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     tracks = insertBassesTrack(tracks, cc ? { ...basses, cc } : basses);
   }
 
-  return { tracks, orchestration, stringsTrackIds, plan, reports: [...ctx.lines!.reports] };
+  // Phase 4A is a read-only handoff only. Reuse the resolved spine, arc,
+  // conductor, template and seed already used above; do not rerun planning or
+  // feed this input back into the legacy piano/harp renderer.
+  const pianoEngineInput = buildPianoEngineInput({
+    project,
+    ensemble,
+    template,
+    sections: ctx.sections,
+    harmony: ctx.spans,
+    energy: arc,
+    conductor: plan,
+    seed,
+    finalizedTracks: tracks,
+  });
+
+  const result: Omit<ComposeResult, 'pianoEngineInput'> = {
+    tracks,
+    orchestration,
+    stringsTrackIds,
+    plan,
+    reports: [...ctx.lines!.reports],
+  };
+  Object.defineProperty(result, 'pianoEngineInput', {
+    value: pianoEngineInput,
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+  return result as ComposeResult;
 }

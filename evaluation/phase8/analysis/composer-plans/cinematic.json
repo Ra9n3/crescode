@@ -1,0 +1,1883 @@
+{
+  "version": 1,
+  "status": "composed",
+  "seed": 3899254770,
+  "template": {
+    "id": "ensemble.cinematic",
+    "eligible": true,
+    "style": {
+      "identity": "cinematic-expanse",
+      "approach": "Wide-register arc: open the harmony with available extensions, reserve broad voicings for arrivals, and otherwise keep the texture breathing.",
+      "leftHandRole": "wide bass foundation with occasional held common tone",
+      "rightHandRole": "open color voicing or a rising motif fragment",
+      "leftHandRegister": "bass",
+      "rightHandRegister": "high",
+      "preferredRightHandVoices": 4,
+      "extensionAppetite": "generous",
+      "rhythmicCharacter": "broad"
+    }
+  },
+  "templateConstraints": {
+    "octaveDoubling": "allowed",
+    "pianoFillGatingRules": [],
+    "fillSource": "explicit-conductor-windows-only"
+  },
+  "sectionIntentions": [
+    {
+      "sectionId": "sec_verse",
+      "name": "Verse",
+      "index": 0,
+      "startTick": 0,
+      "endTick": 30720,
+      "function": "opening",
+      "textureChange": "introduce the piano language in a restrained register before widening",
+      "phraseIds": [
+        "sec_verse:phrase-1"
+      ],
+      "dynamics": {
+        "shape": "suspended-breath",
+        "entry": 1,
+        "peak": 1,
+        "exit": 0,
+        "emotionalColor": "yearning",
+        "sourceEnergy": {
+          "entryTarget": 0.3719714905880392,
+          "exitTarget": 0,
+          "nearSilence": true
+        }
+      },
+      "evidence": [
+        "Section identity and tick span are copied from the existing context.",
+        "The existing energy arc marks near-silence in this section."
+      ]
+    },
+    {
+      "sectionId": "sec_chorus",
+      "name": "Chorus",
+      "index": 1,
+      "startTick": 30720,
+      "endTick": 61440,
+      "function": "closing",
+      "textureChange": "reduce activity toward a clear landing on the final supplied harmony",
+      "phraseIds": [
+        "sec_chorus:phrase-1",
+        "sec_chorus:phrase-2"
+      ],
+      "dynamics": {
+        "shape": "held-arrival",
+        "entry": 3,
+        "peak": 4,
+        "exit": 2,
+        "emotionalColor": "luminous",
+        "sourceEnergy": {
+          "entryTarget": 0.8075,
+          "exitTarget": 0.5225,
+          "nearSilence": false
+        }
+      },
+      "evidence": [
+        "Section identity and tick span are copied from the existing context.",
+        "Conductor annotations present: unison.",
+        "The supplied energy arc reaches at least 0.8 in this section."
+      ]
+    }
+  ],
+  "phrases": [
+    {
+      "id": "sec_verse:phrase-1",
+      "sectionId": "sec_verse",
+      "startTick": 0,
+      "endTick": 30720,
+      "function": "release",
+      "boundaryEvidence": [
+        "section-entry",
+        "section-release"
+      ],
+      "leftHandIntent": "wide bass foundation with occasional held common tone",
+      "rightHandIntent": "support beneath the explicitly annotated lead; keep the motif inward",
+      "registerPlan": {
+        "left": "bass",
+        "right": "high"
+      },
+      "rhythmicIntent": "withhold attacks; let one prepared tone or silence carry across the breath",
+      "rhythmicPlan": {
+        "pulseTicks": 960,
+        "weights": [
+          0.28151449592021205,
+          0.22611942156619813,
+          0.2079729523873409,
+          0.28439313012624895
+        ],
+        "syncopation": null
+      },
+      "intendedDensity": "very-sparse",
+      "dynamics": {
+        "shape": "suspended-breath",
+        "entry": 1,
+        "peak": 1,
+        "exit": 0,
+        "emotionalColor": "yearning",
+        "sourceEnergy": {
+          "entryTarget": 0.3719714905880392,
+          "exitTarget": 0,
+          "nearSilence": true
+        }
+      },
+      "motif": {
+        "motifId": "piano-motif-main",
+        "operation": "introduce",
+        "rationale": "Establish a short chord-relative cell with a prepared neighbor and resolution."
+      }
+    },
+    {
+      "id": "sec_chorus:phrase-1",
+      "sectionId": "sec_chorus",
+      "startTick": 30720,
+      "endTick": 46080,
+      "function": "contrast",
+      "boundaryEvidence": [
+        "section-entry",
+        "moment:unison:end"
+      ],
+      "leftHandIntent": "wide bass foundation with occasional held common tone",
+      "rightHandIntent": "open color voicing or a rising motif fragment",
+      "registerPlan": {
+        "left": "bass",
+        "right": "high"
+      },
+      "rhythmicIntent": "favor long spans, then contract the gesture near a transition or arrival",
+      "rhythmicPlan": {
+        "pulseTicks": 960,
+        "weights": [
+          0.28151449592021205,
+          0.22611942156619813,
+          0.2079729523873409,
+          0.28439313012624895
+        ],
+        "syncopation": null
+      },
+      "intendedDensity": "sparse",
+      "dynamics": {
+        "shape": "held-arrival",
+        "entry": 3,
+        "peak": 3,
+        "exit": 3,
+        "emotionalColor": "luminous",
+        "sourceEnergy": {
+          "entryTarget": 0.8075,
+          "exitTarget": 0.87875,
+          "nearSilence": false
+        }
+      },
+      "motif": {
+        "motifId": "piano-motif-main",
+        "operation": "invert-and-reframe",
+        "rationale": "Reframe the cell around the explicit conductor spotlight instead of restating it unchanged."
+      }
+    },
+    {
+      "id": "sec_chorus:phrase-2",
+      "sectionId": "sec_chorus",
+      "startTick": 46080,
+      "endTick": 61440,
+      "function": "arrival",
+      "boundaryEvidence": [
+        "moment:unison:end",
+        "section-release"
+      ],
+      "leftHandIntent": "wide bass foundation with occasional held common tone",
+      "rightHandIntent": "support beneath the explicitly annotated lead; keep the motif inward",
+      "registerPlan": {
+        "left": "bass",
+        "right": "high"
+      },
+      "rhythmicIntent": "elastic counter-gesture after the annotated lead; do not double its line",
+      "rhythmicPlan": {
+        "pulseTicks": 960,
+        "weights": [
+          0.28151449592021205,
+          0.22611942156619813,
+          0.2079729523873409,
+          0.28439313012624895
+        ],
+        "syncopation": null
+      },
+      "intendedDensity": "sparse",
+      "dynamics": {
+        "shape": "held-arrival",
+        "entry": 4,
+        "peak": 4,
+        "exit": 2,
+        "emotionalColor": "luminous",
+        "sourceEnergy": {
+          "entryTarget": 0.9025,
+          "exitTarget": 0.5225,
+          "nearSilence": false
+        }
+      },
+      "motif": {
+        "motifId": "piano-motif-main",
+        "operation": "fragment-to-landing",
+        "rationale": "Recall only part of the cell so the supplied final harmony, not a repeated pattern, carries the landing."
+      }
+    }
+  ],
+  "motif": {
+    "id": "piano-motif-main",
+    "originChordId": "c01",
+    "originChordSymbol": "Dm7",
+    "anchorPitchClass": 0,
+    "intervalContour": [
+      5,
+      -1,
+      1
+    ],
+    "rhythmicWeights": [
+      0.28151449592021205,
+      0.22611942156619813,
+      0.2079729523873409,
+      0.28439313012624895
+    ],
+    "tones": [
+      {
+        "position": 0,
+        "pitchClass": 0,
+        "function": "chord-tone"
+      },
+      {
+        "position": 1,
+        "pitchClass": 5,
+        "function": "chord-tone"
+      },
+      {
+        "position": 2,
+        "pitchClass": 4,
+        "function": "chromatic-neighbor"
+      },
+      {
+        "position": 3,
+        "pitchClass": 5,
+        "function": "resolution"
+      }
+    ],
+    "tensionResolution": {
+      "kind": "chromatic-neighbor",
+      "position": 2,
+      "resolvesAt": 3,
+      "semitonesToResolution": 1
+    },
+    "developmentPalette": [
+      "sequence-in-new-harmony",
+      "rhythmic-augmentation",
+      "interval-expansion",
+      "invert-and-reframe",
+      "fragmented-recall"
+    ],
+    "identityRationale": "Anchored on chord-tone pitch class 0 from Dm7; a non-chord neighbor resolves by step to a chord tone of G7."
+  },
+  "harmonicEvents": [
+    {
+      "chord": {
+        "id": "c01",
+        "symbol": "Dm7",
+        "startTick": 0,
+        "endTick": 3840,
+        "rootPitchClass": 2,
+        "availablePitchClasses": [
+          2,
+          5,
+          9,
+          0
+        ],
+        "quality": "m7"
+      },
+      "sectionIds": [
+        "sec_verse"
+      ],
+      "phraseId": "sec_verse:phrase-1",
+      "structuralRole": "release",
+      "voicing": {
+        "leftHandBassPitchClass": 5,
+        "inversion": "third",
+        "rightHandPitchClasses": [
+          2,
+          0
+        ],
+        "selectedExtensionPitchClasses": [],
+        "omittedChordPitchClasses": [
+          9
+        ],
+        "treatment": "guide-tone-shell"
+      },
+      "voiceLeading": {
+        "fromChordId": null,
+        "commonPitchClasses": [],
+        "totalSemitoneMotion": null,
+        "bassSemitoneMotion": null,
+        "strategy": "opening-voicing"
+      },
+      "suspension": null,
+      "hands": {
+        "left": {
+          "role": "yielding held tone or silence",
+          "register": "bass",
+          "motion": "yield"
+        },
+        "right": {
+          "role": "withhold or leave a single color-tone trace",
+          "register": "high",
+          "density": "very-sparse",
+          "motion": "yield"
+        }
+      },
+      "orchestration": {
+        "activeTrackIds": [
+          "trk_03_violins1",
+          "trk_06_cellosBasses",
+          "trk_basses",
+          "trk_15_timpani",
+          "trk_20_harp"
+        ],
+        "explicitLeadTrackIds": [
+          "trk_03_violins1"
+        ],
+        "momentKinds": [],
+        "interaction": "leave-space",
+        "analyzerEvidence": "available"
+      },
+      "dynamicIntent": {
+        "intensity": 1,
+        "gesture": "suspended-breath",
+        "sourceEnergyTarget": 0.3719714905880392,
+        "sourceEnergyNearSilence": false
+      }
+    },
+    {
+      "chord": {
+        "id": "c02",
+        "symbol": "G7",
+        "startTick": 3840,
+        "endTick": 7680,
+        "rootPitchClass": 7,
+        "availablePitchClasses": [
+          7,
+          11,
+          2,
+          5
+        ],
+        "quality": "7"
+      },
+      "sectionIds": [
+        "sec_verse"
+      ],
+      "phraseId": "sec_verse:phrase-1",
+      "structuralRole": "release",
+      "voicing": {
+        "leftHandBassPitchClass": 5,
+        "inversion": "seventh",
+        "rightHandPitchClasses": [
+          11,
+          2
+        ],
+        "selectedExtensionPitchClasses": [],
+        "omittedChordPitchClasses": [
+          7
+        ],
+        "treatment": "guide-tone-shell"
+      },
+      "voiceLeading": {
+        "fromChordId": "c01",
+        "commonPitchClasses": [
+          2
+        ],
+        "totalSemitoneMotion": 1,
+        "bassSemitoneMotion": 0,
+        "strategy": "retain-common-tones"
+      },
+      "suspension": null,
+      "hands": {
+        "left": {
+          "role": "yielding held tone or silence",
+          "register": "bass",
+          "motion": "yield"
+        },
+        "right": {
+          "role": "withhold or leave a single color-tone trace",
+          "register": "high",
+          "density": "very-sparse",
+          "motion": "yield"
+        }
+      },
+      "orchestration": {
+        "activeTrackIds": [
+          "trk_03_violins1",
+          "trk_04_violins2",
+          "trk_05_violas",
+          "trk_06_cellosBasses",
+          "trk_basses",
+          "trk_07_horns",
+          "trk_13_clarinets",
+          "trk_20_harp"
+        ],
+        "explicitLeadTrackIds": [
+          "trk_03_violins1"
+        ],
+        "momentKinds": [],
+        "interaction": "leave-space",
+        "analyzerEvidence": "available"
+      },
+      "dynamicIntent": {
+        "intensity": 1,
+        "gesture": "suspended-breath",
+        "sourceEnergyTarget": 0.4749745451678921,
+        "sourceEnergyNearSilence": false
+      }
+    },
+    {
+      "chord": {
+        "id": "c03",
+        "symbol": "Dm7",
+        "startTick": 7680,
+        "endTick": 11520,
+        "rootPitchClass": 2,
+        "availablePitchClasses": [
+          2,
+          5,
+          9,
+          0
+        ],
+        "quality": "m7"
+      },
+      "sectionIds": [
+        "sec_verse"
+      ],
+      "phraseId": "sec_verse:phrase-1",
+      "structuralRole": "release",
+      "voicing": {
+        "leftHandBassPitchClass": 5,
+        "inversion": "third",
+        "rightHandPitchClasses": [
+          2,
+          0
+        ],
+        "selectedExtensionPitchClasses": [],
+        "omittedChordPitchClasses": [
+          9
+        ],
+        "treatment": "guide-tone-shell"
+      },
+      "voiceLeading": {
+        "fromChordId": "c02",
+        "commonPitchClasses": [
+          2
+        ],
+        "totalSemitoneMotion": 1,
+        "bassSemitoneMotion": 0,
+        "strategy": "retain-common-tones"
+      },
+      "suspension": {
+        "kind": "prepared-stepwise-suspension",
+        "preparedByChordId": "c02",
+        "tensionPitchClass": 11,
+        "resolvesToPitchClass": 0,
+        "resolutionDistanceSemitones": 1,
+        "evidence": "Pitch class 11 belongs to c02, is absent from Dm7, and can resolve by step to 0."
+      },
+      "hands": {
+        "left": {
+          "role": "yielding held tone or silence",
+          "register": "bass",
+          "motion": "yield"
+        },
+        "right": {
+          "role": "withhold or leave a single color-tone trace",
+          "register": "high",
+          "density": "very-sparse",
+          "motion": "yield"
+        }
+      },
+      "orchestration": {
+        "activeTrackIds": [
+          "trk_03_violins1",
+          "trk_04_violins2",
+          "trk_05_violas",
+          "trk_06_cellosBasses",
+          "trk_basses",
+          "trk_07_horns",
+          "trk_11_flutes",
+          "trk_13_clarinets",
+          "trk_14_bassoons",
+          "trk_15_timpani",
+          "trk_18_aux",
+          "trk_20_harp"
+        ],
+        "explicitLeadTrackIds": [
+          "trk_03_violins1"
+        ],
+        "momentKinds": [],
+        "interaction": "leave-space",
+        "analyzerEvidence": "available"
+      },
+      "dynamicIntent": {
+        "intensity": 1,
+        "gesture": "suspended-breath",
+        "sourceEnergyTarget": 0.4849847271007353,
+        "sourceEnergyNearSilence": false
+      }
+    },
+    {
+      "chord": {
+        "id": "c04",
+        "symbol": "Em7",
+        "startTick": 11520,
+        "endTick": 13440,
+        "rootPitchClass": 4,
+        "availablePitchClasses": [
+          4,
+          7,
+          11,
+          2
+        ],
+        "quality": "m7"
+      },
+      "sectionIds": [
+        "sec_verse"
+      ],
+      "phraseId": "sec_verse:phrase-1",
+      "structuralRole": "release",
+      "voicing": {
+        "leftHandBassPitchClass": 4,
+        "inversion": "root",
+        "rightHandPitchClasses": [
+          11,
+          2
+        ],
+        "selectedExtensionPitchClasses": [],
+        "omittedChordPitchClasses": [
+          7
+        ],
+        "treatment": "guide-tone-shell"
+      },
+      "voiceLeading": {
+        "fromChordId": "c03",
+        "commonPitchClasses": [
+          2
+        ],
+        "totalSemitoneMotion": 1,
+        "bassSemitoneMotion": 1,
+        "strategy": "retain-common-tones"
+      },
+      "suspension": {
+        "kind": "prepared-stepwise-suspension",
+        "preparedByChordId": "c03",
+        "tensionPitchClass": 0,
+        "resolvesToPitchClass": 11,
+        "resolutionDistanceSemitones": 1,
+        "evidence": "Pitch class 0 belongs to c03, is absent from Em7, and can resolve by step to 11."
+      },
+      "hands": {
+        "left": {
+          "role": "yielding held tone or silence",
+          "register": "bass",
+          "motion": "yield"
+        },
+        "right": {
+          "role": "withhold or leave a single color-tone trace",
+          "register": "high",
+          "density": "very-sparse",
+          "motion": "yield"
+        }
+      },
+      "orchestration": {
+        "activeTrackIds": [
+          "trk_03_violins1",
+          "trk_04_violins2",
+          "trk_05_violas",
+          "trk_06_cellosBasses",
+          "trk_basses",
+          "trk_07_horns",
+          "trk_11_flutes",
+          "trk_13_clarinets",
+          "trk_14_bassoons",
+          "trk_15_timpani",
+          "trk_18_aux",
+          "trk_20_harp"
+        ],
+        "explicitLeadTrackIds": [
+          "trk_03_violins1"
+        ],
+        "momentKinds": [],
+        "interaction": "leave-space",
+        "analyzerEvidence": "available"
+      },
+      "dynamicIntent": {
+        "intensity": 1,
+        "gesture": "suspended-breath",
+        "sourceEnergyTarget": 0.49499490903357846,
+        "sourceEnergyNearSilence": false
+      }
+    },
+    {
+      "chord": {
+        "id": "c05",
+        "symbol": "Fmaj7",
+        "startTick": 13440,
+        "endTick": 15360,
+        "rootPitchClass": 5,
+        "availablePitchClasses": [
+          5,
+          9,
+          0,
+          4
+        ],
+        "quality": "maj7"
+      },
+      "sectionIds": [
+        "sec_verse"
+      ],
+      "phraseId": "sec_verse:phrase-1",
+      "structuralRole": "release",
+      "voicing": {
+        "leftHandBassPitchClass": 4,
+        "inversion": "seventh",
+        "rightHandPitchClasses": [
+          9,
+          0
+        ],
+        "selectedExtensionPitchClasses": [],
+        "omittedChordPitchClasses": [
+          5
+        ],
+        "treatment": "guide-tone-shell"
+      },
+      "voiceLeading": {
+        "fromChordId": "c04",
+        "commonPitchClasses": [],
+        "totalSemitoneMotion": 4,
+        "bassSemitoneMotion": 0,
+        "strategy": "stepwise-revoicing"
+      },
+      "suspension": {
+        "kind": "prepared-stepwise-suspension",
+        "preparedByChordId": "c04",
+        "tensionPitchClass": 11,
+        "resolvesToPitchClass": 0,
+        "resolutionDistanceSemitones": 1,
+        "evidence": "Pitch class 11 belongs to c04, is absent from Fmaj7, and can resolve by step to 0."
+      },
+      "hands": {
+        "left": {
+          "role": "yielding held tone or silence",
+          "register": "bass",
+          "motion": "yield"
+        },
+        "right": {
+          "role": "withhold or leave a single color-tone trace",
+          "register": "high",
+          "density": "very-sparse",
+          "motion": "yield"
+        }
+      },
+      "orchestration": {
+        "activeTrackIds": [
+          "trk_03_violins1",
+          "trk_04_violins2",
+          "trk_05_violas",
+          "trk_06_cellosBasses",
+          "trk_basses",
+          "trk_07_horns",
+          "trk_11_flutes",
+          "trk_13_clarinets",
+          "trk_14_bassoons",
+          "trk_15_timpani",
+          "trk_18_aux",
+          "trk_20_harp"
+        ],
+        "explicitLeadTrackIds": [
+          "trk_03_violins1"
+        ],
+        "momentKinds": [],
+        "interaction": "leave-space",
+        "analyzerEvidence": "available"
+      },
+      "dynamicIntent": {
+        "intensity": 1,
+        "gesture": "suspended-breath",
+        "sourceEnergyTarget": 0.49499490903357846,
+        "sourceEnergyNearSilence": false
+      }
+    },
+    {
+      "chord": {
+        "id": "c06",
+        "symbol": "Dm9",
+        "startTick": 15360,
+        "endTick": 19200,
+        "rootPitchClass": 2,
+        "availablePitchClasses": [
+          2,
+          5,
+          9,
+          0,
+          4
+        ],
+        "quality": "m9"
+      },
+      "sectionIds": [
+        "sec_verse"
+      ],
+      "phraseId": "sec_verse:phrase-1",
+      "structuralRole": "release",
+      "voicing": {
+        "leftHandBassPitchClass": 5,
+        "inversion": "third",
+        "rightHandPitchClasses": [
+          9,
+          0
+        ],
+        "selectedExtensionPitchClasses": [],
+        "omittedChordPitchClasses": [
+          2,
+          4
+        ],
+        "treatment": "guide-tone-shell"
+      },
+      "voiceLeading": {
+        "fromChordId": "c05",
+        "commonPitchClasses": [
+          9,
+          0
+        ],
+        "totalSemitoneMotion": 0,
+        "bassSemitoneMotion": 1,
+        "strategy": "retain-common-tones"
+      },
+      "suspension": null,
+      "hands": {
+        "left": {
+          "role": "yielding held tone or silence",
+          "register": "bass",
+          "motion": "yield"
+        },
+        "right": {
+          "role": "withhold or leave a single color-tone trace",
+          "register": "high",
+          "density": "very-sparse",
+          "motion": "yield"
+        }
+      },
+      "orchestration": {
+        "activeTrackIds": [
+          "trk_03_violins1",
+          "trk_04_violins2",
+          "trk_05_violas",
+          "trk_06_cellosBasses",
+          "trk_basses",
+          "trk_07_horns",
+          "trk_11_flutes",
+          "trk_13_clarinets",
+          "trk_14_bassoons",
+          "trk_15_timpani",
+          "trk_18_aux",
+          "trk_20_harp"
+        ],
+        "explicitLeadTrackIds": [
+          "trk_03_violins1"
+        ],
+        "momentKinds": [],
+        "interaction": "leave-space",
+        "analyzerEvidence": "available"
+      },
+      "dynamicIntent": {
+        "intensity": 1,
+        "gesture": "suspended-breath",
+        "sourceEnergyTarget": 0.5050050909664217,
+        "sourceEnergyNearSilence": false
+      }
+    },
+    {
+      "chord": {
+        "id": "c07",
+        "symbol": "C/E",
+        "startTick": 19200,
+        "endTick": 23040,
+        "rootPitchClass": 0,
+        "availablePitchClasses": [
+          4,
+          0,
+          7
+        ],
+        "quality": "major"
+      },
+      "sectionIds": [
+        "sec_verse"
+      ],
+      "phraseId": "sec_verse:phrase-1",
+      "structuralRole": "release",
+      "voicing": {
+        "leftHandBassPitchClass": 4,
+        "inversion": "slash-bass",
+        "rightHandPitchClasses": [
+          0,
+          7
+        ],
+        "selectedExtensionPitchClasses": [],
+        "omittedChordPitchClasses": [],
+        "treatment": "slash-bass-voicing"
+      },
+      "voiceLeading": {
+        "fromChordId": "c06",
+        "commonPitchClasses": [
+          0
+        ],
+        "totalSemitoneMotion": 2,
+        "bassSemitoneMotion": 1,
+        "strategy": "retain-common-tones"
+      },
+      "suspension": null,
+      "hands": {
+        "left": {
+          "role": "yielding held tone or silence",
+          "register": "bass",
+          "motion": "yield"
+        },
+        "right": {
+          "role": "withhold or leave a single color-tone trace",
+          "register": "high",
+          "density": "very-sparse",
+          "motion": "yield"
+        }
+      },
+      "orchestration": {
+        "activeTrackIds": [
+          "trk_03_violins1",
+          "trk_04_violins2",
+          "trk_05_violas",
+          "trk_06_cellosBasses",
+          "trk_basses",
+          "trk_07_horns",
+          "trk_11_flutes",
+          "trk_13_clarinets",
+          "trk_14_bassoons",
+          "trk_15_timpani",
+          "trk_18_aux",
+          "trk_20_harp"
+        ],
+        "explicitLeadTrackIds": [
+          "trk_03_violins1"
+        ],
+        "momentKinds": [],
+        "interaction": "leave-space",
+        "analyzerEvidence": "available"
+      },
+      "dynamicIntent": {
+        "intensity": 1,
+        "gesture": "suspended-breath",
+        "sourceEnergyTarget": 0.5150152728992647,
+        "sourceEnergyNearSilence": false
+      }
+    },
+    {
+      "chord": {
+        "id": "c08",
+        "symbol": "Am7",
+        "startTick": 23040,
+        "endTick": 26880,
+        "rootPitchClass": 9,
+        "availablePitchClasses": [
+          9,
+          0,
+          4,
+          7
+        ],
+        "quality": "m7"
+      },
+      "sectionIds": [
+        "sec_verse"
+      ],
+      "phraseId": "sec_verse:phrase-1",
+      "structuralRole": "release",
+      "voicing": {
+        "leftHandBassPitchClass": 4,
+        "inversion": "fifth",
+        "rightHandPitchClasses": [
+          0,
+          7
+        ],
+        "selectedExtensionPitchClasses": [],
+        "omittedChordPitchClasses": [
+          9
+        ],
+        "treatment": "guide-tone-shell"
+      },
+      "voiceLeading": {
+        "fromChordId": "c07",
+        "commonPitchClasses": [
+          0,
+          7
+        ],
+        "totalSemitoneMotion": 0,
+        "bassSemitoneMotion": 0,
+        "strategy": "retain-common-tones"
+      },
+      "suspension": null,
+      "hands": {
+        "left": {
+          "role": "yielding held tone or silence",
+          "register": "bass",
+          "motion": "yield"
+        },
+        "right": {
+          "role": "withhold or leave a single color-tone trace",
+          "register": "high",
+          "density": "very-sparse",
+          "motion": "yield"
+        }
+      },
+      "orchestration": {
+        "activeTrackIds": [
+          "trk_03_violins1",
+          "trk_04_violins2",
+          "trk_06_cellosBasses",
+          "trk_basses",
+          "trk_07_horns",
+          "trk_09_trombones",
+          "trk_11_flutes",
+          "trk_13_clarinets",
+          "trk_14_bassoons",
+          "trk_15_timpani",
+          "trk_18_aux",
+          "trk_20_harp"
+        ],
+        "explicitLeadTrackIds": [
+          "trk_03_violins1"
+        ],
+        "momentKinds": [],
+        "interaction": "leave-space",
+        "analyzerEvidence": "available"
+      },
+      "dynamicIntent": {
+        "intensity": 1,
+        "gesture": "suspended-breath",
+        "sourceEnergyTarget": 0.5250254548321079,
+        "sourceEnergyNearSilence": false
+      }
+    },
+    {
+      "chord": {
+        "id": "c09",
+        "symbol": "G",
+        "startTick": 26880,
+        "endTick": 30720,
+        "rootPitchClass": 7,
+        "availablePitchClasses": [
+          7,
+          11,
+          2
+        ],
+        "quality": "major"
+      },
+      "sectionIds": [
+        "sec_verse"
+      ],
+      "phraseId": "sec_verse:phrase-1",
+      "structuralRole": "release",
+      "voicing": {
+        "leftHandBassPitchClass": 2,
+        "inversion": "fifth",
+        "rightHandPitchClasses": [
+          7,
+          11
+        ],
+        "selectedExtensionPitchClasses": [],
+        "omittedChordPitchClasses": [],
+        "treatment": "guide-tone-shell"
+      },
+      "voiceLeading": {
+        "fromChordId": "c08",
+        "commonPitchClasses": [
+          7
+        ],
+        "totalSemitoneMotion": 1,
+        "bassSemitoneMotion": 2,
+        "strategy": "retain-common-tones"
+      },
+      "suspension": null,
+      "hands": {
+        "left": {
+          "role": "yielding held tone or silence",
+          "register": "bass",
+          "motion": "yield"
+        },
+        "right": {
+          "role": "withhold or leave a single color-tone trace",
+          "register": "high",
+          "density": "very-sparse",
+          "motion": "yield"
+        }
+      },
+      "orchestration": {
+        "activeTrackIds": [],
+        "explicitLeadTrackIds": [],
+        "momentKinds": [],
+        "interaction": "interweave",
+        "analyzerEvidence": "available"
+      },
+      "dynamicIntent": {
+        "intensity": 1,
+        "gesture": "suspended-breath",
+        "sourceEnergyTarget": 0,
+        "sourceEnergyNearSilence": true
+      }
+    },
+    {
+      "chord": {
+        "id": "c10",
+        "symbol": "Dm",
+        "startTick": 30720,
+        "endTick": 34560,
+        "rootPitchClass": 2,
+        "availablePitchClasses": [
+          2,
+          5,
+          9
+        ],
+        "quality": "minor"
+      },
+      "sectionIds": [
+        "sec_chorus"
+      ],
+      "phraseId": "sec_chorus:phrase-1",
+      "structuralRole": "arrival",
+      "voicing": {
+        "leftHandBassPitchClass": 2,
+        "inversion": "root",
+        "rightHandPitchClasses": [
+          5,
+          9
+        ],
+        "selectedExtensionPitchClasses": [],
+        "omittedChordPitchClasses": [],
+        "treatment": "guide-tone-shell"
+      },
+      "voiceLeading": {
+        "fromChordId": "c09",
+        "commonPitchClasses": [],
+        "totalSemitoneMotion": 4,
+        "bassSemitoneMotion": 0,
+        "strategy": "stepwise-revoicing"
+      },
+      "suspension": null,
+      "hands": {
+        "left": {
+          "role": "yielding held tone or silence",
+          "register": "bass",
+          "motion": "yield"
+        },
+        "right": {
+          "role": "withhold or leave a single color-tone trace",
+          "register": "high",
+          "density": "very-sparse",
+          "motion": "yield"
+        }
+      },
+      "orchestration": {
+        "activeTrackIds": [
+          "trk_03_violins1",
+          "trk_04_violins2",
+          "trk_05_violas",
+          "trk_basses",
+          "trk_07_horns",
+          "trk_08_trumpets",
+          "trk_09_trombones",
+          "trk_11_flutes",
+          "trk_14_bassoons",
+          "trk_15_timpani",
+          "trk_17_cymbals",
+          "trk_18_aux"
+        ],
+        "explicitLeadTrackIds": [],
+        "momentKinds": [
+          "unison"
+        ],
+        "interaction": "leave-space",
+        "analyzerEvidence": "available"
+      },
+      "dynamicIntent": {
+        "intensity": 3,
+        "gesture": "held-arrival",
+        "sourceEnergyTarget": 0.8075,
+        "sourceEnergyNearSilence": false
+      }
+    },
+    {
+      "chord": {
+        "id": "c11",
+        "symbol": "Fmaj7",
+        "startTick": 34560,
+        "endTick": 38400,
+        "rootPitchClass": 5,
+        "availablePitchClasses": [
+          5,
+          9,
+          0,
+          4
+        ],
+        "quality": "maj7"
+      },
+      "sectionIds": [
+        "sec_chorus"
+      ],
+      "phraseId": "sec_chorus:phrase-1",
+      "structuralRole": "arrival",
+      "voicing": {
+        "leftHandBassPitchClass": 0,
+        "inversion": "fifth",
+        "rightHandPitchClasses": [
+          9,
+          4
+        ],
+        "selectedExtensionPitchClasses": [],
+        "omittedChordPitchClasses": [
+          5
+        ],
+        "treatment": "guide-tone-shell"
+      },
+      "voiceLeading": {
+        "fromChordId": "c10",
+        "commonPitchClasses": [
+          9
+        ],
+        "totalSemitoneMotion": 1,
+        "bassSemitoneMotion": 2,
+        "strategy": "retain-common-tones"
+      },
+      "suspension": null,
+      "hands": {
+        "left": {
+          "role": "yielding held tone or silence",
+          "register": "bass",
+          "motion": "yield"
+        },
+        "right": {
+          "role": "withhold or leave a single color-tone trace",
+          "register": "high",
+          "density": "very-sparse",
+          "motion": "yield"
+        }
+      },
+      "orchestration": {
+        "activeTrackIds": [
+          "trk_03_violins1",
+          "trk_04_violins2",
+          "trk_05_violas",
+          "trk_basses",
+          "trk_07_horns",
+          "trk_08_trumpets",
+          "trk_09_trombones",
+          "trk_11_flutes",
+          "trk_14_bassoons",
+          "trk_15_timpani",
+          "trk_18_aux"
+        ],
+        "explicitLeadTrackIds": [],
+        "momentKinds": [
+          "unison"
+        ],
+        "interaction": "leave-space",
+        "analyzerEvidence": "available"
+      },
+      "dynamicIntent": {
+        "intensity": 3,
+        "gesture": "held-arrival",
+        "sourceEnergyTarget": 0.8312499999999999,
+        "sourceEnergyNearSilence": false
+      }
+    },
+    {
+      "chord": {
+        "id": "c12",
+        "symbol": "C",
+        "startTick": 38400,
+        "endTick": 42240,
+        "rootPitchClass": 0,
+        "availablePitchClasses": [
+          0,
+          4,
+          7
+        ],
+        "quality": "major"
+      },
+      "sectionIds": [
+        "sec_chorus"
+      ],
+      "phraseId": "sec_chorus:phrase-1",
+      "structuralRole": "arrival",
+      "voicing": {
+        "leftHandBassPitchClass": 0,
+        "inversion": "root",
+        "rightHandPitchClasses": [
+          4,
+          7
+        ],
+        "selectedExtensionPitchClasses": [],
+        "omittedChordPitchClasses": [],
+        "treatment": "guide-tone-shell"
+      },
+      "voiceLeading": {
+        "fromChordId": "c11",
+        "commonPitchClasses": [
+          4
+        ],
+        "totalSemitoneMotion": 2,
+        "bassSemitoneMotion": 0,
+        "strategy": "retain-common-tones"
+      },
+      "suspension": null,
+      "hands": {
+        "left": {
+          "role": "yielding held tone or silence",
+          "register": "bass",
+          "motion": "yield"
+        },
+        "right": {
+          "role": "withhold or leave a single color-tone trace",
+          "register": "high",
+          "density": "very-sparse",
+          "motion": "yield"
+        }
+      },
+      "orchestration": {
+        "activeTrackIds": [
+          "trk_03_violins1",
+          "trk_04_violins2",
+          "trk_05_violas",
+          "trk_basses",
+          "trk_07_horns",
+          "trk_08_trumpets",
+          "trk_09_trombones",
+          "trk_11_flutes",
+          "trk_14_bassoons",
+          "trk_15_timpani",
+          "trk_18_aux"
+        ],
+        "explicitLeadTrackIds": [],
+        "momentKinds": [
+          "unison"
+        ],
+        "interaction": "leave-space",
+        "analyzerEvidence": "available"
+      },
+      "dynamicIntent": {
+        "intensity": 3,
+        "gesture": "held-arrival",
+        "sourceEnergyTarget": 0.855,
+        "sourceEnergyNearSilence": false
+      }
+    },
+    {
+      "chord": {
+        "id": "c13",
+        "symbol": "G/B",
+        "startTick": 42240,
+        "endTick": 46080,
+        "rootPitchClass": 7,
+        "availablePitchClasses": [
+          11,
+          7,
+          2
+        ],
+        "quality": "major"
+      },
+      "sectionIds": [
+        "sec_chorus"
+      ],
+      "phraseId": "sec_chorus:phrase-1",
+      "structuralRole": "arrival",
+      "voicing": {
+        "leftHandBassPitchClass": 11,
+        "inversion": "slash-bass",
+        "rightHandPitchClasses": [
+          7,
+          2
+        ],
+        "selectedExtensionPitchClasses": [],
+        "omittedChordPitchClasses": [],
+        "treatment": "slash-bass-voicing"
+      },
+      "voiceLeading": {
+        "fromChordId": "c12",
+        "commonPitchClasses": [
+          7
+        ],
+        "totalSemitoneMotion": 2,
+        "bassSemitoneMotion": 1,
+        "strategy": "retain-common-tones"
+      },
+      "suspension": null,
+      "hands": {
+        "left": {
+          "role": "yielding held tone or silence",
+          "register": "bass",
+          "motion": "yield"
+        },
+        "right": {
+          "role": "withhold or leave a single color-tone trace",
+          "register": "high",
+          "density": "very-sparse",
+          "motion": "yield"
+        }
+      },
+      "orchestration": {
+        "activeTrackIds": [
+          "trk_03_violins1",
+          "trk_04_violins2",
+          "trk_05_violas",
+          "trk_basses",
+          "trk_07_horns",
+          "trk_08_trumpets",
+          "trk_09_trombones",
+          "trk_11_flutes",
+          "trk_14_bassoons",
+          "trk_15_timpani",
+          "trk_18_aux"
+        ],
+        "explicitLeadTrackIds": [],
+        "momentKinds": [
+          "unison"
+        ],
+        "interaction": "leave-space",
+        "analyzerEvidence": "available"
+      },
+      "dynamicIntent": {
+        "intensity": 3,
+        "gesture": "held-arrival",
+        "sourceEnergyTarget": 0.87875,
+        "sourceEnergyNearSilence": false
+      }
+    },
+    {
+      "chord": {
+        "id": "c14",
+        "symbol": "Dm7",
+        "startTick": 46080,
+        "endTick": 49920,
+        "rootPitchClass": 2,
+        "availablePitchClasses": [
+          2,
+          5,
+          9,
+          0
+        ],
+        "quality": "m7"
+      },
+      "sectionIds": [
+        "sec_chorus"
+      ],
+      "phraseId": "sec_chorus:phrase-2",
+      "structuralRole": "arrival",
+      "voicing": {
+        "leftHandBassPitchClass": 0,
+        "inversion": "seventh",
+        "rightHandPitchClasses": [
+          2,
+          5,
+          9
+        ],
+        "selectedExtensionPitchClasses": [],
+        "omittedChordPitchClasses": [],
+        "treatment": "guide-tone-shell"
+      },
+      "voiceLeading": {
+        "fromChordId": "c13",
+        "commonPitchClasses": [
+          2
+        ],
+        "totalSemitoneMotion": 3.5,
+        "bassSemitoneMotion": 1,
+        "strategy": "retain-common-tones"
+      },
+      "suspension": null,
+      "hands": {
+        "left": {
+          "role": "yielding held tone or silence",
+          "register": "bass",
+          "motion": "yield"
+        },
+        "right": {
+          "role": "withhold or leave a single color-tone trace",
+          "register": "high",
+          "density": "very-sparse",
+          "motion": "yield"
+        }
+      },
+      "orchestration": {
+        "activeTrackIds": [
+          "trk_03_violins1",
+          "trk_04_violins2",
+          "trk_05_violas",
+          "trk_06_cellosBasses",
+          "trk_basses",
+          "trk_07_horns",
+          "trk_08_trumpets",
+          "trk_09_trombones",
+          "trk_10_tuba",
+          "trk_11_flutes",
+          "trk_13_clarinets",
+          "trk_14_bassoons",
+          "trk_15_timpani",
+          "trk_18_aux",
+          "trk_20_harp"
+        ],
+        "explicitLeadTrackIds": [],
+        "momentKinds": [],
+        "interaction": "leave-space",
+        "analyzerEvidence": "available"
+      },
+      "dynamicIntent": {
+        "intensity": 4,
+        "gesture": "held-arrival",
+        "sourceEnergyTarget": 0.9025,
+        "sourceEnergyNearSilence": false
+      }
+    },
+    {
+      "chord": {
+        "id": "c15",
+        "symbol": "Bbmaj7",
+        "startTick": 49920,
+        "endTick": 53760,
+        "rootPitchClass": 10,
+        "availablePitchClasses": [
+          10,
+          2,
+          5,
+          9
+        ],
+        "quality": "maj7"
+      },
+      "sectionIds": [
+        "sec_chorus"
+      ],
+      "phraseId": "sec_chorus:phrase-2",
+      "structuralRole": "arrival",
+      "voicing": {
+        "leftHandBassPitchClass": 10,
+        "inversion": "root",
+        "rightHandPitchClasses": [
+          2,
+          5,
+          9
+        ],
+        "selectedExtensionPitchClasses": [],
+        "omittedChordPitchClasses": [],
+        "treatment": "guide-tone-shell"
+      },
+      "voiceLeading": {
+        "fromChordId": "c14",
+        "commonPitchClasses": [
+          2,
+          5,
+          9
+        ],
+        "totalSemitoneMotion": 0,
+        "bassSemitoneMotion": 2,
+        "strategy": "retain-common-tones"
+      },
+      "suspension": null,
+      "hands": {
+        "left": {
+          "role": "yielding held tone or silence",
+          "register": "bass",
+          "motion": "yield"
+        },
+        "right": {
+          "role": "withhold or leave a single color-tone trace",
+          "register": "high",
+          "density": "very-sparse",
+          "motion": "yield"
+        }
+      },
+      "orchestration": {
+        "activeTrackIds": [
+          "trk_03_violins1",
+          "trk_04_violins2",
+          "trk_05_violas",
+          "trk_06_cellosBasses",
+          "trk_basses",
+          "trk_07_horns",
+          "trk_08_trumpets",
+          "trk_09_trombones",
+          "trk_10_tuba",
+          "trk_11_flutes",
+          "trk_13_clarinets",
+          "trk_14_bassoons",
+          "trk_15_timpani",
+          "trk_18_aux",
+          "trk_20_harp"
+        ],
+        "explicitLeadTrackIds": [],
+        "momentKinds": [],
+        "interaction": "leave-space",
+        "analyzerEvidence": "available"
+      },
+      "dynamicIntent": {
+        "intensity": 4,
+        "gesture": "held-arrival",
+        "sourceEnergyTarget": 0.9262499999999999,
+        "sourceEnergyNearSilence": false
+      }
+    },
+    {
+      "chord": {
+        "id": "c16",
+        "symbol": "C",
+        "startTick": 53760,
+        "endTick": 55680,
+        "rootPitchClass": 0,
+        "availablePitchClasses": [
+          0,
+          4,
+          7
+        ],
+        "quality": "major"
+      },
+      "sectionIds": [
+        "sec_chorus"
+      ],
+      "phraseId": "sec_chorus:phrase-2",
+      "structuralRole": "arrival",
+      "voicing": {
+        "leftHandBassPitchClass": 0,
+        "inversion": "root",
+        "rightHandPitchClasses": [
+          4,
+          7
+        ],
+        "selectedExtensionPitchClasses": [],
+        "omittedChordPitchClasses": [],
+        "treatment": "guide-tone-shell"
+      },
+      "voiceLeading": {
+        "fromChordId": "c15",
+        "commonPitchClasses": [],
+        "totalSemitoneMotion": 4.5,
+        "bassSemitoneMotion": 2,
+        "strategy": "stepwise-revoicing"
+      },
+      "suspension": {
+        "kind": "prepared-stepwise-suspension",
+        "preparedByChordId": "c15",
+        "tensionPitchClass": 5,
+        "resolvesToPitchClass": 4,
+        "resolutionDistanceSemitones": 1,
+        "evidence": "Pitch class 5 belongs to c15, is absent from C, and can resolve by step to 4."
+      },
+      "hands": {
+        "left": {
+          "role": "yielding held tone or silence",
+          "register": "bass",
+          "motion": "yield"
+        },
+        "right": {
+          "role": "withhold or leave a single color-tone trace",
+          "register": "high",
+          "density": "very-sparse",
+          "motion": "yield"
+        }
+      },
+      "orchestration": {
+        "activeTrackIds": [
+          "trk_03_violins1",
+          "trk_04_violins2",
+          "trk_05_violas",
+          "trk_06_cellosBasses",
+          "trk_basses",
+          "trk_07_horns",
+          "trk_08_trumpets",
+          "trk_09_trombones",
+          "trk_10_tuba",
+          "trk_11_flutes",
+          "trk_13_clarinets",
+          "trk_14_bassoons",
+          "trk_15_timpani",
+          "trk_18_aux",
+          "trk_20_harp"
+        ],
+        "explicitLeadTrackIds": [],
+        "momentKinds": [],
+        "interaction": "leave-space",
+        "analyzerEvidence": "available"
+      },
+      "dynamicIntent": {
+        "intensity": 4,
+        "gesture": "held-arrival",
+        "sourceEnergyTarget": 0.95,
+        "sourceEnergyNearSilence": false
+      }
+    },
+    {
+      "chord": {
+        "id": "c17",
+        "symbol": "A7sus4",
+        "startTick": 55680,
+        "endTick": 57600,
+        "rootPitchClass": 9,
+        "availablePitchClasses": [
+          9,
+          2,
+          4,
+          7
+        ],
+        "quality": "7sus4"
+      },
+      "sectionIds": [
+        "sec_chorus"
+      ],
+      "phraseId": "sec_chorus:phrase-2",
+      "structuralRole": "arrival",
+      "voicing": {
+        "leftHandBassPitchClass": 9,
+        "inversion": "root",
+        "rightHandPitchClasses": [
+          2,
+          4,
+          7
+        ],
+        "selectedExtensionPitchClasses": [],
+        "omittedChordPitchClasses": [],
+        "treatment": "suspended-chord"
+      },
+      "voiceLeading": {
+        "fromChordId": "c16",
+        "commonPitchClasses": [
+          4,
+          7
+        ],
+        "totalSemitoneMotion": 1.5,
+        "bassSemitoneMotion": 3,
+        "strategy": "retain-common-tones"
+      },
+      "suspension": null,
+      "hands": {
+        "left": {
+          "role": "yielding held tone or silence",
+          "register": "bass",
+          "motion": "yield"
+        },
+        "right": {
+          "role": "withhold or leave a single color-tone trace",
+          "register": "high",
+          "density": "very-sparse",
+          "motion": "yield"
+        }
+      },
+      "orchestration": {
+        "activeTrackIds": [
+          "trk_03_violins1",
+          "trk_04_violins2",
+          "trk_05_violas",
+          "trk_06_cellosBasses",
+          "trk_basses",
+          "trk_07_horns",
+          "trk_08_trumpets",
+          "trk_09_trombones",
+          "trk_10_tuba",
+          "trk_11_flutes",
+          "trk_13_clarinets",
+          "trk_14_bassoons",
+          "trk_15_timpani",
+          "trk_18_aux",
+          "trk_20_harp"
+        ],
+        "explicitLeadTrackIds": [],
+        "momentKinds": [],
+        "interaction": "leave-space",
+        "analyzerEvidence": "available"
+      },
+      "dynamicIntent": {
+        "intensity": 4,
+        "gesture": "held-arrival",
+        "sourceEnergyTarget": 0.95,
+        "sourceEnergyNearSilence": false
+      }
+    },
+    {
+      "chord": {
+        "id": "c18",
+        "symbol": "Dm7",
+        "startTick": 57600,
+        "endTick": 61440,
+        "rootPitchClass": 2,
+        "availablePitchClasses": [
+          2,
+          5,
+          9,
+          0
+        ],
+        "quality": "m7"
+      },
+      "sectionIds": [
+        "sec_chorus"
+      ],
+      "phraseId": "sec_chorus:phrase-2",
+      "structuralRole": "arrival",
+      "voicing": {
+        "leftHandBassPitchClass": 9,
+        "inversion": "fifth",
+        "rightHandPitchClasses": [
+          5,
+          0
+        ],
+        "selectedExtensionPitchClasses": [],
+        "omittedChordPitchClasses": [
+          2
+        ],
+        "treatment": "guide-tone-shell"
+      },
+      "voiceLeading": {
+        "fromChordId": "c17",
+        "commonPitchClasses": [],
+        "totalSemitoneMotion": 4.5,
+        "bassSemitoneMotion": 0,
+        "strategy": "stepwise-revoicing"
+      },
+      "suspension": {
+        "kind": "prepared-stepwise-suspension",
+        "preparedByChordId": "c17",
+        "tensionPitchClass": 4,
+        "resolvesToPitchClass": 5,
+        "resolutionDistanceSemitones": 1,
+        "evidence": "Pitch class 4 belongs to c17, is absent from Dm7, and can resolve by step to 5."
+      },
+      "hands": {
+        "left": {
+          "role": "yielding held tone or silence",
+          "register": "bass",
+          "motion": "yield"
+        },
+        "right": {
+          "role": "withhold or leave a single color-tone trace",
+          "register": "high",
+          "density": "very-sparse",
+          "motion": "yield"
+        }
+      },
+      "orchestration": {
+        "activeTrackIds": [
+          "trk_03_violins1",
+          "trk_04_violins2",
+          "trk_05_violas",
+          "trk_06_cellosBasses",
+          "trk_basses",
+          "trk_07_horns",
+          "trk_09_trombones",
+          "trk_11_flutes",
+          "trk_13_clarinets",
+          "trk_14_bassoons",
+          "trk_15_timpani",
+          "trk_18_aux",
+          "trk_20_harp"
+        ],
+        "explicitLeadTrackIds": [
+          "trk_03_violins1"
+        ],
+        "momentKinds": [],
+        "interaction": "leave-space",
+        "analyzerEvidence": "available"
+      },
+      "dynamicIntent": {
+        "intensity": 4,
+        "gesture": "held-arrival",
+        "sourceEnergyTarget": 0.5225,
+        "sourceEnergyNearSilence": false
+      }
+    }
+  ],
+  "fillDecisions": [],
+  "attackRestrictions": [
+    {
+      "bar": 8,
+      "startTick": 26880,
+      "endTick": 30720,
+      "reason": "near-silence-zero-energy",
+      "rationale": "The supplied energy arc marks bar 8 near-silent with a zero target; suppress new attacks unless a specific Composer exception or fill decision authorizes one."
+    }
+  ],
+  "structuralEvents": [
+    {
+      "kind": "section-entry",
+      "startTick": 0,
+      "endTick": 0,
+      "sectionId": "sec_verse",
+      "intention": "introduce the piano language without spending the whole dynamic range",
+      "evidence": "Existing section boundary: Verse (sec_verse)."
+    },
+    {
+      "kind": "release-after-near-silence",
+      "startTick": 30720,
+      "endTick": 30720,
+      "sectionId": "sec_chorus",
+      "intention": "allow a single restrained arrival after the supplied near-silence, then develop rather than automatically swell",
+      "evidence": "Existing energy arc marks bar 8 near-silent and raises target in bar 9."
+    },
+    {
+      "kind": "section-release",
+      "startTick": 30720,
+      "endTick": 30720,
+      "sectionId": "sec_verse",
+      "intention": "leave a clear transition into the next supplied section",
+      "evidence": "Existing section end tick 30720."
+    },
+    {
+      "kind": "section-transition",
+      "startTick": 30720,
+      "endTick": 30720,
+      "sectionId": "sec_chorus",
+      "intention": "reframe the motif and hand roles for the new section",
+      "evidence": "Existing section boundary: Chorus (sec_chorus)."
+    },
+    {
+      "kind": "conductor-emphasis",
+      "startTick": 30720,
+      "endTick": 46080,
+      "sectionId": "sec_chorus",
+      "momentKind": "unison",
+      "intention": "shape a compact emphasis around the supplied conductor moment",
+      "evidence": "Reused explicit unison annotation from PianoEngineContext.moments."
+    },
+    {
+      "kind": "final-landing",
+      "startTick": 61440,
+      "endTick": 61440,
+      "sectionId": "sec_chorus",
+      "chordId": "c18",
+      "intention": "reduce the texture and sustain a clear voicing of the final supplied chord; no cadence is inferred",
+      "evidence": "The last resolved chord span supplied is Dm7 (c18)."
+    },
+    {
+      "kind": "section-release",
+      "startTick": 61440,
+      "endTick": 61440,
+      "sectionId": "sec_chorus",
+      "intention": "leave a clear transition into the next supplied section",
+      "evidence": "Existing section end tick 61440."
+    }
+  ],
+  "ending": {
+    "availability": "available",
+    "tick": 61440,
+    "chordId": "c18",
+    "intention": "settle-on-supplied-harmony",
+    "cadenceInference": false,
+    "reason": "Land on the final supplied harmony with a thinning texture; no key, mode, or cadence is inferred."
+  },
+  "limitations": [
+    "This is an intention plan only: no MIDI notes, durations, velocities, articulations, or instrument patch choices are produced.",
+    "The input has no key/mode or time-signature field; harmony is interpreted only from resolved chord symbols and pitch classes, and rhythmic cells remain relative.",
+    "Analyzer activity is written-score evidence, not audible-state evidence; missing mute/solo state is not inferred.",
+    "Only strings lead layers and the supplied tutti/soli/unison moments are available; other family lead spans and divisi/imitation details remain unavailable.",
+    "Phrase boundaries are composed from supplied section boundaries, conductor moments/fill reservations, and turns in the existing energy arc; they are not a general phrase/cadence analysis."
+  ],
+  "containsMidiNotes": false
+}

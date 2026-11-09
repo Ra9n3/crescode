@@ -34,17 +34,57 @@ export interface PianoComposerStyle {
   readonly rhythmicCharacter: 'elastic' | 'speech-like' | 'unhurried' | 'broad' | 'syncopated';
 }
 
+export interface PianoEnergyTrajectoryPoint {
+  readonly bar: number;
+  /** Position of this supplied bar's target within the phrase, from 0 to 1. */
+  readonly position: number;
+  readonly target: number;
+  readonly nearSilence: boolean;
+}
+
+export interface PianoDynamicCurvePoint {
+  /** Position within the phrase, from 0 to 1. */
+  readonly position: number;
+  /** Continuous 0–5 piano intensity; the Realizer maps it to MIDI velocity. */
+  readonly intensity: number;
+  /** Null only for a Composer-added expressive anchor, not a source bar. */
+  readonly sourceBar: number | null;
+  readonly sourceTarget: number | null;
+}
+
+export interface PianoDynamicSegment {
+  /** Segment bounds in the parent phrase's normalized time. */
+  readonly startPosition: number;
+  readonly endPosition: number;
+  readonly shape: 'suspended-breath' | 'rising-arc' | 'unwind' | 'held-arrival' | 'arch' | 'plateau';
+  readonly entry: PianoIntensity;
+  readonly peak: PianoIntensity;
+  readonly exit: PianoIntensity;
+  /** Peak position is phrase-relative, so adjacent segments share one clock. */
+  readonly peakPosition: number;
+  readonly turningPoint: 'peak' | 'valley' | null;
+}
+
 export interface PianoPhraseDynamics {
   readonly shape: 'suspended-breath' | 'rising-arc' | 'unwind' | 'held-arrival' | 'arch' | 'plateau';
   readonly entry: PianoIntensity;
   readonly peak: PianoIntensity;
   readonly exit: PianoIntensity;
+  /** Position of the planned maximum, derived from the complete shared curve. */
+  readonly peakPosition: number;
+  /** Piecewise envelope derived from the supplied per-bar energy targets. */
+  readonly intensityCurve: readonly PianoDynamicCurvePoint[];
+  /** Dynamic-only subphrases; note-writing phrase boundaries stay independent. */
+  readonly segments: readonly PianoDynamicSegment[];
   readonly emotionalColor: 'intimate' | 'yearning' | 'restless' | 'luminous' | 'resolute' | 'reflective';
-  /** The supplied energy values used as anchors; no new energy curve is made. */
+  /** Exact supplied energy samples; no separate piano energy curve is invented. */
   readonly sourceEnergy: {
     readonly entryTarget: number | null;
     readonly exitTarget: number | null;
     readonly nearSilence: boolean;
+    readonly descendingTowardEnd: boolean;
+    readonly peakPosition: number;
+    readonly trajectory: readonly PianoEnergyTrajectoryPoint[];
   };
 }
 
@@ -831,20 +871,313 @@ function intensityFromTarget(target: number | null): PianoIntensity {
   return Math.max(0, Math.min(5, Math.round(target * 5))) as PianoIntensity;
 }
 
+function continuousIntensityFromTarget(target: number, reduction: number): number {
+  return Math.max(0, Math.min(5, target * 5 - reduction));
+}
+
+function linearTrend(values: readonly number[]): number {
+  if (values.length < 2) return 0;
+  const meanIndex = (values.length - 1) / 2;
+  const meanValue = values.reduce((sum, value) => sum + value, 0) / values.length;
+  let numerator = 0;
+  let denominator = 0;
+  for (let index = 0; index < values.length; index++) {
+    const centeredIndex = index - meanIndex;
+    numerator += centeredIndex * (values[index] - meanValue);
+    denominator += centeredIndex * centeredIndex;
+  }
+  return denominator > 0 ? (numerator / denominator) * (values.length - 1) : 0;
+}
+
+function clearlyDescendingTowardEnd(trajectory: readonly PianoEnergyTrajectoryPoint[]): boolean {
+  if (trajectory.length < 2) return false;
+  const tail = trajectory.slice(-Math.min(4, trajectory.length)).map((point) => point.target);
+  if (tail.length < 2) return false;
+  const last = tail[tail.length - 1];
+  const previous = tail[tail.length - 2];
+  const tailPeak = Math.max(...tail);
+  const netDowntrend = last - tail[0] <= -0.05 && linearTrend(tail) <= -0.04;
+  const pronouncedFinalDrop = previous - last >= 0.08;
+  return tailPeak - last >= 0.10 && (netDowntrend || pronouncedFinalDrop);
+}
+
+interface EnergyTurn {
+  readonly index: number;
+  readonly kind: 'peak' | 'valley';
+  readonly prominence: number;
+}
+
+const ENERGY_DIRECTION_EPSILON = 0.008;
+const ENERGY_TURN_PROMINENCE = 0.06;
+
+/** Detect a salient reversal from cumulative phrase context, not one-bar slope thresholds. */
+function meaningfulEnergyTurns(trajectory: readonly PianoEnergyTrajectoryPoint[]): EnergyTurn[] {
+  if (trajectory.length < 3) return [];
+  const values = trajectory.map((point) => point.target);
+  const candidates: { index: number; kind: EnergyTurn['kind'] }[] = [];
+  let direction: -1 | 1 | 0 = 0;
+  let trendStart = 0;
+
+  for (let nextIndex = 1; nextIndex < values.length; nextIndex++) {
+    const difference = values[nextIndex] - values[nextIndex - 1];
+    const nextDirection: -1 | 1 | 0 = Math.abs(difference) <= ENERGY_DIRECTION_EPSILON
+      ? 0 : difference > 0 ? 1 : -1;
+    if (nextDirection === 0) continue;
+    if (direction === 0) {
+      direction = nextDirection;
+      continue;
+    }
+    if (nextDirection === direction) continue;
+
+    const kind: EnergyTurn['kind'] = direction > 0 ? 'peak' : 'valley';
+    let turnIndex = trendStart;
+    for (let index = trendStart + 1; index < nextIndex; index++) {
+      const better = kind === 'peak'
+        ? values[index] > values[turnIndex]
+        : values[index] < values[turnIndex];
+      const tiedAndLater = Math.abs(values[index] - values[turnIndex]) <= 1e-9 && index > turnIndex;
+      if (better || tiedAndLater) turnIndex = index;
+    }
+    if (turnIndex > 0 && turnIndex < values.length - 1) candidates.push({ index: turnIndex, kind });
+    direction = nextDirection;
+    trendStart = turnIndex;
+  }
+
+  const mergeAdjacentSameKind = () => {
+    for (let index = 1; index < candidates.length; index++) {
+      const previous = candidates[index - 1];
+      const current = candidates[index];
+      if (previous.kind !== current.kind) continue;
+      const keepCurrent = current.kind === 'peak'
+        ? values[current.index] >= values[previous.index]
+        : values[current.index] <= values[previous.index];
+      if (keepCurrent) candidates.splice(index - 1, 1);
+      else candidates.splice(index, 1);
+      index = Math.max(0, index - 2);
+    }
+  };
+
+  // Remove low-prominence wiggles, then re-evaluate the remaining turns against
+  // their new neighbors. This keeps a gradual build followed by a sharp drop,
+  // while tiny alternating bar-to-bar changes do not create subphrases.
+  for (;;) {
+    mergeAdjacentSameKind();
+    let weakestIndex = -1;
+    let weakestProminence = Number.POSITIVE_INFINITY;
+    for (let index = 0; index < candidates.length; index++) {
+      const turn = candidates[index];
+      const leftIndex = candidates[index - 1]?.index ?? 0;
+      const rightIndex = candidates[index + 1]?.index ?? values.length - 1;
+      const leftRange = values.slice(leftIndex, turn.index + 1);
+      const rightRange = values.slice(turn.index, rightIndex + 1);
+      const value = values[turn.index];
+      const prominence = turn.kind === 'peak'
+        ? Math.min(value - Math.min(...leftRange), value - Math.min(...rightRange))
+        : Math.min(Math.max(...leftRange) - value, Math.max(...rightRange) - value);
+      if (prominence < weakestProminence) {
+        weakestProminence = prominence;
+        weakestIndex = index;
+      }
+    }
+    if (weakestIndex < 0 || weakestProminence >= ENERGY_TURN_PROMINENCE) break;
+    candidates.splice(weakestIndex, 1);
+  }
+
+  return candidates.map((turn, index) => {
+    const leftIndex = candidates[index - 1]?.index ?? 0;
+    const rightIndex = candidates[index + 1]?.index ?? values.length - 1;
+    const leftRange = values.slice(leftIndex, turn.index + 1);
+    const rightRange = values.slice(turn.index, rightIndex + 1);
+    const value = values[turn.index];
+    const prominence = turn.kind === 'peak'
+      ? Math.min(value - Math.min(...leftRange), value - Math.min(...rightRange))
+      : Math.min(Math.max(...leftRange) - value, Math.max(...rightRange) - value);
+    return { ...turn, prominence };
+  });
+}
+
 function sourceEnergyForPhrase(
   input: PianoEngineInput,
   phrase: PhraseWindow,
 ): PianoPhraseDynamics['sourceEnergy'] {
+  const phraseLength = Math.max(1, phrase.endTick - phrase.startTick);
   const overlappingBars = input.context.barWindows
     .filter((bar) => intersects(bar.startTick, bar.endTick, phrase.startTick, phrase.endTick))
     .sort((a, b) => a.bar - b.bar);
   const energyByBar = new Map(input.context.energy.map((entry) => [entry.bar, entry]));
-  const values = overlappingBars.map((bar) => energyByBar.get(bar.bar)).filter((x): x is NonNullable<typeof x> => !!x);
+  const trajectory = overlappingBars.flatMap((bar): PianoEnergyTrajectoryPoint[] => {
+    const energy = energyByBar.get(bar.bar);
+    if (!energy) return [];
+    const sampleTick = Math.max(phrase.startTick, bar.startTick);
+    return [{
+      bar: bar.bar,
+      position: Math.max(0, Math.min(1, (sampleTick - phrase.startTick) / phraseLength)),
+      target: energy.target,
+      nearSilence: energy.nearSilence,
+    }];
+  });
+  let peakIndex = 0;
+  for (let index = 1; index < trajectory.length; index++) {
+    if (trajectory[index].target > trajectory[peakIndex].target) peakIndex = index;
+  }
   return {
-    entryTarget: values[0]?.target ?? null,
-    exitTarget: values[values.length - 1]?.target ?? null,
-    nearSilence: values.some((entry) => entry.nearSilence),
+    entryTarget: trajectory[0]?.target ?? null,
+    exitTarget: trajectory[trajectory.length - 1]?.target ?? null,
+    nearSilence: trajectory.some((point) => point.nearSilence),
+    descendingTowardEnd: clearlyDescendingTowardEnd(trajectory),
+    peakPosition: trajectory[peakIndex]?.position ?? 0.5,
+    trajectory,
   };
+}
+
+function sourceTrend(sourceEnergy: PianoPhraseDynamics['sourceEnergy']): number {
+  return linearTrend(sourceEnergy.trajectory.map((point) => point.target));
+}
+
+function dynamicPeakPosition(
+  sourceEnergy: PianoPhraseDynamics['sourceEnergy'],
+  shape: PianoPhraseDynamics['shape'],
+  turns: readonly EnergyTurn[],
+  trend: number,
+): number {
+  if (shape === 'unwind' || shape === 'rising-arc' || shape === 'suspended-breath') {
+    return sourceEnergy.peakPosition;
+  }
+  if (shape === 'held-arrival') {
+    return trend >= 0.08 && !sourceEnergy.descendingTowardEnd ? sourceEnergy.peakPosition : 0.68;
+  }
+  if (shape === 'arch') {
+    const majorPeak = [...turns]
+      .filter((turn) => turn.kind === 'peak')
+      .sort((a, b) => b.prominence - a.prominence || b.index - a.index)[0];
+    return majorPeak ? sourceEnergy.trajectory[majorPeak.index].position : 0.5;
+  }
+  return 0.5;
+}
+
+function smoothProgress(value: number): number {
+  const t = Math.max(0, Math.min(1, value));
+  return t * t * (3 - 2 * t);
+}
+
+function intensityAtPosition(curve: readonly PianoDynamicCurvePoint[], position: number): number | null {
+  if (!curve.length) return null;
+  const ordered = [...curve].sort((a, b) => a.position - b.position);
+  if (position <= ordered[0].position) return ordered[0].intensity;
+  for (let index = 0; index + 1 < ordered.length; index++) {
+    const left = ordered[index];
+    const right = ordered[index + 1];
+    if (position > right.position) continue;
+    const span = right.position - left.position;
+    if (span <= 0) return Math.max(left.intensity, right.intensity);
+    const t = smoothProgress((position - left.position) / span);
+    return left.intensity + (right.intensity - left.intensity) * t;
+  }
+  return ordered[ordered.length - 1].intensity;
+}
+
+function makeIntensityCurve(
+  sourceEnergy: PianoPhraseDynamics['sourceEnergy'],
+  shape: PianoPhraseDynamics['shape'],
+  peak: PianoIntensity,
+  peakPosition: number,
+  entry: PianoIntensity,
+  orchestrationReduction: number,
+  profile: StyleProfile,
+): PianoDynamicCurvePoint[] {
+  if (!sourceEnergy.trajectory.length) return [];
+  const ceiling = profile.densityBias < -0.5 ? 4 : 5;
+  const breathCap = shape === 'suspended-breath' ? 1 : ceiling;
+  const curve: PianoDynamicCurvePoint[] = sourceEnergy.trajectory.map((point) => ({
+    position: point.position,
+    intensity: Math.max(0, Math.min(breathCap, continuousIntensityFromTarget(point.target, orchestrationReduction))),
+    sourceBar: point.bar,
+    sourceTarget: point.target,
+  }));
+  if (curve[0].position > 0) {
+    curve.push({ position: 0, intensity: Math.max(0, Math.min(breathCap, entry)), sourceBar: null, sourceTarget: null });
+  }
+  const peakAnchor = shape === 'rising-arc' || shape === 'arch' || shape === 'held-arrival';
+  if (peakAnchor) {
+    const plannedPeak = Math.max(0, Math.min(breathCap, peak));
+    const existingPointIndex = curve.findIndex((point) => Math.abs(point.position - peakPosition) <= 1e-8);
+    const existingPeak = intensityAtPosition(curve, peakPosition) ?? 0;
+    if (plannedPeak > existingPeak + 1e-6) {
+      if (existingPointIndex >= 0) {
+        curve[existingPointIndex] = { ...curve[existingPointIndex], intensity: plannedPeak };
+      } else {
+        curve.push({ position: peakPosition, intensity: plannedPeak, sourceBar: null, sourceTarget: null });
+      }
+    }
+  }
+  const terminalIntensity = Math.max(0, Math.min(breathCap,
+    continuousIntensityFromTarget(sourceEnergy.exitTarget ?? 0.4, orchestrationReduction)));
+  curve.push({ position: 1, intensity: terminalIntensity, sourceBar: null, sourceTarget: sourceEnergy.exitTarget });
+  return curve.sort((a, b) => a.position - b.position || (a.sourceBar === null ? 1 : -1));
+}
+
+function dynamicSegmentsForPhrase(
+  sourceEnergy: PianoPhraseDynamics['sourceEnergy'],
+  shape: PianoPhraseDynamics['shape'],
+  entry: PianoIntensity,
+  peak: PianoIntensity,
+  exit: PianoIntensity,
+  peakPosition: number,
+  intensityCurve: readonly PianoDynamicCurvePoint[],
+  turns: readonly EnergyTurn[],
+): PianoDynamicSegment[] {
+  if (!turns.length) {
+    return [{ startPosition: 0, endPosition: 1, shape, entry, peak, exit, peakPosition, turningPoint: null }];
+  }
+  const cuts = turns.flatMap((turn) => {
+    const nextPoint = sourceEnergy.trajectory[turn.index + 1];
+    return nextPoint && nextPoint.position > 0 && nextPoint.position < 1
+      ? [{ position: nextPoint.position, turn: turn.kind }]
+      : [];
+  });
+  const uniqueCuts = cuts.filter((cut, index) => index === 0
+    || cut.position > cuts[index - 1].position + 1e-6);
+  if (!uniqueCuts.length) {
+    return [{ startPosition: 0, endPosition: 1, shape, entry, peak, exit, peakPosition, turningPoint: null }];
+  }
+  const segments: PianoDynamicSegment[] = [];
+  let startPosition = 0;
+  let startsAfter: 'peak' | 'valley' | null = null;
+  for (const cut of [...uniqueCuts, { position: 1, turn: null as 'peak' | 'valley' | null }]) {
+    if (cut.position <= startPosition + 1e-6) continue;
+    const includesEnd = cut.position >= 1 - 1e-6;
+    const points = intensityCurve.filter((point) => point.position >= startPosition - 1e-6
+      && (includesEnd ? point.position <= cut.position + 1e-6 : point.position < cut.position - 1e-6));
+    const sourcePoints = sourceEnergy.trajectory.filter((point) => point.position >= startPosition - 1e-6
+      && (includesEnd ? point.position <= cut.position + 1e-6 : point.position < cut.position - 1e-6));
+    const values = sourcePoints.map((point) => point.target);
+    const segmentTrend = linearTrend(values);
+    const segmentShape: PianoPhraseDynamics['shape'] = sourceEnergy.nearSilence ? 'suspended-breath'
+      : startsAfter === 'peak' ? 'unwind'
+        : startsAfter === 'valley' ? 'rising-arc'
+          : segmentTrend >= 0.04 ? 'rising-arc'
+            : segmentTrend <= -0.04 ? 'unwind' : shape;
+    const intensities = points.map((point) => point.intensity);
+    const segmentEntry = Math.round(points[0]?.intensity ?? intensityAtPosition(intensityCurve, startPosition) ?? entry) as PianoIntensity;
+    const segmentExit = Math.round(points[points.length - 1]?.intensity ?? intensityAtPosition(intensityCurve, cut.position) ?? exit) as PianoIntensity;
+    const segmentPeak = Math.max(segmentEntry, segmentExit,
+      Math.round(intensities.length ? Math.max(...intensities) : peak)) as PianoIntensity;
+    const peakPoint = points.reduce<PianoDynamicCurvePoint | null>((best, point) =>
+      !best || point.intensity > best.intensity ? point : best, null);
+    segments.push({
+      startPosition,
+      endPosition: cut.position,
+      shape: segmentShape,
+      entry: segmentEntry,
+      peak: segmentPeak,
+      exit: segmentExit,
+      peakPosition: peakPoint?.position ?? startPosition,
+      turningPoint: startsAfter,
+    });
+    startPosition = cut.position;
+    startsAfter = cut.turn;
+  }
+  return segments;
 }
 
 function dynamicsForPhrase(
@@ -860,27 +1193,39 @@ function dynamicsForPhrase(
   const orchestrationReduction = reading.explicitLeadTrackIds.length || reading.activeTrackIds.length >= 5 ? 1 : 0;
   const entry = Math.max(0, sourceEntry - orchestrationReduction) as PianoIntensity;
   const exit = Math.max(0, sourceExit - orchestrationReduction) as PianoIntensity;
-  const slope = sourceEnergy.entryTarget === null || sourceEnergy.exitTarget === null
-    ? 0 : sourceEnergy.exitTarget - sourceEnergy.entryTarget;
+  const trend = sourceTrend(sourceEnergy);
+  const turns = meaningfulEnergyTurns(sourceEnergy.trajectory);
   const momentAtEnd = input.context.moments.some((moment) =>
     Math.abs(moment.endTick - phrase.endTick) <= 1 && intersects(moment.startTick, moment.endTick, phrase.startTick, phrase.endTick));
+  const finalLanding = functionName === 'arrival' || functionName === 'statement-and-landing';
   let shape: PianoPhraseDynamics['shape'];
   if (sourceEnergy.nearSilence) shape = 'suspended-breath';
-  else if (functionName === 'arrival' || functionName === 'statement-and-landing' || momentAtEnd) shape = 'held-arrival';
-  else if (slope >= 0.12) shape = 'rising-arc';
-  else if (slope <= -0.12) shape = 'unwind';
+  else if (finalLanding && sourceEnergy.descendingTowardEnd) shape = 'unwind';
+  else if (finalLanding || momentAtEnd) shape = 'held-arrival';
+  else if (turns.some((turn) => turn.kind === 'peak')) shape = 'arch';
+  else if (trend >= 0.12) shape = 'rising-arc';
+  else if (trend <= -0.12) shape = 'unwind';
+  else if (turns.some((turn) => turn.kind === 'valley')) shape = 'arch';
   else shape = unitRandom(input.context.seed, `phrase-shape:${phrase.id}`) < 0.52 ? 'arch' : 'plateau';
 
-  let peak = Math.max(entry, exit) as PianoIntensity;
+  const trajectoryPeak = sourceEnergy.trajectory.length
+    ? Math.max(...sourceEnergy.trajectory.map((point) => continuousIntensityFromTarget(point.target, orchestrationReduction)))
+    : Math.max(entry, exit);
+  let peak = Math.max(entry, exit, Math.round(trajectoryPeak)) as PianoIntensity;
   if (shape === 'rising-arc' || shape === 'arch') peak = Math.min(5, Math.max(peak, entry + 1)) as PianoIntensity;
   if (shape === 'held-arrival') peak = Math.max(peak, 3) as PianoIntensity;
   if (profile.densityBias < -0.5) peak = Math.min(peak, 4) as PianoIntensity;
   const adjustedExit = shape === 'unwind' || shape === 'suspended-breath'
     ? Math.min(exit, peak) as PianoIntensity
     : exit;
-  // Keep a valid envelope even after style caps: the peak cannot undercut
-  // either endpoint of the phrase's piano-level dynamic plan.
   peak = Math.max(peak, entry, adjustedExit) as PianoIntensity;
+  const peakPosition = dynamicPeakPosition(sourceEnergy, shape, turns, trend);
+  const intensityCurve = makeIntensityCurve(
+    sourceEnergy, shape, peak, peakPosition, entry, orchestrationReduction, profile,
+  );
+  const segments = dynamicSegmentsForPhrase(
+    sourceEnergy, shape, entry, peak, adjustedExit, peakPosition, intensityCurve, turns,
+  );
   const emotionalColor: PianoPhraseDynamics['emotionalColor'] = sourceEnergy.nearSilence
     ? 'yearning'
     : shape === 'rising-arc' || shape === 'held-arrival'
@@ -888,7 +1233,17 @@ function dynamicsForPhrase(
       : shape === 'unwind'
         ? 'reflective'
         : profile.public.identity === 'sonata-dialogue' ? 'restless' : 'intimate';
-  return { shape, entry, peak, exit: adjustedExit, emotionalColor, sourceEnergy };
+  return {
+    shape,
+    entry,
+    peak,
+    exit: adjustedExit,
+    peakPosition,
+    intensityCurve,
+    segments,
+    emotionalColor,
+    sourceEnergy,
+  };
 }
 
 function motifOperation(
@@ -1164,22 +1519,96 @@ function sectionIntention(
           ? 'contrast' : 'continuation';
   const firstPhrase = sectionPhrases[0];
   const lastPhrase = sectionPhrases[sectionPhrases.length - 1];
+  const sectionLength = Math.max(1, section.endTick - section.startTick);
+  const sectionEnergyTrajectory: PianoEnergyTrajectoryPoint[] = input.context.barWindows
+    .filter((bar) => intersects(bar.startTick, bar.endTick, section.startTick, section.endTick))
+    .sort((a, b) => a.bar - b.bar)
+    .flatMap((bar): PianoEnergyTrajectoryPoint[] => {
+      const sample = input.context.energy.find((candidate) => candidate.bar === bar.bar);
+      if (!sample) return [];
+      const tick = Math.max(section.startTick, bar.startTick);
+      return [{
+        bar: bar.bar,
+        position: Math.max(0, Math.min(1, (tick - section.startTick) / sectionLength)),
+        target: sample.target,
+        nearSilence: sample.nearSilence,
+      }];
+    });
+  let sectionPeakIndex = 0;
+  for (let index = 1; index < sectionEnergyTrajectory.length; index++) {
+    if (sectionEnergyTrajectory[index].target > sectionEnergyTrajectory[sectionPeakIndex].target) sectionPeakIndex = index;
+  }
+  const sectionCurvePoints = sectionPhrases.flatMap((phrase) => {
+    const phraseLength = phrase.endTick - phrase.startTick;
+    return phrase.dynamics.intensityCurve.map((point) => ({
+      ...point,
+      position: Math.max(0, Math.min(1,
+        (phrase.startTick + point.position * phraseLength - section.startTick) / sectionLength)),
+    }));
+  }).sort((a, b) => a.position - b.position
+    || (a.sourceBar === b.sourceBar ? 0 : a.sourceBar === null ? -1 : 1));
+  const sectionCurve: PianoDynamicCurvePoint[] = [];
+  for (const point of sectionCurvePoints) {
+    const previous = sectionCurve[sectionCurve.length - 1];
+    if (previous && Math.abs(previous.position - point.position) <= 1e-8) {
+      if (point.sourceBar !== null || previous.sourceBar === null) sectionCurve[sectionCurve.length - 1] = point;
+      continue;
+    }
+    sectionCurve.push(point);
+  }
+  const sectionPeakPhrase = sectionPhrases.reduce((best, phrase) =>
+    !best || phrase.dynamics.peak > best.dynamics.peak ? phrase : best, null as PianoPhraseIntention | null);
+  const sectionSegments = sectionPhrases.flatMap((phrase) => {
+    const phraseLength = phrase.endTick - phrase.startTick;
+    return phrase.dynamics.segments.map((segment) => ({
+      ...segment,
+      startPosition: Math.max(0, Math.min(1,
+        (phrase.startTick + segment.startPosition * phraseLength - section.startTick) / sectionLength)),
+      endPosition: Math.max(0, Math.min(1,
+        (phrase.startTick + segment.endPosition * phraseLength - section.startTick) / sectionLength)),
+      peakPosition: Math.max(0, Math.min(1,
+        (phrase.startTick + segment.peakPosition * phraseLength - section.startTick) / sectionLength)),
+    }));
+  });
   const dynamics = firstPhrase && lastPhrase
     ? {
         ...firstPhrase.dynamics,
         peak: Math.max(...sectionPhrases.map((phrase) => phrase.dynamics.peak)) as PianoIntensity,
         exit: lastPhrase.dynamics.exit,
         shape: nearSilence ? 'suspended-breath' as const : lastPhrase.dynamics.shape,
+        peakPosition: sectionPeakPhrase
+          ? (sectionPeakPhrase.startTick + sectionPeakPhrase.dynamics.peakPosition
+            * (sectionPeakPhrase.endTick - sectionPeakPhrase.startTick) - section.startTick) / sectionLength
+          : 0.5,
+        intensityCurve: sectionCurve,
+        segments: sectionSegments,
         sourceEnergy: {
-          entryTarget: firstPhrase.dynamics.sourceEnergy.entryTarget,
-          exitTarget: lastPhrase.dynamics.sourceEnergy.exitTarget,
+          entryTarget: sectionEnergyTrajectory[0]?.target ?? firstPhrase.dynamics.sourceEnergy.entryTarget,
+          exitTarget: sectionEnergyTrajectory.at(-1)?.target ?? lastPhrase.dynamics.sourceEnergy.exitTarget,
           nearSilence,
+          descendingTowardEnd: clearlyDescendingTowardEnd(sectionEnergyTrajectory),
+          peakPosition: sectionEnergyTrajectory[sectionPeakIndex]?.position ?? 0.5,
+          trajectory: sectionEnergyTrajectory,
         },
       }
     : {
-        shape: 'plateau' as const, entry: 2 as const, peak: 2 as const, exit: 2 as const,
+        shape: 'plateau' as const,
+        entry: 2 as const,
+        peak: 2 as const,
+        exit: 2 as const,
+        peakPosition: 0.5,
+        intensityCurve: [],
+        segments: [{ startPosition: 0, endPosition: 1, shape: 'plateau' as const,
+          entry: 2 as const, peak: 2 as const, exit: 2 as const, peakPosition: 0.5, turningPoint: null }],
         emotionalColor: 'reflective' as const,
-        sourceEnergy: { entryTarget: null, exitTarget: null, nearSilence: false },
+        sourceEnergy: {
+          entryTarget: null,
+          exitTarget: null,
+          nearSilence: false,
+          descendingTowardEnd: false,
+          peakPosition: 0.5,
+          trajectory: [],
+        },
       };
   const textureChange = functionName === 'opening'
     ? 'introduce the piano language in a restrained register before widening'
@@ -1344,9 +1773,16 @@ function composeHarmonicEvents(
           : rightHand.length <= 2 ? 'guide-tone-shell' : material.tones.length <= 3 ? 'open-triad' : 'guide-tone-shell';
     const energyTarget = energyTargetAt(input, chord.startTick, chord.endTick);
     const dynamic = selectedPhrase?.dynamics;
-    const intensity = dynamic?.shape === 'suspended-breath' ? Math.min(dynamic.entry, 1) as PianoIntensity
-      : dynamic?.shape === 'held-arrival' && arrival ? dynamic.peak
-        : dynamic?.entry ?? intensityFromTarget(energyTarget);
+    const dynamicPosition = selectedPhrase
+      ? Math.max(0, Math.min(1, (chord.startTick - selectedPhrase.startTick)
+        / Math.max(1, selectedPhrase.endTick - selectedPhrase.startTick)))
+      : 0;
+    const plannedIntensity = dynamic ? intensityAtPosition(dynamic.intensityCurve, dynamicPosition) : null;
+    const intensity = plannedIntensity !== null
+      ? Math.max(0, Math.min(5, Math.round(plannedIntensity))) as PianoIntensity
+      : dynamic?.shape === 'suspended-breath' ? Math.min(dynamic.entry, 1) as PianoIntensity
+        : dynamic?.shape === 'held-arrival' && arrival ? dynamic.peak
+          : dynamic?.entry ?? intensityFromTarget(energyTarget);
 
     events.push({
       chord: {
@@ -1652,7 +2088,7 @@ export function composePianoPlan(input: PianoEngineInput, analyzer: PianoAnalyze
     'The input has no key/mode or time-signature field; harmony is interpreted only from resolved chord symbols and pitch classes, and rhythmic cells remain relative.',
     'Analyzer activity is written-score evidence, not audible-state evidence; missing mute/solo state is not inferred.',
     'Only strings lead layers and the supplied tutti/soli/unison moments are available; other family lead spans and divisi/imitation details remain unavailable.',
-    'Phrase boundaries are composed from supplied section boundaries, conductor moments/fill reservations, and turns in the existing energy arc; they are not a general phrase/cadence analysis.',
+    'Writing-phrase boundaries use supplied section boundaries, conductor moments/fill reservations, and established energy turns; salient interior energy reversals are also retained as dynamic-only segments without changing note-writing phrase boundaries.',
     ...(input.context.template.pianoEligible ? [] : ['The resolved template/write-eligibility gate says piano is not eligible; no piano material is planned.']),
     ...(!input.context.harmony.length ? ['No resolved chord spans were supplied; harmonic voicings, motif and ending are unavailable.'] : []),
   ];

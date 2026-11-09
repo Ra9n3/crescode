@@ -251,6 +251,16 @@ describe('Piano Realizer Phase 6', () => {
           entry: 0,
           peak: 5,
           exit: 0,
+          peakPosition: 0.5,
+          intensityCurve: [
+            { position: 0, intensity: 0, sourceBar: null, sourceTarget: null },
+            { position: 0.5, intensity: 5, sourceBar: null, sourceTarget: null },
+            { position: 1, intensity: 0, sourceBar: null, sourceTarget: null },
+          ],
+          segments: [{
+            startPosition: 0, endPosition: 1, shape: 'arch', entry: 0, peak: 5, exit: 0,
+            peakPosition: 0.5, turningPoint: null,
+          }],
           emotionalColor: 'intimate',
         },
       }),

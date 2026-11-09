@@ -438,19 +438,29 @@ function mix(a: number, b: number, t: number): number {
 
 function phraseIntensity(dynamics: PianoPhraseDynamics, progress: number): number {
   const t = clamp(progress, 0, 1);
+  if (dynamics.intensityCurve.length) {
+    const curve = [...dynamics.intensityCurve].sort((a, b) => a.position - b.position);
+    if (t <= curve[0].position) return curve[0].intensity;
+    for (let index = 0; index + 1 < curve.length; index++) {
+      const left = curve[index];
+      const right = curve[index + 1];
+      if (t > right.position) continue;
+      const span = right.position - left.position;
+      if (span <= 0) return Math.max(left.intensity, right.intensity);
+      return mix(left.intensity, right.intensity, smooth((t - left.position) / span));
+    }
+    return curve[curve.length - 1].intensity;
+  }
+
+  // Compatibility for hand-authored plans without a source trajectory.
+  const peakPosition = clamp(dynamics.peakPosition, 0.05, 0.95);
   switch (dynamics.shape) {
     case 'rising-arc':
-      return t < 0.72
-        ? mix(dynamics.entry, dynamics.peak, smooth(t / 0.72))
-        : mix(dynamics.peak, dynamics.exit, smooth((t - 0.72) / 0.28));
     case 'held-arrival':
-      return t < 0.68
-        ? mix(dynamics.entry, dynamics.peak, smooth(t / 0.68))
-        : mix(dynamics.peak, dynamics.exit, smooth((t - 0.68) / 0.32));
     case 'arch':
-      return t < 0.5
-        ? mix(dynamics.entry, dynamics.peak, smooth(t * 2))
-        : mix(dynamics.peak, dynamics.exit, smooth((t - 0.5) * 2));
+      return t < peakPosition
+        ? mix(dynamics.entry, dynamics.peak, smooth(t / peakPosition))
+        : mix(dynamics.peak, dynamics.exit, smooth((t - peakPosition) / (1 - peakPosition)));
     case 'unwind':
     case 'plateau':
       return mix(dynamics.entry, dynamics.exit, smooth(t));
@@ -471,11 +481,18 @@ function intensityFor(
 ): number {
   if (!phrase) return chord?.event.dynamicIntent.intensity ?? 2;
   let intensity = phraseIntensity(phrase.dynamics, phraseProgress(phrase, tick));
-  if (chord?.event.structuralRole === 'arrival' && chord.event.dynamicIntent.gesture === 'held-arrival') {
-    intensity = Math.max(intensity, chord.event.dynamicIntent.intensity);
-  }
+  // Arrival peaks are already explicit in the Composer's planned curve. The
+  // Realizer must not restore a scalar event-level floor that contradicts an
+  // intentionally descending phrase.
   if (plan.template.style.identity === 'cinematic-expanse' && phrase.dynamics.emotionalColor === 'luminous') intensity += 0.15;
   return clamp(intensity, 0, 5);
+}
+
+function velocityAtIntensity(intensity: number): number {
+  const value = clamp(intensity, 0, 5);
+  const lower = Math.floor(value);
+  const upper = Math.ceil(value);
+  return mix(DYNAMIC_VELOCITY[lower], DYNAMIC_VELOCITY[upper], value - lower);
 }
 
 function velocityFor(
@@ -486,8 +503,8 @@ function velocityFor(
   hand: Hand,
   accent = 0,
 ): number {
-  const intensity = clamp(Math.round(intensityFor(plan, chord, phrase, tick)), 0, 5);
-  let velocity = DYNAMIC_VELOCITY[intensity] + accent;
+  const intensity = clamp(intensityFor(plan, chord, phrase, tick), 0, 5);
+  let velocity = velocityAtIntensity(intensity) + accent;
   if (hand === 'left') velocity -= 5;
   else if (hand === 'melody' || hand === 'fill') velocity += hand === 'melody' ? 4 : 2;
   if (chord?.event.structuralRole === 'arrival' && hand !== 'left') velocity += 3;

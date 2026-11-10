@@ -118,7 +118,7 @@ function nonVelocityShape(notes: readonly Note[]) {
   return notes.map(({ velocity: _velocity, ...note }) => note);
 }
 
-describe('Piano V2 dynamic alignment', () => {
+describe('Piano V5 dynamic alignment', () => {
   it('unwinds falling Outro energy without an artificial arrival peak across all five Piano templates', () => {
     for (const { id, label } of TEMPLATE_CASES) {
       const run = productionCase(id);

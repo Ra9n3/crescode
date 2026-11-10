@@ -57,11 +57,11 @@ export interface Note {
 /** One automation point on a CC lane. Ticks are absolute, values 0–127. */
 export interface CcPoint { tick: number; value: number }
 
-/** Persisted provenance for the merged Piano Engine V2 CC64 lane. */
+/** Persisted provenance for the merged Piano Engine V5 CC64 lane (the legacy field name remains stable). */
 export interface PianoV2PedalProvenance {
   /** The current take's generated pedal events, before source-lane merging. */
   generatedPoints: CcPoint[];
-  /** CC64 points authored before Piano Engine V2 wrote its generated lane. */
+  /** CC64 points authored before Piano Engine V5 wrote its generated lane. */
   authoredPoints: CcPoint[];
   /** Exact merged points written to CcLane.points for round-trip detection. */
   mergedPoints: CcPoint[];
@@ -71,7 +71,7 @@ export interface PianoV2PedalProvenance {
 export interface CcLane {
   cc: number;
   points: CcPoint[];
-  /** Internal only: prevents a later compose from treating prior V2 output as source CC64. */
+  /** Internal only: prevents a later compose from treating prior V5 output as source CC64. */
   pianoV2Pedal?: PianoV2PedalProvenance;
 }
 

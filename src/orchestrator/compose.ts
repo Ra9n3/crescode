@@ -7,7 +7,7 @@
  * Brass, Winds, Percussion, and Keys renderers. `generate` supplies remaining
  * rules-driven work and compatibility inputs; it is not the sole owner of
  * non-string output. The keys renderer supplies Harp and intermediate Piano
- * candidates; Piano Engine V2 replaces final Piano output after all non-Piano
+ * candidates; Piano Engine V5 replaces final Piano output after all non-Piano
  * tracks are finalized. Locked and out-of-band tracks remain protected.
  *
  * The take increments here (inside the same edit the store wraps around this)
@@ -72,13 +72,13 @@ export interface ComposeResult {
   /** Phase 4: renderer notes for the report (fallbacks, skipped layerings). */
   reports: string[];
   /**
-   * Ephemeral, immutable Piano Engine V2 input used during this compose.
+   * Ephemeral, immutable Piano Engine V5 input used during this compose.
    * It is non-enumerable and never enters Project persistence or export.
    */
   readonly pianoEngineInput: PianoEngineInput;
 }
 
-/** Merge V2-generated pedal automation with authored CC64 when supplied. */
+/** Merge V5-generated pedal automation with authored CC64 when supplied. */
 function composePianoCc64(
   generatedControllers: readonly CcLane[],
   authoredControllers: readonly CcLane[] | undefined,
@@ -113,7 +113,7 @@ function composePianoCc64(
       order++;
     }
   };
-  // Preserve source events, while V2's planned value wins at a shared tick.
+  // Preserve source events, while V5's planned value wins at a shared tick.
   add(authoredPoints, 0);
   add(generated?.points ?? [], 1);
 
@@ -213,7 +213,7 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   // Generator notes for winds, percussion, and keys remain as phantom inputs
   // to established window/governor calculations. Dedicated renderers supply
   // the family output at assembly: the keys renderer writes Harp and
-  // intermediate Piano, which Piano Engine V2 replaces later in this pipeline.
+  // intermediate Piano, which Piano Engine V5 replaces later in this pipeline.
   const roleNotes = Object.entries(notesByTrackId).map(([id, notes]) => ({
     role: project.tracks.find((t) => t.id === id)!.role,
     notes,
@@ -363,8 +363,8 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   // the percussion renderer. Its V1 Piano notes and the generator's keys notes
   // remain compatibility inputs to established velocity/window calculations.
   // The keys renderer supplies final Harp output and intermediate Piano
-  // candidates; Piano Engine V2 replaces Piano after every non-Piano part has
-  // been finalized. The generic keys renderer emits no CC; V2 CC64 is composed
+  // candidates; Piano Engine V5 replaces Piano after every non-Piano part has
+  // been finalized. The generic keys renderer emits no CC; V5 CC64 is composed
   // separately after final Piano realization.
   const keysPlan = ctx.keysPlan ?? EMPTY_KEYS_PLAN;
   const keysRuleNotes = ruleTracks
@@ -732,7 +732,7 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     }
     if (keysNotes[t.id] !== undefined) {
       // This intermediate belongs to the generic keys renderer, which emits
-      // no CC; Piano is replaced below by V2, including its generated CC64.
+      // no CC; Piano is replaced below by V5, including its generated CC64.
       // Clear stale pre-compose lanes so only the current owner writes CC.
       return { ...t, notes: keysNotes[t.id], cc: undefined };
     }
@@ -745,7 +745,7 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     tracks = insertBassesTrack(tracks, cc ? { ...basses, cc } : basses);
   }
 
-  // Piano Engine V2 runs after every non-Piano part (including Harp) has
+  // Piano Engine V5 runs after every non-Piano part (including Harp) has
   // been composed and finalized. Its frozen analysis snapshot reads those
   // actual notes and arrangement; the V1 piano candidates above are retained
   // only as compatibility inputs for legacy non-Piano/Harp governance and
@@ -759,15 +759,18 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     energy: arc,
     conductor: plan,
     seed,
+    userSeed: options.seed,
+    take: orchestration.take,
+    density: options.density,
     finalizedTracks: tracks,
   });
   const pianoAnalyzerReport = analyzePianoInput(pianoEngineInput);
-  const pianoPlanV2 = composePianoPlan(pianoEngineInput, pianoAnalyzerReport);
+  const pianoPlanV5 = composePianoPlan(pianoEngineInput, pianoAnalyzerReport);
   const pianoTrack = project.tracks.find((track) => isInstrumentTrack(track)
     && track.family === 'Keys' && track.role === 'piano' && !track.locked
     && isInBand(track.role, ensemble, template));
   const pianoRealization = realizePianoPlanWithAudit({
-    plan: pianoPlanV2,
+    plan: pianoPlanV5,
     targetTrack: pianoTrack ?? null,
     projectEndTick: projectEndTick(project),
     externalTracks: template
@@ -782,7 +785,7 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     const pianoNotes = pianoEngineInput.context.template.pianoEligible
       ? pianoRealization.notes.map((note) => ({ ...note }))
       : [];
-    // Piano Engine V2 supplies its own CC64 lane. Authored CC64 points, when
+    // Piano Engine V5 supplies its own CC64 lane. Authored CC64 points, when
     // present, are retained in that same lane; generated values win at ties.
     const pianoPedalCc = composePianoCc64(
       pianoRealization.controllers,
@@ -815,7 +818,7 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
       ? `; forbidden octave policy revoiced ${octaveAudit.revoiced}, shortened ${octaveAudit.shortened}, removed ${octaveAudit.dropped}; hard pairs remaining ${octaveAudit.remainingHardPairs}`
       : '';
     ctx.lines!.reports.push(
-      `piano engine V2 (take ${orchestration.take}): ${pianoEngineInput.context.template.pianoEligible ? `${pianoRealization.notes.length} notes` : 'ineligible'}; suspensions ${completeSuspensions}/${pianoRealization.suspensions.length}${octaveSummary}`,
+      `piano engine V5 (take ${orchestration.take}, user seed ${pianoEngineInput.context.generationIdentity.userSeed}, density ${pianoEngineInput.context.generationIdentity.density}): ${pianoEngineInput.context.template.pianoEligible ? `${pianoRealization.notes.length} notes` : 'ineligible'}; suspensions ${completeSuspensions}/${pianoRealization.suspensions.length}${octaveSummary}`,
     );
   }
 

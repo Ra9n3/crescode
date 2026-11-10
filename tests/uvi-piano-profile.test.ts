@@ -48,7 +48,7 @@ function controllerSummary(project: Project, templateId = 'ensemble.chamber') {
   };
 }
 
-describe('Piano Engine V2 CC64 and UVI profile', () => {
+describe('Piano Engine V5 CC64 and UVI profile', () => {
   it('keeps the patch identity while exporting the part under the exact Piano name', () => {
     expect(validateExportProfile(PROFILE)).toEqual([]);
     expect(pianoPart.patch).toBe('UVI Grand Model D');
@@ -109,7 +109,7 @@ describe('Piano Engine V2 CC64 and UVI profile', () => {
     expect(nonPianoState(result.tracks)).toEqual(nonPianoState(baseline.tracks));
   });
 
-  it('recomposes prior V2 output without accumulating it as source CC64', () => {
+  it('recomposes prior V5 output without accumulating it as source CC64', () => {
     const authoredPoints = [{ tick: 1, value: 127 }, { tick: 2, value: 0 }];
     const firstProject = projectWithPiano();
     pianoTrack(firstProject).cc = [{ cc: 64, points: authoredPoints.map((point) => ({ ...point })) }];

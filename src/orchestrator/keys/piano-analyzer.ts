@@ -6,7 +6,7 @@
 import type { Note } from '../../shared/schema/types';
 import type { MomentKind } from '../conductor/moments';
 import type { ResolvedChord, SpineSection } from '../spine';
-import type { DeepReadonly, PianoAnalysisTrack } from './analysis';
+import type { DeepReadonly, PianoAnalysisTrack, PianoAnalysisTrackCompositionState } from './analysis';
 import type {
   PianoBarWindow,
   PianoEnergyBar,
@@ -159,6 +159,8 @@ export interface PianoFillActivityRelationship {
 
 export interface PianoInstrumentObservedFacts {
   readonly instrument: PianoInstrumentIdentity;
+  /** Production mixer/band gate; absent for synthetic legacy inputs. */
+  readonly compositionState?: PianoAnalysisTrackCompositionState;
   readonly byBar: readonly PianoBarActivity[];
   readonly bySection: readonly PianoSectionActivity[];
   readonly barTransitions: readonly PianoBarTransition[];
@@ -660,6 +662,7 @@ function observeTrack(
   const harmonyAvailable = input.context.harmony.length > 0;
   return {
     instrument: trackIdentity(track),
+    ...(track.compositionState ? { compositionState: track.compositionState } : {}),
     byBar,
     bySection,
     barTransitions: barTransitions(byBar),
@@ -712,7 +715,8 @@ function leadPassageCandidates(
     for (const trackId of leadIds) {
       const track = input.analysis.tracks.find((candidate) => candidate.id === trackId);
       const barFacts = observedByTrack.get(trackId)?.byBar.find((item) => item.bar === window.bar);
-      if (!track || !barFacts || barFacts.activeNoteCount === 0) continue;
+      if (!track || track.compositionState?.composerVisible === false
+        || !barFacts || barFacts.activeNoteCount === 0) continue;
       evidenceRows.push({ track, window, overlappingNoteCount: barFacts.activeNoteCount });
     }
   }
@@ -763,7 +767,7 @@ function leadPassageCandidates(
       ],
       mandatoryPianoInstruction: false,
       limitations: [
-        'This is an explicitly labeled, written-activity candidate only; it does not claim the track is audible or prescribe piano behavior.',
+        'This is an explicitly labeled, written-activity candidate after the available mute/solo/lock/band gate; it does not claim exact loudness or prescribe piano behavior.',
         'Lead annotations for non-strings families are not present in the Phase 4A context.',
       ],
     };
@@ -793,7 +797,7 @@ export function analyzePianoInput(input: PianoEngineInput): PianoAnalyzerReport 
       instrumentCount: input.analysis.tracks.length,
       instruments,
       method: [
-        'Written MIDI notes only; PianoAnalysis does not include mute/solo or complete audible-state evidence.',
+        'Written MIDI facts are kept separate from production mute/solo/lock/band state; Composer visibility uses those exact gates but does not claim full audibility, volume, or time-varying CC7.',
         'Bar assignment uses only the exact ConductorPlan.bars startTick/endTick projection; windows are half-open and are never reconstructed from meter or note events.',
         'Onset positions are exact tick offsets and normalized window positions, not inferred beats.',
         'Activity counts note onsets and distinct overlapping note events; occupancy is the union of clipped note durations, so overlapping intervals count once.',
@@ -808,7 +812,7 @@ export function analyzePianoInput(input: PianoEngineInput): PianoAnalyzerReport 
         candidates: leadPassageCandidates(input, instruments),
         annotatedFamilies,
         unavailableFamilies,
-        limitation: 'Only explicitly supplied strings-layer lead labels can support a lead candidate; raw pitch, note density, and other families are not promoted to lead evidence.',
+        limitation: 'Only explicitly supplied strings-layer lead labels plus overlapping written activity on a Composer-visible track can support a lead candidate; raw pitch, note density, mute-excluded writing, and other families are not promoted to lead evidence.',
       },
       responseOpportunities: {
         availability: 'unavailable',

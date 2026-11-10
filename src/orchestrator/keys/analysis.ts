@@ -16,6 +16,17 @@ export interface PianoAnalysisCcLane {
   readonly points: readonly DeepReadonly<CcPoint>[];
 }
 
+export interface PianoAnalysisTrackCompositionState {
+  readonly locked: boolean;
+  readonly muted: boolean;
+  readonly soloed: boolean;
+  readonly inBand: boolean;
+  /** Mute/solo gate only; volume and time-varying CC7 are not inferred. */
+  readonly mixerAudible: boolean;
+  /** Out-of-band locked notes remain visible because lock preserves them. */
+  readonly composerVisible: boolean;
+}
+
 export interface PianoAnalysisTrack {
   readonly id: string;
   readonly name: string;
@@ -23,6 +34,8 @@ export interface PianoAnalysisTrack {
   readonly role: string;
   readonly notes: readonly DeepReadonly<Note>[];
   readonly cc?: readonly PianoAnalysisCcLane[];
+  /** Present on production snapshots; omitted by synthetic/legacy callers. */
+  readonly compositionState?: PianoAnalysisTrackCompositionState;
 }
 
 export interface PianoAnalysis {
@@ -42,16 +55,23 @@ function snapshotCc(lanes: readonly CcLane[] | undefined): readonly PianoAnalysi
 }
 
 /** Create a deep-frozen, piano-excluded snapshot without retaining Track refs. */
-export function buildPianoAnalysisSnapshot(tracks: readonly Track[]): PianoAnalysis {
+export function buildPianoAnalysisSnapshot(
+  tracks: readonly Track[],
+  compositionStateByTrackId: ReadonlyMap<string, PianoAnalysisTrackCompositionState> = new Map(),
+): PianoAnalysis {
   const snapshot = tracks
     .filter((track) => isInstrumentTrack(track) && track.role !== 'piano')
-    .map((track) => Object.freeze({
-      id: track.id,
-      name: track.name,
-      family: track.family,
-      role: track.role,
-      notes: snapshotNotes(track.notes),
-      ...(track.cc ? { cc: snapshotCc(track.cc) } : {}),
-    }));
+    .map((track) => {
+      const compositionState = compositionStateByTrackId.get(track.id);
+      return Object.freeze({
+        id: track.id,
+        name: track.name,
+        family: track.family,
+        role: track.role,
+        notes: snapshotNotes(track.notes),
+        ...(track.cc ? { cc: snapshotCc(track.cc) } : {}),
+        ...(compositionState ? { compositionState: Object.freeze({ ...compositionState }) } : {}),
+      });
+    });
   return Object.freeze({ tracks: Object.freeze(snapshot) });
 }

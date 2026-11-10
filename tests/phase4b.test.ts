@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import dorian from '../fixtures/dorian-16bars.json';
 import { composeAllTracks } from '../src/orchestrator/compose';
 import { analyzePianoInput } from '../src/orchestrator/keys/piano-analyzer';
-import type { PianoAnalysis } from '../src/orchestrator/keys/analysis';
+import type { PianoAnalysis, PianoAnalysisTrackCompositionState } from '../src/orchestrator/keys/analysis';
 import type { PianoBarWindow, PianoEngineInput, PianoLayerInformation, PianoRelevantMoment } from '../src/orchestrator/keys/piano-engine';
 import { projectFromFixture } from '../src/shared/schema';
 import type { Note, Project, TrackFamily } from '../src/shared/schema/types';
@@ -316,6 +316,60 @@ describe('Piano Engine Phase 4B minimal musical Analyzer', () => {
     expect(interpretations.responseOpportunities.candidates).toEqual([]);
     expect(interpretations.responseOpportunities.reason).toMatch(/a rest alone is not evidence/);
     expect(interpretations.mandatoryPianoInstructions).toEqual([]);
+  });
+
+  it('requires explicit lead labels and Composer-visible written activity after mute/solo/band gates', () => {
+    const windows = sourceInput.context.barWindows;
+    const activeNotes = [
+      { pitch: 60, startTick: windows[1].startTick + 20, durationTicks: 100 },
+      { pitch: 62, startTick: windows[2].startTick + 20, durationTicks: 100 },
+    ];
+    const base = makeInput({
+      tracks: [
+        makeTrack('muted-lead', 'Strings', 'violins1', activeNotes),
+        makeTrack('solo-excluded-lead', 'Strings', 'violins2', activeNotes),
+        makeTrack('out-of-band-lead', 'Strings', 'violas', activeNotes),
+        makeTrack('locked-out-of-band-lead', 'Strings', 'cellosBasses', activeNotes),
+        makeTrack('highest-unannotated', 'Strings', 'violins1', [
+          { pitch: 127, startTick: windows[1].startTick + 10, durationTicks: 100 },
+          { pitch: 127, startTick: windows[2].startTick + 10, durationTicks: 100 },
+        ]),
+      ],
+      layerPerBar: [
+        { bar: windows[1].bar, layers: [{ layer: 'lead', trackIds: ['muted-lead', 'solo-excluded-lead'], source: 'strings' }] },
+        { bar: windows[2].bar, layers: [{ layer: 'lead', trackIds: ['out-of-band-lead', 'locked-out-of-band-lead'], source: 'strings' }] },
+      ],
+    });
+    const state = (values: Partial<PianoAnalysisTrackCompositionState>): PianoAnalysisTrackCompositionState => ({
+      locked: false,
+      muted: false,
+      soloed: false,
+      inBand: true,
+      mixerAudible: true,
+      composerVisible: true,
+      ...values,
+    });
+    const states: Record<string, PianoAnalysisTrackCompositionState> = {
+      'muted-lead': state({ muted: true, mixerAudible: false, composerVisible: false }),
+      'solo-excluded-lead': state({ mixerAudible: false, composerVisible: false }),
+      'out-of-band-lead': state({ inBand: false, composerVisible: false }),
+      'locked-out-of-band-lead': state({ locked: true, inBand: false }),
+      'highest-unannotated': state({ inBand: false, composerVisible: false }),
+    };
+    const input: PianoEngineInput = {
+      ...base,
+      analysis: {
+        tracks: base.analysis.tracks.map((track) => ({
+          ...track,
+          compositionState: states[track.id],
+        })),
+      },
+    };
+    const candidates = analyzePianoInput(input).interpretations.leadPassages.candidates;
+
+    expect(candidates.map((candidate) => candidate.instrument.id)).toEqual(['locked-out-of-band-lead']);
+    expect(candidates[0].limitations.join(' ')).toMatch(/mute\/solo\/lock\/band gate/);
+    expect(candidates.some((candidate) => candidate.instrument.id === 'highest-unannotated')).toBe(false);
   });
 
   it('is deterministic, preserves its input, and leaves harp as frozen read-only context', () => {

@@ -72,7 +72,7 @@ function note(pitch: number, startTick: number, durationTicks: number): Note {
 const values = (lane: ReturnType<typeof generatePianoPedalLane>) =>
   lane?.points.map(({ tick, value }) => ({ tick, value })) ?? [];
 
-describe('Piano Engine V2 sustain-pedal planning', () => {
+describe('Piano Engine V5 sustain-pedal planning', () => {
   it('coordinates pedal changes with realized attacks and releases before incompatible harmony', () => {
     const plan = syntheticPlan([
       { id: 'C', startTick: 0, endTick: 1200, pitchClasses: [0, 4, 7] },

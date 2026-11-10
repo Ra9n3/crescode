@@ -1,15 +1,16 @@
 /**
- * Phase 4A: typed, ephemeral input for the production Piano Engine V2 path.
+ * Phase 4A: typed, ephemeral input for the production Piano Engine V5 path.
  * This module copies verified pipeline outputs only; it does not plan,
  * generate, correct, replace, or persist tracks.
  */
+import { hashString } from '../../engine/generate';
 import { isInBand } from '../../shared/schema/band';
 import type { EnsembleRule, EnsembleTemplate } from '../../shared/schema/ensembleTemplate';
 import { isInstrumentTrack, type Project, type ProjectEnsemble, type Track } from '../../shared/schema/types';
 import type { ConductorPlan, LayerName } from '../conductor';
 import type { MomentKind } from '../conductor/moments';
 import type { ArcBar, ResolvedChord, SpineSection } from '../spine';
-import { buildPianoAnalysisSnapshot, type DeepReadonly, type PianoAnalysis } from './analysis';
+import { buildPianoAnalysisSnapshot, type DeepReadonly, type PianoAnalysis, type PianoAnalysisTrackCompositionState } from './analysis';
 
 export type PianoRuleSeverity = 'hard' | 'soft' | 'none' | 'stub';
 type PianoRuleBase<S extends PianoRuleSeverity> = {
@@ -111,6 +112,24 @@ export interface PianoLayerInformation {
   readonly unavailableReason: string;
 }
 
+/**
+ * Stable V5 composition identity. `key` is the canonical serialized input;
+ * `seed` is its unsigned FNV-1a hash and is the Composer/Realizer random seed.
+ * The orchestration seed already covers semantic project inputs and take, but
+ * both the take and the user-facing settings remain explicit here for replay
+ * and diagnostics.
+ */
+export interface PianoGenerationIdentity {
+  readonly algorithm: 'piano-engine-v5';
+  readonly key: string;
+  readonly orchestrationSeed: number;
+  readonly userSeed: number;
+  readonly take: number;
+  /** Clamped ComposeOptions density multiplier in [0.1, 1]. */
+  readonly density: number;
+  readonly seed: number;
+}
+
 export interface PianoContextProvenance {
   readonly resolvedTemplate: 'src/config/ensembles.ts: resolveTemplate(project.ensemble)';
   readonly pianoEligibility: 'template roster plus unlocked in-band piano track';
@@ -122,8 +141,9 @@ export interface PianoContextProvenance {
   readonly layerInformation: 'src/orchestrator/conductor/index.ts: ConductorPlan.bars[].layers (strings-only, partial)';
   readonly moments: 'src/orchestrator/conductor/index.ts: ConductorPlan.moments (keys-relevant kinds)';
   readonly fillWindows: 'src/orchestrator/conductor/index.ts: ConductorPlan.fills (piano/Keys targets)';
-  readonly seed: 'src/orchestrator/spine/index.ts: orchestrationSeedFor(project, orchestration)';
-  readonly analysis: 'composeAllTracks finalized tracks, excluding piano';
+  readonly generationIdentity: 'piano-engine-v5: orchestration seed + ComposeOptions seed/take/density, hashed with hashString';
+  readonly seed: 'PianoGenerationIdentity.seed: deterministic Composer/Realizer stream';
+  readonly analysis: 'composeAllTracks finalized tracks, excluding piano; production mute/solo/lock/band state is snapshotted';
 }
 
 export interface PianoEngineContext {
@@ -141,6 +161,8 @@ export interface PianoEngineContext {
   readonly layerInformation: PianoLayerInformation;
   readonly moments: readonly PianoRelevantMoment[];
   readonly fillWindows: readonly PianoFillWindow[];
+  readonly generationIdentity: PianoGenerationIdentity;
+  /** Alias of generationIdentity.seed used by deterministic Composer draws. */
   readonly seed: number;
   readonly provenance: PianoContextProvenance;
 }
@@ -164,6 +186,12 @@ export interface BuildPianoEngineInputOptions {
   readonly conductor: ConductorPlan;
   /** Existing orchestrationSeedFor(project, orchestration) value. */
   readonly seed: number;
+  /** User-facing ComposeOptions.seed. */
+  readonly userSeed: number;
+  /** Take being written by this Compose All. */
+  readonly take: number;
+  /** User-facing density multiplier; defaults are normalized by the builder. */
+  readonly density?: number;
   /** Final composition tracks; piano is omitted from the read-only snapshot. */
   readonly finalizedTracks: readonly Track[];
 }
@@ -296,13 +324,44 @@ const PROVENANCE: PianoContextProvenance = Object.freeze({
   layerInformation: 'src/orchestrator/conductor/index.ts: ConductorPlan.bars[].layers (strings-only, partial)',
   moments: 'src/orchestrator/conductor/index.ts: ConductorPlan.moments (keys-relevant kinds)',
   fillWindows: 'src/orchestrator/conductor/index.ts: ConductorPlan.fills (piano/Keys targets)',
-  seed: 'src/orchestrator/spine/index.ts: orchestrationSeedFor(project, orchestration)',
-  analysis: 'composeAllTracks finalized tracks, excluding piano',
+  generationIdentity: 'piano-engine-v5: orchestration seed + ComposeOptions seed/take/density, hashed with hashString',
+  seed: 'PianoGenerationIdentity.seed: deterministic Composer/Realizer stream',
+  analysis: 'composeAllTracks finalized tracks, excluding piano; production mute/solo/lock/band state is snapshotted',
 });
+
+function makePianoGenerationIdentity(
+  orchestrationSeed: number,
+  userSeed: number,
+  take: number,
+  requestedDensity: number | undefined,
+): PianoGenerationIdentity {
+  const normalizedOrchestrationSeed = orchestrationSeed >>> 0;
+  const normalizedUserSeed = Number.isFinite(userSeed) ? Math.trunc(userSeed) : 0;
+  const normalizedTake = Math.max(0, Math.trunc(Number.isFinite(take) ? take : 0));
+  const rawDensity = Number.isFinite(requestedDensity) ? requestedDensity! : 1;
+  const density = Math.round(Math.max(0.1, Math.min(1, rawDensity)) * 1000) / 1000;
+  const key = [
+    'piano-engine-v5',
+    `orchestrationSeed=${normalizedOrchestrationSeed}`,
+    `userSeed=${normalizedUserSeed}`,
+    `take=${normalizedTake}`,
+    `density=${density.toFixed(3)}`,
+  ].join('|');
+  return Object.freeze({
+    algorithm: 'piano-engine-v5',
+    key,
+    orchestrationSeed: normalizedOrchestrationSeed,
+    userSeed: normalizedUserSeed,
+    take: normalizedTake,
+    density,
+    seed: hashString(key),
+  });
+}
 
 /** Build a deeply read-only context from the exact resolved pipeline values. */
 export function buildPianoEngineInput(options: BuildPianoEngineInputOptions): PianoEngineInput {
   const { project, ensemble, template, sections, harmony, energy, conductor, seed, finalizedTracks } = options;
+  const generationIdentity = makePianoGenerationIdentity(seed, options.userSeed, options.take, options.density);
   const pianoEligible = isPianoEngineEligible(project, ensemble, template);
   const layerInformation: PianoLayerInformation = Object.freeze({
     availability: 'partial',
@@ -330,6 +389,23 @@ export function buildPianoEngineInput(options: BuildPianoEngineInputOptions): Pi
       startTick: fill.startTick,
       endTick: fill.endTick,
     })));
+  const projectTrackById = new Map(project.tracks.map((track) => [track.id, track]));
+  const anySoloed = project.tracks.some((track) => track.soloed);
+  const compositionStateByTrackId = new Map<string, PianoAnalysisTrackCompositionState>();
+  for (const track of finalizedTracks) {
+    if (!isInstrumentTrack(track) || track.role === 'piano') continue;
+    const source = projectTrackById.get(track.id) ?? track;
+    const inBand = isInBand(track.role, ensemble, template);
+    const mixerAudible = !source.muted && (!anySoloed || source.soloed);
+    compositionStateByTrackId.set(track.id, Object.freeze({
+      locked: source.locked,
+      muted: source.muted,
+      soloed: source.soloed,
+      inBand,
+      mixerAudible,
+      composerVisible: mixerAudible && (inBand || source.locked),
+    }));
+  }
   const context: PianoEngineContext = Object.freeze({
     template: Object.freeze({ id: template?.id ?? null, pianoEligible }),
     rules: applicablePianoRules(template, pianoEligible),
@@ -350,11 +426,12 @@ export function buildPianoEngineInput(options: BuildPianoEngineInputOptions): Pi
     layerInformation,
     moments,
     fillWindows,
-    seed,
+    generationIdentity,
+    seed: generationIdentity.seed,
     provenance: PROVENANCE,
   });
   return Object.freeze({
     context,
-    analysis: buildPianoAnalysisSnapshot(finalizedTracks),
+    analysis: buildPianoAnalysisSnapshot(finalizedTracks, compositionStateByTrackId),
   });
 }

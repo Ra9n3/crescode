@@ -1,5 +1,5 @@
 /**
- * Piano Engine V2's generated sustain-pedal automation.
+ * Piano Engine V5's generated sustain-pedal automation.
  *
  * The Realizer calls this after its final note/conflict pass, so pedal timing
  * follows the notes that will actually be written. Harmonic events and phrase

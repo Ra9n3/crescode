@@ -445,7 +445,7 @@ describe('Piano Engine V3 context-aware textures', () => {
     expect(realization.controllers).toEqual([]);
   });
 
-  it('exports the same V3 Piano notes and CC64 under the UVI Piano track name', () => {
+  it('exports the same V5 Piano notes and CC64 under the UVI Piano track name', () => {
     const base = productionCase('ensemble.chamber');
     const piano = base.result.tracks.find((track) => isInstrumentTrack(track) && track.role === 'piano');
     if (!piano || !isInstrumentTrack(piano)) throw new Error('Production composition returned no instrument Piano.');

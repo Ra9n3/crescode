@@ -1,9 +1,12 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
+import { hashString } from '../src/engine/generate';
 import dorian from '../fixtures/dorian-16bars.json';
 import threeChorus from '../fixtures/three-chorus-40bars.json';
 import { resolveTemplate } from '../src/config/ensembles';
 import { composeAllTracks } from '../src/orchestrator/compose';
+import { analyzePianoInput } from '../src/orchestrator/keys/piano-analyzer';
+import { composePianoPlan } from '../src/orchestrator/keys/piano-composer';
 import { chordSpans, energyCurve, orchestrationSeedFor, sectionMap } from '../src/orchestrator/spine';
 import { isInBand } from '../src/shared/schema/band';
 import { isInstrumentTrack, type Project } from '../src/shared/schema/types';
@@ -137,7 +140,24 @@ describe('Piano Engine Phase 4A ephemeral context contract', () => {
     expect(context.moments).toEqual(relevantMoments);
     expect(context.fillWindows).toEqual(pianoFills);
     expect(context.layerInformation.perBar).toEqual(stringLayerAnnotations);
-    expect(context.seed).toBe(orchestrationSeedFor(project, result.orchestration));
+    const orchestrationSeed = orchestrationSeedFor(project, result.orchestration);
+    const identityKey = [
+      'piano-engine-v5',
+      `orchestrationSeed=${orchestrationSeed}`,
+      'userSeed=11',
+      `take=${result.orchestration.take}`,
+      'density=1.000',
+    ].join('|');
+    expect(context.generationIdentity).toEqual({
+      algorithm: 'piano-engine-v5',
+      key: identityKey,
+      orchestrationSeed,
+      userSeed: 11,
+      take: result.orchestration.take,
+      density: 1,
+      seed: hashString(identityKey),
+    });
+    expect(context.seed).toBe(context.generationIdentity.seed);
     expect(context.provenance).toEqual({
       resolvedTemplate: 'src/config/ensembles.ts: resolveTemplate(project.ensemble)',
       pianoEligibility: 'template roster plus unlocked in-band piano track',
@@ -149,18 +169,108 @@ describe('Piano Engine Phase 4A ephemeral context contract', () => {
       layerInformation: 'src/orchestrator/conductor/index.ts: ConductorPlan.bars[].layers (strings-only, partial)',
       moments: 'src/orchestrator/conductor/index.ts: ConductorPlan.moments (keys-relevant kinds)',
       fillWindows: 'src/orchestrator/conductor/index.ts: ConductorPlan.fills (piano/Keys targets)',
-      seed: 'src/orchestrator/spine/index.ts: orchestrationSeedFor(project, orchestration)',
-      analysis: 'composeAllTracks finalized tracks, excluding piano',
+      generationIdentity: 'piano-engine-v5: orchestration seed + ComposeOptions seed/take/density, hashed with hashString',
+      seed: 'PianoGenerationIdentity.seed: deterministic Composer/Realizer stream',
+      analysis: 'composeAllTracks finalized tracks, excluding piano; production mute/solo/lock/band state is snapshotted',
     });
   });
 
-  it('reuses the deterministic orchestration seed and produces the same input for identical inputs/takes', () => {
+  it('reuses the deterministic V5 identity and produces the same input for identical inputs/takes', () => {
     const first = composeCase('ensemble.cinematic', 4);
     const second = composeCase('ensemble.cinematic', 4);
 
-    expect(first.context.seed).toBe(orchestrationSeedFor(first.project, first.result.orchestration));
+    expect(first.context.generationIdentity.orchestrationSeed)
+      .toBe(orchestrationSeedFor(first.project, first.result.orchestration));
+    expect(first.context.seed).toBe(first.context.generationIdentity.seed);
+    expect(second.context.generationIdentity).toEqual(first.context.generationIdentity);
     expect(second.context.seed).toBe(first.context.seed);
     expect(JSON.stringify(first.input)).toBe(JSON.stringify(second.input));
+  });
+
+  it('snapshots mute, solo, lock, and band visibility without hiding preserved locked notes', () => {
+    const project = makeProject('ensemble.cinematic', 4);
+    const template = resolveTemplate(project.ensemble);
+    const nonPiano = project.tracks.filter((track) => isInstrumentTrack(track) && track.role !== 'piano');
+    const inBand = nonPiano.filter((track) => isInBand(track.role, project.ensemble!, template));
+    const outOfBand = nonPiano.filter((track) => !isInBand(track.role, project.ensemble!, template));
+    if (inBand.length < 3 || outOfBand.length < 2) {
+      throw new Error('The fixture needs three in-band and two out-of-band non-Piano tracks.');
+    }
+    const [audibleTrack, mutedTrack, lockedInBandTrack] = inBand;
+    const [unlockedOutOfBandTrack, lockedOutOfBandTrack] = outOfBand;
+    mutedTrack.muted = true;
+    lockedInBandTrack.locked = true;
+    lockedOutOfBandTrack.locked = true;
+
+    const result = composeAllTracks(project, { seed: 11 });
+    const stateFor = (trackId: string) => result.pianoEngineInput.analysis.tracks
+      .find((track) => track.id === trackId)?.compositionState;
+    expect(stateFor(audibleTrack.id)).toMatchObject({
+      locked: false, muted: false, soloed: false, inBand: true, mixerAudible: true, composerVisible: true,
+    });
+    expect(stateFor(mutedTrack.id)).toMatchObject({ muted: true, mixerAudible: false, composerVisible: false });
+    expect(stateFor(lockedInBandTrack.id)).toMatchObject({ locked: true, inBand: true, composerVisible: true });
+    expect(stateFor(unlockedOutOfBandTrack.id)).toMatchObject({
+      locked: false, inBand: false, mixerAudible: true, composerVisible: false,
+    });
+    expect(stateFor(lockedOutOfBandTrack.id)).toMatchObject({
+      locked: true, inBand: false, mixerAudible: true, composerVisible: true,
+    });
+
+    const soloProject = makeProject('ensemble.cinematic', 4);
+    const soloTracks = soloProject.tracks.filter((track) => isInstrumentTrack(track) && track.role !== 'piano'
+      && isInBand(track.role, soloProject.ensemble!, template));
+    const soloTrack = soloTracks[0];
+    const excludedTrack = soloTracks.find((track) => track.id !== soloTrack.id);
+    if (!soloTrack || !excludedTrack) throw new Error('The fixture needs two in-band tracks for the solo gate.');
+    soloTrack.soloed = true;
+    const soloResult = composeAllTracks(soloProject, { seed: 11 });
+    const soloState = soloResult.pianoEngineInput.analysis.tracks.find((track) => track.id === soloTrack.id)?.compositionState;
+    const excludedState = soloResult.pianoEngineInput.analysis.tracks.find((track) => track.id === excludedTrack.id)?.compositionState;
+    expect(soloState).toMatchObject({ soloed: true, mixerAudible: true, composerVisible: true });
+    expect(excludedState).toMatchObject({ soloed: false, mixerAudible: false, composerVisible: false });
+  });
+
+  it('keys V5 identity to user seed, take, and density and changes the musical plan deterministically', () => {
+    const { project, result: baseline } = composeCase('ensemble.chamber', 1);
+    const replay = composeAllTracks(project, { seed: 11, density: 1 });
+    const otherUserSeed = composeAllTracks(project, { seed: 29, density: 1 });
+    const lowerDensity = composeAllTracks(project, { seed: 11, density: 0.1 });
+    const nextTakeProject: Project = { ...project, orchestration: baseline.orchestration };
+    const nextTake = composeAllTracks(nextTakeProject, { seed: 11, density: 1 });
+    const baseIdentity = baseline.pianoEngineInput.context.generationIdentity;
+
+    expect(replay.pianoEngineInput.context.generationIdentity).toEqual(baseIdentity);
+    expect(baseIdentity).toMatchObject({ algorithm: 'piano-engine-v5', userSeed: 11, take: 1, density: 1 });
+    expect(baseIdentity.key).toContain('userSeed=11');
+    expect(baseIdentity.key).toContain('take=1');
+    expect(baseIdentity.key).toContain('density=1.000');
+    expect(otherUserSeed.pianoEngineInput.context.generationIdentity.key).not.toBe(baseIdentity.key);
+    expect(nextTake.pianoEngineInput.context.generationIdentity.key).not.toBe(baseIdentity.key);
+    expect(lowerDensity.pianoEngineInput.context.generationIdentity.key).not.toBe(baseIdentity.key);
+    expect(lowerDensity.pianoEngineInput.context.generationIdentity.density).toBe(0.1);
+
+    const pianoNotesFor = (result: ReturnType<typeof composeAllTracks>) => result.tracks
+      .find((track) => isInstrumentTrack(track) && track.role === 'piano')?.notes ?? [];
+    expect(pianoNotesFor(otherUserSeed)).not.toEqual(pianoNotesFor(baseline));
+    expect(pianoNotesFor(nextTake)).not.toEqual(pianoNotesFor(baseline));
+    expect(pianoNotesFor(lowerDensity)).not.toEqual(pianoNotesFor(baseline));
+
+    const planFor = (result: ReturnType<typeof composeAllTracks>) => composePianoPlan(
+      result.pianoEngineInput,
+      analyzePianoInput(result.pianoEngineInput),
+    );
+    const basePlan = planFor(baseline);
+    const changedSeedPlan = planFor(otherUserSeed);
+    const changedTakePlan = planFor(nextTake);
+    const lowerDensityPlan = planFor(lowerDensity);
+    expect(basePlan.generationIdentity.seed).toBe(basePlan.seed);
+    expect(changedSeedPlan.motif?.rhythmicWeights).not.toEqual(basePlan.motif?.rhythmicWeights);
+    expect(changedTakePlan.generationIdentity.key).not.toBe(basePlan.generationIdentity.key);
+    expect(changedTakePlan.phrases.map((phrase) => phrase.motif))
+      .not.toEqual(basePlan.phrases.map((phrase) => phrase.motif));
+    const baselineDensityByPhrase = new Map(basePlan.phrases.map((phrase) => [phrase.id, phrase.intendedDensity]));
+    expect(lowerDensityPlan.phrases.some((phrase) => baselineDensityByPhrase.get(phrase.id) !== phrase.intendedDensity)).toBe(true);
   });
 
   it('marks string-only layer annotations partial and never infers total occupancy or capacity', () => {

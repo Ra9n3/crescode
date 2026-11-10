@@ -48,7 +48,7 @@ function composeCase(templateId: string, take: number, fixture: unknown = threeC
   return { project, result, piano: pianoOf(result.tracks) };
 }
 
-describe('Piano Engine V2 production path', () => {
+describe('Piano Engine V5 production path', () => {
   it('is the only Piano-track note producer for all five eligible templates', () => {
     for (const entry of CASES) {
       const { project, result, piano } = composeCase(entry.id, entry.take, entry.fixture);
@@ -81,7 +81,7 @@ describe('Piano Engine V2 production path', () => {
       expect(input.context.template.pianoEligible, entry.id).toBe(true);
       expect(plan.template.eligible, entry.id).toBe(true);
       expect(realization.notes.length, `${entry.id} produced notes`).toBeGreaterThan(0);
-      expect(piano.notes, `${entry.id} output equals V2 Realizer output after mix safety`).toEqual(expected);
+      expect(piano.notes, `${entry.id} output equals V5 Realizer output after mix safety`).toEqual(expected);
       expect(realization.octavePolicy.remainingHardPairs, `${entry.id} forbidden octave pairs`).toBe(0);
       const pianoHardFindings = checkTemplateRules(
         { ...project, tracks: result.tracks, orchestration: result.orchestration },
@@ -149,16 +149,20 @@ describe('Piano Engine V2 production path', () => {
       ).filter((finding) => finding.rule === 'octaveDoubling'
         && finding.severity === 'hard' && finding.message.includes('piano'));
       expect(findings, `${entry.id} take ${entry.take}`).toHaveLength(0);
-      expect(result.reports.find((line) => line.startsWith('piano engine V2')))
+      expect(result.reports.find((line) => line.startsWith('piano engine V5')))
         .toMatch(/forbidden octave policy revoiced [1-9]/);
     }
   });
 
-  it('is deterministic for the same project, take, and seed', () => {
+  it('replays identical notes and CC64 for the same project, take, user seed, and density', () => {
     const { project } = composeCase('ensemble.cinematic', 4);
-    const a = compose(project, { seed: 11 });
-    const b = compose(project, { seed: 11 });
+    const a = compose(project, { seed: 11, density: 1 });
+    const b = compose(project, { seed: 11, density: 1 });
+    expect(a.pianoEngineInput.context.generationIdentity)
+      .toEqual(b.pianoEngineInput.context.generationIdentity);
     expect(pianoOf(a.tracks).notes).toEqual(pianoOf(b.tracks).notes);
+    const pedal = (tracks: readonly Track[]) => pianoOf(tracks).cc?.find((lane) => lane.cc === 64)?.points ?? [];
+    expect(pedal(a.tracks)).toEqual(pedal(b.tracks));
     expect(JSON.stringify(a.tracks)).toBe(JSON.stringify(b.tracks));
   });
 
@@ -172,7 +176,7 @@ describe('Piano Engine V2 production path', () => {
     expect(piano.notes).toEqual([]);
   });
 
-  it('keeps preview and MIDI export note events identical to the composed Piano track', () => {
+  it('keeps preview notes and exported MIDI notes plus CC64 identical to the composed Piano track', () => {
     const { project, result, piano } = composeCase('ensemble.chamber', 1);
     const composedProject: Project = { ...project, tracks: result.tracks, orchestration: result.orchestration };
     const expectedEvents = eventShape(piano.notes);
@@ -184,5 +188,10 @@ describe('Piano Engine V2 production path', () => {
     const pianoMidiTrack = midi.tracks.find((track) => track.name === piano.name);
     expect(pianoMidiTrack).toBeDefined();
     expect(eventShape(pianoMidiTrack!.notes)).toEqual(expectedEvents);
+    const expectedPedal = piano.cc?.find((lane) => lane.cc === 64)?.points
+      .map(({ tick, value }) => ({ cc: 64, tick, value })) ?? [];
+    expect(expectedPedal.length).toBeGreaterThan(0);
+    expect(pianoMidiTrack!.cc.filter((event) => event.cc === 64)
+      .map(({ cc, tick, value }) => ({ cc, tick, value }))).toEqual(expectedPedal);
   });
 });

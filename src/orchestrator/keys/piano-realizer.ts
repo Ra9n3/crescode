@@ -346,6 +346,20 @@ function phraseAtTick(plan: PianoComposerPlan, tick: number, phraseId?: string |
   return plan.phrases.find((phrase) => tick >= phrase.startTick && tick < phrase.endTick) ?? null;
 }
 
+function nearSilenceAtTick(phrase: PianoPhraseIntention, tick: number): boolean {
+  const trajectory = phrase.dynamics.sourceEnergy.trajectory;
+  if (!trajectory.length) return phrase.dynamics.sourceEnergy.nearSilence;
+  return trajectory.some((point) => point.nearSilence
+    && tick >= point.startTick && tick < point.endTick);
+}
+
+function phraseEntirelyNearSilence(phrase: PianoPhraseIntention): boolean {
+  const trajectory = phrase.dynamics.sourceEnergy.trajectory;
+  return trajectory.length
+    ? trajectory.every((point) => point.nearSilence)
+    : phrase.dynamics.sourceEnergy.nearSilence;
+}
+
 function shouldRoll(
   plan: PianoComposerPlan,
   event: PianoHarmonicEvent,
@@ -354,7 +368,7 @@ function shouldRoll(
   if (event.hands.right.motion === 'yield'
     || event.orchestration.interaction === 'yield-to-spotlight'
     || event.hands.right.density === 'very-sparse') return false;
-  // The V3 Composer chooses a named texture from musical context; its Realizer
+  // The Composer chooses a named texture from musical context; the Realizer
   // supplies the timing. Do not add a second seed-random roll decision on top.
   if (phrase?.texture) return false;
   const probability: Record<PianoComposerPlan['template']['style']['identity'], number> = {
@@ -1000,7 +1014,7 @@ function selectedMotifPositions(phrase: PianoPhraseIntention): number[] {
       positions = [];
       break;
   }
-  if (phrase.dynamics.sourceEnergy.nearSilence) return [];
+  if (phraseEntirelyNearSilence(phrase)) return [];
   const texture = phrase.texture?.kind;
   if (texture === 'broken-chords' || texture === 'arpeggiated'
     || texture === 'block-chords' || texture === 'short-flourishes') return [];
@@ -1134,14 +1148,13 @@ function realizeDialogueCounterline(
     const chord = chords[chordIndex];
     const phrase = chord.phrase;
     if (phrase?.texture?.kind !== 'contrapuntal-dialogue'
-      || phrase.dynamics.sourceEnergy.nearSilence
       || phrase.motif.operation === 'withhold-under-lead') continue;
     const span = chord.endTick - chord.startTick;
     if (span < PPQ / 2) continue;
     const grid = Math.max(1, phrase.rhythmicPlan.gridTicks ?? PPQ / 2);
     const startTick = Math.max(chord.startTick + 1,
       quantizeToGrid(chord.startTick + Math.round(span * 0.58), phrase.startTick, grid));
-    if (startTick >= chord.endTick || startTick >= projectEndTick) continue;
+    if (startTick >= chord.endTick || startTick >= projectEndTick || nearSilenceAtTick(phrase, startTick)) continue;
 
     const [zoneLow, zoneHigh] = rangeForZone(chord.event.hands.left.register, target);
     const rightTextureAnchor = chord.rightPitches.length
@@ -1229,7 +1242,7 @@ function realizeMotifs(
   let previousMelodyPitch: number | null = null;
 
   for (const phrase of plan.phrases) {
-    if (phrase.endTick <= phrase.startTick || phrase.dynamics.sourceEnergy.nearSilence) continue;
+    if (phrase.endTick <= phrase.startTick) continue;
     const phraseOperation = phrase.motif.operation;
     const legacyPositions = selectedMotifPositions(phrase);
     const fallbackCellTicks = Math.min(phrase.endTick - phrase.startTick,
@@ -1520,7 +1533,6 @@ function approachNotes(
     const next = chords[index + 1];
     const phraseId = current.phrase?.id ?? current.event.phraseId ?? `unphrased:${current.startTick}`;
     if (current.event.hands.left.motion !== 'sparse-approach'
-      || current.phrase?.dynamics.sourceEnergy.nearSilence
       || current.endTick !== next.startTick
       || usedPhrases.has(phraseId)
       || current.leftPitch === null
@@ -1536,7 +1548,8 @@ function approachNotes(
     const grid = Math.max(1, current.phrase?.rhythmicPlan.gridTicks ?? PPQ / 2);
     const tick = quantizeToGrid(current.startTick + Math.floor(span * 0.78),
       current.phrase?.startTick ?? current.startTick, grid);
-    if (tick < current.startTick || tick >= current.endTick) continue;
+    if (tick < current.startTick || tick >= current.endTick
+      || (current.phrase !== null && nearSilenceAtTick(current.phrase, tick))) continue;
     const endTick = Math.min(projectEndTick, next.startTick,
       tick + Math.min(PPQ / 4, Math.floor(span * 0.18)));
     if (endTick <= tick) continue;
@@ -1729,7 +1742,7 @@ function suspensionAuditForNotes(
 
 export interface PianoRealizationWithAudit {
   readonly notes: readonly Note[];
-  /** Generated Piano-only controller lanes; CC64 is composed by V2, not MIDI export. */
+  /** Generated Piano-only controller lanes; CC64 is composed by V5, not MIDI export. */
   readonly controllers: readonly CcLane[];
   readonly suspensions: readonly PianoSuspensionAudit[];
   readonly octavePolicy: PianoOctavePolicyReport;

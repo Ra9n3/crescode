@@ -1,13 +1,13 @@
 # Crescode — Orchestral MIDI Studio
 
-Set key / mode / BPM / meter, sketch sections and chords on the arranger, pick a **band** in the ▾ next to **Compose All**, preview, export MIDI, and finish the track in your DAW. The band (one of six ensemble templates) decides which of your tracks play; every musical decision about the notes themselves comes from **your** rules file (`src/config/generation-rules.ts`). The engine only interprets that file.
+Set key / mode / BPM / meter, sketch sections and chords on the arranger, pick a **band** in the ▾ next to **Compose All**, preview, export MIDI, and finish the track in your DAW. The band (one of six ensemble templates) decides which of your tracks play. Production Compose All is coordinated by `src/orchestrator/compose.ts`: dedicated family renderers own their paths, while the generic rules interpreter in `src/engine/generate.ts` consumes `src/config/generation-rules.ts` for remaining rules-driven work and compatibility inputs. Piano Engine V2 replaces intermediate Piano output after the non-Piano parts are finalized; Harp remains with the keys renderer.
 
 > **Delivery status, plainly:** this repository has the complete **frontend application**: schema, generation engine, export, arranger UI, the band system (six ensemble templates with header in/out and project pins), mixer, piano roll, routing, freeze, save/load, undo, plus tests. It runs in Chromium-based browsers (Edge or Chrome on Windows) as a single local HTML file, with the built-in Web Audio preview sound. The **Tauri shell, the Rust `crescode-engine.exe`, real VST3 scanning and hosting, and the Windows installer are not included yet** (see `docs/ENGINE_BUILD_GUIDE.md` for the implementation plan). The UI already speaks the engine protocol (`docs/PROTOCOL.md`), and degrades gracefully without the engine, as the brief requires.
 
 ## Prerequisites (Windows 10/11 x64)
 1. **Node.js LTS** (22.x): https://nodejs.org. Use the default installer options.
 2. Optional, only for the browser smoke test: run `npx playwright install chromium` once.
-3. **Rust (stable, MSVC toolchain)** is only needed once building `crescode-engine` (see `docs/ENGINE_BUILD_GUIDE.md`). No C++ compiler, no JUCE, no Visual Studio IDE — just the Rust toolchain and the MSVC linker that `rustup` installs automatically.
+3. **Rust (stable, MSVC toolchain)** is only needed to implement or build the planned native engine (see `docs/ENGINE_BUILD_GUIDE.md`). No C++ compiler, no JUCE, no Visual Studio IDE is intended — just the Rust toolchain and the MSVC linker that `rustup` installs automatically.
 
 ## Run
 ```
@@ -20,15 +20,17 @@ Nothing goes over the network at runtime. The fonts are bundled. The engine conn
 
 ## Test
 ```
-npm test             # 530 unit tests across 20 files: schema + chord parser (54 symbols), engine invariants,
-                     # band membership/sweep/pin semantics, smart chord suggestion, transport model, mixer, export round-trip
-npm run harness      # CLI: loads fixtures/dorian-16bars.json, prints per-track note counts + bar-by-bar summary
+npm test                         # Vitest suite
+npm test -- tests/piano-engine-production.test.ts  # focused example; choose the test relevant to your change
+npm run typecheck                # source and test TypeScript checks
+npm run harness                  # CLI summary for fixtures/dorian-16bars.json
 npm run harness -- 42            # with seed 42
-npm run e2e          # builds, then runs the headless UI smoke test (alignment, 5k notes, mixer, VST states,
-                     # piano roll, undo, the band system) — 54 checks
-npm run e2e:gesture  # chord-lane gestures & smart chord overlay — 41 checks
-npm run e2e:transport# transport, auto-scroll, follow & loop — 35 checks
+npm run e2e                      # builds, then runs the headless UI smoke test
+npm run e2e:gesture              # chord-lane gestures and smart chord overlay
+npm run e2e:transport            # transport, auto-scroll, follow and loop
 ```
+
+For coding-agent navigation, start with [AGENTS.md](AGENTS.md). The detailed current orchestration flow and musical contracts are in [docs/ORCHESTRATOR_SPEC.md](docs/ORCHESTRATOR_SPEC.md).
 
 ## Using Crescode
 - **Top bar:** project name, New / Open / Save / Recent / Export, undo and redo, BPM, Key, Mode, Time signature, the transport, and **Compose All**. The ▾ next to Compose All holds the **band picker** plus seed, density and humanize.
@@ -48,8 +50,8 @@ npm run e2e:transport# transport, auto-scroll, follow & loop — 35 checks
 3. Check: one track per instrument, named after it. The tempo matches the BPM (the DAW should adopt the file's tempo; tick "import tempo" if it asks). The time signature matches. Section markers appear on the marker track.
 4. Per-track export: choose a folder. Drag all the `NN Name.mid` files in at bar 1. They all start at bar 1 and end on the same bar.
 
-## Writing your own rules
-Edit `src/config/generation-rules.ts` (the schema is in `src/engine/rules-schema.ts`; the file's header comment is a reference card). The structure:
+## Writing rules for the generic generator
+Edit `src/config/generation-rules.ts` (the schema is in `src/engine/rules-schema.ts`; the file's header comment is a reference card). This config feeds generic rules-driven work in Compose All; family-specific renderers own their dedicated output. The structure:
 
 ```ts
 sections: {
@@ -76,27 +78,30 @@ sections: {
 - **Pitch sources:** `chord`, `chordUpper` (no slash bass), `root`, `bass`, `scale`, `fixed`. **Motions:** `block` (voice-led voicing with `voices` and `spread`), `arpeggioUp`, `arpeggioDown`, `arpeggioUpDown`, `stepwise`, `random`.
 - **Rhythm units:** `beat` (the felt beat: dotted quarter in 6/8), `quarter`, `eighth`, `sixteenth`, `triplet8`, `pulse`, `bar`. Sustains: `per: 'chord' | 'bar' | 'chordOrBar' | 'beat' | 'section'`.
 - **Hooks:** `custom(pc)` replaces generation for that part, and `transform(notes, pc)` post-processes its notes. `pc.ctx` gives you the key, mode, `scalePitchClasses`, the parsed chords (`chordAt(tick)`), the sections (with occurrence), the meter (`barTicks`, `beatOffsets`, compound), BPM, the options, `lockedNotes` (by track and by role), and `generatedByRole`. `pc.rng` is seeded, so never use `Math.random`.
-- **What the engine guarantees regardless of your rules:** determinism, locked tracks returned untouched, every note in range (folded by octaves), no same-pitch overlaps, no zero-length notes, nothing past the end, and humanize under 15 ms that stays inside the bar.
+- **What the generic rules interpreter guarantees regardless of your rules:** determinism, locked tracks returned untouched, every note in range (folded by octaves), no same-pitch overlaps, no zero-length notes, nothing past the end, and humanize under 15 ms that stays inside the bar.
 
-## Native Engine (crescode-engine) — Architecture & Scope
-The native engine is a pure Rust binary. No C++, no JUCE, no second compiler toolchain. It communicates with this frontend exclusively over the WebSocket protocol defined in `docs/PROTOCOL.md` — the frontend has zero knowledge of what the engine does internally. This separation is intentional and must be preserved.
+## Planned Native Engine (`crescode-engine`) — Not Included
 
-Scope, precisely:
+No `crescode-engine/` source tree or Rust binary is included in this repository. The current frontend includes the `src/engineClient/` WebSocket client; `docs/PROTOCOL.md` records the intended protocol and `docs/ENGINE_BUILD_GUIDE.md` is a future implementation plan. The native-engine details below describe planned architecture, not shipped native functionality.
+
+The intended native engine is a Rust binary with no C++ or JUCE dependency, communicating with the frontend over the WebSocket protocol. This separation is intentional and should be preserved if the native engine is implemented.
+
+Planned scope:
 
 VST3 hosting only. No VST2 (deprecated, licensing issues). No CLAP — Crescode's target instruments (orchestral sample libraries: Kontakt, VSL, Spitfire, Cinesamples, EastWest, etc.) ship as VST3, not CLAP, so CLAP support would add engineering cost with zero real-world benefit for this app.
 
-Multi-timbral routing is the single most important engine capability, not an afterthought. A single plugin instance (e.g., one Kontakt) commonly hosts many instruments at once, each on its own MIDI channel, each producing its own audio output. Crescode's tracks must be able to:
+Multi-timbral routing is the most important planned engine capability, not an afterthought. A single plugin instance (e.g., one Kontakt) commonly hosts many instruments at once, each on its own MIDI channel, each producing its own audio output. The future engine should let Crescode tracks:
 
 - Share one plugin instance across multiple tracks.
 - Route each track's MIDI to a specific MIDI channel on that shared instance.
 - Route each track's audio from a specific VST3 output bus on that shared instance back to that track's mixer strip.
 
-This is also the highest-risk, least-certain part of the whole engine. VST3's multi-bus negotiation is widely considered the fussiest part of the spec to implement correctly, and different plugins respond to negotiation differently. For this reason, the build guide validates bus negotiation against a real multi-timbral plugin in Phase 3, immediately after basic plugin loading works — not deferred to later. See `docs/ENGINE_BUILD_GUIDE.md`.
+This is expected to be the highest-risk part of a future engine: VST3 multi-bus negotiation is difficult and plugins can respond differently. The build guide proposes validating it against a real multi-timbral plugin in its Phase 3; that validation has not been performed by this frontend repository.
 
-Which Rust crate implements the VST3 hosting layer is decided via an explicit verification step (Phase 0a of the build guide), not assumed in advance. Do not hardcode a crate choice into any planning document without first confirming it is real, maintained, and suitable — see the build guide for the exact verification checklist.
+The VST3 hosting crate remains a future decision. The build guide requires an explicit Phase 0a verification before choosing a crate; do not treat its candidate notes as a completed implementation decision.
 
-## Plugin scanning
-The VST browser (the VST button on any track) has four states: Scanning (with a live counter), Empty, Not scanned, and Loaded. Scanning and hosting run in the native `crescode-engine`, so with the engine missing, Scan explains that and tracks keep the **preview sound** (marked **PV**). The dev switch at the bottom of the modal forces each state; the "loaded" state then shows clearly labelled DEV sample data. Set the scan directory in Settings. Scanning always runs in a sandboxed subprocess — a crashing plugin must never take down the scanner or the engine itself.
+## Plugin-scanning UI and planned native behavior
+The frontend VST browser exposes Scanning, Empty, Not scanned, and Loaded states, plus a development switch for exercising the UI with clearly labelled sample data. This repository does not include the native engine, so actual VST3 scanning and hosting are not available; without an engine, tracks retain the built-in **preview sound** (marked **PV**). The build guide proposes running future scanning in a sandboxed subprocess so a crashing plugin cannot take down the engine.
 
 ## The interface
 The UI is built as vintage studio hardware: graphite control panels with brushed-metal grain, brushed aluminium plates for the master section, cream silkscreen print, chrome toggles, square lamp buttons, spoked rotary knobs with tick rings, and desk faders with printed scales and aluminium caps. Panel titles are set in a brush script on a silkscreen rule, and the timecode sits in an inset display window. Family colours are the channel colour coding — the coloured knob caps of a mixing desk. The piano roll's key strip is a real vintage keyboard: aged ivory whites with dark seams and worn front edges, glossy black keys inset over them with a gloss highlight and a cast shadow, felt under the fallboard and printed C labels. The mixer opens as a full-width dock beneath the arranger (default open; toggled with the mixer button or the X key) and stays full-width while routing, VST/settings menus, or the piano roll are open. All previous checkbox controls are analog chrome toggles: ON glows warm gold; OFF is unlit. M/S/L are graphite lamp buttons with a small corner LED that lights (amber mute, olive solo, blue lock); the selected channel is marked by a family-colour edge glow rather than a brightness wash. Every hardware control shares one press physic (sink + golden glow on `:active`/tap). Faders use the classic SSL / Standard Wedge: rectangular matte black console caps with a concave finger scoop, deep center groove, and a sharp contrasting white indicator line painted down the middle. Grab the cap with a relative drag, click the empty track to jump, scroll to nudge (Shift = fine). Printed dB numbers `+6 0 −10 −20 −40` sit to the right of the meter (the master adds `−∞`) without bleeding above or below. The fader and playback preview bar are centered as a pair directly beneath the Mute and Solo buttons. Channel names are engraved in black plate ink with no background frame, matching the "PAN" labels. Pan knobs are enlarged (36px in full density) with a spoked tick ring, 12-o'clock detent, and scroll-to-turn. The master channel matches the exact width and fader/meter travel of standard channels. Screenshots: `docs/screenshot.png`. Every color comes from `src/theme/tokens.ts`; the brushed-metal textures are embedded in `src/theme/material.css`, so nothing is fetched at runtime.
@@ -105,12 +110,13 @@ The UI is built as vintage studio hardware: graphite control panels with brushed
 ```
 specs/ensemble-templates/  the six band templates (JSON): roster, energy budget, orchestration rules
 src/shared/schema/   types, JSON Schema, chord parser, modes, ranges, meter, factory, validation, band.ts (membership logic)
-src/engine/          generate.ts (interpreter + invariants), rules-schema.ts, suggestion/ (chord analysis), transport/ (follow)
-src/config/          generation-rules.ts  ← your rules · ensembles.ts (band registry + template resolver)
-src/export/          midi.ts (midi-file library), json.ts
+src/orchestrator/   production Compose All coordinator, family renderers, Piano Engine V2
+src/engine/          generate.ts (generic rules interpreter), rules-schema.ts, suggestion/ (chord analysis), transport/ (follow)
+src/config/          generation-rules.ts (generic rules data) · ensembles.ts (band registry + template resolver)
+src/export/          midi.ts (MIDI writer), profile.ts and profiles/ (export transformations)
 src/audio/           preview synth, scheduler, meters, freeze (offline render), transport
-src/engineClient/    WebSocket client for crescode-engine (handshake, heartbeat, reconnect)
+src/engineClient/    frontend WebSocket client for the planned native engine
 src/components/      UI;  src/theme/tokens.ts holds every color
-crescode-engine/     Rust native engine — VST3 hosting, scanning, multi-bus routing (see docs/ENGINE_BUILD_GUIDE.md)
+docs/ENGINE_BUILD_GUIDE.md and docs/PROTOCOL.md  future native-engine plan/protocol; no crescode-engine/ source tree is present
 fixtures/ tests/ scripts/ docs/
 ```

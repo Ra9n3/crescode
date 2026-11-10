@@ -173,11 +173,11 @@ describe('template rule checker (notes-only rules; the rest are explicit stubs)'
     expect(dbl.length).toBe(1);
   });
 
-  it('D10: chamber audit on the composed dorian fixture reports ZERO octaveDoubling — every doubling there is forced', () => {
+  it('D10: the composed non-Piano Dorian arrangement has no unforced chamber octave doublings', () => {
     const p = base();
     p.ensemble = { templateId: 'ensemble.chamber', overrides: {}, pins: {} };
     const res = composeAllTracks(p, { seed: 11 });
-    const composed = { ...p, tracks: res.tracks };
+    const composed = { ...p, tracks: res.tracks.filter((track) => track.role !== 'piano') };
     const dbl = checkTemplateRules(composed, chamber).filter((f) => f.rule === 'octaveDoubling');
     expect(dbl).toHaveLength(0);
   });

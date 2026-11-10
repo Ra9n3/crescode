@@ -3,7 +3,10 @@
 > D1–D7 and phase ladder). Where the two disagree, the spec wins and this
 > document must not be used as build guidance. Its vibe-preset model, texture
 > library and full-drama kit were never built; the phase table below lives on
-> only as background. Active planning doc: `docs/ORCHESTRATOR_SPEC.md`.
+> only as background. This is the single retained historical copy. The root-level
+> duplicate contained the same plan; its three older worked-example lines are
+> preserved in Appendix A, while the corrected example in §0 remains canonical.
+> Active planning doc: `docs/ORCHESTRATOR_SPEC.md`.
 
 # Crescode Orchestration Engine — Build Plan
 
@@ -421,3 +424,17 @@ Order rationale: the spine is the dependency root (every texture reads it); melo
 | Overloaded final chorus | Layer budget counts simultaneous layers; ostinato replaces pad, never stacks (§5.1) |
 | Perf regression on huge projects | O(sections × tracks × chords); budget < 80 ms @ 200 bars, asserted in test |
 | Two brains diverge | Orchestrator imports engine primitives; no rule logic copied; legacy path frozen |
+
+## Appendix A — superseded root-copy worked-example lines
+
+The removed root-level copy differed from §0 in these three illustrative
+statements. They are retained verbatim for provenance only; the corrected
+worked example in §0 supersedes them and this appendix is not build guidance.
+
+> **Energy:** Verse base 0.40 → effective 0.39 after reshape; Chorus 0.85 → 0.83; Δ ≈ +0.44 → **riser fires** at bar 8; Chorus ≥ 0.80 → **hit + crash** at bar 9.
+>
+> | Chord | bass | fills | top | motion from previous |
+> |---|---|---|---|---|
+> | Dm7 | D2 (38) | F3 · A3 · C4 | E4? no — D4's 5th slot → A3? see note | — (section anchor) |
+>
+> **Assignments, Verse (budget 3):** cellosBasses = bass slot sustain · violas+violinsII = pad on fills · violinsI = composed melody · harp = arp · timpani = downbeat roots at density 0.5 · clarinets = counterLine (energy-gated in at 0.40 for Cinematic? — no: 0.40 < 0.40 threshold, clarinet stays silent in Verse; it enters in the boost on Verse 2 at effective 0.47).

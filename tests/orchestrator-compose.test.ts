@@ -210,7 +210,7 @@ describe('Compose All through the orchestrator: property sweep', () => {
     expect(track(outProject, 'cellosBasses').notes.length).toBeGreaterThan(0);
   });
 
-  it('non-string families still come from the rules generator', () => {
+  it('non-string family tracks are composed by the orchestrator pipeline', () => {
     const { project } = compose('ensemble.symphony', {}, { seed: 11, moments: false });
     // piano is NOT in the symphony roster — untouched is correct; these are:
     expect(track(project, 'horns').notes.length).toBeGreaterThan(0);
@@ -241,16 +241,17 @@ describe('Compose All through the orchestrator: property sweep', () => {
     }
   });
 
-  it('D9 compose order: the winds module reads the strings it rendered first — the lead double rides the carrier line, and the old generator no longer writes the template winds', () => {
+  it('D9 compose order: the winds renderer uses strings rendered first for its lead double', () => {
     for (const templateId of ['ensemble.symphony', 'ensemble.cinematic']) {
       const { project, result } = compose(templateId, {}, { seed: 11, moments: false });
       const flutes = track(project, 'flutes').notes;
       expect(flutes.length).toBeGreaterThan(0);
-      // Phase 9: the winds module owns the template winds (the old generator's
-      // "Flutes double Vln I" is retired). Its lead double rides the strings'
-      // carrier line (the strings rendered FIRST, D9): where the plan drew a
-      // flute double, every flute note sits at the carrier's pitch +12 (or in
-      // unison), within the humanize-head window of a carrier note.
+      // The winds renderer supplies final template-wind notes; the generic
+      // generator's wind output remains an intermediate compatibility input.
+      // The renderer's lead double rides the strings' carrier line (the strings
+      // rendered FIRST, D9): where the plan drew a flute double, every flute
+      // note sits at the carrier's pitch +12 (or in unison), within the
+      // humanize-head window of a carrier note.
       const carrierBars = result.plan.winds.bars.filter((b) => b.voices.flutes === 'leadDouble');
       if (carrierBars.length) {
         const btBar = barTicks(project.timeSignature);

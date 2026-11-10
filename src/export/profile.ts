@@ -104,8 +104,10 @@ export interface ProfileSource {
 
 export interface ProfilePart {
   id: string;
-  /** The patch to load on this part's channel (data, not code). */
+  /** The instrument patch to load on this part's channel (data, not code). */
   patch: string;
+  /** Optional exported MIDI part name, independent of the instrument patch. */
+  exportName?: string;
   channel: number;
   source: ProfileSource;
   /** Sounding midi floor of the patch — every keyswitch key must sit below it. */
@@ -230,6 +232,10 @@ export function validateExportProfile(doc: unknown): string[] {
     const part = rawPart as Record<string, unknown>;
     if (typeof part.id !== 'string' || !part.id.trim()) err(`${at}.id`, 'must be a non-empty string');
     if (typeof part.patch !== 'string' || !part.patch.trim()) err(`${at}.patch`, 'must be a non-empty string');
+    if (part.exportName !== undefined) {
+      if (typeof part.exportName !== 'string' || !part.exportName.trim()) err(`${at}.exportName`, 'must be a non-empty string');
+      else if (/[\\\\/:*?"<>|]/.test(part.exportName)) err(`${at}.exportName`, 'must be safe as a MIDI filename stem');
+    }
     if (!isInt(part.channel) || part.channel < 1 || part.channel > 16) err(`${at}.channel`, 'must be an integer 1–16');
     else {
       const scope: 'merged' | 'fileOnly' = part.fileScope === 'fileOnly' ? 'fileOnly' : 'merged';
@@ -433,6 +439,7 @@ export function parseExportProfile(doc: unknown): ExportProfile {
     parts: (d.parts as Record<string, unknown>[]).map((part) => ({
       id: part.id as string,
       patch: part.patch as string,
+      ...(part.exportName !== undefined ? { exportName: part.exportName as string } : {}),
       channel: part.channel as number,
       source: {
         role: (part.source as Record<string, unknown>).role as string,
@@ -522,6 +529,8 @@ export interface ExportChunk {
   channel: number;
   notes: Note[];
   cc?: CcLane[];
+  /** Explicit unnumbered filename for a profile part (including .mid). */
+  fileName?: string;
   /** Phase 12: set for fileScope 'fileOnly' parts — the merged file skips
    *  the chunk; the per-track writer keeps it. */
   fileOnly?: boolean;
@@ -652,7 +661,9 @@ const noteMatchesSource = (n: Note, source: ProfileSource): boolean =>
 
 const ccForPart = (cc: CcLane[] | undefined, enabled: Record<string, boolean>): CcLane[] | undefined => {
   if (!cc) return undefined;
-  const lanes = cc.filter((lane) => lane && enabled[String(lane.cc)] === true);
+  const lanes = cc
+    .filter((lane) => lane && enabled[String(lane.cc)] === true)
+    .map(({ cc: controller, points }) => ({ cc: controller, points }));
   return lanes.length ? lanes : undefined;
 };
 
@@ -792,7 +803,11 @@ export function chunksForTrack(project: Project, track: Track, profile: ExportPr
     const merged = part.tremoloMode === 'sampled' ? mergeTremoloGroups(guarded) : guarded;
     const notes = [...keyswitchNotesFor(part, merged, project, profile), ...merged].sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
     chunks.push({
-      trackId: track.id, name: part.patch, channel: part.channel, notes,
+      trackId: track.id,
+      name: part.exportName ?? part.patch,
+      ...(part.exportName ? { fileName: `${part.exportName}.mid` } : {}),
+      channel: part.channel,
+      notes,
       ...(part.fileScope === 'fileOnly' ? { fileOnly: true } : {}),
       ...(ccForPart(track.cc, part.ccEnabled) !== undefined ? { cc: ccForPart(track.cc, part.ccEnabled)! } : {}),
     });
@@ -828,7 +843,8 @@ export function profilePartSummary(profile: ExportProfile): string[] {
         : p.playableLow !== undefined
           ? `notes below ${p.playableLow} fold up by octaves`
           : '';
-    lines.push(`${where} · ${p.patch} · ${ks}${map ? ` · ${map}` : ''}`);
+    const pedal = p.ccEnabled['64'] === true ? 'CC64 sustain pedal automation' : '';
+    lines.push(`${where} · ${p.patch} · ${ks}${map ? ` · ${map}` : ''}${pedal ? ` · ${pedal}` : ''}`);
   }
   for (const role of profile.unmapped ?? []) {
     lines.push(`${role} — unmapped: its notes stay in the project and are left out of the export`);

@@ -1,10 +1,13 @@
 /**
- * Phase 11.1 control stash (read-only): captures the composed bytes at the
- * CURRENT checkout — run it on a stashed (pre-change) tree at 63a82f8 to
- * produce the 11.1 baseline. Same payload as the golden captures (every
- * track, percussion included + the moments list), 6 templates ×
- * {three-chorus, dorian} × takes 1-10, moments on.
- *   git stash -q && npx vite-node scripts/phase111-stash.ts && git stash pop -q
+ * Phase 11.1 control capture (NOT READ-ONLY): writes 120 composed snapshots
+ * (all tracks, percussion and moments; six templates × two fixtures × takes
+ * 1–10) to STASH_DIR or, by default, ../scratch/stash-63a82f8 relative to
+ * the repository root.
+ *
+ * Reproduction requires the pre-change source tree at 63a82f8. The old
+ * `git stash ... && ... && git stash pop` recipe mutates working-tree state;
+ * do not use it on a checkout containing user changes. This script itself
+ * creates its output directory and writes the snapshot files.
  */
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

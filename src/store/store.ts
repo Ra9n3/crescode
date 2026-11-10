@@ -386,9 +386,10 @@ export const useStore = create<State>((set, get) => ({
     const template = resolveTemplate(project.ensemble);
     const bandSkipped = project.tracks.filter((t) => isInstrumentTrack(t) && !t.locked && !isInBand(t.role, ensemble, template)).length;
     const lockedKept = project.tracks.filter((t) => t.locked).length;
-    // Orchestrator compose: strings via the strings module (one global DP),
-    // everything else through the rules generator — and the take increments
-    // INSIDE the same edit, so one Ctrl+Z restores notes and take together.
+    // Production orchestrator: strings and dedicated family renderers run
+    // alongside the generic rules generator for remaining work/compatibility
+    // inputs; Piano Engine V2 finalizes Piano. The take increments INSIDE this
+    // same edit, so one Ctrl+Z restores notes and take together.
     // Phase 8.2: res.tracks carries the composed basses desk too (inserted
     // after the cellos in score order when the project lacked it) — written
     // in this SAME edit, so one undo removes track and notes together.

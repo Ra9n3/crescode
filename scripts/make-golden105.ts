@@ -4,10 +4,9 @@
  * tracks as stable JSON for all six templates — every track, percussion
  * included — into tests/golden105/:
  *  - golden103 (the post-11.1 capture) stays in the repo as the diff
- *    reference: only the PIANO tracks may differ against it (the comping
- *    gate move, the vocalbacking register cap and low band, the drive's
- *    low/split variants, the balanced menu rotation); every non-piano
- *    track (the harp included) is byte-identical.
+ *    reference. In the checked-in captures, Piano and Harp note data differ;
+ *    the other roles remain byte-identical. The Phase 11.5 diff report reads
+ *    the snapshots directly and shows which templates and tracks moved.
  *   npx vite-node scripts/make-golden105.ts
  */
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';

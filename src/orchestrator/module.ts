@@ -1,9 +1,9 @@
 /**
- * The family-agnostic module interface (spec §8). A family module reads the
- * spine (chord spans, section map, band) and answers two questions per
- * section: which layers it wants, and what notes realise a layer. Compose All
- * runs registered modules first, then the rules generator for families with
- * no module, then the audit.
+ * Shared orchestrator context and family-module contracts (spec §8).
+ * `SectionModule` currently describes the strings renderer. Production
+ * `compose.ts` directly sequences the dedicated Brass, Winds, Percussion, and
+ * Keys renderers alongside the generic rules generator; this file is not a
+ * registry for every family or a complete description of the Compose All flow.
  */
 import type { Note, Project, TrackFamily, ProjectEnsemble } from '../shared/schema/types';
 import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
@@ -33,7 +33,7 @@ export interface OrchestratorContext {
   moments?: MomentPlan[];
   /** The brass plan (Phase 8), planned by the conductor after the moments.
    *  An in-memory annotation — never persisted; the brass renderer realises
-   *  it after the rules generator. */
+   *  it after the generic rules-generation pass. */
   brassPlan?: BrassPlan;
   /** The winds plan (Phase 9), planned by the conductor after the moments.
    *  An in-memory annotation — never persisted; the winds renderer realises

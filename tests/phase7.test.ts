@@ -312,9 +312,9 @@ describe('Phase 7: moments', () => {
       const energy = measureEnergy(run.project, template);
       expect(energy.violations.filter((v) => v.kind === 'aboveMax'), `clamp ${label}`).toHaveLength(0);
       const findings = checkTemplateRules(run.project, template, run.result.plan);
-      // the MOMENTS create no hard findings: every hard finding must sit
-      // outside every moment's bars (a pre-existing generator/pad octave
-      // under a forbidding policy is reported, not introduced here)
+      // The final Piano Engine V2 output is covered along with every other
+      // track: its forbidden-policy guard must not introduce a hard finding
+      // inside a conductor moment.
       const hard = findings.filter((f) => f.severity === 'hard'
         && run.result.plan.moments.some((m) => f.tick !== undefined && f.tick >= m.startTick && f.tick < m.endTick));
       expect(hard, `moment hard findings ${label}: ${hard.map((f) => f.message).join(' | ')}`).toHaveLength(0);

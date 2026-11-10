@@ -1,13 +1,14 @@
 /**
- * Compose All, orchestrator edition (spec §8, D9 compose order). Pure:
- * project in, tracks + take state out. The strings module renders FIRST;
- * its notes are then handed to the rules generator as role sources so
- * cross-family doubling parts ("Flutes double Vln I") double what the
- * strings actually wrote — while strings stay EXCLUDED from the generator's
- * own writing so no lane is written twice. Every other family keeps the
- * rules generator until its module exists. Locked and out-of-band tracks
- * are returned untouched (band semantics via isInBand, lock checks as in
- * the rules engine).
+ * Production Compose All coordinator (spec §8, D9 compose order). Pure:
+ * project in, tracks + take state out. Strings render first through the
+ * SectionModule interface; their notes become role sources for the generic
+ * rules interpreter (for example, cross-family doublings), while strings are
+ * excluded from generator writes. The coordinator also runs the dedicated
+ * Brass, Winds, Percussion, and Keys renderers. `generate` supplies remaining
+ * rules-driven work and compatibility inputs; it is not the sole owner of
+ * non-string output. The keys renderer supplies Harp and intermediate Piano
+ * candidates; Piano Engine V2 replaces final Piano output after all non-Piano
+ * tracks are finalized. Locked and out-of-band tracks remain protected.
  *
  * The take increments here (inside the same edit the store wraps around this)
  * and seeds the strings module via orchestrationSeedFor: each Compose All is
@@ -15,7 +16,7 @@
  */
 import { generate } from '../engine/generate';
 import { freshEnsemble, isInBand } from '../shared/schema/band';
-import { isInstrumentTrack, type Note, type OrchestrationState, type Project, type Track } from '../shared/schema/types';
+import { isInstrumentTrack, type CcLane, type CcPoint, type Note, type OrchestrationState, type Project, type Track } from '../shared/schema/types';
 import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
 import { resolveTemplate } from '../config/ensembles';
 import { chordSpans, sectionMap, orchestrationSeedFor, energyCurve } from './spine';
@@ -28,7 +29,7 @@ import { maxMeanVelocityFor } from './energy';
 import { chordTones } from './voicing/chordTones';
 import { leadingTonePcOf } from './voicing/voiceLead';
 import { scalePitchClasses } from '../shared/schema/modes';
-import { barTicks, beatTicks, projectBars } from '../shared/schema/meter';
+import { barTicks, beatTicks, projectBars, projectEndTick } from '../shared/schema/meter';
 import { buildCcLanes } from './expression/cc';
 import { humanizeStrings } from './expression/humanize';
 import { overlapLegato } from './expression/legato';
@@ -41,9 +42,13 @@ import { EMPTY_WIND_PLAN } from './winds/plan';
 import { renderPercussion, governPercussionVelocities } from './percussion/render';
 import { PERC_PARTS } from './percussion/profile';
 import { EMPTY_PERC_PLAN } from './percussion/plan';
-import { renderKeys, governKeysVelocities, absorbPianoVelocities } from './keys/render';
+import { renderKeys, governKeysVelocities, absorbPianoVelocities, repairPianoOctavesAfterHumanize } from './keys/render';
 import { KEYS_PARTS } from './keys/profile';
 import { EMPTY_KEYS_PLAN } from './keys/plan';
+import { buildPianoEngineInput, type PianoEngineInput } from './keys/piano-engine';
+import { analyzePianoInput } from './keys/piano-analyzer';
+import { composePianoPlan } from './keys/piano-composer';
+import { realizePianoPlanWithAudit } from './keys/piano-realizer';
 import type { OrchestratorContext } from './module';
 
 export interface ComposeOptions {
@@ -59,13 +64,81 @@ export interface ComposeResult {
   tracks: Track[];
   /** The take state to write in the SAME edit as the tracks. */
   orchestration: OrchestrationState;
-  /** Track ids written by the strings module (the rest went through the rules generator). */
+  /** Track IDs written by the strings module; other output comes from family renderers and/or the generic rules interpreter. */
   stringsTrackIds: string[];
   /** The conductor's per-bar layer plan (3a) — an in-memory annotation for
    *  the audit stage. Never persisted; the store writes only tracks + take. */
   plan: ConductorPlan;
   /** Phase 4: renderer notes for the report (fallbacks, skipped layerings). */
   reports: string[];
+  /**
+   * Ephemeral, immutable Piano Engine V2 input used during this compose.
+   * It is non-enumerable and never enters Project persistence or export.
+   */
+  readonly pianoEngineInput: PianoEngineInput;
+}
+
+/** Merge V2-generated pedal automation with authored CC64 when supplied. */
+function composePianoCc64(
+  generatedControllers: readonly CcLane[],
+  authoredControllers: readonly CcLane[] | undefined,
+  projectEndTick: number,
+): CcLane[] | undefined {
+  const generated = generatedControllers.find((lane) => lane.cc === 64);
+  const authored = authoredControllers?.find((lane) => lane.cc === 64);
+  if (!generated && !authored) return undefined;
+
+  const samePoints = (left: readonly CcPoint[], right: readonly CcPoint[]): boolean =>
+    left.length === right.length && left.every((point, index) =>
+      point.tick === right[index].tick && point.value === right[index].value);
+  // The merged MIDI lane is stored on the project track. On a later Compose,
+  // recover its original source events instead of feeding the previous take's
+  // generated points back in as if they had been authored.
+  const provenance = authored?.pianoV2Pedal;
+  const authoredPoints = provenance && samePoints(authored.points, provenance.mergedPoints)
+    ? provenance.authoredPoints
+    : authored?.points ?? [];
+
+  const byTick = new Map<number, { value: number; priority: number; order: number }>();
+  let order = 0;
+  const add = (source: readonly CcPoint[], priority: number) => {
+    for (const point of source) {
+      if (!Number.isInteger(point.tick) || !Number.isInteger(point.value)) continue;
+      const tick = Math.max(0, Math.min(projectEndTick, point.tick));
+      const value = Math.max(0, Math.min(127, point.value));
+      const existing = byTick.get(tick);
+      if (!existing || priority > existing.priority || (priority === existing.priority && order > existing.order)) {
+        byTick.set(tick, { value, priority, order });
+      }
+      order++;
+    }
+  };
+  // Preserve source events, while V2's planned value wins at a shared tick.
+  add(authoredPoints, 0);
+  add(generated?.points ?? [], 1);
+
+  const points: CcPoint[] = [];
+  for (const [tick, event] of [...byTick.entries()].sort((a, b) => a[0] - b[0])) {
+    if (points[points.length - 1]?.value === event.value) continue;
+    points.push({ tick, value: event.value });
+  }
+  const last = points[points.length - 1];
+  if (last && last.value !== 0) {
+    if (last.tick === projectEndTick) last.value = 0;
+    else points.push({ tick: projectEndTick, value: 0 });
+  }
+  if (!points.length) return undefined;
+  const copyPoints = (source: readonly CcPoint[]) => source.map(({ tick, value }) => ({ tick, value }));
+  const mergedPoints = copyPoints(points);
+  return [{
+    cc: 64,
+    points: mergedPoints,
+    pianoV2Pedal: {
+      generatedPoints: copyPoints(generated?.points ?? []),
+      authoredPoints: copyPoints(authoredPoints),
+      mergedPoints: copyPoints(mergedPoints),
+    },
+  }];
 }
 
 export function composeAllTracks(project: Project, options: ComposeOptions): ComposeResult {
@@ -133,14 +206,14 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   // policy allows doubling and the range holds both — otherwise reported+skipped
   maybeLayerCellosBasses(ctx, notesByTrackId, stringsTrackIds);
 
-  // the rules generator covers every other family — strings AND brass are
-  // excluded from its WRITING (Phase 8: the brass module owns the template's
-  // brass roster), but the rendered strings still feed its doublings (D9).
-  // Phase 9: the generator KEEPS writing the template's winds — its notes
-  // are a phantom input that keeps every downstream window math (the brass
-  // velocity caps, the pad governor, the humanize jitter caps) byte-identical
-  // to HEAD; the winds module's notes REPLACE the phantom at assembly, so
-  // the module owns the sound while the architecture stays pinned.
+  // The generic rules generator contributes rules-driven parts and
+  // compatibility inputs alongside the family renderers. Strings render
+  // first and become D9 role sources, but are excluded from generator writes;
+  // brass roles are also excluded because renderBrass owns their output.
+  // Generator notes for winds, percussion, and keys remain as phantom inputs
+  // to established window/governor calculations. Dedicated renderers supply
+  // the family output at assembly: the keys renderer writes Harp and
+  // intermediate Piano, which Piano Engine V2 replaces later in this pipeline.
   const roleNotes = Object.entries(notesByTrackId).map(([id, notes]) => ({
     role: project.tracks.find((t) => t.id === id)!.role,
     notes,
@@ -286,17 +359,13 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     notes,
   }));
 
-  // Phase 11: keys — the module realises the conductor's plan AFTER the
-  // percussion renderer, so the velocity math sees every other family's
-  // notes (each note is capped by the governor bound of the beat window it
-  // attacks in, over strings + generator + brass + winds + percussion) and
-  // the final safety pass below re-checks the clamp over the FINAL notes.
-  // The generator's own keys notes stay in as the phantom input (they keep
-  // the pad governor's, the humanize jitter caps' and the brass/wind/perc
-  // caps' window math byte-identical to HEAD — §16.4); the module's notes
-  // REPLACE the phantom at assembly, so the module owns the sound while the
-  // architecture stays pinned. No CC lanes for keys (the generator writes
-  // none today; no sustain pedal — §16.7).
+  // Phase 11: the dedicated keys renderer realizes the conductor's plan after
+  // the percussion renderer. Its V1 Piano notes and the generator's keys notes
+  // remain compatibility inputs to established velocity/window calculations.
+  // The keys renderer supplies final Harp output and intermediate Piano
+  // candidates; Piano Engine V2 replaces Piano after every non-Piano part has
+  // been finalized. The generic keys renderer emits no CC; V2 CC64 is composed
+  // separately after final Piano realization.
   const keysPlan = ctx.keysPlan ?? EMPTY_KEYS_PLAN;
   const keysRuleNotes = ruleTracks
     .filter((t) => !stringsTrackIds.includes(t.id) && !brassRosterRoles.includes(t.role) && t.role !== BASSES_ROLE && !windRosterRolesC.includes(t.role) && !percRosterRoles.includes(t.role) && !keysRosterRoles.includes(t.role))
@@ -388,6 +457,28 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     notesByTrackId,
   });
   for (const [id, notes] of Object.entries(overlapped)) notesByTrackId[id] = notes;
+  const pianoRepairTrackId = Object.keys(keysNotes).find((id) => project.tracks.find((track) => track.id === id)?.role === 'piano');
+  if (template && pianoRepairTrackId) {
+    const roleOfTrack = (id: string) => project.tracks.find((track) => track.id === id)?.role ?? '';
+    const finalOtherNotes = [
+      ...stringsTrackIds.map((id) => ({ role: roleOfTrack(id), trackId: id, notes: notesByTrackId[id] ?? [] })),
+      ...Object.entries(brassNotes).map(([trackId, notes]) => ({ role: roleOfTrack(trackId), trackId, notes })),
+      ...Object.entries(windNotes).map(([trackId, notes]) => ({ role: roleOfTrack(trackId), trackId, notes })),
+      ...Object.entries(percussionNotes).map(([trackId, notes]) => ({ role: roleOfTrack(trackId), trackId, notes })),
+      ...Object.entries(keysNotes).map(([trackId, notes]) => ({ role: roleOfTrack(trackId), trackId, notes })),
+      ...ruleTracks.filter((track) => keysRuleNotes.some((entry) => entry.notes === track.notes))
+        .map((track) => ({ role: track.role, trackId: track.id, notes: track.notes })),
+    ];
+    const octaveRepair = repairPianoOctavesAfterHumanize({
+      ctx,
+      template,
+      pianoTrackId: pianoRepairTrackId,
+      pianoNotes: keysNotes[pianoRepairTrackId],
+      candidates: keysResult.pianoOctaveRepairCandidates,
+      otherNotes: finalOtherNotes,
+    });
+    ctx.lines!.reports.push(`keys piano post-humanize octave repair: shifted ${octaveRepair.shifted}; hard pairs remaining ${octaveRepair.remainingHardPairs}`);
+  }
   governPadVelocities({
     project,
     template,
@@ -451,30 +542,34 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     });
   }
 
-  // Phase 11.4: the piano's absorption pass — over the windows holding the
-  // NEW mid-energy comping, the PIANO ALONE absorbs any clamp excess (the
-  // other families' caps never saw a keys role there), so the final keys
-  // safety pass below keeps firing exactly where — and only where — it
-  // fired at Phase 11.1 and the harp's bytes stay on golden103. Runs over
-  // the FINAL other notes (post-humanize, post-legato) — the same state the
-  // safety pass reads.
+  // Phase 11.6a: piano-only absorption over the final mix windows. Its
+  // order-independent per-note caps keep the held anchor and motion overlays
+  // inside the clamp without moving the harp's golden105 velocities. The
+  // final keys safety pass remains the hard guard (with the known
+  // vocalbacking-only harp velocity residual). Uses FINAL other notes after
+  // humanize/legato, matching the state the safety pass reads.
   const keysRosterRoleSet = new Set(keysRosterRoles);
   const pianoAbsorbTrackId = Object.keys(keysNotes).find((id) => project.tracks.find((t) => t.id === id)?.role === 'piano');
   const harpAbsorbTrackId = Object.keys(keysNotes).find((id) => project.tracks.find((t) => t.id === id)?.role === 'harp');
-  if (template && pianoAbsorbTrackId && keysResult.absorbWindows.length) {
-    absorbPianoVelocities({
-      template,
-      piano: { role: 'piano', notes: keysNotes[pianoAbsorbTrackId] },
-      harp: harpAbsorbTrackId ? { role: 'harp', notes: keysNotes[harpAbsorbTrackId] } : null,
-      otherNotes: [
-        ...ruleTracks.filter((t) => !stringsTrackIds.includes(t.id) && !brassRosterRoles.includes(t.role) && t.role !== BASSES_ROLE && !windRosterRoleSet.has(t.role) && !percRosterRoleSet.has(t.role) && !keysRosterRoleSet.has(t.role)).map((t) => ({ role: t.role, notes: t.notes })),
-        ...stringsTrackIds.map((id) => ({ role: project.tracks.find((t) => t.id === id)?.role ?? '', notes: notesByTrackId[id] ?? [] })),
-        ...brassOther,
-        ...windsOther,
-        ...percOther,
-      ],
-      windows: keysResult.absorbWindows,
-    });
+  if (template && pianoAbsorbTrackId) {
+    if (keysResult.absorbWindows.length) {
+      const absorption = absorbPianoVelocities({
+        template,
+        piano: { role: 'piano', notes: keysNotes[pianoAbsorbTrackId] },
+        harp: harpAbsorbTrackId ? { role: 'harp', notes: keysNotes[harpAbsorbTrackId] } : null,
+        otherNotes: [
+          ...ruleTracks.filter((t) => !stringsTrackIds.includes(t.id) && !brassRosterRoles.includes(t.role) && t.role !== BASSES_ROLE && !windRosterRoleSet.has(t.role) && !percRosterRoleSet.has(t.role) && !keysRosterRoleSet.has(t.role)).map((t) => ({ role: t.role, notes: t.notes })),
+          ...stringsTrackIds.map((id) => ({ role: project.tracks.find((t) => t.id === id)?.role ?? '', notes: notesByTrackId[id] ?? [] })),
+          ...brassOther,
+          ...windsOther,
+          ...percOther,
+        ],
+        windows: keysResult.absorbWindows,
+      });
+      ctx.lines!.reports.push(`piano absorption (take ${orchestration.take}): checked ${absorption.windows} windows; lowered ${absorption.loweredNotes} notes in ${absorption.loweredWindows} windows`);
+    } else {
+      ctx.lines!.reports.push(`piano absorption (take ${orchestration.take}): not needed (no piano windows)`);
+    }
   }
 
   // Phase 11: the final keys safety pass — the same contract, KEYS ALONE.
@@ -495,7 +590,6 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
       ],
     });
   }
-
   // Phase 8.2: materialize the two desks — the 'cb'-marked notes (the Cb
   // doubles, the sub-36 line notes, the wide-unison -24 notes) leave the
   // cello list and become the Double Basses track (inserted after the cellos
@@ -637,9 +731,9 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
       return { ...t, notes: percussionNotes[t.id], cc: undefined };
     }
     if (keysNotes[t.id] !== undefined) {
-      // the module owns the sound; no CC lanes for keys (§16.7 — the
-      // generator writes none today, no sustain pedal), and a stale
-      // pre-compose cc must not leak through the spread (the winds rule)
+      // This intermediate belongs to the generic keys renderer, which emits
+      // no CC; Piano is replaced below by V2, including its generated CC64.
+      // Clear stale pre-compose lanes so only the current owner writes CC.
       return { ...t, notes: keysNotes[t.id], cc: undefined };
     }
     const gen = ruleTracks.find((r) => r.id === t.id);
@@ -651,5 +745,92 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     tracks = insertBassesTrack(tracks, cc ? { ...basses, cc } : basses);
   }
 
-  return { tracks, orchestration, stringsTrackIds, plan, reports: [...ctx.lines!.reports] };
+  // Piano Engine V2 runs after every non-Piano part (including Harp) has
+  // been composed and finalized. Its frozen analysis snapshot reads those
+  // actual notes and arrangement; the V1 piano candidates above are retained
+  // only as compatibility inputs for legacy non-Piano/Harp governance and
+  // are never copied to the Piano output track.
+  const pianoEngineInput = buildPianoEngineInput({
+    project,
+    ensemble,
+    template,
+    sections: ctx.sections,
+    harmony: ctx.spans,
+    energy: arc,
+    conductor: plan,
+    seed,
+    finalizedTracks: tracks,
+  });
+  const pianoAnalyzerReport = analyzePianoInput(pianoEngineInput);
+  const pianoPlanV2 = composePianoPlan(pianoEngineInput, pianoAnalyzerReport);
+  const pianoTrack = project.tracks.find((track) => isInstrumentTrack(track)
+    && track.family === 'Keys' && track.role === 'piano' && !track.locked
+    && isInBand(track.role, ensemble, template));
+  const pianoRealization = realizePianoPlanWithAudit({
+    plan: pianoPlanV2,
+    targetTrack: pianoTrack ?? null,
+    projectEndTick: projectEndTick(project),
+    externalTracks: template
+      ? pianoEngineInput.analysis.tracks
+        .filter((track) => template.roster.some((entry) => entry.role === track.role))
+        .map(({ id, role, notes }) => ({ id, role, notes }))
+      : [],
+    tempoMap: project.tempoMap,
+    timeSignature: project.timeSignature,
+  });
+  if (pianoTrack) {
+    const pianoNotes = pianoEngineInput.context.template.pianoEligible
+      ? pianoRealization.notes.map((note) => ({ ...note }))
+      : [];
+    // Piano Engine V2 supplies its own CC64 lane. Authored CC64 points, when
+    // present, are retained in that same lane; generated values win at ties.
+    const pianoPedalCc = composePianoCc64(
+      pianoRealization.controllers,
+      pianoTrack.cc,
+      projectEndTick(project),
+    );
+    tracks = tracks.map((track) => track.id === pianoTrack.id && isInstrumentTrack(track)
+      ? { ...track, notes: pianoNotes, cc: pianoPedalCc?.length ? pianoPedalCc : undefined }
+      : track);
+
+    // Run the final mix safety guard against the real, finalized arrangement.
+    // Piano is the only mutable key lane here; Harp and all other roles retain
+    // their established velocities.
+    if (pianoEngineInput.context.template.pianoEligible && template) {
+      const outputPiano = tracks.find((track) => track.id === pianoTrack.id);
+      if (outputPiano && isInstrumentTrack(outputPiano)) {
+        governKeysVelocities({
+          project: ctx.project,
+          template,
+          keys: [{ role: 'piano', notes: outputPiano.notes }],
+          otherNotes: tracks
+            .filter((track) => isInstrumentTrack(track) && track.role !== 'piano')
+            .map((track) => ({ role: track.role, notes: track.notes })),
+        });
+      }
+    }
+    const completeSuspensions = pianoRealization.suspensions.filter((audit) => audit.complete).length;
+    const octaveAudit = pianoRealization.octavePolicy;
+    const octaveSummary = octaveAudit.policy === 'forbidden'
+      ? `; forbidden octave policy revoiced ${octaveAudit.revoiced}, shortened ${octaveAudit.shortened}, removed ${octaveAudit.dropped}; hard pairs remaining ${octaveAudit.remainingHardPairs}`
+      : '';
+    ctx.lines!.reports.push(
+      `piano engine V2 (take ${orchestration.take}): ${pianoEngineInput.context.template.pianoEligible ? `${pianoRealization.notes.length} notes` : 'ineligible'}; suspensions ${completeSuspensions}/${pianoRealization.suspensions.length}${octaveSummary}`,
+    );
+  }
+
+  const result: Omit<ComposeResult, 'pianoEngineInput'> = {
+    tracks,
+    orchestration,
+    stringsTrackIds,
+    plan,
+    reports: [...ctx.lines!.reports],
+  };
+  Object.defineProperty(result, 'pianoEngineInput', {
+    value: pianoEngineInput,
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  });
+  return result as ComposeResult;
 }

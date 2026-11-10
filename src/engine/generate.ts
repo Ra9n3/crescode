@@ -330,20 +330,22 @@ function pickPitches(spec: PitchSpec, track: Track, ev: Event, chord: ResolvedCh
 
 /* ---------------- Sanitizer (engine invariants) ---------------- */
 /**
- * Carries the optional performance fields (articulation, bow) through every
- * repair: octave-shift, clamp, end-trim and the same-pitch overlap merge —
+ * Carries optional performance/role fields (articulation, bow, layer,
+ * roleTag) through every repair: octave-shift, clamp, end-trim and the
+ * same-pitch overlap merge —
  * where the EARLIER note's fields win (the merge truncates/keeps `last`, so
  * `last` keeps its own articulation; a later duplicate start is dropped
  * wholesale). Field-less notes stay exactly as they were: byte-identical
  * output for old code paths.
  */
 export const carryNoteFields = (n: Note) =>
-  (n.articulation === undefined && n.bow === undefined && n.layer === undefined
+  (n.articulation === undefined && n.bow === undefined && n.layer === undefined && n.roleTag === undefined
     ? {}
     : {
         ...(n.articulation !== undefined ? { articulation: n.articulation } : {}),
         ...(n.bow !== undefined ? { bow: n.bow } : {}),
         ...(n.layer !== undefined ? { layer: n.layer } : {}),
+        ...(n.roleTag !== undefined ? { roleTag: n.roleTag } : {}),
       });
 
 export function sanitizeNotes(notes: Note[], lo: number, hi: number, endTick: number): Note[] {

@@ -1,8 +1,27 @@
 # Orchestrator Spec: strings first
 
-Status: design. Nothing here is implemented. Facts about the repo were taken
-from a read-only dump and may be stale. If the repo disagrees with this
-document, the repo wins. Report the discrepancy; do not paper over it.
+Status: implemented architecture reference, evolved from the initial design.
+This document includes historical phase constraints; current production behavior
+is summarized here and checked against `src/orchestrator/compose.ts`.
+
+Current production flow:
+
+- `composeAllTracks` runs the family renderers, including the generic Phase 11
+  keys pass. That pass remains responsible for Harp and for V1 Piano candidates
+  retained as compatibility/governance inputs; those candidates are not the
+  final Piano notes.
+- After all non-Piano parts, including Harp, are finalized, Piano Engine V2
+  builds an ephemeral snapshot, runs Analyzer → Composer → Realizer, and
+  replaces the Piano notes for an eligible, writable, in-band Piano track.
+- V2 merges generated CC64 with authored Piano CC64 (generated points win at
+  matching ticks) and stores the merged lane on the Piano track. The MIDI
+  exporter serializes track CC lanes in merged and per-track files; the UVI
+  profile exports the Piano part as `Piano` on channel 16.
+
+The V2 input is ephemeral; the composed notes and CC lane are the project-track
+output. Where any historical phase prose conflicts with current source, current
+source wins; note the discrepancy rather than treating old phase snapshots as
+a verification of the current tree.
 
 ## 1. Goal
 
@@ -77,24 +96,30 @@ D11. Take variety comes from seeded sampling among the top-K near-optimal
     `voicing/voiceLead.ts`. Hard constraints are never traded for variety,
     and the same take stays byte-identical.
 
-## 4. Repo facts to verify (do not trust blindly)
+## 4. Repository facts and historical Phase 0 notes
 
-- Tracks: `violins1`, `violins2`, `violas`, and ONE `cellosBasses` track.
-  Violins I range is [55, 96] (G3..C7).
-- `Note` = { pitch, startTick, durationTicks, velocity }. No articulation or
-  CC fields exist yet.
-- PPQ = 960. Chord parser and helpers: `parseChord`, `roleOfChordRoot`,
-  `scalePitchClasses`, `barTicks`, `beatOffsets`, `gridResolutionOf`.
-- Chord clips can overlap, be unparseable, be half-bar long (1920 ticks),
-  and be slash chords (`C/E`).
-- Chord lane notes are tied to clips only by tick windows (no id link).
-- Templates live in `specs/ensemble-templates/templates/*.json`, validated
-  by `src/shared/schema/ensembleTemplate.ts`. They have no chair counts.
-- `src/engine/generate.ts` is the rules generator. It must keep serving the
-  non-string families until their modules exist.
-- `humanizeNotes` is not exported yet.
-- `tests/seed-dump.test.ts` imports `src/orchestrator/chordgen`. The first
-  source dump had no such file. Phase 0 resolves this.
+The first bullets below describe the design-time fixture and baseline; they
+are not a complete current inventory. Current Piano ownership and production
+flow are described at the top of this document and in §16.11.
+
+- The original fixture/model used `violins1`, `violins2`, `violas`, and one
+  `cellosBasses` track; Violins I range is [55, 96] (G3..C7). The bass desk can
+  now be materialized as a separate Double Basses track where applicable.
+- The original four-field `Note` shape has since grown optional
+  `roleTag`/articulation/bow/layer fields; tracks now support optional CC lanes.
+- PPQ = 960. Chord parser and helpers include `parseChord`, `roleOfChordRoot`,
+  `scalePitchClasses`, `barTicks`, `beatOffsets`, and `gridResolutionOf`.
+- Chord clips can overlap, be unparseable, be half-bar long (1920 ticks), and
+  be slash chords (`C/E`). Chord-lane notes are associated by tick windows.
+- Templates live in `specs/ensemble-templates/templates/*.json`, validated by
+  `src/shared/schema/ensembleTemplate.ts`; they have no chair counts.
+- `src/engine/generate.ts` remains the rules-generator path and supplies
+  compatibility inputs; family renderers now exist for strings, brass, winds,
+  percussion, Harp, and Piano Engine V2.
+- `humanizeNotes` is exported from `src/engine/generate.ts`.
+- `tests/seed-dump.test.ts` now exercises the shipped generator. The original
+  chordgen import was reconciled in Phase 0; `src/orchestrator/chordgen` is not
+  the current generation path.
 
 ## 5. Templates and budgets
 
@@ -191,7 +216,19 @@ CC is data on the track; export writes it as MIDI CC events.
 - Chamber: quartet, double-stops only.
 - Sonata: violin + cello (+ piano owned by another module).
 
-## 8. Architecture (`src/orchestrator/`)
+## 8. Current architecture (`src/orchestrator/`)
+
+Current production ownership, verified against `src/orchestrator/compose.ts`:
+
+- `compose.ts` coordinates the production stages. It renders strings, calls the generic rules interpreter for remaining rules-driven work and compatibility inputs, then invokes the dedicated brass, winds, percussion, and keys renderers. It owns the stage order and final assembly; the family stages are not all dispatched through one module registry.
+- `spine/` supplies normalized chords, sections, seeds, and energy arcs; `conductor/` plans per-bar textures and moments. Shared logic is divided among `energy/`, `voicing/`, `lines/`, and `expression/`.
+- `render.ts` is the strings renderer and uses the `SectionModule` interface from `module.ts`. Brass, winds, percussion, and keys have their own implementation directories; `basses.ts` handles the separate bass desk.
+- `src/engine/generate.ts` is the generic rules interpreter. It still contributes rules-driven output and compatibility/governance inputs, but it is not the owner of every non-string family.
+- The Phase 11 keys renderer (`keys/plan.ts`, `keys/profile.ts`, `keys/render.ts`) supplies production Harp and intermediate V1 Piano candidates. After all non-Piano parts, including Harp, are finalized, Compose All runs Piano Engine V2 to replace the final Piano lane. See §16.11 for the handoff and CC64/export path.
+
+### Initial architecture sketch (historical; not the current file map)
+
+The original design grouped responsibilities as follows; retain it as design context, not as a list of current source directories:
 
 - `spine/`    normalized chord list, section map, energy curve (shared)
 - `energy/`   measureEnergy, velocity governor, template rule checker
@@ -208,15 +245,19 @@ CC is data on the track; export writes it as MIDI CC events.
 - `profiles/strings.ts` family profile (ranges, caps, detune table)
 - `render.ts` project-in, project-out; honours locks and band
 
-Interface (sketch, adjust to the repo):
+The original interface and workflow were proposals, not a current implementation contract:
+
+```text
 SectionModule { family; roles(ctx): LayerPlan; render(ctx, plan, seed): Patch }
 Compose All = spine -> conductor -> registered modules -> rules generator for
 families with no module -> audit. One undo step.
+```
 
-Per-section re-roll and lock: re-roll changes the seed for one section only.
-Lock on a section keeps its notes through Compose All and re-rolls.
+The initial plan also proposed per-section re-rolls and section locks. Check the current store and UI before treating those proposals as shipped behavior.
 
-## 9. Phases and acceptance
+## 9. Initial phases and acceptance (historical plan)
+
+This is the original phase ladder, not a current backlog or completion report. Later sections record work that followed or superseded this plan; check current source and tests before treating any item as pending.
 
 Phase 0: reconcile tree, fix known bugs (see PHASE0 prompt). Done when tests
   and build are green and each fix has a regression test.
@@ -234,7 +275,9 @@ Phase 7: audit report modal (needs a new `state.modal` value), per-section
   re-roll and lock UI on the structure lane, breath windows, per-bar layer
   annotation for maxLayers.
 
-## 10. Test plan
+## 10. Initial test plan (historical acceptance goals)
+
+These are the original proposed coverage goals, not a current test inventory. Select current focused tests from the repository and verify their present coverage before relying on this list.
 
 Property tests across many seeds, each template, several keys and modes:
 determinism; every note inside its `INSTRUMENTS` range; low-interval limit;
@@ -245,20 +288,26 @@ orphan notes in the Chords track.
 Golden: Dorian fixture (half-bar chords, slash chords) per preset.
 E2E: compose, play, open report.
 
-## 11. Non-goals
+## 11. Initial non-goals (historical scope)
+
+These were constraints for the initial string-first design, not a current inventory of implemented modules. In particular, woodwind and percussion renderers now have dedicated code later in this document. Check the current source before treating an item as an active exclusion.
 
 Mixing, EQ, pan, sample-library keyswitches, woodwind/percussion modules
 (later), a score checker beyond `measureEnergy` + template rules. (Brass
 moved out of this list in §13 — Phase 8 builds the brass module.)
 
-## 12. Open items for the user
+## 12. Initial open items (historical proposals)
+
+These questions were left open in the initial design snapshot; they are not a claim that the current implementation or templates still leave them unresolved. Check the current source and shipped template data.
 
 - Confirm D1-D7 above.
 - VOCAL_ZONE default (A3..A5) is a proposal.
 - Target sample library for future keyswitches.
 
 
-## Amendments v2 (after Phase 0)
+## Amendments v2 (historical amendments after Phase 0)
+
+These notes record point-in-time edits to the initial design. Statements such as "currently" and implementation instructions below describe that phase, not a current source map.
 
 §3  D8–D11 added above (orchestrationSeed derivation, compose order,
     checker's forced-doubling exemption, top-K take variety) — they were
@@ -845,16 +894,22 @@ unchanged; the exports pass the percussion through untouched with and
 without the UVI profile (no Falcon profile — the pre-8.1 brass passthrough,
 as the winds).
 
-## 16. Keys — harp and piano (Phase 11)
+## 16. Keys — Harp and Piano (Phase 11 + Piano Engine V2)
 
-Keys join the orchestrator as a family module beside the strings, brass,
-winds and percussion (`src/orchestrator/keys/`), reusing the same structure
-— profile, plan, render — and the conductor, the energy arc, the moments
-and the golden-byte harness (nothing forked). The strings render first,
-brass second, the winds third, the percussion fourth, the keys LAST (their
-velocity math sees every other family's rendered notes), the rules
-generator covers nothing further. Everything is defined in MIDI numbers,
-sounding pitch (the C4=60 display trap noted in §13 applies).
+The generic Phase 11 keys module (`src/orchestrator/keys/plan.ts` and
+`render.ts`) still runs after strings, brass, winds, and percussion. It is the
+production Harp renderer and retains intermediate V1 Piano candidates needed
+by existing compatibility/governance calculations; those candidates are not
+the final Piano notes. After every non-Piano part, including Harp, is
+finalized, Piano Engine V2 builds its read-only input snapshot and runs the
+Analyzer → Composer → Realizer pipeline. The V2 realization replaces the
+intermediate Piano notes on the eligible, writable, in-band Piano track.
+
+The detailed Phase 11 plan/render rules in §§16.1–16.5 describe the generic
+keys path and remain relevant to Harp and compatibility behavior. Final Piano
+ownership, generated CC64 merging, and MIDI export are summarized in §16.11.
+Everything is defined in MIDI numbers, sounding pitch (the C4=60 display trap
+noted in §13 applies).
 
 ### 16.1 Roster and voices per track
 
@@ -1017,49 +1072,55 @@ and the hard clamp stays with the final safety pass (§16.8).
 
 ### 16.6 Retirement of the old generator's keys rules
 
-The rules generator wrote keys through six labelled parts: Intro "Harp
+The rules generator writes keys through six labelled parts: Intro "Harp
 arpeggio", Verse "Piano chords", Chorus "Piano" and "Harp arp", Outro
-"Harp final" and the catch-all "Keys sustain (any family Keys)". The keys
-module owns the SOUND of the rostered harp/piano tracks from Phase 11 on:
-its notes replace the generator's at assembly. As with the winds and the
-percussion, the generator KEEPS writing them as a phantom input — the pad
-governor's, the humanize jitter caps' and the brass/wind/percussion caps'
-window math read the phantom exactly as at HEAD, which keeps every non-keys
-track byte-identical (the pre-flight measured the dependence: without the
-phantom the mix windows change on every keys-rostered template). The
-phantom never reaches the final score (the module claims every rostered
-keys track, empty or not), and a stale pre-compose CC lane cannot leak
-through the assembly (the winds rule). A user-added generic 'keys' track
-(role 'keys') is not rostered — the generator keeps it.
+"Harp final" and the catch-all "Keys sustain (any family Keys)". The generic
+Phase 11 keys renderer keeps the generator's keys notes as phantom inputs to
+legacy window/governor calculations and supplies the production Harp notes.
+Its V1 Piano candidates are also retained for compatibility/governance math,
+but are overwritten by Piano Engine V2 before the composed Piano track is
+returned. V2 reads the finalized non-Piano parts and writes the final Piano
+notes and CC64 lane. Thus the generator's retired rules do not supply the final
+rostered Piano sound, while their established compatibility calculations remain
+in place. A user-added generic 'keys' track (role 'keys') is not rostered and
+remains on the generator path.
 
 ### 16.7 Humanize and determinism
 
-Micro-timing is per-note, hash-seeded from (track, start, pitch) — no
-Math.random — stored IN the notes so the preview and the export show the
-same offsets: harp +0..8 ms, piano +4..12 ms, lags only; a note never
-crosses its bar or a moment boundary because of the jitter (the start
-clamps inside the written bar; the end stays where the figure put it). No
-CC lane reaches a keys track — no sustain pedal, no new CC (the generator
-writes none today). The planner runs at the conductor level on its OWN
-salted D8 stream (`hashString('keys')` over the (inputs, take) seed),
-planned after the percussion; draw order is fixed and position-stable (the
-arpeggiator per section type, then the chorus-entry glissandos in bar
-order, then the outro glissando, then the tutti glissandos in bar order —
-the moment-dependent draw rides LAST so a moments-off run consumes an
-identical prefix). Locked and out-of-band keys tracks are never written;
-one undo step per Compose All; output is a sanitizeNotes no-op and
-validateProject passes; the exports pass the keys through untouched with
-and without the UVI profile (no keys part mapped — the pre-8.1 brass
-passthrough).
+Generic keys micro-timing is per-note, hash-seeded from (track, start,
+pitch) — no `Math.random` — and stored in the notes so preview and export use
+the same offsets: Harp +0..8 ms and intermediate V1 Piano candidates +4..12 ms,
+lags only. Piano Engine V2 realizes the final Piano notes and adds its own
+deterministic CC64 lane, aligned with written attacks, harmonic boundaries,
+rests, and phrase endings; other keys tracks receive no generated CC.
+
+The conductor-level keys planner uses its own salted D8 stream
+(`hashString('keys')` over the (inputs, take) seed), planned after percussion;
+its draw order is fixed and position-stable (the arpeggiator per section type,
+then chorus-entry glissandos in bar order, then the outro glissando, then the
+tutti glissandos in bar order — the moment-dependent draw rides last so a
+moments-off run consumes an identical prefix). Locked and out-of-band keys
+tracks are never written. On final Piano realization, generated CC64 is merged
+with authored CC64; authored points are retained and generated values win at
+matching ticks. Provenance prevents a later Compose from re-ingesting generated
+points as authored. The composed project stores the resulting Piano notes and
+CC lane; the V2 input remains ephemeral.
+
+`src/export/midi.ts` serializes track CC lanes on their MIDI channels in both
+merged and per-track exports. The UVI profile exports the Grand Model D part
+as `Piano` on channel 16, with no keyswitch or transposition. Export-profile
+mapping does not mutate the project.
 
 ### 16.8 The clamp
 
-Every keys note's velocity is capped by the governor bound of the beat
-window it attacks in (mean ≤ 127·clampMax·N/roles — the relief's absolute
-velocity included, which the bound may EXCEED: the drive's rule), and a
-final safety pass (`governKeysVelocities`) re-checks every beat window over
-the FINAL notes and lowers KEYS ALONE where the mix would breach the hard
-clamp — the clamp is never exceeded.
+The generic Phase 11 keys pass shapes its intermediate candidates against the
+established beat-window bound (mean ≤ 127·clampMax·N/roles; the historical
+relief velocity may exceed that bound by design). Its Piano candidates remain
+compatibility inputs, not final Piano output. After Piano Engine V2 replaces
+them, `governKeysVelocities` runs again over the finalized mix with Piano as
+the only mutable keys lane, lowering Piano alone if a beat window would breach
+the hard clamp. The final Piano safety pass does not rewrite Harp or other
+tracks.
 
 ### 16.9 Implementation notes (how §16 landed)
 
@@ -1080,14 +1141,16 @@ clamp — the clamp is never exceeded.
 
 ### 16.10 Phantom input (named)
 
-The engine's keys module owns the SOUND of the rostered harp/piano tracks,
-but the rules generator still WRITES its retired keys/wind/percussion
-rules every compose. Those notes never reach the final score — they are a
-PHANTOM INPUT that several pre-module window maths read to stay
-byte-identical. The set is pinned (16 rules, the generator's own
-spelling) by the Phase 11.1 guard test (`tests/phase111.test.ts`), which
-fails on any new wind, percussion or keys rule AND on the silent removal
-of a listed one.
+The rules generator still writes its retired keys/wind/percussion rules on
+each compose. For rostered roles, those generated parts do not supply the
+final sound: the generic keys renderer supplies Harp and intermediate V1 Piano
+candidates, while Piano Engine V2 supplies the final Piano notes. The generator
+notes remain PHANTOM INPUTS for compatibility/window calculations. The exact
+16-rule inventory below was pinned by a historical Phase 11.1 guard; that test
+was removed with the V1 Piano battery. Current Harp/Piano tests cover their
+production paths but do not assert this exact generator-rule inventory. Keep
+the inventory as historical context; if the exact set remains a required
+invariant, add a focused guard in the current suite.
 
 The 16 retired rules by role:
 
@@ -1113,28 +1176,52 @@ What reads the phantom:
 - the `humanizeStrings` jitter caps (their role sets include the
   phantom).
 
-Effect: the generator's rule-firing SHAPES VELOCITIES in the strings, the
-brass, the winds and the percussion. It never changes pitch or timing —
-the dry runs measured velocity-only deltas. The engine's OWN keys notes
-are read by nothing outside the keys module except `governKeysVelocities`
-(keys alone) and the energy measure; that is why the Phase 11.1 piano
-rewrite could not move another track (the dry run vs the 63a82f8 control
-stash: zero non-piano rows).
+Effect: the generator's rule-firing continues to shape velocities in strings,
+brass, winds, and percussion through the established window calculations; the
+historical dry runs measured velocity-only deltas. The generic V1 keys output
+also remains an intermediate input to compatibility governance. Piano Engine
+V2 then analyzes the finalized non-Piano tracks, replaces Piano notes, and
+runs a final Piano-only clamp pass. Phase 11.1's zero-non-Piano-delta result
+was a V1 snapshot, not a verification claim about the current V2 tree.
 
-Removal: retiring the phantom needs its own phase with sound re-approval.
-The Phase 11.2 dry run measured mean |Δv| up to 20.9 and CC-lane changes
-on five string tracks for the two honest replacement designs (plan-derived
-role presence, and the widened pad governor); the record lives in
-`scripts/phase112-dryrun.ts` and the stopped implementation on the local
-branch `phase112-dryrun-wip`.
+Removal: retiring the phantom inputs requires its own phase and sound
+re-approval. The Phase 11.2 dry run is historical evidence: it measured mean
+|Δv| up to 20.9 and CC-lane changes on five string tracks for two replacement
+designs (plan-derived role presence and a widened pad governor). The record
+remains in `scripts/phase112-dryrun.ts`; no current implementation of that
+replacement is described here.
+
+### 16.11 Piano Engine V2 production integration
+
+`composeAllTracks` retains the generic `renderKeys` pass for Harp and its V1
+Piano compatibility/governance candidates. Once all non-Piano tracks are
+finalized, it builds `PianoEngineInput`, runs `analyzePianoInput`, then
+`composePianoPlan` and `realizePianoPlanWithAudit`. The read-only analysis
+snapshot excludes Piano; Harp remains read-only context. V2 writes only the
+final Piano lane for an eligible, writable, in-band Piano track. The ephemeral
+engine input is not stored on the project; realized notes and controllers are
+written on the Piano project track.
+
+The Realizer's generated CC64 events are merged with authored CC64 points by
+`composePianoCc64`. Authored points are retained except where a V2 event
+shares their tick; V2 wins there. Provenance lets a later Compose recover the
+authored points instead of re-ingesting the prior generated lane. The shared
+MIDI exporter serializes track CC lanes as MIDI controller events in both
+merged and per-track files.
+The UVI profile exports the Grand Model D as `Piano` on channel 16, without a
+keyswitch or transposition, while retaining the Piano CC64 lane.
 
 ## 17. Falcon export profiles — winds, percussion, keys (Phase 12)
 
-Export-only phase at the post-11.5 HEAD: the engine and the project data
-don't change, `tests/golden105/` stays the immutable project-output
-reference (every project track byte-identical — pinned on all 120 corpus
-runs), and every change lives in the profile JSON, the profile machinery,
-the export path, the export dialog and the tests.
+Phase 12 adds export-profile transformations. Applying a profile changes the
+MIDI export, not the in-memory project. It now runs on the current composed
+project, where Piano Engine V2 supplies final Piano notes and CC64. The
+`tests/golden105/` corpus is a historical post-11.5 reference, not an
+immutable whole-project baseline for the current Piano output. Current pins
+compare the unchanged non-Piano project tracks against that corpus (with the
+recorded Harp velocity allowance) and compare the string/brass profile slice
+to `tests/phase12-export-reference.json`; they do not claim every current
+project track is byte-identical to golden105.
 
 ### 17.1 The parts and the channels
 
@@ -1165,7 +1252,7 @@ file-only part (another file's arrangement is not a doubling candidate).
 | Cymbals | none | — | 48 | none | every note → the long-crash key 48 |
 | Aux | unmapped (`profile.unmapped`) | — | — | — | left out of the export; the notes stay in the project |
 | Harp | Harp 1 Sustain = 12 (once per part) | 12–22 | 23 | none | as written; no transposition, no CC |
-| Piano (IRCAM Prepared Piano 2, Octavo Grand) | none | — | whole keyboard (21) | none | as written; no keyswitch, no CC, no transposition — Phase 11.5's note lengths remain the sustain mechanism |
+| Piano (UVI Grand Model D) | none | — | whole keyboard (21) | none | exported MIDI name: Piano; no keyswitch or transposition; Piano Engine V2 generates CC64 sustain events from its realized notes and harmonic/phrase plan; authored CC64 points are retained when supplied |
 
 The winds have no marcato/tremolo/legato samples: those articulations fall
 back to sustain through the fallback chains (staccato stays staccato), the

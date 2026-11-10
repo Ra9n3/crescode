@@ -127,7 +127,7 @@ export function buildPerTrackMidi(p: Project, tracks: Track[], profile: ExportPr
   const end = projectEndTick(p);
   return tracks.flatMap((t) =>
     chunksForTrack(p, t, profile, stats).map((c) => ({
-      fileName: perTrackFileName(p, { ...t, name: c.name }),
+      fileName: c.fileName ?? perTrackFileName(p, { ...t, name: c.name }),
       data: new Uint8Array(writeMidi({
         header: { format: 1, numTracks: 2, ticksPerBeat: PPQ },
         tracks: [

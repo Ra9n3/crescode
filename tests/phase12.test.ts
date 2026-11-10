@@ -19,14 +19,17 @@ import { buildMergedMidi, buildPerTrackMidi, exportableTracks, parseMidiFile } f
  * keyswitch, the snare's hash-seeded single-hit rotation (snareHitKeys
  * 48–62, never the same key twice in a row), the cymbals' fixed long-crash
  * key 48 (the engine writes crashes and swells only — pre-flight 3), the
- * Harp 1 Sustain keyswitch, the keyswitch-free Octavo Grand piano part and
- * the deliberately unmapped aux. Pinned here: the plain export and the
- * string/brass profile output stay byte-identical to the pre-change
- * reference (captured at 4523385), every project track stays byte-identical
- * to golden105, the playability floor, the rotation rules, the channel map
- * (merged = 1–9 + 11–16, never 10; percussion files on 10/11/12), the no-CC
- * rule on keys/percussion and the wind CC convention, and the zero fold /
- * drop counts the report states.
+ * Harp 1 Sustain keyswitch, the UVI Grand Model D piano patch (exported as
+ * Piano with generated CC64), and the deliberately unmapped aux.
+ *
+ * Pinned here: no-profile exports preserve the non-Piano note events from
+ * the historical golden105 baseline; the project comparison keeps the
+ * recorded Harp velocity allowance. The string/brass profile slice remains
+ * byte-identical to its pre-change reference (captured at 4523385). Piano
+ * Engine V2 output and CC64/export behavior are checked separately. Also
+ * pinned: playability, rotation rules, the channel map (merged = 1–9 + 11–16,
+ * never 10; percussion files on 10/11/12), Harp/percussion CC rules, the wind
+ * CC convention, and the zero fold/drop counts stated by the report.
  */
 const TEMPLATES = ['ensemble.chamber', 'ensemble.sonata', 'ensemble.vocalbacking', 'ensemble.symphony', 'ensemble.cinematic', 'ensemble.hybridstudio'];
 const PROFILE: ExportProfile = EXPORT_PROFILES[0].profile;
@@ -65,15 +68,14 @@ const partOf = (id: string) => PROFILE.parts.find((p) => p.id === id)!;
 const ksKeysOf = (partId: string): number[] =>
   Object.values(partOf(partId).keyswitches).map((name) => keyNameToMidi(name, PROFILE.pitchConvention)!).filter((n) => !Number.isNaN(n));
 
-/* ---------------- 1–2. the byte pins against the pre-change reference ------ */
+/* ---------------- 1–2. historical baseline and profile pins -------------- */
 
 describe('Phase 12: the byte pins', () => {
-  // Phase 11.6 UPDATE (named): the export MACHINERY is unchanged, but the
-  // piano's notes flow through the no-profile export — the pin reads the
-  // merged file's NON-piano tracks back and compares them to golden105's
-  // bytes (the passthrough fidelity; the machinery's own byte pins ride on
-  // the string/brass profile slice below, which did not move).
-  it('the no-profile per-track export carries the non-piano tracks byte-identically to golden105 (120 runs)', () => {
+  // The no-profile export check compares non-Piano note events only.
+  // golden105 is also used as a historical non-Piano project baseline, with
+  // the recorded Harp velocity allowance; the string/brass profile slice has
+  // its own byte reference.
+  it('the no-profile per-track export preserves non-Piano note events from historical golden105 (120 runs)', () => {
     for (const run of SURVEY) {
       const tracks = exportableTracks(run.project, 'all').filter((t) => t.role !== 'piano');
       const files = buildPerTrackMidi(run.project, tracks, null);
@@ -101,11 +103,11 @@ describe('Phase 12: the byte pins', () => {
     }
   }, 900000);
 
-  // Phase 11.6 UPDATE (named): the piano is the phase's own mover — the
-  // project pin exempts it (the phase116 battery pins the piano's
-  // hygiene); every other track stays byte-identical to golden105 and the
-  // export still never touches the project.
-  it('every non-piano project track in all six templates is byte-identical to golden105, the vocalbacking harp velocity excepted (the export never touches the project)', () => {
+  // Piano Engine V2 replaces the project Piano lane, so this historical
+  // golden105 comparison deliberately excludes Piano and retains the recorded
+  // Harp velocity allowance. Applying an export profile does not mutate the
+  // project.
+  it('non-Piano project tracks match historical golden105 with the recorded Harp velocity allowance (the export remains non-mutating)', () => {
     const stable = (t: { id: string; role: string; notes: unknown; cc?: unknown }) =>
       JSON.stringify({ id: t.id, role: t.role, notes: t.notes, ...(t.cc !== undefined ? { cc: t.cc } : {}) });
     const stableNoVel = (t: { id: string; role: string; notes: { velocity?: number }[]; cc?: unknown }) =>
@@ -264,7 +266,7 @@ describe('Phase 12: the channel map', () => {
   const MERGED_CHANNELS: Record<string, number> = {
     'Violins 1 Ensemble': 1, 'Violins 2 Ensemble': 2, 'Viola Ensemble': 3, 'Cello Ensemble': 4, 'Bass Ensemble': 5,
     'French Horn Ensemble': 6, 'Trombone Ensemble': 7, 'Trumpet Ensemble': 8, 'Tuba solo': 9,
-    'Flute Solo': 11, 'Oboe Solo': 12, 'Clarinet Solo': 13, 'Bassoon Solo': 14, 'Harp': 15, 'Piano (Octavo Grand)': 16,
+    'Flute Solo': 11, 'Oboe Solo': 12, 'Clarinet Solo': 13, 'Bassoon Solo': 14, 'Harp': 15, 'Piano': 16,
   };
 
   it('the merged file carries channels 1–9 + 11–16, never 10, and no percussion part (120 runs)', () => {
@@ -298,16 +300,34 @@ describe('Phase 12: the channel map', () => {
 });
 
 describe('Phase 12: the CC rules', () => {
-  it('no CC on harp, piano or percussion (120 runs)', () => {
+  it('exports generated Piano CC64 without source automation; harp and percussion stay CC-free (120 runs)', () => {
+    let pianoExports = 0;
     for (const run of SURVEY) {
       const files = buildPerTrackMidi(run.project, exportableTracks(run.project, 'all'), PROFILE);
-      for (const patch of ['Harp', 'Piano (Octavo Grand)', 'Timpani', 'Snare', 'Cymbals']) {
-        const file = files.find((f) => f.fileName.endsWith(` ${patch}.mid`));
+      const pianoFile = files.find((file) => file.fileName === 'Piano.mid');
+      if (pianoFile) {
+        pianoExports++;
+        const piano = parseMidiFile(pianoFile.data).tracks[1];
+        expect(piano.name, `${run.key}: exported part name`).toBe('Piano');
+        expect(piano.channel, `${run.key}: piano channel`).toBe(16);
+        if (run.project.ensemble?.templateId === 'ensemble.symphony') {
+          expect(piano.notes, `${run.key}: Symphony has no Piano notes`).toEqual([]);
+          expect(piano.cc, `${run.key}: Symphony has no Piano controller events`).toEqual([]);
+          continue;
+        }
+        expect(piano.cc.every((event) => event.cc === 64), `${run.key}: only CC64 on Piano`).toBe(true);
+        expect(piano.cc.some((event) => event.value === 127), `${run.key}: pedal down`).toBe(true);
+        expect(piano.cc.some((event) => event.value === 0), `${run.key}: pedal up`).toBe(true);
+        expect(piano.cc.at(-1)?.value, `${run.key}: released final state`).toBe(0);
+      }
+      for (const patch of ['Harp', 'Timpani', 'Snare', 'Cymbals']) {
+        const file = files.find((entry) => entry.fileName.endsWith(` ${patch}.mid`));
         if (!file) continue;
         const parsed = parseMidiFile(file.data).tracks[1];
         expect(parsed.cc, `${run.key}: ${patch} carries CC`).toEqual([]);
       }
     }
+    expect(pianoExports).toBeGreaterThan(0);
   }, 900000);
 
   it('the wind CC lanes follow the brass convention: 1/7/11 exported, 68/74 dropped', () => {
@@ -390,7 +410,8 @@ describe('Phase 12: the validator and the dialog lines', () => {
     expect(lines.find((l) => l.startsWith('ch 12 (own file only) · Cymbals'))).toContain('every note → key 48');
     expect(lines.find((l) => l.startsWith('ch 10 (own file only) · Timpani'))).toContain('C#0 = sustain');
     expect(lines.find((l) => l.startsWith('ch 15 · Harp'))).toContain('C-1 = sustain');
-    expect(lines.find((l) => l.startsWith('ch 16 · Piano (Octavo Grand)'))).toContain('no keyswitch');
+    expect(lines.find((l) => l.startsWith('ch 16 · UVI Grand Model D'))).toContain('no keyswitch');
+    expect(lines.find((l) => l.startsWith('ch 16 · UVI Grand Model D'))).toContain('CC64 sustain pedal automation');
     expect(lines.find((l) => l.startsWith('ch 11 · Flute Solo'))).toContain('notes below 59 fold up by octaves');
     expect(profileScopeNote(PROFILE)).toContain('Timpani (ch 10), Snare (ch 11), Cymbals (ch 12)');
   });

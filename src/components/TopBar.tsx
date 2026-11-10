@@ -157,7 +157,7 @@ function ComposeButton() {
               <span className="printed">humanize</span>
               <ToggleSwitch on={opts.humanize} tip="Humanize timing and velocity" onChange={(humanize) => set({ composeOptions: { ...opts, humanize } })} />
             </div>
-            <p className="mt-3 leading-relaxed text-[var(--c-textMute)]">Locked tracks are never changed. Rules live in <span style={{ fontFamily: 'var(--font-mono)' }}>src/config/generation-rules.ts</span>.</p>
+            <p className="mt-3 leading-relaxed text-[var(--c-textMute)]">Locked tracks are never changed. Compose All combines family renderers with generic rules from <span style={{ fontFamily: 'var(--font-mono)' }}>src/config/generation-rules.ts</span>.</p>
           </div>
         </>
       )}

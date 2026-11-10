@@ -1,9 +1,9 @@
 /**
- * Phase 11.5: the golden104 -> golden105 diff report — which tracks moved.
- * Expected: ONLY the piano tracks of chamber, sonata and vocalbacking; the
- * harp and every other track byte-identical everywhere; the cinematic,
- * hybridstudio and symphony pianos byte-identical too (their pins hold).
- *   npx vite-node scripts/phase114-goldendiff.ts
+ * Historical Phase 11.5 diff report for the checked-in golden104 -> golden105
+ * snapshots. It reads the captured files only (not the current composer) and
+ * prints moved roles and templates; the data includes Piano and Harp note
+ * changes. Run with the historical script runner when its dependencies exist:
+ *   npx vite-node scripts/phase115-goldendiff.ts
  */
 import { readFileSync } from 'node:fs';
 

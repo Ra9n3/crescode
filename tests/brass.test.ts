@@ -31,8 +31,9 @@ const NO_BRASS_TEMPLATES = ['ensemble.chamber', 'ensemble.sonata', 'ensemble.voc
 const BRASS_ROLES = ['horns', 'trumpets', 'trombones', 'tuba'];
 const WIND_PIN_ROLES = new Set(['flutes', 'oboes', 'clarinets', 'bassoons']);
 const PERC_PIN_ROLES = new Set(['timpani', 'snare', 'cymbals', 'aux']);
-// Phase 11: the keys tracks are the keys module's now — pinned against the
-// Phase 11 baseline in tests/phase11.test.ts
+// Keys are out of this brass pin; current Harp compatibility and Piano V2
+// production behavior have dedicated coverage in
+// tests/harp-regression.test.ts and tests/piano-engine-production.test.ts.
 const KEYS_PIN_ROLES = new Set(['harp', 'piano']);
 const PROFILE = EXPORT_PROFILES[0].profile;
 
@@ -378,8 +379,8 @@ describe('Phase 8: the moments-on baseline pins', () => {
             // Phase 10: the percussion tracks are the percussion module's now
             // — pinned against the Phase 10 baseline in tests/phase10.test.ts
             if (PERC_PIN_ROLES.has(t.role)) continue;
-            // Phase 11: the keys tracks are the keys module's now — pinned
-            // against the Phase 11 baseline in tests/phase11.test.ts
+            // Keys have their own current compatibility/production tests;
+            // they are intentionally excluded from this brass baseline pin.
             if (KEYS_PIN_ROLES.has(t.role)) continue;
             // Phase 8.2: the cellosBasses desk split is sanctioned — the cello
             // line rises to its patch floor (36) and the sub-floor notes ride

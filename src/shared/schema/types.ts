@@ -7,6 +7,9 @@ export const SCHEMA_VERSION = 1;
 
 export type PitchClass = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
 
+/** Planner-assigned piano event role. Figures are tagged separately from the held anchor. */
+export type NoteRoleTag = 'anchor' | 'lift' | 'settle' | 'bed' | 'atmosphere' | 'arrival' | 'punctuation' | 'power' | 'answer' | 'flourish' | 'shift';
+
 export type ModeName =
   | 'Ionian' | 'Dorian' | 'Phrygian' | 'Lydian' | 'Mixolydian' | 'Aeolian' | 'Locrian'
   | 'Harmonic Minor' | 'Melodic Minor' | 'Whole Tone'
@@ -39,26 +42,38 @@ export type Articulation = (typeof ARTICULATIONS)[number];
 
 export interface Note {
   pitch: number; startTick: number; durationTicks: number; velocity: number;
+  /** Optional planner-assigned piano role: held anchor or motion overlay. */
+  roleTag?: NoteRoleTag;
   /** Optional performance data — old projects and fixtures have none. */
   articulation?: Articulation;
   bow?: 'down' | 'up';
-  /** The Vc+Cb layering step (Phase 4.5) marks its Cb-doubled notes 'cb'.
-   *  Additive, optional: export profiles split the cellosBasses track by it
-   *  (layer 'cb' → the bass part, everything else → the cello part).
-   *  'div2' (Phase 7 moments) marks the SECOND line of a divisi moment —
-   *  it exports with its parent part/channel and is never Cb-doubled.
-   *  'kbd' (Phase 11) marks an ADDITIONAL comping-chord voice on a keys
-   *  track — the one-voice cap's one sanctioned relaxation: the piano's
-   *  downbeat comp is a chord (the main voice + its 'kbd' sisters sound
-   *  together), exactly as 'div2' let one string track carry two lines. */
+  /**
+   * Optional layer annotation. 'cb' marks the doubled bass line, 'div2' marks
+   * a divisi voice, and 'kbd' is retained for legacy piano comping voices.
+   */
   layer?: 'cb' | 'div2' | 'kbd';
 }
 
 /** One automation point on a CC lane. Ticks are absolute, values 0–127. */
 export interface CcPoint { tick: number; value: number }
 
+/** Persisted provenance for the merged Piano Engine V2 CC64 lane. */
+export interface PianoV2PedalProvenance {
+  /** The current take's generated pedal events, before source-lane merging. */
+  generatedPoints: CcPoint[];
+  /** CC64 points authored before Piano Engine V2 wrote its generated lane. */
+  authoredPoints: CcPoint[];
+  /** Exact merged points written to CcLane.points for round-trip detection. */
+  mergedPoints: CcPoint[];
+}
+
 /** A controller lane on a track (CC1/CC11 phrase arcs, CC7 balance, …). */
-export interface CcLane { cc: number; points: CcPoint[] }
+export interface CcLane {
+  cc: number;
+  points: CcPoint[];
+  /** Internal only: prevents a later compose from treating prior V2 output as source CC64. */
+  pianoV2Pedal?: PianoV2PedalProvenance;
+}
 
 /** Safety cap: one lane may hold at most this many automation points. */
 export const MAX_CC_POINTS_PER_LANE = 1024;

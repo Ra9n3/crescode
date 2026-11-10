@@ -354,6 +354,9 @@ function shouldRoll(
   if (event.hands.right.motion === 'yield'
     || event.orchestration.interaction === 'yield-to-spotlight'
     || event.hands.right.density === 'very-sparse') return false;
+  // The V3 Composer chooses a named texture from musical context; its Realizer
+  // supplies the timing. Do not add a second seed-random roll decision on top.
+  if (phrase?.texture) return false;
   const probability: Record<PianoComposerPlan['template']['style']['identity'], number> = {
     'chamber-counterpoint': 0.34,
     'sonata-dialogue': 0.25,
@@ -583,6 +586,107 @@ function keepLeftAttack(plan: PianoComposerPlan, chord: RealizedChord): boolean 
   return unitRandom(plan.seed, `left-yield:${chord.event.chord.id}`) >= 0.78;
 }
 
+interface ChordToneAttack {
+  readonly pitch: number;
+  readonly startTick: number;
+  /** Null means use the ordinary phrase/chord gate and common-tone tie. */
+  readonly durationTicks: number | null;
+  readonly articulation: Note['articulation'] | null;
+  readonly accent: number;
+}
+
+function rightHandTextureAttacks(
+  chord: RealizedChord,
+  index: number,
+  chords: readonly RealizedChord[],
+): ChordToneAttack[] {
+  const pitches = [...chord.rightPitches].sort((a, b) => a - b);
+  if (!pitches.length) return [];
+  const texture = chord.phrase?.texture?.kind;
+  const span = chord.endTick - chord.startTick;
+  const nextSuspension = chords[index + 1]?.event.suspension;
+  const requiredPreparationPitch = nextSuspension?.preparedByChordId === chord.event.chord.id
+    ? pitches.find((pitch) => pc(pitch) === pc(nextSuspension.tensionPitchClass)) : undefined;
+  const withRequired = (selected: readonly number[]): number[] => {
+    const result = [...selected];
+    if (requiredPreparationPitch !== undefined && !result.includes(requiredPreparationPitch)) result.push(requiredPreparationPitch);
+    return result.sort((a, b) => a - b);
+  };
+  const phrase = chord.phrase;
+  const phraseProgress = phrase ? clamp((chord.startTick - phrase.startTick) / Math.max(1, phrase.endTick - phrase.startTick), 0, 1) : 0;
+  const ascending = !phrase || phrase.dynamics.shape === 'rising-arc'
+    || (phrase.dynamics.shape === 'arch' && phraseProgress <= phrase.dynamics.peakPosition);
+
+  if (texture === 'sparse-sustained' || texture === 'short-flourishes'
+    || texture === 'melody-accompaniment' || texture === 'contrapuntal-dialogue') {
+    const chosen = texture === 'sparse-sustained' || texture === 'short-flourishes'
+      ? [pitches[Math.floor((pitches.length - 1) / 2)]]
+      : texture === 'contrapuntal-dialogue' ? [pitches[pitches.length - 1]] : [pitches[0]];
+    return withRequired(chosen).map((pitch) => ({
+      pitch, startTick: chord.startTick, durationTicks: null, articulation: 'legato', accent: 0,
+    }));
+  }
+
+  if (texture === 'broken-chords') {
+    const split = Math.ceil(pitches.length / 2);
+    const groups = [pitches.slice(0, split), pitches.slice(split)].filter((group) => group.length > 0);
+    if (groups.length === 1 && groups[0].length > 1) groups.push([groups[0][groups[0].length - 1]]);
+    const firstTick = chord.startTick + Math.min(PPQ / 2, Math.max(1, Math.round(span * 0.16)));
+    const secondTick = chord.startTick + Math.min(Math.max(firstTick - chord.startTick + 1, Math.round(span * 0.56)), Math.max(1, span - 1));
+    return groups.flatMap((group, groupIndex) => {
+      const selected = withRequired(group);
+      const startTick = groupIndex === 0 ? firstTick : secondTick;
+      const nextStart = groups[groupIndex + 1] ? secondTick : chord.endTick;
+      const durationTicks = Math.max(1, Math.min(chord.endTick - startTick,
+        Math.round(Math.max(1, nextStart - startTick) * 0.78)));
+      return selected.map((pitch) => ({
+        pitch, startTick, durationTicks, articulation: 'portato' as const, accent: groupIndex === 0 ? 1 : 0,
+      }));
+    });
+  }
+
+  if (texture === 'arpeggiated') {
+    const maximumNotes = Math.max(1, Math.floor(span / (PPQ / 2)));
+    const count = Math.min(pitches.length, maximumNotes);
+    const selected = count === pitches.length
+      ? pitches
+      : Array.from({ length: count }, (_, position) =>
+        pitches[Math.round(position * (pitches.length - 1) / Math.max(1, count - 1))]);
+    const sequence = ascending ? selected : [...selected].reverse();
+    const figureStart = chord.startTick + Math.min(PPQ / 4, Math.max(1, Math.round(span * 0.08)));
+    const figureSpan = Math.max(sequence.length, chord.endTick - figureStart);
+    const step = figureSpan / sequence.length;
+    return sequence.map((pitch, position) => {
+      const startTick = Math.min(chord.endTick - 1, figureStart + Math.round(step * position));
+      const nextStart = position + 1 < sequence.length
+        ? figureStart + Math.round(step * (position + 1)) : chord.endTick;
+      return {
+        pitch,
+        startTick,
+        durationTicks: Math.max(1, Math.min(chord.endTick - startTick,
+          Math.round(Math.max(1, nextStart - startTick) * 0.82))),
+        articulation: 'legato' as const,
+        accent: position === 0 ? 1 : 0,
+      };
+    });
+  }
+
+  // Block chords keep every selected voice together. Hand-authored legacy plans
+  // without a named texture retain their original optional rolled voicing.
+  const selected = texture === 'block-chords' ? pitches : withRequired(pitches);
+  return selected.map((pitch, voiceIndex) => {
+    const spread = texture ? 0 : chord.rolled && selected.length > 1
+      ? Math.round(Math.min(PPQ / 4, span * 0.08) * voiceIndex / (selected.length - 1)) : 0;
+    return {
+      pitch,
+      startTick: chord.startTick + spread,
+      durationTicks: null,
+      articulation: null,
+      accent: voiceIndex === selected.length - 1 ? 2 : 0,
+    };
+  });
+}
+
 function realizeChordTones(
   plan: PianoComposerPlan,
   chords: readonly RealizedChord[],
@@ -614,26 +718,27 @@ function realizeChordTones(
       });
     }
 
-    for (let voiceIndex = 0; voiceIndex < chord.rightPitches.length; voiceIndex++) {
-      const pitch = chord.rightPitches[voiceIndex];
+    const attacks = rightHandTextureAttacks(chord, index, chords);
+    for (let voiceIndex = 0; voiceIndex < attacks.length; voiceIndex++) {
+      const attack = attacks[voiceIndex];
+      const pitch = attack.pitch;
+      const startTick = attack.startTick;
       const hasCrossingVoice = notes.some((draft) => draft.hand !== 'left' && draft.note.pitch === pitch
-        && draft.note.startTick < chord.startTick && endOf(draft.note) > chord.startTick);
+        && draft.note.startTick < startTick && endOf(draft.note) > startTick);
       const nextSuspension = chords[index + 1]?.event.suspension;
       const isExplicitPreparation = nextSuspension?.preparedByChordId === chord.event.chord.id
         && pc(nextSuspension.tensionPitchClass) === pc(pitch);
       if (continuesFromPrevious(chords, index, pitch, 'right') && hasCrossingVoice && !isExplicitPreparation) continue;
-      const chain = tieForwardEnd(chords, index, pitch, 'right');
+      const canTie = attack.durationTicks === null;
+      const chain = canTie ? tieForwardEnd(chords, index, pitch, 'right') : { lastIndex: index, tick: chord.endTick };
       const chainIsFinal = plan.ending.chordId !== null
         && chords[chain.lastIndex].event.chord.id === plan.ending.chordId;
-      const spread = chord.rolled && chord.rightPitches.length > 1
-        ? Math.round(Math.min(PPQ / 4, (chord.endTick - chord.startTick) * 0.08)
-          * voiceIndex / (chord.rightPitches.length - 1))
-        : 0;
-      const startTick = chord.startTick + spread;
       if (startTick >= chord.endTick || startTick >= projectEndTick) continue;
       const gate = chordGate(plan, chord, chain.lastIndex > index, chainIsFinal, 'right');
-      const endTick = Math.min(projectEndTick,
-        Math.max(startTick + 1, Math.round(startTick + (chain.tick - startTick) * gate)));
+      const gatedEnd = Math.round(startTick + (chain.tick - startTick) * gate);
+      const patternEnd = attack.durationTicks === null ? Number.POSITIVE_INFINITY : startTick + attack.durationTicks;
+      const endTick = Math.min(projectEndTick, gatedEnd, patternEnd);
+      if (endTick <= startTick) continue;
       const roleTag = chord.event.structuralRole === 'arrival' ? 'arrival' : 'bed';
       notes.push({
         hand: 'right',
@@ -642,9 +747,10 @@ function realizeChordTones(
           pitch,
           startTick,
           durationTicks: endTick - startTick,
-          velocity: velocityFor(plan, chord, chord.phrase, startTick, 'right', voiceIndex === chord.rightPitches.length - 1 ? 2 : 0),
+          velocity: velocityFor(plan, chord, chord.phrase, startTick, 'right', attack.accent),
           roleTag,
-          ...(chain.lastIndex > index || gate >= 0.9 ? { articulation: 'legato' as const } : {}),
+          ...(attack.articulation ? { articulation: attack.articulation }
+            : chain.lastIndex > index || gate >= 0.9 ? { articulation: 'legato' as const } : {}),
         },
       });
     }
@@ -658,6 +764,14 @@ function suspensionCanUseOctavePartner(plan: PianoComposerPlan): boolean {
   // this explicit voice-leading line; `forbidden` retains its stricter policy.
   return plan.templateConstraints.octaveDoubling === 'allowed'
     || plan.templateConstraints.octaveDoubling === 'climaxOnly';
+}
+
+function dynamicTailSoftening(phrase: PianoPhraseIntention | null, tick: number): number {
+  if (!phrase) return 0;
+  const position = phraseProgress(phrase, tick);
+  const descendingSegment = phrase.dynamics.segments?.some((segment) =>
+    segment.shape === 'unwind' && position >= segment.startPosition) ?? false;
+  return descendingSegment ? 6 : 0;
 }
 
 function realizeSuspensions(
@@ -820,7 +934,8 @@ function realizeSuspensions(
         pitch: resolutionPitch,
         startTick: resolveAt,
         durationTicks: resolutionDuration,
-        velocity: velocityFor(plan, current, current.phrase, resolveAt, 'melody', 1),
+        velocity: Math.max(1, velocityFor(plan, current, current.phrase, resolveAt, 'melody', 1)
+          - dynamicTailSoftening(current.phrase, resolveAt)),
         roleTag: 'settle',
         articulation: 'legato',
       },
@@ -871,6 +986,12 @@ function selectedMotifPositions(phrase: PianoPhraseIntention): number[] {
       break;
   }
   if (phrase.dynamics.sourceEnergy.nearSilence) return [];
+  const texture = phrase.texture?.kind;
+  if (texture === 'broken-chords' || texture === 'arpeggiated'
+    || texture === 'block-chords' || texture === 'short-flourishes') return [];
+  if (texture === 'sparse-sustained') {
+    return phrase.rhythmicPlan.syncopation ? positions.slice(0, 2) : positions.slice(0, 1);
+  }
   if (phrase.intendedDensity === 'very-sparse') return positions.slice(0, 1);
   if (phrase.intendedDensity === 'sparse') return positions.slice(0, 2);
   return positions;
@@ -980,6 +1101,66 @@ function melodyPitch(
       + unitRandom(seed, `${label}:${pitch}`) * 0.05;
     return score(a) - score(b) || a - b;
   })[0];
+}
+
+function realizeDialogueCounterline(
+  plan: PianoComposerPlan,
+  chords: readonly RealizedChord[],
+  target: PianoRealizerTarget,
+  projectEndTick: number,
+): DraftNote[] {
+  const output: DraftNote[] = [];
+  const previousPitchByPhrase = new Map<string, number>();
+  for (const chord of chords) {
+    const phrase = chord.phrase;
+    if (phrase?.texture?.kind !== 'contrapuntal-dialogue'
+      || phrase.dynamics.sourceEnergy.nearSilence
+      || phrase.motif.operation === 'withhold-under-lead') continue;
+    const span = chord.endTick - chord.startTick;
+    if (span < PPQ / 2) continue;
+    const startTick = chord.startTick + Math.min(span - 1, Math.round(span * 0.58));
+    if (startTick >= projectEndTick) continue;
+
+    const [zoneLow, zoneHigh] = rangeForZone(chord.event.hands.left.register, target);
+    const rightTextureAnchor = chord.rightPitches.length
+      ? Math.max(...chord.rightPitches) : zoneHigh + 8;
+    const low = Math.max(zoneLow, target.lowestNote);
+    const high = Math.min(zoneHigh, target.highestNote, rightTextureAnchor - 8);
+    if (low > high) continue;
+    const bassClass = chord.leftPitch === null ? null : pc(chord.leftPitch);
+    const available = [...new Set(chord.event.chord.availablePitchClasses.map(pc))]
+      .filter((pitchClass) => pitchClass !== bassClass);
+    const candidates = available.flatMap((pitchClass) => pitchesForClass(pitchClass, low, high))
+      .filter((pitch) => (chord.leftPitch === null || Math.abs(pitch - chord.leftPitch) >= 3)
+        && !(Math.abs(rightTextureAnchor - pitch) >= 12
+          && Math.abs(rightTextureAnchor - pitch) % 12 === 0));
+    if (!candidates.length) continue;
+    const previousPitch = previousPitchByPhrase.get(phrase.id) ?? null;
+    const center = (low + high) / 2;
+    const pitch = candidates.sort((a, b) => {
+      const score = (value: number) => previousPitch === null
+        ? Math.abs(value - center) * 0.25
+        : Math.abs(value - previousPitch) + Math.max(0, Math.abs(value - previousPitch) - 7) * 0.9;
+      return score(a) - score(b) || a - b;
+    })[0];
+    const durationTicks = Math.min(chord.endTick - startTick, projectEndTick - startTick,
+      Math.max(1, Math.min(PPQ * 3 / 4, Math.round(span * 0.24))));
+    if (durationTicks < 1) continue;
+    output.push({
+      hand: 'left',
+      chordId: chord.event.chord.id,
+      note: {
+        pitch,
+        startTick,
+        durationTicks,
+        velocity: velocityFor(plan, chord, phrase, startTick, 'left', -1),
+        roleTag: 'answer',
+        articulation: 'legato',
+      },
+    });
+    previousPitchByPhrase.set(phrase.id, pitch);
+  }
+  return output;
 }
 
 function realizeMotifs(
@@ -1128,29 +1309,48 @@ function realizeFillGestures(
     const start = Math.max(0, fill.startTick);
     const end = Math.min(projectEndTick, fill.endTick);
     if (end <= start) continue;
-    const chord = eventAtTick(chords, start)
+    const openingChord = eventAtTick(chords, start)
       ?? chords.find((candidate) => candidate.startTick >= start && candidate.startTick < end);
-    if (!chord) continue;
-    const available = [...new Set(chord.event.voicing.rightHandPitchClasses
-      .filter((tone) => Number.isInteger(tone) && tone >= 0 && tone < 12).map(pc))];
-    if (!available.length) continue;
-    const pitchClasses = available.slice(0, Math.min(2, available.length));
+    if (!openingChord) continue;
     const span = end - start;
-    const onsets = pitchClasses.length === 1 || span < 240
+    const onsets = span < 240
       ? [start]
       : [start + Math.round(span * 0.22), start + Math.round(span * 0.62)];
+    const motifOrigin = plan.motif
+      ? plan.harmonicEvents.find((event) => event.chord.id === plan.motif!.originChordId)?.chord.rootPitchClass
+        ?? plan.motif.anchorPitchClass
+      : openingChord.event.chord.rootPitchClass;
+    let previousPitch: number | null = null;
     for (let index = 0; index < onsets.length; index++) {
       const tick = onsets[index];
       if (tick >= end || tick >= projectEndTick) continue;
-      const toneIndex = unitRandom(plan.seed, `fill-tone:${fill.startTick}:${index}`) < 0.5
-        ? index : pitchClasses.length - 1 - index;
-      const pitchClass = pitchClasses[toneIndex] ?? pitchClasses[0];
+      const chord = eventAtTick(chords, tick) ?? openingChord;
+      const selectedVoicing = [...new Set(chord.event.voicing.rightHandPitchClasses.map(pc))];
+      const available = selectedVoicing.length
+        ? selectedVoicing : [...new Set(chord.event.chord.availablePitchClasses.map(pc))];
       const blocked = chord.leftPitch === null ? new Set<number>() : new Set([pc(chord.leftPitch)]);
-      const pitch = melodyPitch(pitchClass, chord, target, null, blocked, plan.seed, `fill:${fill.startTick}:${index}`);
-      if (pitch === null) continue;
       const nextTick = onsets[index + 1] ?? end;
+      const activeSuspensionResolutions = new Set(plan.harmonicEvents.flatMap((event) => {
+        const suspension = event.suspension;
+        if (!suspension) return [];
+        const delay = Math.min(PPQ / 2, Math.max(1, Math.round((event.chord.endTick - event.chord.startTick) * 0.18)));
+        const resolveAt = event.chord.startTick + delay;
+        const resolveEnd = resolveAt + Math.min(PPQ / 2, event.chord.endTick - resolveAt);
+        return tick < resolveEnd && nextTick > resolveAt ? [pc(suspension.resolvesToPitchClass)] : [];
+      }));
+      const unblocked = available.filter((pitchClass) =>
+        !blocked.has(pitchClass) && !activeSuspensionResolutions.has(pitchClass));
+      if (!unblocked.length) continue;
+      const motifTone = plan.motif?.tones[index === 0 ? 0 : 3]?.pitchClass
+        ?? chord.event.chord.rootPitchClass;
+      const ideal = pc(motifTone + pc(chord.event.chord.rootPitchClass - motifOrigin));
+      const pitchClass = unblocked.sort((a, b) => pcDistance(a, ideal) - pcDistance(b, ideal) || a - b)[0];
+      const pitch = melodyPitch(pitchClass, chord, target, previousPitch, blocked, plan.seed,
+        `fill:${fill.startTick}:${index}`);
+      if (pitch === null) continue;
+      previousPitch = pitch;
       const durationTicks = Math.max(1,
-        Math.min(end - tick, nextTick - tick, Math.round((nextTick - tick) * 0.72)));
+        Math.min(end - tick, nextTick - tick, Math.round((nextTick - tick) * 0.66)));
       notes.push({
         hand: 'fill',
         chordId: chord.event.chord.id,
@@ -1496,6 +1696,7 @@ export function realizePianoPlanWithAudit(input: PianoRealizerInput): PianoReali
     ...chordNotes,
     ...suspensionAttempt.notes,
     ...approachNotes(plan, chords, targetTrack, projectEndTick),
+    ...realizeDialogueCounterline(plan, chords, targetTrack, projectEndTick),
     ...realizeMotifs(plan, chords, targetTrack, projectEndTick),
     ...realizeFillGestures(plan, chords, targetTrack, projectEndTick),
   ];

@@ -15,6 +15,23 @@ export type PianoPlanStatus = 'composed' | 'ineligible' | 'insufficient-harmony'
 export type PianoIntensity = 0 | 1 | 2 | 3 | 4 | 5;
 export type PianoDensity = 'very-sparse' | 'sparse' | 'moderate' | 'broad';
 export type PianoRegisterZone = 'bass' | 'low-middle' | 'middle' | 'upper-middle' | 'high';
+export type PianoTextureKind =
+  | 'sparse-sustained'
+  | 'broken-chords'
+  | 'arpeggiated'
+  | 'melody-accompaniment'
+  | 'block-chords'
+  | 'contrapuntal-dialogue'
+  | 'short-flourishes';
+export type PianoTexturePurpose =
+  | 'preserve-space'
+  | 'connect-harmony'
+  | 'build-motion'
+  | 'carry-melody'
+  | 'mark-arrival'
+  | 'exchange-voices'
+  | 'punctuate-phrase';
+export type PianoTextureTransition = 'establish' | 'continue' | 'thin' | 'unfold' | 'open' | 'answer' | 'release' | 'punctuate';
 
 export type PianoTemplateIdentity =
   | 'chamber-counterpoint'
@@ -90,6 +107,17 @@ export interface PianoPhraseDynamics {
   };
 }
 
+export interface PianoTextureIntention {
+  readonly kind: PianoTextureKind;
+  readonly purpose: PianoTexturePurpose;
+  readonly leftHandRole: string;
+  readonly rightHandRole: string;
+  readonly transitionFromPrevious: PianoTextureKind | null;
+  readonly transition: PianoTextureTransition;
+  readonly rationale: string;
+  readonly evidence: readonly string[];
+}
+
 export interface PianoSectionIntention {
   readonly sectionId: string;
   readonly name: string;
@@ -97,6 +125,14 @@ export interface PianoSectionIntention {
   readonly startTick: number;
   readonly endTick: number;
   readonly function: 'opening' | 'continuation' | 'contrast' | 'culmination' | 'closing';
+  /** Dominant texture across the section's phrase-level development. */
+  readonly texture: PianoTextureKind;
+  readonly textureProgression: readonly {
+    readonly phraseId: string;
+    readonly kind: PianoTextureKind;
+    readonly transitionFromPrevious: PianoTextureKind | null;
+    readonly transition: PianoTextureTransition;
+  }[];
   readonly textureChange: string;
   readonly phraseIds: readonly string[];
   readonly dynamics: PianoPhraseDynamics;
@@ -120,6 +156,7 @@ export interface PianoPhraseIntention {
   readonly endTick: number;
   readonly function: 'statement' | 'development' | 'contrast' | 'arrival' | 'release' | 'statement-and-landing';
   readonly boundaryEvidence: readonly string[];
+  readonly texture: PianoTextureIntention;
   readonly leftHandIntent: string;
   readonly rightHandIntent: string;
   readonly registerPlan: { readonly left: PianoRegisterZone; readonly right: PianoRegisterZone };
@@ -282,7 +319,7 @@ export interface PianoStructuralEvent {
 }
 
 export interface PianoComposerPlan {
-  readonly version: 1;
+  readonly version: 2;
   readonly status: PianoPlanStatus;
   readonly seed: number;
   readonly template: {
@@ -371,6 +408,14 @@ interface OrchestrationReading {
   readonly explicitLeadTrackIds: readonly string[];
   readonly moments: readonly PianoEngineInput['context']['moments'][number][];
   readonly inPianoFill: boolean;
+  readonly registerOccupancy: {
+    /** Mean written note-onset count per supplied bar, from source octaves. */
+    readonly low: number;
+    readonly middle: number;
+    readonly high: number;
+    readonly total: number;
+    readonly availability: 'available' | 'unavailable';
+  };
   readonly evidence: 'available' | 'partial' | 'unavailable';
   readonly interaction: PianoHarmonicEvent['orchestration']['interaction'];
 }
@@ -808,6 +853,26 @@ function orchestrationReading(
     instrument.byBar.some((bar) => barIds.has(bar.bar) && bar.activeNoteCount > 0));
   const activeTrackIds = active.map((instrument) => instrument.instrument.id);
   const activeRoles = active.map((instrument) => instrument.instrument.role);
+  const registerCounts = { low: 0, middle: 0, high: 0 };
+  for (const instrument of analyzer.observedFacts.instruments) {
+    for (const bar of instrument.byBar) {
+      if (!barIds.has(bar.bar)) continue;
+      for (const register of bar.registerDistribution) {
+        if (register.midiOctave <= 2) registerCounts.low += register.noteCount;
+        else if (register.midiOctave <= 4) registerCounts.middle += register.noteCount;
+        else registerCounts.high += register.noteCount;
+      }
+    }
+  }
+  const occupancyBars = Math.max(1, barIds.size);
+  const registerOccupancy = {
+    low: registerCounts.low / occupancyBars,
+    middle: registerCounts.middle / occupancyBars,
+    high: registerCounts.high / occupancyBars,
+    total: (registerCounts.low + registerCounts.middle + registerCounts.high) / occupancyBars,
+    availability: bars.length > 0 && analyzer.observedFacts.barAssignmentAvailability === 'available'
+      ? 'available' as const : 'unavailable' as const,
+  };
   const lead = analyzer.interpretations.leadPassages.candidates
     .filter((candidate) => intersects(candidate.startTick, candidate.endTick, startTick, endTick))
     .map((candidate) => candidate.instrument.id);
@@ -824,6 +889,7 @@ function orchestrationReading(
     explicitLeadTrackIds: unique(lead),
     moments,
     inPianoFill,
+    registerOccupancy,
     evidence,
   };
   return { ...reading, interaction: momentDecision(reading) };
@@ -1313,6 +1379,7 @@ function phraseRhythmicPlan(
   motif: PianoMotifPlan | null,
   operation: PianoPhraseIntention['motif']['operation'],
   density: PianoDensity,
+  texture: PianoTextureKind,
   dynamics: PianoPhraseDynamics,
   profile: StyleProfile,
 ): PianoPhraseIntention['rhythmicPlan'] {
@@ -1332,7 +1399,9 @@ function phraseRhythmicPlan(
   const cellIndex = Math.floor(unitRandom(input.context.seed, `hybrid-cell:${phrase.id}`) * hybridCells.length);
   const weights = hybridCells[cellIndex] ?? hybridCells[0];
   const operationCanSoundMotif = operation !== 'withhold-under-lead' && operation !== 'unavailable';
-  const canPlaceColor = motif !== null && operationCanSoundMotif
+  const textureCanCarryMotif = texture === 'sparse-sustained'
+    || texture === 'melody-accompaniment' || texture === 'contrapuntal-dialogue';
+  const canPlaceColor = motif !== null && operationCanSoundMotif && textureCanCarryMotif
     && density !== 'very-sparse'
     && !dynamics.sourceEnergy.nearSilence
     && phrase.function !== 'arrival'
@@ -1361,6 +1430,171 @@ function phraseRhythmicPlan(
   };
 }
 
+function textureRoles(kind: PianoTextureKind): Pick<PianoTextureIntention, 'purpose' | 'leftHandRole' | 'rightHandRole'> {
+  switch (kind) {
+    case 'sparse-sustained':
+      return {
+        purpose: 'preserve-space',
+        leftHandRole: 'hold one quiet bass anchor or rest through the supplied release',
+        rightHandRole: 'sustain one clear chord tone; leave the marked lead and occupied register open',
+      };
+    case 'broken-chords':
+      return {
+        purpose: 'connect-harmony',
+        leftHandRole: 'mark each harmonic change with a restrained, voice-led bass anchor',
+        rightHandRole: 'answer in two separated chord-tone fragments rather than a continuous loop',
+      };
+    case 'arpeggiated':
+      return {
+        purpose: 'build-motion',
+        leftHandRole: 'ground the changing harmony without doubling the upper figure',
+        rightHandRole: 'unfold supplied chord tones in a phrase-directed, single-note line',
+      };
+    case 'melody-accompaniment':
+      return {
+        purpose: 'carry-melody',
+        leftHandRole: 'support the phrase with a separated bass foundation',
+        rightHandRole: 'carry the chord-relative subject above a lean harmonic accompaniment',
+      };
+    case 'block-chords':
+      return {
+        purpose: 'mark-arrival',
+        leftHandRole: 'anchor the structural arrival at the supplied harmony boundary',
+        rightHandRole: 'state the selected close-voiced harmony together, without an ornamental roll',
+      };
+    case 'contrapuntal-dialogue':
+      return {
+        purpose: 'exchange-voices',
+        leftHandRole: 'answer the upper phrase with a lower, stepwise counter-voice between bass anchors',
+        rightHandRole: 'shape the motif as a distinct upper phrase with room for the lower reply',
+      };
+    case 'short-flourishes':
+      return {
+        purpose: 'punctuate-phrase',
+        leftHandRole: 'keep the harmonic foundation quiet beneath the reserved fill window',
+        rightHandRole: 'place a brief chord-relative flourish only inside the explicit piano reservation',
+      };
+  }
+}
+
+function textureTransition(
+  kind: PianoTextureKind,
+  previous: PianoTextureKind | null,
+  phrase: PhraseWindow,
+): PianoTextureTransition {
+  if (previous === null) return 'establish';
+  if (previous === kind) return 'continue';
+  if (kind === 'sparse-sustained') return phrase.function === 'release' || phrase.lastInSection ? 'release' : 'thin';
+  if (kind === 'arpeggiated' || kind === 'broken-chords') return 'unfold';
+  if (kind === 'block-chords') return 'open';
+  if (kind === 'contrapuntal-dialogue' || kind === 'melody-accompaniment') return 'answer';
+  return 'punctuate';
+}
+
+function textureIntention(
+  input: PianoEngineInput,
+  phrase: PhraseWindow,
+  dynamics: PianoPhraseDynamics,
+  motif: PianoMotifPlan | null,
+  profile: StyleProfile,
+  reading: OrchestrationReading,
+  previousTexture: PianoTextureKind | null,
+  fillPlans: readonly PianoFillDecision[],
+): PianoTextureIntention {
+  const phraseLength = Math.max(1, phrase.endTick - phrase.startTick);
+  const harmony = input.context.harmony
+    .filter((chord) => intersects(chord.startTick, chord.endTick, phrase.startTick, phrase.endTick))
+    .sort((a, b) => a.startTick - b.startTick);
+  const meanChordSpan = harmony.length
+    ? harmony.reduce((sum, chord) => sum + Math.min(phrase.endTick, chord.endTick) - Math.max(phrase.startTick, chord.startTick), 0) / harmony.length
+    : 0;
+  const energyTrend = sourceTrend(dynamics.sourceEnergy);
+  const energyPeak = dynamics.sourceEnergy.trajectory.length
+    ? Math.max(...dynamics.sourceEnergy.trajectory.map((point) => point.target)) : null;
+  const upperRegisterActivity = reading.registerOccupancy.middle + reading.registerOccupancy.high;
+  const registerCrowded = reading.registerOccupancy.availability === 'available' && upperRegisterActivity >= 7;
+  const ensembleDense = reading.activeTrackIds.length >= 5
+    || (reading.registerOccupancy.total >= 14 && upperRegisterActivity >= 8);
+  const hasExplicitLead = reading.explicitLeadTrackIds.length > 0;
+  const leadNeedsSpace = hasExplicitLead && (ensembleDense || registerCrowded || reading.interaction !== 'interweave');
+  const release = (phrase.function === 'release'
+      && (dynamics.sourceEnergy.descendingTowardEnd || dynamics.sourceEnergy.nearSilence || dynamics.exit <= 1))
+    || (dynamics.shape === 'unwind' && dynamics.sourceEnergy.descendingTowardEnd && dynamics.exit <= 2);
+  const hasSelectedFill = fillPlans.some((fill) => fill.target.toLowerCase() === 'piano'
+    && fill.decision === 'consider-brief-gesture'
+    && intersects(fill.startTick, fill.endTick, phrase.startTick, phrase.endTick));
+  const hasExplicitLeaveSpace = fillPlans.some((fill) => fill.target.toLowerCase() === 'piano'
+    && fill.decision === 'leave-space'
+    && intersects(fill.startTick, fill.endTick, phrase.startTick, phrase.endTick));
+  const rising = dynamics.shape === 'rising-arc' || (energyTrend >= 0.08 && !dynamics.sourceEnergy.descendingTowardEnd);
+  const highArrival = (phrase.function === 'arrival' || phrase.function === 'statement-and-landing'
+      || reading.moments.some((moment) => moment.kind === 'tutti' || moment.kind === 'unison'))
+    && (dynamics.peak >= 3 || (energyPeak !== null && energyPeak >= 0.68));
+  const hasRoomForFiguration = !ensembleDense && !registerCrowded && !hasExplicitLead;
+  let kind: PianoTextureKind;
+  let rationale: string;
+
+  if (dynamics.sourceEnergy.nearSilence || reading.interaction === 'yield-to-spotlight'
+    || leadNeedsSpace || hasExplicitLeaveSpace || release) {
+    kind = 'sparse-sustained';
+    rationale = dynamics.sourceEnergy.nearSilence
+      ? 'The supplied phrase contains near-silence; retain one sustained color or silence instead of adding a new pattern.'
+      : reading.interaction === 'yield-to-spotlight' || leadNeedsSpace
+        ? 'The marked orchestral spotlight or written register occupancy calls for a restrained sustained response, not a competing figure.'
+        : hasExplicitLeaveSpace
+          ? 'An explicit Composer leave-space reservation overlaps this phrase; preserve the reserved span instead of layering another texture.'
+          : 'The phrase is releasing or descending toward its boundary; thin the attacks and let the supplied harmony settle.';
+  } else if (hasSelectedFill && hasRoomForFiguration) {
+    kind = 'short-flourishes';
+    rationale = 'A seed-stable Composer decision selected an explicit piano fill reservation; punctuate only that window with harmony-aware notes.';
+  } else if (highArrival && !ensembleDense && !registerCrowded) {
+    kind = 'block-chords';
+    rationale = 'A supplied arrival, unison/tutti moment, or structural peak merits a coordinated chord statement at the harmonic boundary.';
+  } else if (rising && hasRoomForFiguration && meanChordSpan >= Math.min(PPQ, phraseLength / 3)
+    && harmony.some((chord) => new Set(chord.parsed.pitchClasses).size >= 3)) {
+    kind = 'arpeggiated';
+    rationale = 'The existing energy trajectory rises over sufficiently long, multi-tone harmony; unfold those chord tones toward the phrase peak.';
+  } else if (hasRoomForFiguration && motif !== null
+    && (profile.public.identity === 'chamber-counterpoint' || profile.public.identity === 'sonata-dialogue')
+    && (phrase.function === 'development' || phrase.function === 'contrast')
+    && dynamics.peak >= 2 && harmony.length >= 2) {
+    kind = 'contrapuntal-dialogue';
+    rationale = 'A chamber/sonata development has room between the supplied chord changes; let the right-hand subject and lower response enter independently.';
+  } else if (hasRoomForFiguration && !hasExplicitLead && dynamics.peak >= 1 && dynamics.peak <= 3
+    && meanChordSpan >= Math.min(PPQ, phraseLength / 2) && harmony.length > 0) {
+    kind = 'broken-chords';
+    rationale = 'Moderate energy and spacious harmonic spans support separated chord fragments rather than continuous arpeggiation or a dense block.';
+  } else if (hasRoomForFiguration && motif !== null && dynamics.peak >= 2) {
+    kind = 'melody-accompaniment';
+    rationale = 'The phrase has a usable chord-relative subject and open upper register; keep accompaniment lean beneath the line.';
+  } else {
+    kind = 'sparse-sustained';
+    rationale = 'The current harmony, trajectory, and ensemble activity favor a clear sustained anchor over added figuration.';
+  }
+
+  const roles = textureRoles(kind);
+  const occupancy = reading.registerOccupancy;
+  const evidence = [
+    `Section ${phrase.section.name}; phrase function ${phrase.function}; ${phrase.firstInSection ? 'section entry' : phrase.lastInSection ? 'section release' : 'interior phrase'}.`,
+    `Energy shape ${dynamics.shape}, trend ${energyTrend.toFixed(3)}, peak ${energyPeak === null ? 'unavailable' : energyPeak.toFixed(2)}${dynamics.sourceEnergy.nearSilence ? ', with supplied near-silence' : ''}.`,
+    `${harmony.length} resolved chord span(s) overlap this phrase; mean clipped span ${Math.round(meanChordSpan)} ticks.`,
+    `Analyzer reports ${reading.activeTrackIds.length} active written track(s); register onsets/bar low ${occupancy.low.toFixed(1)}, middle ${occupancy.middle.toFixed(1)}, high ${occupancy.high.toFixed(1)} (${occupancy.availability}).`,
+    ...(reading.explicitLeadTrackIds.length ? [`Explicit lead evidence: ${reading.explicitLeadTrackIds.join(', ')}; interaction ${reading.interaction}.`] : [`Orchestration interaction: ${reading.interaction}; no explicit lead candidate overlaps.`]),
+    ...(reading.moments.length ? [`Supplied moments: ${unique(reading.moments.map((moment) => moment.kind)).join(', ')}.`] : []),
+    ...(hasSelectedFill ? ['A selected explicit piano fill reservation overlaps this phrase.'] : []),
+    ...(hasExplicitLeaveSpace ? ['An explicit piano leave-space reservation overlaps this phrase.'] : []),
+    ...(previousTexture ? [`Previous phrase texture: ${previousTexture}.`] : []),
+  ];
+  return {
+    kind,
+    ...roles,
+    transitionFromPrevious: previousTexture,
+    transition: textureTransition(kind, previousTexture, phrase),
+    rationale,
+    evidence,
+  };
+}
+
 function composePhraseIntention(
   input: PianoEngineInput,
   phrase: PhraseWindow,
@@ -1369,32 +1603,36 @@ function composePhraseIntention(
   profile: StyleProfile,
   reading: OrchestrationReading,
   previousOperation: PianoMotifOperation | null,
+  previousTexture: PianoTextureKind | null,
+  fillPlans: readonly PianoFillDecision[],
 ): PianoPhraseIntention {
   const functionName = phrase.function;
   const dynamics = dynamicsForPhrase(input, phrase, functionName, profile, reading);
   const motifPlan = motifOperation(phrase, functionName, previousOperation, phraseIndex, motif, profile, reading, input);
+  const texture = textureIntention(input, phrase, dynamics, motif, profile, reading, previousTexture, fillPlans);
   const readingLead = reading.explicitLeadTrackIds.length > 0;
   const intendedDensity: PianoDensity = dynamics.sourceEnergy.nearSilence
     ? 'very-sparse'
-    : readingLead || reading.activeTrackIds.length >= 5
+    : texture.kind === 'sparse-sustained' || texture.kind === 'short-flourishes'
       ? 'sparse'
-      : functionName === 'arrival' && profile.voicingVoices >= 4 ? 'broad'
+      : texture.kind === 'block-chords'
+        ? profile.voicingVoices >= 4 && reading.activeTrackIds.length < 3 ? 'broad' : 'moderate'
         : profile.voicingVoices <= 2 ? 'sparse' : 'moderate';
-  const rhythmicIntent = dynamics.sourceEnergy.nearSilence
-    ? 'withhold attacks; let one prepared tone or silence carry across the breath'
-    : readingLead && profile.public.identity === 'hybrid-pulse-and-color'
-      ? 'keep a sparse chord-relative color reply against the quarter-note bass pulse; anticipate one motif tone without copying the annotated lead contour'
-      : readingLead
-        ? 'elastic counter-gesture after the annotated lead; do not double its line'
-        : profile.public.rhythmicCharacter === 'syncopated'
-          ? 'vary the cell around harmonic boundaries; use syncopation selectively, not as a loop'
-          : profile.public.rhythmicCharacter === 'speech-like'
-            ? 'shape phrase lengths like a question and answer, with unequal gesture lengths'
-            : profile.public.rhythmicCharacter === 'broad'
-              ? 'favor long spans, then contract the gesture near a transition or arrival'
-              : 'let the motif breathe across harmony changes; vary the spacing rather than repeat a bar pattern';
+  const rhythmicIntent = texture.kind === 'sparse-sustained'
+    ? 'hold through the supplied harmony; let the phrase release before adding another attack'
+    : texture.kind === 'broken-chords'
+      ? 'separate chord-tone fragments across the harmony span; avoid a repeating bar loop'
+      : texture.kind === 'arpeggiated'
+        ? 'unfold supplied chord tones toward the phrase peak, reversing or thinning with the energy arc'
+        : texture.kind === 'melody-accompaniment'
+          ? 'keep a chord-relative subject distinct from its lean, voice-led accompaniment'
+          : texture.kind === 'block-chords'
+            ? 'state the selected voicing together at structural harmony boundaries'
+            : texture.kind === 'contrapuntal-dialogue'
+              ? 'alternate the upper subject and lower response with independent attack spacing'
+              : 'place a brief chord-relative flourish only within the selected piano fill window';
   const rhythmicPlan = phraseRhythmicPlan(input, phrase, motif, motifPlan.operation,
-    intendedDensity, dynamics, profile);
+    intendedDensity, texture.kind, dynamics, profile);
   return {
     id: phrase.id,
     sectionId: phrase.section.id,
@@ -1402,8 +1640,11 @@ function composePhraseIntention(
     endTick: phrase.endTick,
     function: functionName,
     boundaryEvidence: unique([...phrase.startReasons, ...phrase.endReasons]),
-    leftHandIntent: profile.public.leftHandRole,
-    rightHandIntent: readingLead ? 'support beneath the explicitly annotated lead; keep the motif inward' : profile.public.rightHandRole,
+    texture,
+    leftHandIntent: texture.leftHandRole,
+    rightHandIntent: readingLead
+      ? `Under the explicit lead: ${texture.rightHandRole}`
+      : texture.rightHandRole,
     registerPlan: { left: profile.public.leftHandRegister, right: profile.public.rightHandRegister },
     rhythmicIntent,
     rhythmicPlan,
@@ -1504,6 +1745,22 @@ function sectionIntention(
   input: PianoEngineInput,
 ): PianoSectionIntention {
   const sectionPhrases = phrases.filter((phrase) => phrase.sectionId === section.id);
+  const textureDurations = new Map<PianoTextureKind, number>();
+  for (const phrase of sectionPhrases) {
+    textureDurations.set(phrase.texture.kind,
+      (textureDurations.get(phrase.texture.kind) ?? 0) + Math.max(0, phrase.endTick - phrase.startTick));
+  }
+  const dominantTexture = [...textureDurations.entries()]
+    .sort(([textureA, durationA], [textureB, durationB]) =>
+      durationB - durationA
+        || sectionPhrases.findIndex((phrase) => phrase.texture.kind === textureA)
+          - sectionPhrases.findIndex((phrase) => phrase.texture.kind === textureB))[0]?.[0] ?? 'sparse-sustained';
+  const textureProgression = sectionPhrases.map((phrase) => ({
+    phraseId: phrase.id,
+    kind: phrase.texture.kind,
+    transitionFromPrevious: phrase.texture.transitionFromPrevious,
+    transition: phrase.texture.transition,
+  }));
   const moments = input.context.moments.filter((moment) => intersects(moment.startTick, moment.endTick, section.startTick, section.endTick));
   const energy = input.context.energy.filter((entry) => {
     const bar = input.context.barWindows.find((candidate) => candidate.bar === entry.bar);
@@ -1612,7 +1869,7 @@ function sectionIntention(
           trajectory: [],
         },
       };
-  const textureChange = functionName === 'opening'
+  const textureDirection = functionName === 'opening'
     ? 'introduce the piano language in a restrained register before widening'
     : functionName === 'culmination'
       ? 'open the voicing only at the explicit moment or high-energy section peak'
@@ -1621,8 +1878,10 @@ function sectionIntention(
         : functionName === 'closing'
           ? 'reduce activity toward a clear landing on the final supplied harmony'
           : 'develop the established motif without repeating its previous surface';
+  const textureChange = `${textureDirection}; ${dominantTexture} is the section’s duration-weighted texture, with ${textureProgression.length} phrase-level decision(s).`;
   const evidence = [
     'Section identity and tick span are copied from the existing context.',
+    `Duration-weighted section texture is ${dominantTexture}; phrase transitions are retained in textureProgression.`,
     ...(moments.length ? [`Conductor annotations present: ${unique(moments.map((moment) => moment.kind)).join(', ')}.`] : []),
     ...(nearSilence ? ['The existing energy arc marks near-silence in this section.'] : []),
     ...(reachesUpperArc ? ['The supplied energy arc reaches at least 0.8 in this section.'] : []),
@@ -1634,6 +1893,8 @@ function sectionIntention(
     startTick: section.startTick,
     endTick: section.endTick,
     function: functionName,
+    texture: dominantTexture,
+    textureProgression,
     textureChange,
     phraseIds: sectionPhrases.map((phrase) => phrase.id),
     dynamics,
@@ -1750,20 +2011,26 @@ function composeHarmonicEvents(
       && hasLead && !nearSilence && reading.moments.length === 0 && reading.activeTrackIds.length < 4;
     const momentYield = reading.interaction === 'yield-to-spotlight'
       || (reading.interaction === 'leave-space' && (!hasLead || reading.activeTrackIds.length >= 4));
+    const textureKind = selectedPhrase?.texture.kind;
     const handDensity: PianoDensity = nearSilence || momentYield ? 'very-sparse'
-      : hasLead || reading.activeTrackIds.length >= 5 ? 'sparse'
-        : arrival && profile.voicingVoices >= 4 ? 'broad'
-          : profile.voicingVoices <= 2 ? 'sparse' : 'moderate';
+      : hasLead || reading.activeTrackIds.length >= 5
+        || (reading.registerOccupancy.middle + reading.registerOccupancy.high >= 7) ? 'sparse'
+        : textureKind === 'sparse-sustained' || textureKind === 'short-flourishes' ? 'sparse'
+          : textureKind === 'block-chords'
+            ? arrival && profile.voicingVoices >= 4 ? 'broad' : 'moderate'
+            : textureKind === 'melody-accompaniment' ? 'sparse'
+              : profile.voicingVoices <= 2 ? 'sparse' : 'moderate';
     const lhRole = nearSilence || momentYield ? 'yielding held tone or silence'
-      : reading.activeRoles.some((role) => ['cellosBasses', 'basses', 'tuba', 'trombones'].includes(role))
-        ? 'root-light counter-foundation under existing bass activity'
-        : previousBass === bass ? 'hold a common bass tone through the chord change' : profile.public.leftHandRole;
+      : selectedPhrase?.texture.leftHandRole
+        ?? (reading.activeRoles.some((role) => ['cellosBasses', 'basses', 'tuba', 'trombones'].includes(role))
+          ? 'root-light counter-foundation under existing bass activity'
+          : previousBass === bass ? 'hold a common bass tone through the chord change' : profile.public.leftHandRole);
     const rhRole = nearSilence || momentYield ? 'withhold or leave a single color-tone trace'
       : hasLead ? hybridPulseUnderLead
         ? 'sparse chord-relative pulse and color beneath the annotated lead; avoid its melodic contour'
         : 'inner response to the explicitly annotated lead; do not double it'
         : reading.moments.length ? 'support the supplied moment with a compact chord-tone voicing'
-          : profile.public.rightHandRole;
+          : selectedPhrase?.texture.rightHandRole ?? profile.public.rightHandRole;
     const interaction = momentYield ? reading.interaction
       : hasLead ? hybridPulseUnderLead ? 'interweave' as const : 'leave-space' as const
         : reading.moments.length ? 'support-moment' as const
@@ -1830,9 +2097,13 @@ function composeHarmonicEvents(
           density: handDensity,
           motion: nearSilence || momentYield ? 'yield'
             : hasLead ? 'inner-voice'
-              : selectedPhrase?.motif.operation === 'fragmented-recall' || selectedPhrase?.motif.operation === 'fragment-to-landing'
-                ? 'fragment'
-                : rightHand.length >= 3 ? 'motif-led' : 'open-hold',
+              : textureKind === 'short-flourishes' ? 'fragment'
+                : textureKind === 'melody-accompaniment' || textureKind === 'contrapuntal-dialogue'
+                  || textureKind === 'broken-chords' || textureKind === 'arpeggiated'
+                  ? 'motif-led'
+                  : selectedPhrase?.motif.operation === 'fragmented-recall' || selectedPhrase?.motif.operation === 'fragment-to-landing'
+                    ? 'fragment'
+                    : rightHand.length >= 3 ? 'motif-led' : 'open-hold',
         },
       },
       orchestration: {
@@ -2067,18 +2338,21 @@ export function composePianoPlan(input: PianoEngineInput, analyzer: PianoAnalyze
   const sections = sectionWindows(input);
   const phraseWindowsForPlan = input.context.template.pianoEligible ? phraseWindows(input, sections) : [];
   const motif = input.context.template.pianoEligible ? chooseMotif(input, profile) : null;
+  const fillPlans = input.context.template.pianoEligible ? fillDecisions(input, analyzer, sections, profile) : [];
   const phrasePlans: PianoPhraseIntention[] = [];
   let previousOperation: PianoMotifOperation | null = null;
+  let previousTexture: PianoTextureKind | null = null;
   for (const [index, phrase] of phraseWindowsForPlan.entries()) {
     const reading = orchestrationReading(input, analyzer, phrase.startTick, phrase.endTick);
-    const plan = composePhraseIntention(input, phrase, index, motif, profile, reading, previousOperation);
+    const plan = composePhraseIntention(input, phrase, index, motif, profile, reading,
+      previousOperation, previousTexture, fillPlans);
     phrasePlans.push(plan);
     if (plan.motif.operation !== 'unavailable') previousOperation = plan.motif.operation;
+    previousTexture = plan.texture.kind;
   }
   const sectionIntentions = input.context.template.pianoEligible
     ? sections.map((section, index) => sectionIntention(section, index, sections.length, phrasePlans, input))
     : [];
-  const fillPlans = input.context.template.pianoEligible ? fillDecisions(input, analyzer, sections, profile) : [];
   const harmonicEvents = input.context.template.pianoEligible
     ? composeHarmonicEvents(input, analyzer, phraseWindowsForPlan, phrasePlans, fillPlans, profile)
     : [];
@@ -2088,6 +2362,7 @@ export function composePianoPlan(input: PianoEngineInput, analyzer: PianoAnalyze
   const ending = endingPlan(harmonicEvents, input.context.template.pianoEligible);
   const limitations = [
     'This is an intention plan only: no MIDI notes, durations, velocities, articulations, or instrument patch choices are produced.',
+    'Texture labels, roles, purposes, and transitions are symbolic Composer decisions; the existing Piano Realizer maps them to notes.',
     'The input has no key/mode or time-signature field; harmony is interpreted only from resolved chord symbols and pitch classes, and rhythmic cells remain relative.',
     'Analyzer activity is written-score evidence, not audible-state evidence; missing mute/solo state is not inferred.',
     'Only strings lead layers and the supplied tutti/soli/unison moments are available; other family lead spans and divisi/imitation details remain unavailable.',
@@ -2097,7 +2372,7 @@ export function composePianoPlan(input: PianoEngineInput, analyzer: PianoAnalyze
   ];
 
   return freezePlan({
-    version: 1,
+    version: 2,
     status,
     seed: input.context.seed,
     template: {

@@ -61,6 +61,49 @@ const circularDistance = (a: number, b: number): number => {
   const distance = Math.abs(pc(a) - pc(b));
   return Math.min(distance, 12 - distance);
 };
+
+function plannedMotifOnset(phrase: PianoComposerPlan['phrases'][number], position: 1 | 2): number | null {
+  const rhythm = phrase.rhythmicPlan;
+  const weights = rhythm.weights;
+  const legacyCellTicks = Math.min(phrase.endTick - phrase.startTick,
+    phrase.motif.operation === 'rhythmic-augmentation' ? 8 * PPQ : 4 * PPQ);
+  const cellTicks = Math.max(1, rhythm.cellTicks ?? legacyCellTicks);
+  const gridTicks = Math.max(1, rhythm.gridTicks ?? 1);
+  const cells = rhythm.motifCells ?? [{
+    startOffsetTicks: 0,
+    positions: [0, 1, 2, 3] as const,
+    variation: 'statement' as const,
+  }];
+  const cell = cells.find((candidate) => candidate.positions.includes(position));
+  if (!cell) return null;
+  const cellStart = phrase.startTick + cell.startOffsetTicks;
+  const cellEnd = Math.min(phrase.endTick, cellStart + cellTicks);
+  const activeCellTicks = cellEnd - cellStart;
+  if (activeCellTicks <= 0) return null;
+  const onsets: number[] = [];
+  let cumulative = 0;
+  for (let index = 0; index < 4; index++) {
+    const raw = cellStart + Math.round(cumulative * activeCellTicks);
+    const quantized = rhythm.gridTicks === undefined
+      ? raw : phrase.startTick + Math.round((raw - phrase.startTick) / gridTicks) * gridTicks;
+    const minimum = index === 0 ? cellStart : onsets[index - 1] + gridTicks;
+    onsets.push(Math.min(cellEnd - 1, Math.max(minimum, quantized)));
+    cumulative += weights[index];
+  }
+  const displacement = rhythm.syncopation;
+  if (displacement?.displacedPosition === position) {
+    const syncGrid = rhythm.gridTicks ?? PPQ / 4;
+    const lower = onsets[position - 1] + syncGrid;
+    const upper = onsets[position + 1] - syncGrid;
+    if (lower <= upper) {
+      const desired = onsets[position] + displacement.offsetTicks;
+      const quantized = phrase.startTick + Math.round((desired - phrase.startTick) / syncGrid) * syncGrid;
+      onsets[position] = Math.round(Math.max(lower, Math.min(upper, quantized)));
+    }
+  }
+  return onsets[position];
+}
+
 const notesFor = (evaluation: EvaluationCase, plan = evaluation.plan): readonly Note[] =>
   realizePianoPlan({ plan, targetTrack: evaluation.target, projectEndTick: evaluation.projectEnd });
 
@@ -256,23 +299,9 @@ describe('Phase 8 piano Composer/Realizer follow-through', () => {
     expect(displacedPhrase!.rhythmicPlan.pulseTicks).toBe(PPQ);
 
     const displacement = displacedPhrase!.rhythmicPlan.syncopation!;
-    const weights = displacedPhrase!.rhythmicPlan.weights;
-    const cellTicks = Math.min(displacedPhrase!.endTick - displacedPhrase!.startTick,
-      displacedPhrase!.motif.operation === 'rhythmic-augmentation' ? 8 * PPQ : 4 * PPQ);
-    const onsets: number[] = [];
-    let elapsed = 0;
-    for (const weight of weights) {
-      onsets.push(displacedPhrase!.startTick + Math.round(elapsed * cellTicks));
-      elapsed += weight;
-    }
     const position = displacement.displacedPosition;
-    const lower = onsets[position - 1] + PPQ / 4;
-    const upper = onsets[position + 1] - PPQ / 4;
-    const desired = Math.max(lower, Math.min(upper, onsets[position] + displacement.offsetTicks));
-    const subdivision = PPQ / 4;
-    const expectedTick = Math.round(Math.max(lower, Math.min(upper,
-      displacedPhrase!.startTick
-        + Math.round((desired - displacedPhrase!.startTick) / subdivision) * subdivision)));
+    const expectedTick = plannedMotifOnset(displacedPhrase!, position);
+    if (expectedTick === null) throw new Error('The selected Hybrid motif cell has no planned displaced position.');
     const displacedNote = result.notes.find((note) => note.roleTag === 'answer' && note.startTick === expectedTick);
     expect(displacedNote, 'a realized motif answer on the Composer-planned pickup').toBeDefined();
     expect(displacedNote!.startTick % PPQ).not.toBe(0);
@@ -316,21 +345,8 @@ describe('Phase 8 piano Composer/Realizer follow-through', () => {
       });
       const phrase = plan.phrases.find((candidate) => candidate.rhythmicPlan.syncopation !== null)!;
       const syncopation = phrase.rhythmicPlan.syncopation!;
-      const phraseCellTicks = Math.min(phrase.endTick - phrase.startTick,
-        phrase.motif.operation === 'rhythmic-augmentation' ? 8 * PPQ : 4 * PPQ);
-      const phraseOnsets: number[] = [];
-      let cumulativeWeight = 0;
-      for (const weight of phrase.rhythmicPlan.weights) {
-        phraseOnsets.push(phrase.startTick + Math.round(cumulativeWeight * phraseCellTicks));
-        cumulativeWeight += weight;
-      }
-      const phraseLower = phraseOnsets[syncopation.displacedPosition - 1] + PPQ / 4;
-      const phraseUpper = phraseOnsets[syncopation.displacedPosition + 1] - PPQ / 4;
-      const shifted = Math.max(phraseLower, Math.min(phraseUpper,
-        phraseOnsets[syncopation.displacedPosition] + syncopation.offsetTicks));
-      const subdivisionTick = PPQ / 4;
-      const plannedTick = Math.round(Math.max(phraseLower, Math.min(phraseUpper,
-        phrase.startTick + Math.round((shifted - phrase.startTick) / subdivisionTick) * subdivisionTick)));
+      const plannedTick = plannedMotifOnset(phrase, syncopation.displacedPosition);
+      if (plannedTick === null) throw new Error(`Hybrid Studio seed ${seed} lost its planned displaced cell position.`);
       const note = realization.notes.find((candidate) => candidate.roleTag === 'answer' && candidate.startTick === plannedTick);
       expect(note, `Hybrid Studio seed ${seed} retains its planned motif pickup`).toBeDefined();
       const event = plan.harmonicEvents.find((candidate) =>

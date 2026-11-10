@@ -91,7 +91,7 @@ const REGISTER_WINDOWS: Readonly<Record<PianoRegisterZone, readonly [number, num
 };
 
 const DYNAMIC_VELOCITY: readonly number[] = [30, 38, 48, 61, 75, 91];
-const HAND_GAPS: readonly number[] = [8, 5, 2, 0];
+const HAND_GAPS: readonly number[] = [12, 9, 6, 3];
 const NOTE_TAG_PRIORITY: Readonly<Record<NonNullable<Note['roleTag']>, number>> = {
   anchor: 7,
   arrival: 6,
@@ -613,6 +613,8 @@ function rightHandTextureAttacks(
     return result.sort((a, b) => a - b);
   };
   const phrase = chord.phrase;
+  const rhythmGrid = Math.max(1, phrase?.rhythmicPlan.gridTicks ?? PPQ / 2);
+  const rhythmAnchor = phrase?.startTick ?? chord.startTick;
   const phraseProgress = phrase ? clamp((chord.startTick - phrase.startTick) / Math.max(1, phrase.endTick - phrase.startTick), 0, 1) : 0;
   const ascending = !phrase || phrase.dynamics.shape === 'rising-arc'
     || (phrase.dynamics.shape === 'arch' && phraseProgress <= phrase.dynamics.peakPosition);
@@ -631,12 +633,17 @@ function rightHandTextureAttacks(
     const split = Math.ceil(pitches.length / 2);
     const groups = [pitches.slice(0, split), pitches.slice(split)].filter((group) => group.length > 0);
     if (groups.length === 1 && groups[0].length > 1) groups.push([groups[0][groups[0].length - 1]]);
-    const firstTick = chord.startTick + Math.min(PPQ / 2, Math.max(1, Math.round(span * 0.16)));
-    const secondTick = chord.startTick + Math.min(Math.max(firstTick - chord.startTick + 1, Math.round(span * 0.56)), Math.max(1, span - 1));
-    return groups.flatMap((group, groupIndex) => {
+    const firstTarget = chord.startTick + Math.min(PPQ / 2, Math.max(1, Math.round(span * 0.16)));
+    const firstTick = quantizeUpToGrid(firstTarget, rhythmAnchor, rhythmGrid);
+    const secondTarget = chord.startTick + Math.max(firstTick - chord.startTick + 1, Math.round(span * 0.56));
+    const secondTick = Math.max(firstTick + rhythmGrid,
+      quantizeUpToGrid(secondTarget, rhythmAnchor, rhythmGrid));
+    const activeGroups = groups.filter((_, groupIndex) =>
+      groupIndex === 0 ? firstTick < chord.endTick : secondTick < chord.endTick);
+    return activeGroups.flatMap((group, groupIndex) => {
       const selected = withRequired(group);
       const startTick = groupIndex === 0 ? firstTick : secondTick;
-      const nextStart = groups[groupIndex + 1] ? secondTick : chord.endTick;
+      const nextStart = activeGroups[groupIndex + 1] ? secondTick : chord.endTick;
       const durationTicks = Math.max(1, Math.min(chord.endTick - startTick,
         Math.round(Math.max(1, nextStart - startTick) * 0.78)));
       return selected.map((pitch) => ({
@@ -653,13 +660,21 @@ function rightHandTextureAttacks(
       : Array.from({ length: count }, (_, position) =>
         pitches[Math.round(position * (pitches.length - 1) / Math.max(1, count - 1))]);
     const sequence = ascending ? selected : [...selected].reverse();
-    const figureStart = chord.startTick + Math.min(PPQ / 4, Math.max(1, Math.round(span * 0.08)));
-    const figureSpan = Math.max(sequence.length, chord.endTick - figureStart);
-    const step = figureSpan / sequence.length;
-    return sequence.map((pitch, position) => {
-      const startTick = Math.min(chord.endTick - 1, figureStart + Math.round(step * position));
-      const nextStart = position + 1 < sequence.length
-        ? figureStart + Math.round(step * (position + 1)) : chord.endTick;
+    const figureStart = Math.max(chord.startTick, quantizeToGrid(
+      chord.startTick + Math.min(PPQ / 4, Math.max(1, Math.round(span * 0.08))),
+      rhythmAnchor,
+      rhythmGrid,
+    ));
+    if (figureStart >= chord.endTick) return [];
+    const availableSlots = Math.max(1, Math.floor((chord.endTick - 1 - figureStart) / rhythmGrid) + 1);
+    const figureCount = Math.min(sequence.length, availableSlots);
+    const figure = sequence.slice(0, figureCount);
+    const onsets = figure.map((_, position) => figure.length === 1
+      ? figureStart
+      : figureStart + Math.round((availableSlots - 1) * position / (figure.length - 1)) * rhythmGrid);
+    return figure.map((pitch, position) => {
+      const startTick = onsets[position];
+      const nextStart = onsets[position + 1] ?? chord.endTick;
       return {
         pitch,
         startTick,
@@ -1089,9 +1104,13 @@ function melodyPitch(
 ): number | null {
   if (blockedPitchClasses.has(pc(pitchClass))) return null;
   const [zoneLow, zoneHigh] = rangeForZone(event.event.hands.right.register, target);
-  const lower = Math.max(zoneLow, Math.floor(zoneLow + (zoneHigh - zoneLow) * 0.43));
-  let candidates = pitchesForClass(pitchClass, lower, zoneHigh);
-  if (!candidates.length) candidates = pitchesForClass(pitchClass, zoneLow, zoneHigh);
+  const handSeparation = event.leftPitch === null ? zoneLow : event.leftPitch + 3;
+  const safeLower = Math.max(zoneLow, handSeparation);
+  const preferredLower = Math.max(safeLower, Math.floor(zoneLow + (zoneHigh - zoneLow) * 0.43));
+  let candidates = pitchesForClass(pitchClass, preferredLower, zoneHigh);
+  if (!candidates.length && safeLower < preferredLower) {
+    candidates = pitchesForClass(pitchClass, safeLower, zoneHigh);
+  }
   if (!candidates.length) return null;
   const chordHigh = event.rightPitches.length ? Math.max(...event.rightPitches) : zoneLow;
   return candidates.sort((a, b) => {
@@ -1111,15 +1130,18 @@ function realizeDialogueCounterline(
 ): DraftNote[] {
   const output: DraftNote[] = [];
   const previousPitchByPhrase = new Map<string, number>();
-  for (const chord of chords) {
+  for (let chordIndex = 0; chordIndex < chords.length; chordIndex++) {
+    const chord = chords[chordIndex];
     const phrase = chord.phrase;
     if (phrase?.texture?.kind !== 'contrapuntal-dialogue'
       || phrase.dynamics.sourceEnergy.nearSilence
       || phrase.motif.operation === 'withhold-under-lead') continue;
     const span = chord.endTick - chord.startTick;
     if (span < PPQ / 2) continue;
-    const startTick = chord.startTick + Math.min(span - 1, Math.round(span * 0.58));
-    if (startTick >= projectEndTick) continue;
+    const grid = Math.max(1, phrase.rhythmicPlan.gridTicks ?? PPQ / 2);
+    const startTick = Math.max(chord.startTick + 1,
+      quantizeToGrid(chord.startTick + Math.round(span * 0.58), phrase.startTick, grid));
+    if (startTick >= chord.endTick || startTick >= projectEndTick) continue;
 
     const [zoneLow, zoneHigh] = rangeForZone(chord.event.hands.left.register, target);
     const rightTextureAnchor = chord.rightPitches.length
@@ -1136,11 +1158,14 @@ function realizeDialogueCounterline(
           && Math.abs(rightTextureAnchor - pitch) % 12 === 0));
     if (!candidates.length) continue;
     const previousPitch = previousPitchByPhrase.get(phrase.id) ?? null;
+    const nextChord = chords[chordIndex + 1];
+    const nextBass = nextChord?.phrase?.id === phrase.id ? nextChord.leftPitch : null;
     const center = (low + high) / 2;
     const pitch = candidates.sort((a, b) => {
-      const score = (value: number) => previousPitch === null
+      const score = (value: number) => (previousPitch === null
         ? Math.abs(value - center) * 0.25
-        : Math.abs(value - previousPitch) + Math.max(0, Math.abs(value - previousPitch) - 7) * 0.9;
+        : Math.abs(value - previousPitch) + Math.max(0, Math.abs(value - previousPitch) - 7) * 1.1)
+        + (nextBass === null ? 0 : Math.abs(value - nextBass) * 0.28);
       return score(a) - score(b) || a - b;
     })[0];
     const durationTicks = Math.min(chord.endTick - startTick, projectEndTick - startTick,
@@ -1163,6 +1188,33 @@ function realizeDialogueCounterline(
   return output;
 }
 
+function quantizeToGrid(tick: number, anchor: number, gridTicks: number): number {
+  const grid = Math.max(1, gridTicks);
+  return anchor + Math.round((tick - anchor) / grid) * grid;
+}
+
+function quantizeUpToGrid(tick: number, anchor: number, gridTicks: number): number {
+  const grid = Math.max(1, gridTicks);
+  return anchor + Math.ceil((tick - anchor) / grid - 1e-9) * grid;
+}
+
+function cellOperation(
+  variation: NonNullable<PianoPhraseIntention['rhythmicPlan']['motifCells']>[number]['variation'],
+  phraseOperation: PianoPhraseIntention['motif']['operation'],
+): PianoMotifOperation {
+  switch (variation) {
+    case 'sequence': return 'sequence-in-new-harmony';
+    case 'reframe': return 'invert-and-reframe';
+    case 'fragment': return 'fragmented-recall';
+    case 'cadence': return 'fragment-to-landing';
+    case 'expansion': return 'interval-expansion';
+    case 'augmentation': return 'rhythmic-augmentation';
+    case 'statement':
+      return phraseOperation === 'unavailable' || phraseOperation === 'withhold-under-lead'
+        ? 'introduce' : phraseOperation;
+  }
+}
+
 function realizeMotifs(
   plan: PianoComposerPlan,
   chords: readonly RealizedChord[],
@@ -1177,120 +1229,146 @@ function realizeMotifs(
   let previousMelodyPitch: number | null = null;
 
   for (const phrase of plan.phrases) {
-    const operation = phrase.motif.operation;
+    if (phrase.endTick <= phrase.startTick || phrase.dynamics.sourceEnergy.nearSilence) continue;
+    const phraseOperation = phrase.motif.operation;
+    const legacyPositions = selectedMotifPositions(phrase);
+    const fallbackCellTicks = Math.min(phrase.endTick - phrase.startTick,
+      phraseOperation === 'rhythmic-augmentation' ? 8 * PPQ : 4 * PPQ);
+    const cellTicks = Math.max(1, phrase.rhythmicPlan.cellTicks ?? fallbackCellTicks);
+    const plannedCells = phrase.rhythmicPlan.motifCells;
+    const cells = plannedCells ?? (legacyPositions.length ? [{
+      startOffsetTicks: 0,
+      positions: legacyPositions as (0 | 1 | 2 | 3)[],
+      variation: 'statement' as const,
+    }] : []);
     const weights = normalizedWeights(phrase.rhythmicPlan.weights.length
       ? phrase.rhythmicPlan.weights : motif.rhythmicWeights);
-    const positions = selectedMotifPositions(phrase);
-    if (!positions.length || phrase.endTick <= phrase.startTick) continue;
-    const entryEvent = eventAtTick(chords, phrase.startTick)
-      ?? chords.find((chord) => chord.startTick >= phrase.startTick && chord.startTick < phrase.endTick);
-    if (!entryEvent) continue;
-    const motifPitches = baseMotifPitchClasses(motif, operation as PianoMotifOperation);
-    const cellTicks = Math.min(phrase.endTick - phrase.startTick,
-      operation === 'rhythmic-augmentation' ? 8 * PPQ : 4 * PPQ);
-    if (cellTicks <= 0) continue;
-    const onsets: number[] = [];
-    let cumulative = 0;
-    for (const weight of weights) {
-      onsets.push(phrase.startTick + Math.round(cumulative * cellTicks));
-      cumulative += weight;
-    }
-    const displacement = phrase.rhythmicPlan.syncopation;
-    if (displacement && positions.includes(displacement.displacedPosition)) {
-      const position = displacement.displacedPosition;
-      const previousOnset = onsets[position - 1];
-      const nextOnset = onsets[position + 1];
-      if (previousOnset !== undefined && nextOnset !== undefined) {
-        const subdivision = PPQ / 4;
-        const lower = previousOnset + subdivision;
-        const upper = nextOnset - subdivision;
-        const desired = clamp(onsets[position] + displacement.offsetTicks, lower, upper);
-        const quantized = phrase.startTick
-          + Math.round((desired - phrase.startTick) / subdivision) * subdivision;
-        onsets[position] = Math.round(clamp(quantized, lower, upper));
-      }
-    }
-    const phraseEntryRoot = entryEvent.event.chord.rootPitchClass;
-    const blockedBassClasses = new Set(chords
-      .filter((chord) => chord.startTick < phrase.endTick && chord.endTick > phrase.startTick && chord.leftPitch !== null)
-      .map((chord) => pc(chord.leftPitch!)));
-    const resolved = new Map<number, number>();
-    for (const position of positions) {
-      const pitchClass = motifPitchClassAt(
-        plan,
-        motifPitches,
-        operation as PianoMotifOperation,
-        position,
-        onsets[position],
-        position === 2 ? onsets[3] ?? null : null,
-        phraseEntryRoot,
-        originRoot,
-        chords,
-        blockedBassClasses,
-        plan.seed,
-      );
-      if (pitchClass !== null) resolved.set(position, pitchClass);
-    }
+    const hasPlannedGrid = phrase.rhythmicPlan.gridTicks !== undefined;
+    const gridTicks = Math.max(1, phrase.rhythmicPlan.gridTicks ?? PPQ / 4);
+    const onsetGrid = hasPlannedGrid ? gridTicks : 1;
 
-    for (let order = 0; order < positions.length; order++) {
-      const position = positions[order];
-      const startTick = onsets[position];
-      if (!isInteger(startTick) || startTick < phrase.startTick || startTick >= phrase.endTick || startTick >= projectEndTick) continue;
-      const chord = eventAtTick(chords, startTick);
-      let pitchClass = resolved.get(position);
-      if (!chord || pitchClass === undefined) continue;
-      const bassClasses = chord.leftPitch === null ? new Set<number>() : new Set([pc(chord.leftPitch)]);
-      const isDisplacedColor = phrase.rhythmicPlan.syncopation?.displacedPosition === position;
-      const alreadyVoicedClasses = new Set([...bassClasses, ...chord.rightPitches.map(pc)]);
-      if (isDisplacedColor && alreadyVoicedClasses.has(pc(pitchClass))) {
-        // Keep the displaced motif reply independent from both hands while
-        // retaining the nearest available chord tone when its ideal class is
-        // doubled by the bass or the selected right-hand chord voicing.
-        const idealClass = pc(pitchClass);
-        const alternative = chord.event.chord.availablePitchClasses.map(pc)
-          .filter((tone) => !alreadyVoicedClasses.has(tone))
-          .sort((a, b) => pcDistance(a, idealClass) - pcDistance(b, idealClass)
-            || pcDistance(a, motifPitches[position] ?? idealClass)
-              - pcDistance(b, motifPitches[position] ?? idealClass)
-            || a - b)[0];
-        if (alternative !== undefined) pitchClass = alternative;
+    for (const cell of cells) {
+      const cellStart = phrase.startTick + cell.startOffsetTicks;
+      if (cellStart < phrase.startTick || cellStart >= phrase.endTick) continue;
+      const cellEnd = Math.min(phrase.endTick, cellStart + cellTicks);
+      const activeCellTicks = cellEnd - cellStart;
+      if (activeCellTicks <= 0) continue;
+      const positions = [...new Set(cell.positions)].filter((position) =>
+        Number.isInteger(position) && position >= 0 && position <= 3).sort((a, b) => a - b);
+      if (!positions.length) continue;
+
+      const onsets: number[] = [];
+      let cumulative = 0;
+      for (let position = 0; position < 4; position++) {
+        const raw = cellStart + Math.round(cumulative * activeCellTicks);
+        const quantized = hasPlannedGrid ? quantizeToGrid(raw, phrase.startTick, onsetGrid) : raw;
+        const minimum = position === 0 ? cellStart : onsets[position - 1] + onsetGrid;
+        onsets.push(Math.min(cellEnd - 1, Math.max(minimum, quantized)));
+        cumulative += weights[position];
       }
-      const pitch = melodyPitch(
-        pitchClass,
-        chord,
-        target,
-        previousMelodyPitch,
-        bassClasses,
-        plan.seed,
-        `${phrase.id}:melody:${position}`,
-      );
-      if (pitch === null) continue;
-      previousMelodyPitch = pitch;
-      const naturalEnd = startTick + Math.max(1,
-        Math.round(weights[position] * cellTicks * (operation === 'rhythmic-augmentation' ? 0.92 : 0.84)));
-      const nextOnset = order + 1 < positions.length ? onsets[positions[order + 1]] : phrase.endTick;
-      let endTick = Math.min(projectEndTick, phrase.endTick, naturalEnd,
-        nextOnset > startTick ? nextOnset : naturalEnd);
-      for (const next of chords) {
-        if (next.startTick > startTick && next.startTick < endTick
-          && !next.event.chord.availablePitchClasses.map(pc).includes(pitchClass)) {
-          endTick = next.startTick;
-          break;
+      const displacement = phrase.rhythmicPlan.syncopation;
+      if (displacement && positions.includes(displacement.displacedPosition)) {
+        const position = displacement.displacedPosition;
+        const previousOnset = onsets[position - 1];
+        const nextOnset = onsets[position + 1];
+        const syncGrid = hasPlannedGrid ? gridTicks : PPQ / 4;
+        if (previousOnset !== undefined && nextOnset !== undefined) {
+          const lower = previousOnset + syncGrid;
+          const upper = nextOnset - syncGrid;
+          if (lower <= upper) {
+            const desired = onsets[position] + displacement.offsetTicks;
+            const quantized = quantizeToGrid(desired, phrase.startTick, syncGrid);
+            onsets[position] = Math.round(clamp(quantized, lower, upper));
+          }
         }
       }
-      if (endTick <= startTick) continue;
-      output.push({
-        hand: 'melody',
-        chordId: chord.event.chord.id,
-        note: {
-          pitch,
-          startTick,
-          durationTicks: endTick - startTick,
-          velocity: velocityFor(plan, chord, phrase, startTick, 'melody', position === 0 ? 2 : position === 3 ? 3 : 0),
-          roleTag: 'answer',
-          ...(position === 3 || operation === 'sequence-in-new-harmony' ? { articulation: 'legato' as const } : {}),
-        },
-      });
+
+      const entryEvent = eventAtTick(chords, cellStart)
+        ?? chords.find((chord) => chord.startTick >= cellStart && chord.startTick < cellEnd);
+      if (!entryEvent) continue;
+      const operation = cellOperation(cell.variation, phraseOperation);
+      const motifPitches = baseMotifPitchClasses(motif, operation);
+      const cellEntryRoot = entryEvent.event.chord.rootPitchClass;
+      const blockedBassClasses = new Set(chords
+        .filter((chord) => chord.startTick < cellEnd && chord.endTick > cellStart && chord.leftPitch !== null)
+        .map((chord) => pc(chord.leftPitch!)));
+      const resolved = new Map<number, number>();
+      for (const position of positions) {
+        if (onsets[position] >= cellEnd) continue;
+        const pitchClass = motifPitchClassAt(
+          plan,
+          motifPitches,
+          operation,
+          position,
+          onsets[position],
+          position === 2 && positions.includes(3) ? onsets[3] : null,
+          cellEntryRoot,
+          originRoot,
+          chords,
+          blockedBassClasses,
+          plan.seed,
+        );
+        if (pitchClass !== null) resolved.set(position, pitchClass);
+      }
+
+      for (let order = 0; order < positions.length; order++) {
+        const position = positions[order];
+        const startTick = onsets[position];
+        if (!isInteger(startTick) || startTick < phrase.startTick || startTick >= phrase.endTick
+          || startTick >= cellEnd || startTick >= projectEndTick) continue;
+        const chord = eventAtTick(chords, startTick);
+        let pitchClass = resolved.get(position);
+        if (!chord || pitchClass === undefined) continue;
+        const bassClasses = chord.leftPitch === null ? new Set<number>() : new Set([pc(chord.leftPitch)]);
+        const isDisplacedColor = displacement?.displacedPosition === position;
+        const alreadyVoicedClasses = new Set([...bassClasses, ...chord.rightPitches.map(pc)]);
+        if (isDisplacedColor && alreadyVoicedClasses.has(pc(pitchClass))) {
+          const idealClass = pc(pitchClass);
+          const alternative = chord.event.chord.availablePitchClasses.map(pc)
+            .filter((tone) => !alreadyVoicedClasses.has(tone))
+            .sort((a, b) => pcDistance(a, idealClass) - pcDistance(b, idealClass)
+              || pcDistance(a, motifPitches[position] ?? idealClass)
+                - pcDistance(b, motifPitches[position] ?? idealClass)
+              || a - b)[0];
+          if (alternative !== undefined) pitchClass = alternative;
+        }
+        const pitch = melodyPitch(
+          pitchClass,
+          chord,
+          target,
+          previousMelodyPitch,
+          bassClasses,
+          plan.seed,
+          `${phrase.id}:cell:${cell.startOffsetTicks}:melody:${position}`,
+        );
+        if (pitch === null) continue;
+        previousMelodyPitch = pitch;
+        const gate = operation === 'rhythmic-augmentation' ? 0.94 : 0.86;
+        const naturalEnd = startTick + Math.max(1, Math.round(weights[position] * activeCellTicks * gate));
+        const nextOnset = order + 1 < positions.length ? onsets[positions[order + 1]] : cellEnd;
+        let endTick = Math.min(projectEndTick, phrase.endTick, cellEnd, naturalEnd,
+          nextOnset > startTick ? nextOnset : naturalEnd);
+        for (const next of chords) {
+          if (next.startTick > startTick && next.startTick < endTick
+            && !next.event.chord.availablePitchClasses.map(pc).includes(pitchClass)) {
+            endTick = next.startTick;
+            break;
+          }
+        }
+        if (endTick <= startTick) continue;
+        output.push({
+          hand: 'melody',
+          chordId: chord.event.chord.id,
+          note: {
+            pitch,
+            startTick,
+            durationTicks: endTick - startTick,
+            velocity: velocityFor(plan, chord, phrase, startTick, 'melody', position === 0 ? 2 : position === 3 ? 3 : 0),
+            roleTag: position === 3 && cell.variation === 'cadence' ? 'settle' : 'answer',
+            ...(position === 3 || operation === 'sequence-in-new-harmony' ? { articulation: 'legato' as const } : {}),
+          },
+        });
+      }
     }
   }
   return output;
@@ -1313,9 +1391,16 @@ function realizeFillGestures(
       ?? chords.find((candidate) => candidate.startTick >= start && candidate.startTick < end);
     if (!openingChord) continue;
     const span = end - start;
-    const onsets = span < 240
+    const phrase = phraseAtTick(plan, start);
+    const gridTicks = Math.max(1, phrase?.rhythmicPlan.gridTicks ?? PPQ / 2);
+    const rhythmAnchor = phrase?.startTick ?? start;
+    const rawOnsets = span < 240
       ? [start]
       : [start + Math.round(span * 0.22), start + Math.round(span * 0.62)];
+    const onsets = [...new Set(rawOnsets.map((tick) => Math.max(start,
+      quantizeToGrid(tick, rhythmAnchor, gridTicks))))]
+      .filter((tick) => tick < end)
+      .sort((a, b) => a - b);
     const motifOrigin = plan.motif
       ? plan.harmonicEvents.find((event) => event.chord.id === plan.motif!.originChordId)?.chord.rootPitchClass
         ?? plan.motif.anchorPitchClass
@@ -1448,7 +1533,10 @@ function approachNotes(
     const approachPitchClass = candidates.sort((a, b) => pcDistance(a, nextPitchClass) - pcDistance(b, nextPitchClass)
       || a - b)[0];
     const span = current.endTick - current.startTick;
-    const tick = current.startTick + Math.floor(span * 0.78);
+    const grid = Math.max(1, current.phrase?.rhythmicPlan.gridTicks ?? PPQ / 2);
+    const tick = quantizeToGrid(current.startTick + Math.floor(span * 0.78),
+      current.phrase?.startTick ?? current.startTick, grid);
+    if (tick < current.startTick || tick >= current.endTick) continue;
     const endTick = Math.min(projectEndTick, next.startTick,
       tick + Math.min(PPQ / 4, Math.floor(span * 0.18)));
     if (endTick <= tick) continue;

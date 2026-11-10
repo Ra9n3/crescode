@@ -126,20 +126,29 @@ describe('Piano Realizer Phase 6', () => {
       if (!event || event.chord.availablePitchClasses.includes(pc(note.pitch))) continue;
       expect(plan.motif?.tensionResolution.kind).toBe('chromatic-neighbor');
       const phrase = plan.phrases.find((candidate) => note.startTick >= candidate.startTick && note.startTick < candidate.endTick)!;
-      const weights = plan.motif!.rhythmicWeights;
-      const cellTicks = Math.min(phrase.endTick - phrase.startTick,
+      const weights = phrase.rhythmicPlan.weights.length
+        ? phrase.rhythmicPlan.weights : plan.motif!.rhythmicWeights;
+      const cellTicks = phrase.rhythmicPlan.cellTicks ?? Math.min(phrase.endTick - phrase.startTick,
         phrase.motif.operation === 'rhythmic-augmentation' ? 8 * 960 : 4 * 960);
-      let offset = 0;
-      let closestPosition = 0;
-      let closestDistance = Number.POSITIVE_INFINITY;
-      for (let position = 0; position < weights.length; position++) {
-        const positionTick = phrase.startTick + Math.round(offset * cellTicks);
-        const distance = Math.abs(positionTick - note.startTick);
-        if (distance < closestDistance) { closestDistance = distance; closestPosition = position; }
-        offset += weights[position];
-      }
-      expect(closestPosition).toBe(2);
-      expect(closestDistance).toBeLessThanOrEqual(1);
+      const gridTicks = phrase.rhythmicPlan.gridTicks ?? 1;
+      const cells = phrase.rhythmicPlan.motifCells ?? [{
+        startOffsetTicks: 0,
+        positions: [0, 1, 2, 3] as const,
+        variation: 'statement' as const,
+      }];
+      const intendedPositionTwo = cells.flatMap((cell) => {
+        if (!cell.positions.includes(2)) return [];
+        const cellStart = phrase.startTick + cell.startOffsetTicks;
+        const activeCellTicks = Math.min(phrase.endTick, cellStart + cellTicks) - cellStart;
+        if (activeCellTicks <= 0) return [];
+        const positionOffset = weights[0] + weights[1];
+        const rawTick = cellStart + Math.round(positionOffset * activeCellTicks);
+        return [phrase.startTick + Math.round((rawTick - phrase.startTick) / gridTicks) * gridTicks];
+      });
+      expect(intendedPositionTwo.length).toBeGreaterThan(0);
+      const closestDistance = Math.min(...intendedPositionTwo.map((tick) => Math.abs(tick - note.startTick)));
+      expect(closestDistance).toBeLessThanOrEqual(Math.max(1, gridTicks / 2)
+        + Math.abs(phrase.rhythmicPlan.syncopation?.offsetTicks ?? 0));
     }
   });
 

@@ -164,8 +164,18 @@ export interface PianoPhraseIntention {
   readonly rhythmicPlan: {
     /** Underlying quarter-note pulse; displaced events remain related to this grid. */
     readonly pulseTicks: number;
-    /** Phrase-level variation of the four motif durations. */
+    /** Straight subdivision grid used for actual motif and texture MIDI onsets. */
+    readonly gridTicks?: number;
+    /** Length of one motif cell; augmentation scales this to four source bars. */
+    readonly cellTicks?: number;
+    /** Phrase-level variation of the four motif inter-onset durations. */
     readonly weights: readonly number[];
+    /** Composer-planned motif entries, relative to the phrase start. */
+    readonly motifCells?: readonly {
+      readonly startOffsetTicks: number;
+      readonly positions: readonly (0 | 1 | 2 | 3)[];
+      readonly variation: 'statement' | 'sequence' | 'reframe' | 'fragment' | 'cadence' | 'expansion' | 'augmentation';
+    }[];
     readonly syncopation: null | {
       /** Motif position moved ahead of the pulse; its pitch still comes from the motif/harmony. */
       readonly displacedPosition: 1 | 2;
@@ -1383,13 +1393,18 @@ function phraseRhythmicPlan(
   dynamics: PianoPhraseDynamics,
   profile: StyleProfile,
 ): PianoPhraseIntention['rhythmicPlan'] {
+  const identity = profile.public.identity;
+  const isHybrid = identity === 'hybrid-pulse-and-color';
+  const pulseTicks = PPQ;
+  const gridTicks = isHybrid ? PPQ / 4 : PPQ / 2;
+  const phraseLength = Math.max(1, phrase.endTick - phrase.startTick);
+  const maximumCellTicks = operation === 'rhythmic-augmentation' ? 16 * PPQ : 8 * PPQ;
+  const cellTicks = Math.max(gridTicks, Math.min(phraseLength, maximumCellTicks));
   const defaultWeights = motif?.rhythmicWeights ?? [0.25, 0.25, 0.25, 0.25];
-  if (profile.public.identity !== 'hybrid-pulse-and-color') {
-    return { pulseTicks: PPQ, weights: defaultWeights, syncopation: null };
-  }
 
-  // Keep a recognizable quarter-note backbone, while varying the cell's
-  // subdivisions by phrase rather than stamping one repeated accompaniment.
+  // A two-bar subject gives the line room to breathe; the explicit
+  // augmentation operation doubles that span. All note starts are later
+  // quantized against the selected straight eighth- or sixteenth-note grid.
   const hybridCells: readonly (readonly number[])[] = [
     [0.25, 0.25, 0.25, 0.25],
     [0.1875, 0.3125, 0.25, 0.25],
@@ -1397,36 +1412,81 @@ function phraseRhythmicPlan(
     [0.25, 0.25, 0.1875, 0.3125],
   ];
   const cellIndex = Math.floor(unitRandom(input.context.seed, `hybrid-cell:${phrase.id}`) * hybridCells.length);
-  const weights = hybridCells[cellIndex] ?? hybridCells[0];
+  const weights = isHybrid ? (hybridCells[cellIndex] ?? hybridCells[0]) : defaultWeights;
   const operationCanSoundMotif = operation !== 'withhold-under-lead' && operation !== 'unavailable';
   const textureCanCarryMotif = texture === 'sparse-sustained'
     || texture === 'melody-accompaniment' || texture === 'contrapuntal-dialogue';
-  const canPlaceColor = motif !== null && operationCanSoundMotif && textureCanCarryMotif
-    && density !== 'very-sparse'
-    && !dynamics.sourceEnergy.nearSilence
-    && phrase.function !== 'arrival'
-    && phrase.function !== 'statement-and-landing';
-  if (!canPlaceColor) return { pulseTicks: PPQ, weights, syncopation: null };
+  const canPlaceMotif = motif !== null && operationCanSoundMotif && textureCanCarryMotif
+    && density !== 'very-sparse' && !dynamics.sourceEnergy.nearSilence;
 
-  const fullCell = ['introduce', 'sequence-in-new-harmony', 'rhythmic-augmentation',
-    'interval-expansion', 'invert-and-reframe'].includes(operation);
-  const canPairNeighborAndResolution = fullCell
-    && (density === 'moderate' || density === 'broad')
-    && motif?.tensionResolution.kind === 'chromatic-neighbor';
-  const displacedPosition: 1 | 2 = canPairNeighborAndResolution ? 2 : 1;
-  const offsetTicks: -240 | -480 = unitRandom(input.context.seed, `hybrid-anticipation:${phrase.id}`) < 0.5
-    ? -240 : -480;
-  return {
-    pulseTicks: PPQ,
-    weights,
-    syncopation: {
+  let syncopation: PianoPhraseIntention['rhythmicPlan']['syncopation'] = null;
+  if (isHybrid && canPlaceMotif && phrase.function !== 'arrival'
+    && phrase.function !== 'statement-and-landing') {
+    const fullCell = ['introduce', 'sequence-in-new-harmony', 'rhythmic-augmentation',
+      'interval-expansion', 'invert-and-reframe'].includes(operation);
+    const canPairNeighborAndResolution = fullCell
+      && (density === 'moderate' || density === 'broad')
+      && motif?.tensionResolution.kind === 'chromatic-neighbor';
+    const displacedPosition: 1 | 2 = canPairNeighborAndResolution ? 2 : 1;
+    const offsetTicks: -240 | -480 = unitRandom(input.context.seed, `hybrid-anticipation:${phrase.id}`) < 0.5
+      ? -240 : -480;
+    syncopation = {
       displacedPosition,
       offsetTicks,
       resolvesAtPosition: displacedPosition === 2 ? 3 : null,
       rationale: displacedPosition === 2
-        ? 'Anticipate the motif neighbor against the quarter pulse; retain its planned stepwise resolution on supplied harmony.'
+        ? 'Anticipate the motif neighbor by one sixteenth or eighth; retain its planned stepwise resolution on supplied harmony.'
         : 'Anticipate one chord-relative motif color against the quarter-note bass pulse; the selected pitch remains a supplied chord tone.',
-    },
+    };
+  }
+
+  const hasLeadYield = operation === 'withhold-under-lead' || operation === 'unavailable';
+  const isLanding = phrase.function === 'arrival' || phrase.function === 'statement-and-landing'
+    || operation === 'fragment-to-landing';
+  const positionsFor = (variation: NonNullable<PianoPhraseIntention['rhythmicPlan']['motifCells']>[number]['variation']): (0 | 1 | 2 | 3)[] => {
+    if (!canPlaceMotif || hasLeadYield) return [];
+    if (variation === 'cadence' || isLanding) return [0, 3];
+    if (variation === 'fragment' || operation === 'fragmented-recall') return [0, 1];
+    if (density === 'very-sparse') return [0];
+    if (texture === 'sparse-sustained') return [0, 3];
+    if (density === 'sparse') return [0, 1, 3];
+    return [0, 1, 2, 3];
+  };
+  const firstVariation: NonNullable<PianoPhraseIntention['rhythmicPlan']['motifCells']>[number]['variation'] =
+    operation === 'sequence-in-new-harmony' ? 'sequence'
+      : operation === 'rhythmic-augmentation' ? 'augmentation'
+        : operation === 'interval-expansion' ? 'expansion'
+          : operation === 'invert-and-reframe' ? 'reframe'
+            : operation === 'fragmented-recall' ? 'fragment'
+              : isLanding ? 'cadence' : 'statement';
+  const motifCells: Array<NonNullable<PianoPhraseIntention['rhythmicPlan']['motifCells']>[number]> = [];
+  if (canPlaceMotif && !hasLeadYield) {
+    for (let offset = 0, index = 0; offset < phraseLength; offset += cellTicks, index++) {
+      const isLastCell = offset + cellTicks >= phraseLength;
+      const variation = isLanding && isLastCell ? 'cadence'
+        : index === 0 ? firstVariation
+          : operation === 'sequence-in-new-harmony' ? 'sequence'
+            : operation === 'introduce' ? index % 2 === 1 ? 'sequence' : 'reframe'
+              : operation === 'interval-expansion' && index === 0 ? 'expansion'
+                : operation === 'invert-and-reframe' && index === 0 ? 'reframe'
+                  : operation === 'rhythmic-augmentation' && index === 0 ? 'augmentation'
+                    : operation === 'fragmented-recall' ? 'fragment' : 'sequence';
+      const cellPositions = positionsFor(variation);
+      if (cellPositions.length) motifCells.push({
+        startOffsetTicks: offset,
+        positions: cellPositions,
+        variation,
+      });
+    }
+  }
+
+  return {
+    pulseTicks,
+    gridTicks,
+    cellTicks,
+    weights,
+    motifCells,
+    syncopation,
   };
 }
 
@@ -1619,18 +1679,18 @@ function composePhraseIntention(
         ? profile.voicingVoices >= 4 && reading.activeTrackIds.length < 3 ? 'broad' : 'moderate'
         : profile.voicingVoices <= 2 ? 'sparse' : 'moderate';
   const rhythmicIntent = texture.kind === 'sparse-sustained'
-    ? 'hold through the supplied harmony; let the phrase release before adding another attack'
+    ? 'state a quiet motif anchor, answer it on a later two-bar cell only where space permits, and leave the release open'
     : texture.kind === 'broken-chords'
-      ? 'separate chord-tone fragments across the harmony span; avoid a repeating bar loop'
+      ? 'separate chord-tone fragments on the straight subdivision grid; vary their entry across harmony instead of looping a bar'
       : texture.kind === 'arpeggiated'
-        ? 'unfold supplied chord tones toward the phrase peak, reversing or thinning with the energy arc'
+        ? 'unfold supplied chord tones on the phrase grid toward the planned arc peak, then reverse or thin the figure'
         : texture.kind === 'melody-accompaniment'
-          ? 'keep a chord-relative subject distinct from its lean, voice-led accompaniment'
+          ? 'shape a recognizable two-bar subject above a lean, voice-led accompaniment with independent attack spacing'
           : texture.kind === 'block-chords'
-            ? 'state the selected voicing together at structural harmony boundaries'
+            ? 'state the selected voicing together at structural harmony boundaries and release between arrivals'
             : texture.kind === 'contrapuntal-dialogue'
-              ? 'alternate the upper subject and lower response with independent attack spacing'
-              : 'place a brief chord-relative flourish only within the selected piano fill window';
+              ? 'alternate a grid-aligned upper subject and lower response, with the bass approaching the next supplied harmony'
+              : 'place a brief chord-relative flourish only within the selected piano fill window, aligned to the phrase grid';
   const rhythmicPlan = phraseRhythmicPlan(input, phrase, motif, motifPlan.operation,
     intendedDensity, texture.kind, dynamics, profile);
   return {

@@ -26,7 +26,7 @@ import { buildMergedMidi, buildPerTrackMidi, exportableTracks, parseMidiFile } f
  * the historical golden105 baseline; the project comparison keeps the
  * recorded Harp velocity allowance. The string/brass profile slice remains
  * byte-identical to its pre-change reference (captured at 4523385). Piano
- * Engine V2 output and CC64/export behavior are checked separately. Also
+ * Engine V5 output and CC64/export behavior are checked separately. Also
  * pinned: playability, rotation rules, the channel map (merged = 1–9 + 11–16,
  * never 10; percussion files on 10/11/12), Harp/percussion CC rules, the wind
  * CC convention, and the zero fold/drop counts stated by the report.
@@ -103,7 +103,7 @@ describe('Phase 12: the byte pins', () => {
     }
   }, 900000);
 
-  // Piano Engine V2 replaces the project Piano lane, so this historical
+  // Piano Engine V5 replaces the project Piano lane, so this historical
   // golden105 comparison deliberately excludes Piano and retains the recorded
   // Harp velocity allowance. Applying an export profile does not mutate the
   // project.

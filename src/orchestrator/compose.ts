@@ -47,8 +47,11 @@ import { KEYS_PARTS } from './keys/profile';
 import { EMPTY_KEYS_PLAN } from './keys/plan';
 import { buildPianoEngineInput, type PianoEngineInput } from './keys/piano-engine';
 import { analyzePianoInput } from './keys/piano-analyzer';
-import { composePianoPlan } from './keys/piano-composer';
-import { realizePianoPlanWithAudit } from './keys/piano-realizer';
+import { composePianoPlan, composePianoScore } from './keys/piano-composer';
+import { validatePianoScorePlayability } from './keys/piano-playability';
+import type { PianoScore } from './keys/piano-score';
+import type { PianoPlayabilityReport } from './keys/piano-playability';
+import { realizePianoPlanWithAudit, type PianoRealizedScoreEvent } from './keys/piano-realizer';
 import type { OrchestratorContext } from './module';
 
 export interface ComposeOptions {
@@ -76,6 +79,12 @@ export interface ComposeResult {
    * It is non-enumerable and never enters Project persistence or export.
    */
   readonly pianoEngineInput: PianoEngineInput;
+  /** Ephemeral Composer-owned note events; hand/voice identity is not persisted to Project tracks or MIDI. */
+  readonly pianoScore: PianoScore;
+  /** Realizer's post-policy note pairing, retaining source hand/voice IDs for internal audit. */
+  readonly pianoRealizedScoreEvents: readonly PianoRealizedScoreEvent[];
+  /** Report-only diagnostics over the immutable score, before realization. */
+  readonly pianoPlayability: PianoPlayabilityReport;
 }
 
 /** Merge V5-generated pedal automation with authored CC64 when supplied. */
@@ -769,8 +778,15 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   const pianoTrack = project.tracks.find((track) => isInstrumentTrack(track)
     && track.family === 'Keys' && track.role === 'piano' && !track.locked
     && isInBand(track.role, ensemble, template));
+  const pianoScore = composePianoScore(pianoEngineInput, pianoPlanV5, pianoTrack ?? null, projectEndTick(project));
+  const pianoPlayability = validatePianoScorePlayability(pianoScore, {
+    lowestNote: pianoTrack?.lowestNote,
+    highestNote: pianoTrack?.highestNote,
+    barTicks: barTicks(project.timeSignature),
+  });
   const pianoRealization = realizePianoPlanWithAudit({
     plan: pianoPlanV5,
+    score: pianoScore,
     targetTrack: pianoTrack ?? null,
     projectEndTick: projectEndTick(project),
     externalTracks: template
@@ -819,21 +835,29 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
       : '';
     ctx.lines!.reports.push(
       `piano engine V5 (take ${orchestration.take}, user seed ${pianoEngineInput.context.generationIdentity.userSeed}, density ${pianoEngineInput.context.generationIdentity.density}): ${pianoEngineInput.context.template.pianoEligible ? `${pianoRealization.notes.length} notes` : 'ineligible'}; suspensions ${completeSuspensions}/${pianoRealization.suspensions.length}${octaveSummary}`,
+      `piano score playability (take ${orchestration.take}): ${pianoScore.events.length} Composer events; ${pianoPlayability.warnings.length} warnings, ${pianoPlayability.violations.length} hard violations (report only)`,
     );
   }
 
-  const result: Omit<ComposeResult, 'pianoEngineInput'> = {
+  const result: Omit<ComposeResult, 'pianoEngineInput' | 'pianoScore' | 'pianoRealizedScoreEvents' | 'pianoPlayability'> = {
     tracks,
     orchestration,
     stringsTrackIds,
     plan,
     reports: [...ctx.lines!.reports],
   };
-  Object.defineProperty(result, 'pianoEngineInput', {
-    value: pianoEngineInput,
-    enumerable: false,
-    configurable: false,
-    writable: false,
-  });
+  for (const [key, value] of [
+    ['pianoEngineInput', pianoEngineInput],
+    ['pianoScore', pianoScore],
+    ['pianoRealizedScoreEvents', pianoRealization.realizedScoreEvents],
+    ['pianoPlayability', pianoPlayability],
+  ] as const) {
+    Object.defineProperty(result, key, {
+      value,
+      enumerable: false,
+      configurable: false,
+      writable: false,
+    });
+  }
   return result as ComposeResult;
 }

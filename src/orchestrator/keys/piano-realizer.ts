@@ -1,10 +1,9 @@
 /**
- * Phase 6: realize a Phase 5 piano intention plan as piano MIDI notes.
- *
- * This module writes Piano notes only. It reads the Composer's resolved
- * harmonic, phrase, motif, dynamics, and orchestration intentions, plus the
- * immutable non-Piano note snapshot used to enforce the template's forbidden
- * octave policy. It never mutates or renders any non-Piano part.
+ * Phase 6 Realizer: perform the Composer-owned PianoScore as shared Piano
+ * Note values, apply the established template octave policy, and generate the
+ * existing CC64 lane. Production supplies score events; plan-only realization
+ * helpers remain for compatibility callers. This module never writes or
+ * mutates a non-Piano part.
  */
 import { PPQ, type CcLane, type Note, type TempoEntry, type TimeSignature, type Track } from '../../shared/schema/types';
 import { applyPianoOctavePolicy, type PianoOctavePolicyReport, type PianoPolicyExternalTrack } from './piano-octave-policy';
@@ -17,11 +16,18 @@ import type {
   PianoPhraseIntention,
   PianoRegisterZone,
 } from './piano-composer';
+import { pianoScoreEventToNote, type PianoScore, type PianoScoreEvent } from './piano-score';
 
 export type PianoRealizerTarget = Pick<Track, 'role' | 'family' | 'locked' | 'lowestNote' | 'highestNote'>;
 
 export interface PianoRealizerInput {
   readonly plan: PianoComposerPlan;
+  /**
+   * Production supplies the Composer-owned note score. When present, the
+   * Realizer converts those exact events and does not invent musical notes;
+   * the optional omission is retained only for existing legacy callers/tests.
+   */
+  readonly score?: PianoScore;
   /** Only the piano target's write/range contract is read; notes are not mutated. */
   readonly targetTrack: PianoRealizerTarget | null;
   /** Project tick boundary supplied by the caller; no song length is inferred. */
@@ -1740,8 +1746,17 @@ function suspensionAuditForNotes(
   });
 }
 
+export interface PianoRealizedScoreEvent {
+  /** Original Composer event preserves identity and intent after Note conversion. */
+  readonly source: PianoScoreEvent;
+  /** Final Note after the existing template octave policy, when applicable. */
+  readonly note: Note;
+}
+
 export interface PianoRealizationWithAudit {
   readonly notes: readonly Note[];
+  /** Internal hand/voice metadata; never added to the persisted Note or MIDI track. */
+  readonly realizedScoreEvents: readonly PianoRealizedScoreEvent[];
   /** Generated Piano-only controller lanes; CC64 is composed by V5, not MIDI export. */
   readonly controllers: readonly CcLane[];
   readonly suspensions: readonly PianoSuspensionAudit[];
@@ -1756,6 +1771,68 @@ const emptyOctavePolicyReport = (plan: PianoComposerPlan): PianoOctavePolicyRepo
   remainingHardPairs: 0,
 });
 
+type TaggedPianoNote = Note & { readonly __pianoScoreEventId: string };
+
+function realizeComposerScore(input: PianoRealizerInput): PianoRealizationWithAudit {
+  const { plan, score, targetTrack, projectEndTick } = input;
+  if (!score || !targetTrack) throw new Error('Composer score conversion requires a valid score and piano target.');
+  const sourceById = new Map(score.events.map((event) => [event.id, event]));
+  const taggedNotes: TaggedPianoNote[] = score.events.flatMap((event) => {
+    const note = pianoScoreEventToNote(event);
+    if (!Number.isInteger(note.pitch) || note.pitch < targetTrack.lowestNote || note.pitch > targetTrack.highestNote
+      || !Number.isInteger(note.startTick) || note.startTick < 0 || note.startTick >= projectEndTick
+      || !Number.isInteger(note.durationTicks) || note.durationTicks < 1
+      || note.startTick + note.durationTicks > projectEndTick
+      || !Number.isInteger(note.velocity) || note.velocity < 1 || note.velocity > 127) return [];
+    return [{ ...note, __pianoScoreEventId: event.id }];
+  });
+  const policy = applyPianoOctavePolicy({
+    plan,
+    targetTrack,
+    notes: taggedNotes,
+    externalTracks: input.externalTracks,
+    tempoMap: input.tempoMap,
+    timeSignature: input.timeSignature,
+  });
+  const realizedScoreEvents: PianoRealizedScoreEvent[] = policy.notes.flatMap((value) => {
+    const tagged = value as TaggedPianoNote;
+    const source = sourceById.get(tagged.__pianoScoreEventId);
+    if (!source) return [];
+    const { __pianoScoreEventId: _internalId, ...note } = tagged;
+    void _internalId;
+    return [{ source, note: Object.freeze({ ...note }) }];
+  });
+  const notes = freezeNotes(realizedScoreEvents.map((entry) => entry.note));
+  const records = new Map<string, SuspensionAttemptRecord>();
+  for (const event of plan.harmonicEvents) {
+    const suspension = event.suspension;
+    if (!suspension) continue;
+    const boundary = event.chord.startTick;
+    const preparation = realizedScoreEvents.find(({ source, note }) =>
+      (source.noteRoleTag === 'answer' || source.noteRoleTag === 'settle')
+      && pc(note.pitch) === pc(suspension.tensionPitchClass)
+      && note.startTick < boundary && endOf(note) > boundary);
+    const resolution = realizedScoreEvents.find(({ source, note }) =>
+      source.noteRoleTag === 'settle'
+      && pc(note.pitch) === pc(suspension.resolvesToPitchClass)
+      && note.startTick > boundary && note.startTick < event.chord.endTick);
+    records.set(event.chord.id, {
+      preparedStart: preparation?.note.startTick ?? null,
+      resolveAt: resolution?.note.startTick ?? null,
+      preparationReason: preparation ? null : 'The Composer-owned score has no surviving prepared suspension event.',
+      resolutionReason: resolution ? null : 'The Composer-owned score has no surviving stepwise resolution event.',
+    });
+  }
+  const pedalLane = generatePianoPedalLane(plan, notes, projectEndTick);
+  return {
+    notes,
+    realizedScoreEvents: Object.freeze(realizedScoreEvents.map((entry) => Object.freeze(entry))),
+    controllers: Object.freeze(pedalLane ? [pedalLane] : []),
+    suspensions: Object.freeze(suspensionAuditForNotes(plan, notes, records)),
+    octavePolicy: policy.report,
+  };
+}
+
 /**
  * Realize a Phase 5 piano plan into validated piano-only Note values and retain
  * an explicit per-suspension explanation for any Composer intention that could
@@ -1766,6 +1843,7 @@ export function realizePianoPlanWithAudit(input: PianoRealizerInput): PianoReali
     const reason = invalidInputReason(input);
     return {
       notes: freezeNotes([]),
+      realizedScoreEvents: Object.freeze([]),
       controllers: Object.freeze([]),
       suspensions: suspensionAuditForNotes(input.plan, [], new Map(), reason),
       octavePolicy: emptyOctavePolicyReport(input.plan),
@@ -1776,16 +1854,20 @@ export function realizePianoPlanWithAudit(input: PianoRealizerInput): PianoReali
     const reason = 'No writable piano target was supplied to the Realizer.';
     return {
       notes: freezeNotes([]),
+      realizedScoreEvents: Object.freeze([]),
       controllers: Object.freeze([]),
       suspensions: suspensionAuditForNotes(plan, [], new Map(), reason),
       octavePolicy: emptyOctavePolicyReport(plan),
     };
   }
+  if (input.score) return realizeComposerScore(input);
+
   const chords = makeRealizedChords(plan, targetTrack, projectEndTick);
   if (!chords.length) {
     const reason = 'No valid harmonic span remains inside the supplied project endpoint.';
     return {
       notes: freezeNotes([]),
+      realizedScoreEvents: Object.freeze([]),
       controllers: Object.freeze([]),
       suspensions: suspensionAuditForNotes(plan, [], new Map(), reason),
       octavePolicy: emptyOctavePolicyReport(plan),
@@ -1816,6 +1898,7 @@ export function realizePianoPlanWithAudit(input: PianoRealizerInput): PianoReali
   const pedalLane = generatePianoPedalLane(plan, notes, projectEndTick);
   return {
     notes,
+    realizedScoreEvents: Object.freeze([]),
     controllers: Object.freeze(pedalLane ? [pedalLane] : []),
     suspensions: suspensionAuditForNotes(plan, notes, suspensionAttempt.records),
     octavePolicy: policy.report,

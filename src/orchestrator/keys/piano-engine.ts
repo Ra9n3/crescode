@@ -114,8 +114,9 @@ export interface PianoLayerInformation {
 
 /**
  * Stable V5 composition identity. `key` is the canonical serialized input;
- * `seed` is its unsigned FNV-1a hash and is the Composer/Realizer random seed.
- * The orchestration seed already covers semantic project inputs and take, but
+ * `seed` is its unsigned FNV-1a hash and the deterministic Composer seed.
+ * Production score writing is data-driven from the plan; legacy Realizer-only
+ * callers also use this seed for their compatibility path. The orchestration seed already covers semantic project inputs and take, but
  * both the take and the user-facing settings remain explicit here for replay
  * and diagnostics.
  */
@@ -142,7 +143,7 @@ export interface PianoContextProvenance {
   readonly moments: 'src/orchestrator/conductor/index.ts: ConductorPlan.moments (keys-relevant kinds)';
   readonly fillWindows: 'src/orchestrator/conductor/index.ts: ConductorPlan.fills (piano/Keys targets)';
   readonly generationIdentity: 'piano-engine-v5: orchestration seed + ComposeOptions seed/take/density, hashed with hashString';
-  readonly seed: 'PianoGenerationIdentity.seed: deterministic Composer/Realizer stream';
+  readonly seed: 'PianoGenerationIdentity.seed: deterministic Composer decisions';
   readonly analysis: 'composeAllTracks finalized tracks, excluding piano; production mute/solo/lock/band state is snapshotted';
 }
 
@@ -325,7 +326,7 @@ const PROVENANCE: PianoContextProvenance = Object.freeze({
   moments: 'src/orchestrator/conductor/index.ts: ConductorPlan.moments (keys-relevant kinds)',
   fillWindows: 'src/orchestrator/conductor/index.ts: ConductorPlan.fills (piano/Keys targets)',
   generationIdentity: 'piano-engine-v5: orchestration seed + ComposeOptions seed/take/density, hashed with hashString',
-  seed: 'PianoGenerationIdentity.seed: deterministic Composer/Realizer stream',
+  seed: 'PianoGenerationIdentity.seed: deterministic Composer decisions',
   analysis: 'composeAllTracks finalized tracks, excluding piano; production mute/solo/lock/band state is snapshotted',
 });
 

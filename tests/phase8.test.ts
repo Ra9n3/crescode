@@ -15,7 +15,7 @@ import { humanizeHeadTicks } from '../src/orchestrator/expression/timing';
  * Phase 8 — post-moments hardening, four answers:
  *   1. all six templates have zero hard findings over three-chorus takes 1–10
  *      and Dorian takes 1–6. The narrow short-note figuration exemption remains
- *      pinned, and Piano Engine V2 revoices its forbidden-policy octave pairs.
+ *      pinned, and Piano Engine V5 revoices its forbidden-policy octave pairs.
  *   2. divisi in exports (UVI profile): keyswitches unduplicated/misplaced-free,
  *      the per-pitch tremolo merge keeps both divisi lines, cbLayer 'omit' and
  *      the range guard drop nothing, the preview plans both lines.
@@ -50,7 +50,7 @@ const noteSig = (n: Note): string =>
     n.roleTag ?? null,
   ]);
 
-// The V2 Piano engine has separate eligibility, realization, and export
+// The V5 Piano engine has separate eligibility, realization, and export
 // contracts. The hard-finding sweep includes its final score output; other
 // legacy-only soft-rule comparisons below remain scoped to non-Piano tracks.
 const withoutPiano = (project: Project): Project => ({
@@ -142,7 +142,7 @@ describe('Phase 8: 4 — per-note seeding: notes outside moment bars are byte-id
         // notes the plan ran into a tutti moment (the run's 16ths live in
         // the bar(s) before the tutti) exist only when the moments do.
         // Harp glissandi are part of the legacy keys planner's moment-aware
-        // contract. Piano Engine V2 has separate production tests and is not
+        // contract. Piano Engine V5 has separate production tests and is not
         // compared through the retired V1 keys plan here.
         const HARP_ROLE_P8 = 'harp';
         const glissBars = new Set<number>();

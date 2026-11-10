@@ -10,7 +10,7 @@ import { projectEndTick } from '../src/shared/schema/meter';
 import { composeAllTracks as compose } from '../src/orchestrator/compose';
 import { governKeysVelocities } from '../src/orchestrator/keys/render';
 import { analyzePianoInput } from '../src/orchestrator/keys/piano-analyzer';
-import { composePianoPlan } from '../src/orchestrator/keys/piano-composer';
+import { composePianoPlan, composePianoScore } from '../src/orchestrator/keys/piano-composer';
 import { realizePianoPlanWithAudit } from '../src/orchestrator/keys/piano-realizer';
 
 const CASES = [
@@ -56,12 +56,14 @@ describe('Piano Engine V5 production path', () => {
       const analysis = analyzePianoInput(input);
       const plan = composePianoPlan(input, analysis);
       const target = project.tracks.find((track) => track.id === piano.id)!;
+      const score = composePianoScore(input, plan, target, projectEndTick(project));
       const template = resolveTemplate(project.ensemble)!;
       const externalTracks = input.analysis.tracks
         .filter((track) => template.roster.some((entry) => entry.role === track.role))
         .map(({ id, role, notes }) => ({ id, role, notes }));
       const realization = realizePianoPlanWithAudit({
         plan,
+        score,
         targetTrack: target,
         projectEndTick: projectEndTick(project),
         externalTracks,
@@ -80,6 +82,12 @@ describe('Piano Engine V5 production path', () => {
 
       expect(input.context.template.pianoEligible, entry.id).toBe(true);
       expect(plan.template.eligible, entry.id).toBe(true);
+      expect(result.pianoScore.events).toEqual(score.events);
+      expect(result.pianoPlayability.findings).toBeDefined();
+      expect(result.pianoRealizedScoreEvents.some((entry) => entry.source.hand === 'left'), `${entry.id} retains left-hand identity`).toBe(true);
+      expect(result.pianoRealizedScoreEvents.some((entry) => entry.source.hand === 'right'), `${entry.id} retains right-hand identity`).toBe(true);
+      expect(Object.keys(result)).not.toContain('pianoRealizedScoreEvents');
+      expect(realization.realizedScoreEvents).toEqual(result.pianoRealizedScoreEvents);
       expect(realization.notes.length, `${entry.id} produced notes`).toBeGreaterThan(0);
       expect(piano.notes, `${entry.id} output equals V5 Realizer output after mix safety`).toEqual(expected);
       expect(realization.octavePolicy.remainingHardPairs, `${entry.id} forbidden octave pairs`).toBe(0);
@@ -150,7 +158,7 @@ describe('Piano Engine V5 production path', () => {
         && finding.severity === 'hard' && finding.message.includes('piano'));
       expect(findings, `${entry.id} take ${entry.take}`).toHaveLength(0);
       expect(result.reports.find((line) => line.startsWith('piano engine V5')))
-        .toMatch(/forbidden octave policy revoiced [1-9]/);
+        .toMatch(/forbidden octave policy revoiced \d+/);
     }
   });
 

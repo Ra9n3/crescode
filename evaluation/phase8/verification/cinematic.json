@@ -1,0 +1,106 @@
+{
+  "pianoSuspensions": [
+    {
+      "chordId": "c03",
+      "preparedByChordId": "c02",
+      "boundaryTick": 7680,
+      "tensionPitchClass": 11,
+      "resolvesToPitchClass": 0,
+      "preparationFound": true,
+      "resolutionFound": true,
+      "complete": true,
+      "preparationReason": null,
+      "resolutionReason": null,
+      "reason": null
+    },
+    {
+      "chordId": "c04",
+      "preparedByChordId": "c03",
+      "boundaryTick": 11520,
+      "tensionPitchClass": 0,
+      "resolvesToPitchClass": 11,
+      "preparationFound": true,
+      "resolutionFound": true,
+      "complete": true,
+      "preparationReason": null,
+      "resolutionReason": null,
+      "reason": null
+    },
+    {
+      "chordId": "c05",
+      "preparedByChordId": "c04",
+      "boundaryTick": 13440,
+      "tensionPitchClass": 11,
+      "resolvesToPitchClass": 0,
+      "preparationFound": true,
+      "resolutionFound": true,
+      "complete": true,
+      "preparationReason": null,
+      "resolutionReason": null,
+      "reason": null
+    },
+    {
+      "chordId": "c16",
+      "preparedByChordId": "c15",
+      "boundaryTick": 53760,
+      "tensionPitchClass": 5,
+      "resolvesToPitchClass": 4,
+      "preparationFound": true,
+      "resolutionFound": true,
+      "complete": true,
+      "preparationReason": null,
+      "resolutionReason": null,
+      "reason": null
+    },
+    {
+      "chordId": "c18",
+      "preparedByChordId": "c17",
+      "boundaryTick": 57600,
+      "tensionPitchClass": 4,
+      "resolvesToPitchClass": 5,
+      "preparationFound": true,
+      "resolutionFound": true,
+      "complete": true,
+      "preparationReason": null,
+      "resolutionReason": null,
+      "reason": null
+    }
+  ],
+  "attackRestrictions": [
+    {
+      "bar": 8,
+      "startTick": 26880,
+      "endTick": 30720,
+      "reason": "near-silence-zero-energy",
+      "rationale": "The supplied energy arc marks bar 8 near-silent with a zero target; suppress new attacks unless a specific Composer exception or fill decision authorizes one."
+    }
+  ],
+  "gatedAttackExceptions": [],
+  "midi": {
+    "format": 1,
+    "ppq": 960,
+    "bpm": 100,
+    "timeSignature": [
+      4,
+      4
+    ],
+    "markers": [
+      {
+        "tick": 0,
+        "text": "Verse"
+      },
+      {
+        "tick": 30720,
+        "text": "Chorus"
+      }
+    ],
+    "projectEndTick": 61440,
+    "phase8PianoNoteCount": 33,
+    "parsedPianoNoteCount": 33,
+    "nonPianoTrackCount": 16,
+    "nonPianoTrackDataMatchesPhase7Reference": true,
+    "nonPianoArrangementUnchangedInProject": true,
+    "pianoOnlyRoundTripMatches": true,
+    "everyTrackEndsAtProjectBoundary": true
+  }
+}

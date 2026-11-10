@@ -1,0 +1,112 @@
+{
+  "pianoSuspensions": [
+    {
+      "chordId": "c07",
+      "preparedByChordId": "c06",
+      "boundaryTick": 19200,
+      "tensionPitchClass": 5,
+      "resolvesToPitchClass": 7,
+      "preparationFound": true,
+      "resolutionFound": true,
+      "complete": true,
+      "preparationReason": null,
+      "resolutionReason": null,
+      "reason": null
+    },
+    {
+      "chordId": "c09",
+      "preparedByChordId": "c08",
+      "boundaryTick": 26880,
+      "tensionPitchClass": 0,
+      "resolvesToPitchClass": 11,
+      "preparationFound": true,
+      "resolutionFound": true,
+      "complete": true,
+      "preparationReason": null,
+      "resolutionReason": null,
+      "reason": null
+    },
+    {
+      "chordId": "c16",
+      "preparedByChordId": "c15",
+      "boundaryTick": 53760,
+      "tensionPitchClass": 5,
+      "resolvesToPitchClass": 4,
+      "preparationFound": true,
+      "resolutionFound": true,
+      "complete": true,
+      "preparationReason": null,
+      "resolutionReason": null,
+      "reason": null
+    },
+    {
+      "chordId": "c18",
+      "preparedByChordId": "c17",
+      "boundaryTick": 57600,
+      "tensionPitchClass": 4,
+      "resolvesToPitchClass": 5,
+      "preparationFound": true,
+      "resolutionFound": true,
+      "complete": true,
+      "preparationReason": null,
+      "resolutionReason": null,
+      "reason": null
+    }
+  ],
+  "attackRestrictions": [
+    {
+      "bar": 8,
+      "startTick": 26880,
+      "endTick": 30720,
+      "reason": "near-silence-zero-energy",
+      "rationale": "The supplied energy arc marks bar 8 near-silent with a zero target; suppress new attacks unless a specific Composer exception or fill decision authorizes one."
+    }
+  ],
+  "gatedAttackExceptions": [
+    {
+      "pitch": 71,
+      "startTick": 27360,
+      "roleTag": "settle",
+      "reason": "planned-suspension"
+    },
+    {
+      "pitch": 79,
+      "startTick": 27725,
+      "roleTag": "flourish",
+      "reason": "selected-fill"
+    },
+    {
+      "pitch": 79,
+      "startTick": 29261,
+      "roleTag": "flourish",
+      "reason": "selected-fill"
+    }
+  ],
+  "midi": {
+    "format": 1,
+    "ppq": 960,
+    "bpm": 100,
+    "timeSignature": [
+      4,
+      4
+    ],
+    "markers": [
+      {
+        "tick": 0,
+        "text": "Verse"
+      },
+      {
+        "tick": 30720,
+        "text": "Chorus"
+      }
+    ],
+    "projectEndTick": 61440,
+    "phase8PianoNoteCount": 45,
+    "parsedPianoNoteCount": 45,
+    "nonPianoTrackCount": 2,
+    "nonPianoTrackDataMatchesPhase7Reference": true,
+    "nonPianoArrangementUnchangedInProject": true,
+    "pianoOnlyRoundTripMatches": true,
+    "everyTrackEndsAtProjectBoundary": true
+  }
+}

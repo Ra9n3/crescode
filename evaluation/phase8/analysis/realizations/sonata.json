@@ -1,0 +1,435 @@
+{
+  "template": "sonata",
+  "seed": 1759893709,
+  "notes": [
+    {
+      "pitch": 48,
+      "startTick": 0,
+      "durationTicks": 2765,
+      "velocity": 35,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 74,
+      "startTick": 0,
+      "durationTicks": 1584,
+      "velocity": 40,
+      "roleTag": "bed",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 77,
+      "startTick": 0,
+      "durationTicks": 11290,
+      "velocity": 46,
+      "roleTag": "answer",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 74,
+      "startTick": 1584,
+      "durationTicks": 327,
+      "velocity": 44,
+      "roleTag": "answer"
+    },
+    {
+      "pitch": 45,
+      "startTick": 2995,
+      "durationTicks": 240,
+      "velocity": 31,
+      "roleTag": "lift"
+    },
+    {
+      "pitch": 47,
+      "startTick": 3840,
+      "durationTicks": 2765,
+      "velocity": 35,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 48,
+      "startTick": 7680,
+      "durationTicks": 2765,
+      "velocity": 35,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 47,
+      "startTick": 11520,
+      "durationTicks": 1382,
+      "velocity": 45,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 79,
+      "startTick": 11520,
+      "durationTicks": 1747,
+      "velocity": 52,
+      "roleTag": "bed",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 48,
+      "startTick": 13440,
+      "durationTicks": 4147,
+      "velocity": 45,
+      "roleTag": "anchor",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 76,
+      "startTick": 13440,
+      "durationTicks": 1747,
+      "velocity": 50,
+      "roleTag": "bed",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 81,
+      "startTick": 13440,
+      "durationTicks": 5645,
+      "velocity": 52,
+      "roleTag": "bed",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 77,
+      "startTick": 15360,
+      "durationTicks": 4320,
+      "velocity": 50,
+      "roleTag": "answer",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 52,
+      "startTick": 19200,
+      "durationTicks": 5530,
+      "velocity": 45,
+      "roleTag": "anchor",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 72,
+      "startTick": 19200,
+      "durationTicks": 3840,
+      "velocity": 50,
+      "roleTag": "bed",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 79,
+      "startTick": 19200,
+      "durationTicks": 480,
+      "velocity": 52,
+      "roleTag": "bed",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 79,
+      "startTick": 19680,
+      "durationTicks": 480,
+      "velocity": 55,
+      "roleTag": "settle",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 72,
+      "startTick": 23040,
+      "durationTicks": 4320,
+      "velocity": 50,
+      "roleTag": "answer",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 71,
+      "startTick": 27360,
+      "durationTicks": 480,
+      "velocity": 32,
+      "roleTag": "settle",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 79,
+      "startTick": 27725,
+      "durationTicks": 1106,
+      "velocity": 30,
+      "roleTag": "flourish",
+      "articulation": "staccato"
+    },
+    {
+      "pitch": 79,
+      "startTick": 29261,
+      "durationTicks": 1050,
+      "velocity": 29,
+      "roleTag": "flourish",
+      "articulation": "staccato"
+    },
+    {
+      "pitch": 50,
+      "startTick": 30720,
+      "durationTicks": 3494,
+      "velocity": 58,
+      "roleTag": "anchor",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 69,
+      "startTick": 30720,
+      "durationTicks": 7526,
+      "velocity": 66,
+      "roleTag": "arrival",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 77,
+      "startTick": 30720,
+      "durationTicks": 240,
+      "velocity": 72,
+      "roleTag": "answer"
+    },
+    {
+      "pitch": 77,
+      "startTick": 30960,
+      "durationTicks": 3276,
+      "velocity": 68,
+      "roleTag": "arrival",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 53,
+      "startTick": 34560,
+      "durationTicks": 2765,
+      "velocity": 58,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 72,
+      "startTick": 34560,
+      "durationTicks": 7526,
+      "velocity": 68,
+      "roleTag": "arrival",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 52,
+      "startTick": 37555,
+      "durationTicks": 240,
+      "velocity": 54,
+      "roleTag": "lift"
+    },
+    {
+      "pitch": 52,
+      "startTick": 38400,
+      "durationTicks": 2765,
+      "velocity": 58,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 67,
+      "startTick": 38400,
+      "durationTicks": 7526,
+      "velocity": 66,
+      "roleTag": "arrival",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 47,
+      "startTick": 42240,
+      "durationTicks": 2765,
+      "velocity": 58,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 74,
+      "startTick": 42240,
+      "durationTicks": 11290,
+      "velocity": 68,
+      "roleTag": "arrival",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 48,
+      "startTick": 46080,
+      "durationTicks": 2765,
+      "velocity": 58,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 65,
+      "startTick": 46080,
+      "durationTicks": 3840,
+      "velocity": 66,
+      "roleTag": "arrival",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 46,
+      "startTick": 49920,
+      "durationTicks": 2765,
+      "velocity": 58,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 65,
+      "startTick": 49920,
+      "durationTicks": 4186,
+      "velocity": 66,
+      "roleTag": "answer",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 48,
+      "startTick": 53760,
+      "durationTicks": 1382,
+      "velocity": 58,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 67,
+      "startTick": 53760,
+      "durationTicks": 3763,
+      "velocity": 66,
+      "roleTag": "arrival",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 76,
+      "startTick": 53760,
+      "durationTicks": 346,
+      "velocity": 68,
+      "roleTag": "arrival",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 64,
+      "startTick": 54106,
+      "durationTicks": 480,
+      "velocity": 71,
+      "roleTag": "settle",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 45,
+      "startTick": 55680,
+      "durationTicks": 5760,
+      "velocity": 58,
+      "roleTag": "anchor",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 76,
+      "startTick": 55680,
+      "durationTicks": 2400,
+      "velocity": 68,
+      "roleTag": "answer",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 65,
+      "startTick": 57600,
+      "durationTicks": 480,
+      "velocity": 66,
+      "roleTag": "arrival",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 74,
+      "startTick": 57600,
+      "durationTicks": 3840,
+      "velocity": 68,
+      "roleTag": "arrival",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 77,
+      "startTick": 58080,
+      "durationTicks": 480,
+      "velocity": 71,
+      "roleTag": "settle",
+      "articulation": "legato"
+    }
+  ],
+  "suspensionAudit": [
+    {
+      "chordId": "c07",
+      "preparedByChordId": "c06",
+      "boundaryTick": 19200,
+      "tensionPitchClass": 5,
+      "resolvesToPitchClass": 7,
+      "preparationFound": true,
+      "resolutionFound": true,
+      "complete": true,
+      "preparationReason": null,
+      "resolutionReason": null,
+      "reason": null
+    },
+    {
+      "chordId": "c09",
+      "preparedByChordId": "c08",
+      "boundaryTick": 26880,
+      "tensionPitchClass": 0,
+      "resolvesToPitchClass": 11,
+      "preparationFound": true,
+      "resolutionFound": true,
+      "complete": true,
+      "preparationReason": null,
+      "resolutionReason": null,
+      "reason": null
+    },
+    {
+      "chordId": "c16",
+      "preparedByChordId": "c15",
+      "boundaryTick": 53760,
+      "tensionPitchClass": 5,
+      "resolvesToPitchClass": 4,
+      "preparationFound": true,
+      "resolutionFound": true,
+      "complete": true,
+      "preparationReason": null,
+      "resolutionReason": null,
+      "reason": null
+    },
+    {
+      "chordId": "c18",
+      "preparedByChordId": "c17",
+      "boundaryTick": 57600,
+      "tensionPitchClass": 4,
+      "resolvesToPitchClass": 5,
+      "preparationFound": true,
+      "resolutionFound": true,
+      "complete": true,
+      "preparationReason": null,
+      "resolutionReason": null,
+      "reason": null
+    }
+  ],
+  "attackRestrictions": [
+    {
+      "bar": 8,
+      "startTick": 26880,
+      "endTick": 30720,
+      "reason": "near-silence-zero-energy",
+      "rationale": "The supplied energy arc marks bar 8 near-silent with a zero target; suppress new attacks unless a specific Composer exception or fill decision authorizes one."
+    }
+  ],
+  "gatedAttackExceptions": [
+    {
+      "pitch": 71,
+      "startTick": 27360,
+      "roleTag": "settle",
+      "reason": "planned-suspension"
+    },
+    {
+      "pitch": 79,
+      "startTick": 27725,
+      "roleTag": "flourish",
+      "reason": "selected-fill"
+    },
+    {
+      "pitch": 79,
+      "startTick": 29261,
+      "roleTag": "flourish",
+      "reason": "selected-fill"
+    }
+  ]
+}

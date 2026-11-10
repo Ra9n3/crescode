@@ -1,0 +1,224 @@
+{
+  "version": 1,
+  "phase": 8,
+  "fixture": "fixtures/dorian-16bars.json",
+  "comparison": "Deterministic Phase 7 source project/engine inputs; Phase 8 replaces only the piano notes.",
+  "midi": {
+    "format": 1,
+    "ppq": 960,
+    "tempoBpm": 100,
+    "timeSignature": [
+      4,
+      4
+    ],
+    "projectEndTick": 61440
+  },
+  "suspensionCompletion": {
+    "phase7Complete": 6,
+    "phase7Planned": 12,
+    "phase8Complete": 12,
+    "phase8Planned": 12
+  },
+  "templates": [
+    {
+      "template": "chamber",
+      "planSeed": 4001943009,
+      "sourceHashes": {
+        "pianoEngineInput": "2e5ef097d1c73cffffba17e03b6788683375998ccddb901d762e55df53769065",
+        "project": "2fd040e2bc40a92fafac00f5c5197ed3d266de0fed50d3580e3c412ef4f5a579",
+        "referenceArrangement": "ceed3bb90497641bfbafcd5e44ae1dd7e84ab51b729cd852711625ebcf6feb5f"
+      },
+      "phase7Baseline": {
+        "pianoNoteCount": 24,
+        "suspensionCompletion": "1/1",
+        "gatedWindowOnsets": 2
+      },
+      "phase8": {
+        "pianoNoteCount": 23,
+        "suspensionCompletion": "1/1",
+        "gatedWindowOnsets": 0,
+        "authorizedGatedOnsets": 0,
+        "maxOverlap": 3,
+        "hybridTiming": null,
+        "midiFiles": {
+          "phase7ComposerPiano": "evaluation/phase8/exports/chamber/composer-v1-realizer-v1-piano.mid",
+          "phase8ComposerPiano": "evaluation/phase8/exports/chamber/composer-v2-realizer-v2-piano.mid",
+          "phase8ReferenceWithoutPiano": "evaluation/phase8/exports/chamber/reference-without-piano.mid",
+          "phase8Combined": "evaluation/phase8/exports/chamber/combined-v2-piano.mid"
+        },
+        "midiSha256": {
+          "phase7ComposerPiano": "0fdcaa01018e45bbc183154d4ed9cda6d4094b1e2f3965a20c1fd78bf268b38c",
+          "phase8ComposerPiano": "54b290d54d4e06fca060110aa354f70fe11553a219dbf932330b4c1d013ee242",
+          "phase8ReferenceWithoutPiano": "db4767fa0981877151305ade37889f4c7c7d31d7025475467caa8be0b9ed2f1b",
+          "phase8Combined": "498e5393f049ec0a3a0a2d39cf25b32f8776a8a9906c374acf7472a1063c1e16"
+        },
+        "originalReferenceMidiSha256": "db4767fa0981877151305ade37889f4c7c7d31d7025475467caa8be0b9ed2f1b",
+        "allNonPianoDataPreserved": true
+      }
+    },
+    {
+      "template": "sonata",
+      "planSeed": 1759893709,
+      "sourceHashes": {
+        "pianoEngineInput": "37575f9be901594c4bea43ded314b91b2ed4d6c31f9c2e9b1b8cee2e12fdc890",
+        "project": "20614a425ad18cc934ea8cdb713bcbbba5aa4ecc638cdfb5fd750ca890a888a1",
+        "referenceArrangement": "5fe3c808ba52bef32e07cc5d57702dc9ed86d1d49047889ce0b2d7d8f37cbe46"
+      },
+      "phase7Baseline": {
+        "pianoNoteCount": 41,
+        "suspensionCompletion": "1/4",
+        "gatedWindowOnsets": 5
+      },
+      "phase8": {
+        "pianoNoteCount": 45,
+        "suspensionCompletion": "4/4",
+        "gatedWindowOnsets": 3,
+        "authorizedGatedOnsets": 3,
+        "maxOverlap": 4,
+        "hybridTiming": null,
+        "midiFiles": {
+          "phase7ComposerPiano": "evaluation/phase8/exports/sonata/composer-v1-realizer-v1-piano.mid",
+          "phase8ComposerPiano": "evaluation/phase8/exports/sonata/composer-v2-realizer-v2-piano.mid",
+          "phase8ReferenceWithoutPiano": "evaluation/phase8/exports/sonata/reference-without-piano.mid",
+          "phase8Combined": "evaluation/phase8/exports/sonata/combined-v2-piano.mid"
+        },
+        "midiSha256": {
+          "phase7ComposerPiano": "fd521bff1860c122bc1c509ee64b393bb1e51ac51347093e8fb74917464566fb",
+          "phase8ComposerPiano": "31aa247347711bffc01f2595a3d1e3c9379834426c0186f29d64ca28c9330ce3",
+          "phase8ReferenceWithoutPiano": "3a1ce99504ce4d14ce46207dadd2e743549fa0cc7b8bfb76bf60777634197525",
+          "phase8Combined": "4883dad850809cfa4cf101f61578ccaa4fc312476be500f7473a8bf59bfed70c"
+        },
+        "originalReferenceMidiSha256": "3a1ce99504ce4d14ce46207dadd2e743549fa0cc7b8bfb76bf60777634197525",
+        "allNonPianoDataPreserved": true
+      }
+    },
+    {
+      "template": "vocal-backing",
+      "planSeed": 130786751,
+      "sourceHashes": {
+        "pianoEngineInput": "ad03d8ea351057c766ca31f6dee62911d3b57d36c933a1290213de8c0a45c3f7",
+        "project": "6442c4a3a175cb49bcede9cd90612c76c857974b2ab8b43c877820e4c4105f7e",
+        "referenceArrangement": "702688091f4731f385250e76c3e0f12fd181a1ca1c26855ff90981ab7f4fe989"
+      },
+      "phase7Baseline": {
+        "pianoNoteCount": 26,
+        "suspensionCompletion": "1/1",
+        "gatedWindowOnsets": 1
+      },
+      "phase8": {
+        "pianoNoteCount": 26,
+        "suspensionCompletion": "1/1",
+        "gatedWindowOnsets": 0,
+        "authorizedGatedOnsets": 0,
+        "maxOverlap": 3,
+        "hybridTiming": null,
+        "midiFiles": {
+          "phase7ComposerPiano": "evaluation/phase8/exports/vocal-backing/composer-v1-realizer-v1-piano.mid",
+          "phase8ComposerPiano": "evaluation/phase8/exports/vocal-backing/composer-v2-realizer-v2-piano.mid",
+          "phase8ReferenceWithoutPiano": "evaluation/phase8/exports/vocal-backing/reference-without-piano.mid",
+          "phase8Combined": "evaluation/phase8/exports/vocal-backing/combined-v2-piano.mid"
+        },
+        "midiSha256": {
+          "phase7ComposerPiano": "dc9c7a49cfd87994a272c75cd7da02cf62efc73186a1247fe6c814f68dd597fd",
+          "phase8ComposerPiano": "90db28ac61ef22a724cfeff1415ee7a7a712e977a90d6935c205730cb10ba0e7",
+          "phase8ReferenceWithoutPiano": "05727c92d000a84b347ae3f36e27518f298ded140b1566e1cecffc36c0fe373d",
+          "phase8Combined": "17756fa4c8b5c272105958f378062b526049af197bb59e7d75bba7c2dac0100d"
+        },
+        "originalReferenceMidiSha256": "05727c92d000a84b347ae3f36e27518f298ded140b1566e1cecffc36c0fe373d",
+        "allNonPianoDataPreserved": true
+      }
+    },
+    {
+      "template": "cinematic",
+      "planSeed": 3899254770,
+      "sourceHashes": {
+        "pianoEngineInput": "997b0cd4a2528f814531bccd91690c619eafd5d68aec37978cf11131b987bf18",
+        "project": "024f9b42712485bdca0f842b5475ac21c1d69d0036852dd054af0b1232c87a7d",
+        "referenceArrangement": "9451ed8f3084079ef91b6ae8a2095c09db109f8af3df31ea03ca7a7dc8b7f28a"
+      },
+      "phase7Baseline": {
+        "pianoNoteCount": 33,
+        "suspensionCompletion": "2/5",
+        "gatedWindowOnsets": 1
+      },
+      "phase8": {
+        "pianoNoteCount": 33,
+        "suspensionCompletion": "5/5",
+        "gatedWindowOnsets": 0,
+        "authorizedGatedOnsets": 0,
+        "maxOverlap": 3,
+        "hybridTiming": null,
+        "midiFiles": {
+          "phase7ComposerPiano": "evaluation/phase8/exports/cinematic/composer-v1-realizer-v1-piano.mid",
+          "phase8ComposerPiano": "evaluation/phase8/exports/cinematic/composer-v2-realizer-v2-piano.mid",
+          "phase8ReferenceWithoutPiano": "evaluation/phase8/exports/cinematic/reference-without-piano.mid",
+          "phase8Combined": "evaluation/phase8/exports/cinematic/combined-v2-piano.mid"
+        },
+        "midiSha256": {
+          "phase7ComposerPiano": "f2e809e7a5f53faf3383aad18136ce62f545a5a2aaf15452e5077dd3550aa443",
+          "phase8ComposerPiano": "7ff1d4786da0ff893acb33e1633e525b74b92025a7ef87fcfb8bb9eb6c5f306a",
+          "phase8ReferenceWithoutPiano": "00d2c29739f4b255a544cb025514d3cdef63dbfaddeddd1f7f6630ad37e2c76a",
+          "phase8Combined": "0556128b319f63b14bded27fa0da3b4fa26850ddb734049fd796373ea9648cad"
+        },
+        "originalReferenceMidiSha256": "00d2c29739f4b255a544cb025514d3cdef63dbfaddeddd1f7f6630ad37e2c76a",
+        "allNonPianoDataPreserved": true
+      }
+    },
+    {
+      "template": "hybrid-studio",
+      "planSeed": 3597702329,
+      "sourceHashes": {
+        "pianoEngineInput": "24b08c3d11170b1a9ca8a84c26661609de7ce686ebc112f4103396f8bc90dc5f",
+        "project": "8f79f2256798be2c19f172b027aef5cb68c721952194937bb728ad480a994027",
+        "referenceArrangement": "e9b1bb92d9c2d5328fb31269510b2edc31be1d3102db8105d9aae02756c8124a"
+      },
+      "phase7Baseline": {
+        "pianoNoteCount": 24,
+        "suspensionCompletion": "1/1",
+        "gatedWindowOnsets": 2
+      },
+      "phase8": {
+        "pianoNoteCount": 25,
+        "suspensionCompletion": "1/1",
+        "gatedWindowOnsets": 1,
+        "authorizedGatedOnsets": 1,
+        "maxOverlap": 3,
+        "hybridTiming": {
+          "attackCount": 25,
+          "quarterGridAttackCount": 23,
+          "eighthGridAttackCount": 25,
+          "offQuarterAttackCount": 2,
+          "answerTaggedCount": 3,
+          "realizedSyncopations": [
+            {
+              "phraseId": "sec_chorus:phrase-1",
+              "displacement": {
+                "displacedPosition": 1,
+                "offsetTicks": -240,
+                "resolvesAtPosition": null,
+                "rationale": "Anticipate one chord-relative motif color against the quarter-note bass pulse; the selected pitch remains a supplied chord tone."
+              },
+              "answerStarts": [
+                31200
+              ]
+            }
+          ]
+        },
+        "midiFiles": {
+          "phase7ComposerPiano": "evaluation/phase8/exports/hybrid-studio/composer-v1-realizer-v1-piano.mid",
+          "phase8ComposerPiano": "evaluation/phase8/exports/hybrid-studio/composer-v2-realizer-v2-piano.mid",
+          "phase8ReferenceWithoutPiano": "evaluation/phase8/exports/hybrid-studio/reference-without-piano.mid",
+          "phase8Combined": "evaluation/phase8/exports/hybrid-studio/combined-v2-piano.mid"
+        },
+        "midiSha256": {
+          "phase7ComposerPiano": "75bb007431d3000807429260d608fddeca140d2da50ddf7c9eb627db99563ecb",
+          "phase8ComposerPiano": "6c222b38ed241938bd05f82ed92dc675fcc7f0eecf563f65857e1aeadfcbfcef",
+          "phase8ReferenceWithoutPiano": "f40867e01618ff0fcba3372df1fc2d43e359ad6fae224411dfa392d9cebef0fa",
+          "phase8Combined": "c5247c809117b8fc2a7ceba19169950682453c48ec93049dba3220b595ec453c"
+        },
+        "originalReferenceMidiSha256": "f40867e01618ff0fcba3372df1fc2d43e359ad6fae224411dfa392d9cebef0fa",
+        "allNonPianoDataPreserved": true
+      }
+    }
+  ]
+}

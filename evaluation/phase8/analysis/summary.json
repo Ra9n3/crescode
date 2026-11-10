@@ -1,0 +1,111 @@
+{
+  "templates": [
+    {
+      "template": "chamber",
+      "before": {
+        "pianoNotes": 24,
+        "suspension": "1/1",
+        "zeroEnergyBar8Attacks": 2
+      },
+      "after": {
+        "pianoNotes": 23,
+        "suspension": "1/1",
+        "zeroEnergyBar8Attacks": 0,
+        "authorizedBar8Exceptions": []
+      },
+      "hybridTiming": null
+    },
+    {
+      "template": "sonata",
+      "before": {
+        "pianoNotes": 41,
+        "suspension": "1/4",
+        "zeroEnergyBar8Attacks": 5
+      },
+      "after": {
+        "pianoNotes": 45,
+        "suspension": "4/4",
+        "zeroEnergyBar8Attacks": 3,
+        "authorizedBar8Exceptions": [
+          "settle@27360 (planned-suspension)",
+          "flourish@27725 (selected-fill)",
+          "flourish@29261 (selected-fill)"
+        ]
+      },
+      "hybridTiming": null
+    },
+    {
+      "template": "vocal-backing",
+      "before": {
+        "pianoNotes": 26,
+        "suspension": "1/1",
+        "zeroEnergyBar8Attacks": 1
+      },
+      "after": {
+        "pianoNotes": 26,
+        "suspension": "1/1",
+        "zeroEnergyBar8Attacks": 0,
+        "authorizedBar8Exceptions": []
+      },
+      "hybridTiming": null
+    },
+    {
+      "template": "cinematic",
+      "before": {
+        "pianoNotes": 33,
+        "suspension": "2/5",
+        "zeroEnergyBar8Attacks": 1
+      },
+      "after": {
+        "pianoNotes": 33,
+        "suspension": "5/5",
+        "zeroEnergyBar8Attacks": 0,
+        "authorizedBar8Exceptions": []
+      },
+      "hybridTiming": null
+    },
+    {
+      "template": "hybrid-studio",
+      "before": {
+        "pianoNotes": 24,
+        "suspension": "1/1",
+        "zeroEnergyBar8Attacks": 2
+      },
+      "after": {
+        "pianoNotes": 25,
+        "suspension": "1/1",
+        "zeroEnergyBar8Attacks": 1,
+        "authorizedBar8Exceptions": [
+          "settle@27360 (planned-suspension)"
+        ]
+      },
+      "hybridTiming": {
+        "attackCount": 25,
+        "quarterGridAttackCount": 23,
+        "eighthGridAttackCount": 25,
+        "offQuarterAttackCount": 2,
+        "answerTaggedCount": 3,
+        "realizedSyncopations": [
+          {
+            "phraseId": "sec_chorus:phrase-1",
+            "displacement": {
+              "displacedPosition": 1,
+              "offsetTicks": -240,
+              "resolvesAtPosition": null,
+              "rationale": "Anticipate one chord-relative motif color against the quarter-note bass pulse; the selected pitch remains a supplied chord tone."
+            },
+            "answerStarts": [
+              31200
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "suspensionCompletion": {
+    "phase7Complete": 6,
+    "phase7Planned": 12,
+    "phase8Complete": 12,
+    "phase8Planned": 12
+  }
+}

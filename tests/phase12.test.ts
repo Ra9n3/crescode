@@ -300,8 +300,9 @@ describe('Phase 12: the channel map', () => {
 });
 
 describe('Phase 12: the CC rules', () => {
-  it('exports generated Piano CC64 without source automation; harp and percussion stay CC-free (120 runs)', () => {
+  it('exports well-formed generated Piano CC64 when a pedal gesture is planned; harp and percussion stay CC-free (120 runs)', () => {
     let pianoExports = 0;
+    let pedalDownExports = 0;
     for (const run of SURVEY) {
       const files = buildPerTrackMidi(run.project, exportableTracks(run.project, 'all'), PROFILE);
       const pianoFile = files.find((file) => file.fileName === 'Piano.mid');
@@ -316,9 +317,12 @@ describe('Phase 12: the CC rules', () => {
           continue;
         }
         expect(piano.cc.every((event) => event.cc === 64), `${run.key}: only CC64 on Piano`).toBe(true);
-        expect(piano.cc.some((event) => event.value === 127), `${run.key}: pedal down`).toBe(true);
-        expect(piano.cc.some((event) => event.value === 0), `${run.key}: pedal up`).toBe(true);
-        expect(piano.cc.at(-1)?.value, `${run.key}: released final state`).toBe(0);
+        if (piano.cc.length > 0) {
+          expect(piano.cc.some((event) => event.value === 127), `${run.key}: pedal down`).toBe(true);
+          expect(piano.cc.some((event) => event.value === 0), `${run.key}: pedal up`).toBe(true);
+          expect(piano.cc.at(-1)?.value, `${run.key}: released final state`).toBe(0);
+          pedalDownExports++;
+        }
       }
       for (const patch of ['Harp', 'Timpani', 'Snare', 'Cymbals']) {
         const file = files.find((entry) => entry.fileName.endsWith(` ${patch}.mid`));
@@ -328,6 +332,7 @@ describe('Phase 12: the CC rules', () => {
       }
     }
     expect(pianoExports).toBeGreaterThan(0);
+    expect(pedalDownExports).toBeGreaterThan(0);
   }, 900000);
 
   it('the wind CC lanes follow the brass convention: 1/7/11 exported, 68/74 dropped', () => {

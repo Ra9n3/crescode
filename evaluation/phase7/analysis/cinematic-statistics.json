@@ -1,0 +1,456 @@
+{
+  "templateId": "ensemble.cinematic",
+  "templateName": "Cinematic",
+  "composerStyle": {
+    "identity": "cinematic-expanse",
+    "approach": "Wide-register arc: open the harmony with available extensions, reserve broad voicings for arrivals, and otherwise keep the texture breathing.",
+    "leftHandRole": "wide bass foundation with occasional held common tone",
+    "rightHandRole": "open color voicing or a rising motif fragment",
+    "leftHandRegister": "bass",
+    "rightHandRegister": "high",
+    "preferredRightHandVoices": 4,
+    "extensionAppetite": "generous",
+    "rhythmicCharacter": "broad"
+  },
+  "planSummary": {
+    "status": "composed",
+    "seed": 3899254770,
+    "phrases": 3,
+    "phraseFunctions": {
+      "release": 1,
+      "contrast": 1,
+      "arrival": 1
+    },
+    "motif": {
+      "id": "piano-motif-main",
+      "originChordId": "c01",
+      "originChordSymbol": "Dm7",
+      "pitchClasses": [
+        0,
+        5,
+        4,
+        5
+      ],
+      "intervalContour": [
+        5,
+        -1,
+        1
+      ],
+      "developmentPalette": [
+        "sequence-in-new-harmony",
+        "rhythmic-augmentation",
+        "interval-expansion",
+        "invert-and-reframe",
+        "fragmented-recall"
+      ]
+    },
+    "harmonicEvents": 18,
+    "suspensions": [
+      {
+        "chordId": "c03",
+        "chordSymbol": "Dm7",
+        "preparedBy": "c02",
+        "tensionPitchClass": 11,
+        "resolutionPitchClass": 0
+      },
+      {
+        "chordId": "c04",
+        "chordSymbol": "Em7",
+        "preparedBy": "c03",
+        "tensionPitchClass": 0,
+        "resolutionPitchClass": 11
+      },
+      {
+        "chordId": "c05",
+        "chordSymbol": "Fmaj7",
+        "preparedBy": "c04",
+        "tensionPitchClass": 11,
+        "resolutionPitchClass": 0
+      },
+      {
+        "chordId": "c16",
+        "chordSymbol": "C",
+        "preparedBy": "c15",
+        "tensionPitchClass": 5,
+        "resolutionPitchClass": 4
+      },
+      {
+        "chordId": "c18",
+        "chordSymbol": "Dm7",
+        "preparedBy": "c17",
+        "tensionPitchClass": 4,
+        "resolutionPitchClass": 5
+      }
+    ],
+    "fillDecisions": {},
+    "templateConstraints": {
+      "octaveDoubling": "allowed",
+      "pianoFillGatingRules": [],
+      "fillSource": "explicit-conductor-windows-only"
+    }
+  },
+  "legacyPiano": {
+    "noteCount": 78,
+    "projectEndTick": 61440,
+    "noteExtentTicks": {
+      "firstOnset": 16,
+      "lastNoteOff": 61440,
+      "span": 61424
+    },
+    "pitch": {
+      "min": 38,
+      "max": 93,
+      "mean": 69.06410256410257,
+      "uniquePitchCount": 25
+    },
+    "velocity": {
+      "min": 33,
+      "max": 92,
+      "mean": 62.17948717948718
+    },
+    "durationTicks": {
+      "min": 222,
+      "max": 3833,
+      "mean": 2519.641025641026,
+      "total": 196532
+    },
+    "maxSimultaneousNotes": 7,
+    "onsetsPerBar": [
+      5,
+      0,
+      5,
+      16,
+      5,
+      4,
+      6,
+      0,
+      0,
+      0,
+      0,
+      0,
+      9,
+      9,
+      14,
+      5
+    ],
+    "onsetsOnQuarterGrid": 0,
+    "onsetsOnEighthGrid": 0,
+    "onsetsOnSixteenthGrid": 0,
+    "onsetsOffQuarterGrid": 78,
+    "roleTagCounts": {
+      "arrival": 12,
+      "anchor": 51,
+      "punctuation": 4,
+      "bed": 11
+    },
+    "articulationCounts": {
+      "staccato": 4,
+      "marcato": 1
+    },
+    "pitchClassCounts": {
+      "0": 13,
+      "2": 14,
+      "4": 10,
+      "5": 17,
+      "7": 8,
+      "9": 12,
+      "10": 2,
+      "11": 2
+    },
+    "invariantChecks": {
+      "integerTicks": true,
+      "positiveDurations": true,
+      "pitchInMidiRange": true,
+      "velocityInMidiRange": true,
+      "withinProjectEnd": true
+    }
+  },
+  "composerV1RealizerV1Piano": {
+    "noteCount": 33,
+    "projectEndTick": 61440,
+    "noteExtentTicks": {
+      "firstOnset": 0,
+      "lastNoteOff": 61440,
+      "span": 61440
+    },
+    "pitch": {
+      "min": 33,
+      "max": 93,
+      "mean": 66.0909090909091,
+      "uniquePitchCount": 17
+    },
+    "velocity": {
+      "min": 29,
+      "max": 85,
+      "mean": 58.75757575757576
+    },
+    "durationTicks": {
+      "min": 346,
+      "max": 7526,
+      "mean": 2639.848484848485,
+      "total": 87115
+    },
+    "maxSimultaneousNotes": 3,
+    "onsetsPerBar": [
+      1,
+      1,
+      3,
+      5,
+      0,
+      1,
+      0,
+      1,
+      3,
+      2,
+      2,
+      2,
+      3,
+      2,
+      4,
+      3
+    ],
+    "onsetsOnQuarterGrid": 26,
+    "onsetsOnEighthGrid": 28,
+    "onsetsOnSixteenthGrid": 28,
+    "onsetsOffQuarterGrid": 7,
+    "roleTagCounts": {
+      "bed": 4,
+      "answer": 7,
+      "anchor": 11,
+      "settle": 5,
+      "arrival": 6
+    },
+    "articulationCounts": {
+      "legato": 31
+    },
+    "pitchClassCounts": {
+      "0": 8,
+      "2": 3,
+      "4": 4,
+      "5": 6,
+      "7": 2,
+      "9": 5,
+      "10": 1,
+      "11": 4
+    },
+    "invariantChecks": {
+      "integerTicks": true,
+      "positiveDurations": true,
+      "pitchInMidiRange": true,
+      "velocityInMidiRange": true,
+      "withinProjectEnd": true
+    }
+  },
+  "templateFitAudit": {
+    "chordAttacks": {
+      "chordCount": 18,
+      "chordsWithPianoOnset": 16,
+      "pianoOnsetPitchClassesInChord": 33,
+      "totalPianoOnsetsInChordEvents": 33
+    },
+    "nearSilence": {
+      "bars": [
+        {
+          "bar": 8,
+          "target": 0
+        }
+      ],
+      "pianoOnsets": 1,
+      "onsetVelocities": [
+        29
+      ]
+    },
+    "writtenActivityOverlap": null,
+    "suspensionRealization": {
+      "plannedCount": 5,
+      "completeCount": 2,
+      "incomplete": [
+        {
+          "chordId": "c04",
+          "chordSymbol": "Em7",
+          "tensionPitchClass": 0,
+          "resolutionPitchClass": 11,
+          "preparationFound": false,
+          "resolutionFound": true,
+          "complete": false
+        },
+        {
+          "chordId": "c05",
+          "chordSymbol": "Fmaj7",
+          "tensionPitchClass": 11,
+          "resolutionPitchClass": 0,
+          "preparationFound": false,
+          "resolutionFound": true,
+          "complete": false
+        },
+        {
+          "chordId": "c18",
+          "chordSymbol": "Dm7",
+          "tensionPitchClass": 4,
+          "resolutionPitchClass": 5,
+          "preparationFound": false,
+          "resolutionFound": true,
+          "complete": false
+        }
+      ],
+      "planned": [
+        {
+          "chordId": "c03",
+          "chordSymbol": "Dm7",
+          "tensionPitchClass": 11,
+          "resolutionPitchClass": 0,
+          "preparationFound": true,
+          "resolutionFound": true,
+          "complete": true
+        },
+        {
+          "chordId": "c04",
+          "chordSymbol": "Em7",
+          "tensionPitchClass": 0,
+          "resolutionPitchClass": 11,
+          "preparationFound": false,
+          "resolutionFound": true,
+          "complete": false
+        },
+        {
+          "chordId": "c05",
+          "chordSymbol": "Fmaj7",
+          "tensionPitchClass": 11,
+          "resolutionPitchClass": 0,
+          "preparationFound": false,
+          "resolutionFound": true,
+          "complete": false
+        },
+        {
+          "chordId": "c16",
+          "chordSymbol": "C",
+          "tensionPitchClass": 5,
+          "resolutionPitchClass": 4,
+          "preparationFound": true,
+          "resolutionFound": true,
+          "complete": true
+        },
+        {
+          "chordId": "c18",
+          "chordSymbol": "Dm7",
+          "tensionPitchClass": 4,
+          "resolutionPitchClass": 5,
+          "preparationFound": false,
+          "resolutionFound": true,
+          "complete": false
+        }
+      ],
+      "criterion": "Phase 6 test pattern: answer note in the planned tension pitch class crosses the chord boundary, and a settle note in the resolution pitch class starts within that chord."
+    },
+    "onsetGrid": {
+      "onQuarterGrid": 26,
+      "onEighthGrid": 28,
+      "onSixteenthGrid": 28,
+      "total": 33
+    },
+    "harmonicInteractionLabels": {
+      "leave-space": 17,
+      "interweave": 1
+    }
+  },
+  "referenceNonPianoTracks": [
+    {
+      "role": "violins1",
+      "name": "Violins I",
+      "noteCount": 84,
+      "ccLaneCount": 5
+    },
+    {
+      "role": "violins2",
+      "name": "Violins II",
+      "noteCount": 158,
+      "ccLaneCount": 5
+    },
+    {
+      "role": "violas",
+      "name": "Violas",
+      "noteCount": 125,
+      "ccLaneCount": 5
+    },
+    {
+      "role": "cellosBasses",
+      "name": "Cellos/Basses",
+      "noteCount": 21,
+      "ccLaneCount": 5
+    },
+    {
+      "role": "basses",
+      "name": "Double Basses",
+      "noteCount": 38,
+      "ccLaneCount": 5
+    },
+    {
+      "role": "horns",
+      "name": "French Horns",
+      "noteCount": 166,
+      "ccLaneCount": 5
+    },
+    {
+      "role": "trumpets",
+      "name": "Trumpets",
+      "noteCount": 104,
+      "ccLaneCount": 4
+    },
+    {
+      "role": "trombones",
+      "name": "Trombones",
+      "noteCount": 10,
+      "ccLaneCount": 4
+    },
+    {
+      "role": "tuba",
+      "name": "Tuba",
+      "noteCount": 3,
+      "ccLaneCount": 4
+    },
+    {
+      "role": "flutes",
+      "name": "Flutes",
+      "noteCount": 61,
+      "ccLaneCount": 5
+    },
+    {
+      "role": "clarinets",
+      "name": "Clarinets",
+      "noteCount": 52,
+      "ccLaneCount": 4
+    },
+    {
+      "role": "bassoons",
+      "name": "Bassoons",
+      "noteCount": 23,
+      "ccLaneCount": 5
+    },
+    {
+      "role": "timpani",
+      "name": "Timpani",
+      "noteCount": 21,
+      "ccLaneCount": 0
+    },
+    {
+      "role": "cymbals",
+      "name": "Cymbals",
+      "noteCount": 1,
+      "ccLaneCount": 0
+    },
+    {
+      "role": "aux",
+      "name": "Aux",
+      "noteCount": 52,
+      "ccLaneCount": 0
+    },
+    {
+      "role": "harp",
+      "name": "Harp",
+      "noteCount": 60,
+      "ccLaneCount": 0
+    }
+  ],
+  "referenceNonPianoNoteCount": 979,
+  "midiProjectDurationSeconds": 38.4
+}

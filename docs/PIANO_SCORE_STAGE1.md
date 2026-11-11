@@ -113,8 +113,9 @@ that every listed technique is present:
 22. Coordinated independent hands
 23. Beginning/development/climax/release
 
-Further stages can add the remaining techniques as score-writing policies
-over the same event and voice model, with the Analyzer still providing
-read-only evidence, the Composer owning musical decisions, and the Realizer
-continuing as a performer and converter rather than becoming a separate
-technique engine.
+Later stages can add techniques as score-writing policies over the same event
+and voice model, with the Analyzer still providing read-only evidence, the
+Composer owning musical decisions, and the Realizer continuing as a performer
+and converter rather than becoming a separate technique engine. This is the
+Stage 1/2 roadmap boundary; the current Stage 3/4 event-level audit and scoped
+implementations are documented in [`PIANO_SCORE_STAGE4_AUDIT.md`](PIANO_SCORE_STAGE4_AUDIT.md).

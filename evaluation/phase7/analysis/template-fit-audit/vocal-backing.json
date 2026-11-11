@@ -1,0 +1,48 @@
+{
+  "chordAttacks": {
+    "chordCount": 18,
+    "chordsWithPianoOnset": 15,
+    "pianoOnsetPitchClassesInChord": 26,
+    "totalPianoOnsetsInChordEvents": 26
+  },
+  "nearSilence": {
+    "bars": [
+      {
+        "bar": 8,
+        "target": 0
+      }
+    ],
+    "pianoOnsets": 1,
+    "onsetVelocities": [
+      29
+    ]
+  },
+  "writtenActivityOverlap": null,
+  "suspensionRealization": {
+    "plannedCount": 1,
+    "completeCount": 1,
+    "incomplete": [],
+    "planned": [
+      {
+        "chordId": "c18",
+        "chordSymbol": "Dm7",
+        "tensionPitchClass": 4,
+        "resolutionPitchClass": 5,
+        "preparationFound": true,
+        "resolutionFound": true,
+        "complete": true
+      }
+    ],
+    "criterion": "Phase 6 test pattern: answer note in the planned tension pitch class crosses the chord boundary, and a settle note in the resolution pitch class starts within that chord."
+  },
+  "onsetGrid": {
+    "onQuarterGrid": 24,
+    "onEighthGrid": 25,
+    "onSixteenthGrid": 25,
+    "total": 26
+  },
+  "harmonicInteractionLabels": {
+    "leave-space": 11,
+    "interweave": 7
+  }
+}

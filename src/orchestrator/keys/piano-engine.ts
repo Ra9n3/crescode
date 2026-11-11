@@ -6,7 +6,7 @@
 import { hashString } from '../../engine/generate';
 import { isInBand } from '../../shared/schema/band';
 import type { EnsembleRule, EnsembleTemplate } from '../../shared/schema/ensembleTemplate';
-import { isInstrumentTrack, type Project, type ProjectEnsemble, type Track } from '../../shared/schema/types';
+import { isInstrumentTrack, type Project, type ProjectEnsemble, type Track, type TrackFamily } from '../../shared/schema/types';
 import type { ConductorPlan, LayerName } from '../conductor';
 import type { MomentKind } from '../conductor/moments';
 import type { ArcBar, ResolvedChord, SpineSection } from '../spine';
@@ -112,6 +112,15 @@ export interface PianoLayerInformation {
   readonly unavailableReason: string;
 }
 
+/** Exact lead-role windows already chosen by the Conductor's family planners. */
+export interface PianoLeadWindow {
+  readonly trackId: string;
+  readonly family: Extract<TrackFamily, 'Strings' | 'Brass' | 'Woodwinds'>;
+  readonly startTick: number;
+  readonly endTick: number;
+  readonly source: 'strings-layer' | 'brass-plan' | 'winds-plan';
+}
+
 /**
  * Stable V5 composition identity. `key` is the canonical serialized input;
  * `seed` is its unsigned FNV-1a hash and the deterministic Composer seed.
@@ -140,6 +149,7 @@ export interface PianoContextProvenance {
   readonly harmony: 'src/orchestrator/spine/index.ts: chordSpans(project)';
   readonly energy: 'src/orchestrator/spine/energyArc.ts: ArcBar.target and ArcBar.nearSilence';
   readonly layerInformation: 'src/orchestrator/conductor/index.ts: ConductorPlan.bars[].layers (strings-only, partial)';
+  readonly leadWindows: 'ConductorPlan strings lead layers plus brass/winds plan bars with voice kind lead';
   readonly moments: 'src/orchestrator/conductor/index.ts: ConductorPlan.moments (keys-relevant kinds)';
   readonly fillWindows: 'src/orchestrator/conductor/index.ts: ConductorPlan.fills (piano/Keys targets)';
   readonly generationIdentity: 'piano-engine-v5: orchestration seed + ComposeOptions seed/take/density, hashed with hashString';
@@ -160,6 +170,8 @@ export interface PianoEngineContext {
   readonly harmony: readonly DeepReadonly<ResolvedChord>[];
   readonly energy: readonly PianoEnergyBar[];
   readonly layerInformation: PianoLayerInformation;
+  /** Explicit lead assignments only; other written activity is not inferred as a lead. */
+  readonly leadWindows: readonly PianoLeadWindow[];
   readonly moments: readonly PianoRelevantMoment[];
   readonly fillWindows: readonly PianoFillWindow[];
   readonly generationIdentity: PianoGenerationIdentity;
@@ -314,6 +326,46 @@ function snapshotMoment(moment: ConductorPlan['moments'][number]): PianoRelevant
   });
 }
 
+function plannedLeadWindows(
+  conductor: ConductorPlan,
+  finalizedTracks: readonly Track[],
+): readonly PianoLeadWindow[] {
+  const byId = new Map(finalizedTracks
+    .filter(isInstrumentTrack)
+    .map((track) => [track.id, track] as const));
+  const byFamilyAndRole = (family: PianoLeadWindow['family'], role: string): string | null =>
+    finalizedTracks.find((track) => isInstrumentTrack(track) && track.family === family && track.role === role)?.id ?? null;
+  const windows: PianoLeadWindow[] = [];
+  for (const bar of conductor.bars) {
+    for (const slot of bar.layers) {
+      if (slot.layer !== 'lead') continue;
+      for (const trackId of slot.trackIds) {
+        const track = byId.get(trackId);
+        if (track?.family !== 'Strings') continue;
+        windows.push({ trackId, family: 'Strings', startTick: bar.startTick, endTick: bar.endTick, source: 'strings-layer' });
+      }
+    }
+    for (const [role, voice] of Object.entries(conductor.brass.bars.find((entry) => entry.bar === bar.bar)?.voices ?? {})) {
+      if (voice !== 'lead') continue;
+      const trackId = byFamilyAndRole('Brass', role);
+      if (trackId) windows.push({ trackId, family: 'Brass', startTick: bar.startTick, endTick: bar.endTick, source: 'brass-plan' });
+    }
+    for (const [role, voice] of Object.entries(conductor.winds.bars.find((entry) => entry.bar === bar.bar)?.voices ?? {})) {
+      if (voice !== 'lead') continue;
+      const trackId = byFamilyAndRole('Woodwinds', role);
+      if (trackId) windows.push({ trackId, family: 'Woodwinds', startTick: bar.startTick, endTick: bar.endTick, source: 'winds-plan' });
+    }
+  }
+  const unique = new Map<string, PianoLeadWindow>();
+  for (const window of windows) {
+    const key = `${window.trackId}:${window.startTick}:${window.endTick}:${window.source}`;
+    unique.set(key, window);
+  }
+  return Object.freeze([...unique.values()]
+    .sort((a, b) => a.startTick - b.startTick || a.endTick - b.endTick || a.trackId.localeCompare(b.trackId))
+    .map((window) => Object.freeze(window)));
+}
+
 const PROVENANCE: PianoContextProvenance = Object.freeze({
   resolvedTemplate: 'src/config/ensembles.ts: resolveTemplate(project.ensemble)',
   pianoEligibility: 'template roster plus unlocked in-band piano track',
@@ -323,6 +375,7 @@ const PROVENANCE: PianoContextProvenance = Object.freeze({
   harmony: 'src/orchestrator/spine/index.ts: chordSpans(project)',
   energy: 'src/orchestrator/spine/energyArc.ts: ArcBar.target and ArcBar.nearSilence',
   layerInformation: 'src/orchestrator/conductor/index.ts: ConductorPlan.bars[].layers (strings-only, partial)',
+  leadWindows: 'ConductorPlan strings lead layers plus brass/winds plan bars with voice kind lead',
   moments: 'src/orchestrator/conductor/index.ts: ConductorPlan.moments (keys-relevant kinds)',
   fillWindows: 'src/orchestrator/conductor/index.ts: ConductorPlan.fills (piano/Keys targets)',
   generationIdentity: 'piano-engine-v5: orchestration seed + ComposeOptions seed/take/density, hashed with hashString',
@@ -380,6 +433,7 @@ export function buildPianoEngineInput(options: BuildPianoEngineInputOptions): Pi
     totalOccupiedLayers: null,
     unavailableReason: 'Conductor layer slots annotate strings only; total cross-family occupancy/capacity is unavailable and is not inferred.',
   });
+  const leadWindows = plannedLeadWindows(conductor, finalizedTracks);
   const moments = Object.freeze(conductor.moments
     .filter((moment) => PIANO_MOMENT_KINDS.has(moment.kind))
     .map(snapshotMoment));
@@ -425,6 +479,7 @@ export function buildPianoEngineInput(options: BuildPianoEngineInputOptions): Pi
       nearSilence: bar.nearSilence,
     }))),
     layerInformation,
+    leadWindows,
     moments,
     fillWindows,
     generationIdentity,

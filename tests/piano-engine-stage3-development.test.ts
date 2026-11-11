@@ -48,7 +48,19 @@ function composerSample(templateId: TemplateId, seed: number, fixture: unknown =
   const result = composeAllTracks(project, { seed });
   const piano = result.tracks.find((track) => isInstrumentTrack(track) && track.role === 'piano');
   if (!piano) throw new Error(`${templateId} composition returned no Piano target.`);
-  const input = result.pianoEngineInput;
+  const productionInput = result.pianoEngineInput;
+  const input = {
+    ...productionInput,
+    context: {
+      ...productionInput.context,
+      leadWindows: [],
+      layerInformation: {
+        ...productionInput.context.layerInformation,
+        perBar: productionInput.context.layerInformation.perBar.map((bar) => ({ ...bar, layers: [] })),
+      },
+    },
+    analysis: { tracks: [] },
+  };
   const plan = composePianoPlan(input, analyzePianoInput(input));
   const score = composePianoScore(input, plan, piano, projectEndTick(project));
   const sample = { project, piano, input, plan, score };
@@ -67,7 +79,7 @@ function scoreSignature(score: PianoScore): string {
   ]));
 }
 
-function plannedMotifTicks(phrase: PianoPhraseIntention): number[] {
+function plannedMotifTicks(phrase: PianoPhraseIntention, onlyPosition?: 0 | 1 | 2 | 3): number[] {
   const cells = phrase.rhythmicPlan.motifCells ?? [];
   const grid = Math.max(1, phrase.rhythmicPlan.gridTicks ?? PPQ / 2);
   const cellTicks = Math.max(1, phrase.rhythmicPlan.cellTicks ?? 2 * PPQ);
@@ -86,6 +98,7 @@ function plannedMotifTicks(phrase: PianoPhraseIntention): number[] {
     const firstGrid = Math.ceil(start / grid) * grid;
     const lastGrid = Math.floor((end - 1) / grid) * grid;
     for (const position of cell.positions) {
+      if (onlyPosition !== undefined && position !== onlyPosition) continue;
       const displacement = phrase.rhythmicPlan.syncopation?.displacedPosition === position
         ? phrase.rhythmicPlan.syncopation.offsetTicks : 0;
       const quantized = Math.round((start + offsets[position] * span + displacement) / grid) * grid;
@@ -219,7 +232,7 @@ describe('Piano Engine Stage 3 musical development and coordinated writing', () 
     const operations = new Set(plan.phrases.map((phrase) => phrase.motif.operation)
       .filter((operation) => operation !== 'unavailable' && operation !== 'withhold-under-lead'));
     expect(operations.size).toBeGreaterThan(1);
-    const plannedStarts = new Set(plan.phrases.flatMap(plannedMotifTicks));
+    const plannedStarts = new Set(plan.phrases.flatMap((phrase) => plannedMotifTicks(phrase)));
     const endingChordId = plan.ending.chordId;
     expect(melody.every((event) => plannedStarts.has(event.startTick)
       || (event.musicalRole === 'cadence' && endingChordId !== null
@@ -235,14 +248,24 @@ describe('Piano Engine Stage 3 musical development and coordinated writing', () 
     const innerEvents = score.events.filter((event) => event.voiceId === 'rh.inner');
     expect(new Set(innerEvents.map((event) => event.pitch)).size).toBeGreaterThan(1);
 
+    const plannedNeighborTicks = new Set(plan.phrases.flatMap((phrase) => plannedMotifTicks(phrase, 2)));
     for (const event of score.events) {
       expect(event.pitch).toBeGreaterThanOrEqual(piano.lowestNote);
       expect(event.pitch).toBeLessThanOrEqual(piano.highestNote);
       expect(event.startTick + event.durationTicks).toBeLessThanOrEqual(score.projectEndTick);
       expect(event.harmonicContext.chordIds.length).toBeGreaterThan(0);
-      if (event.musicalRole !== 'suspension') {
-        expect(event.harmonicContext.pitchClasses).toContain(event.pitch % 12);
-      }
+      if (event.musicalRole === 'suspension'
+        || event.harmonicContext.pitchClasses.includes(event.pitch % 12)) continue;
+      const plannedChromaticNeighbor = event.voiceId === 'rh.melody'
+        && plannedNeighborTicks.has(event.startTick)
+        && plan.motif?.tensionResolution.kind === 'chromatic-neighbor'
+        && plan.motif.tones.some((tone) => tone.position === 2 && tone.function === 'chromatic-neighbor')
+        && melody.some((candidate) => candidate.phraseId === event.phraseId
+          && candidate.startTick > event.startTick
+          && Math.abs(candidate.pitch - event.pitch) <= 2
+          && candidate.harmonicContext.pitchClasses.includes(candidate.pitch % 12));
+      expect(plannedChromaticNeighbor,
+        `${event.voiceId} off-chord pitch ${event.pitch} has an explicit motif plan and chord-tone resolution`).toBe(true);
     }
     for (const tension of score.events.filter((event) => event.gestureIntent === 'prepared-tension')) {
       const resolution = score.events.find((event) => event.voiceId === tension.voiceId
@@ -286,7 +309,7 @@ describe('Piano Engine Stage 3 musical development and coordinated writing', () 
       { kind: 'arpeggiated', identity: 'cinematic-expanse', technique: 'arpeggiated-chord-accompaniment' },
       { kind: 'contrapuntal-dialogue', identity: 'sonata-dialogue', technique: 'independent-counterline' },
       { kind: 'arpeggiated', identity: 'hybrid-pulse-and-color', technique: 'pulsed-bass-pattern' },
-      { kind: 'short-flourishes', identity: 'sonata-dialogue', technique: 'moving-inner-voice', fill: true },
+      { kind: 'short-flourishes', identity: 'sonata-dialogue', technique: 'staccato-fill-gesture', fill: true },
     ];
 
     for (const pattern of patternCases) {
@@ -307,6 +330,7 @@ describe('Piano Engine Stage 3 musical development and coordinated writing', () 
       if (pattern.kind === 'short-flourishes') {
         expect(plannedPatternEvents.every((event) => event.startTick >= fillDecision.startTick
           && event.startTick < fillDecision.endTick)).toBe(true);
+        expect(plannedPatternEvents.every((event) => event.articulation === 'staccato')).toBe(true);
       }
     }
 

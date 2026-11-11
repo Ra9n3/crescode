@@ -1,0 +1,941 @@
+{
+  "title": "Phase 7 piano evaluation",
+  "date": "2026-11-08",
+  "scope": "Evaluation only; no Composer, Realizer, legacy instrument, production path, persistence, schema, or unrelated source changes.",
+  "sourceComposition": {
+    "path": "fixtures/dorian-16bars.json",
+    "copiedTo": "inputs/dorian-16bars.json",
+    "fixtureSha256": "a65959fff400d00a87dd55bcc0ad1920d7caeb98fafcce5725b7c8964405a926",
+    "musicalInputsSha256": "9e09279687f84bf6a02c475d58492953b6495f1a999e17e3b523086c42e3bc5c",
+    "name": "Dorian 16 Bars",
+    "bpm": 100,
+    "timeSignature": {
+      "numerator": 4,
+      "denominator": 4
+    },
+    "keyPitchClass": 2,
+    "mode": "Dorian",
+    "bars": 16,
+    "sections": [
+      {
+        "id": "sec_verse",
+        "name": "Verse",
+        "startBar": 1,
+        "lengthBars": 8
+      },
+      {
+        "id": "sec_chorus",
+        "name": "Chorus",
+        "startBar": 9,
+        "lengthBars": 8
+      }
+    ],
+    "chordEventCount": 18,
+    "chordProgression": [
+      "Dm7",
+      "G7",
+      "Dm7",
+      "Em7",
+      "Fmaj7",
+      "Dm9",
+      "C/E",
+      "Am7",
+      "G",
+      "Dm",
+      "Fmaj7",
+      "C",
+      "G/B",
+      "Dm7",
+      "Bbmaj7",
+      "C",
+      "A7sus4",
+      "Dm7"
+    ]
+  },
+  "composeOptions": {
+    "density": 1,
+    "humanize": true,
+    "moments": true
+  },
+  "sourceWorkspace": {
+    "gitHead": "f9ace0485392103f93a8e2d759c010a7ccb7771c",
+    "branch": "arena/333da87f-crescode",
+    "note": "The workspace was already dirty before evaluation. Evaluation changed no source modules; these hashes identify the exact source files read for generation.",
+    "evaluatedSourceSha256": {
+      "src/orchestrator/compose.ts": "77b38aa16c213561646cb79f62a3de644b8fe313a087ea88c775b9fcc70cbca8",
+      "src/orchestrator/keys/piano-engine.ts": "893f9b535cc3a22ec5de46a2099e6d604b7c6e5dab19c6fb08b9daeaefa7d5d6",
+      "src/orchestrator/keys/piano-analyzer.ts": "597dec014ff7ac114b6f977f034f8345111cbf0efddd66250bfff32fbecbd78a",
+      "src/orchestrator/keys/piano-composer.ts": "2111414b717339d326b8a209cdf7208301a304a43c7f344efa614636cd25e9eb",
+      "src/orchestrator/keys/piano-realizer.ts": "fa002d2ebb97bcaea1b8377173ddf9acd69155af12ab614959193a17e1c0b5c2",
+      "src/orchestrator/spine/index.ts": "b7d3c2c5a7d856dc1522e7b7a9ad53b54dc771792e6d85839fa630a1e2b679b6",
+      "src/engine/generate.ts": "b99054be2ae9658936d03550d389669d2f94a3fe0185d0f0a6d2eaa05543da2c",
+      "src/export/midi.ts": "68016d87038373af99180540facf112b513958bb57904db6322a1a4be9afc6d6",
+      "src/shared/schema/factory.ts": "f22a40fdac16c078fca1a7d8807f7b7205e7d21bf75704db3105958aa3002667",
+      "src/shared/schema/meter.ts": "30ef9c7febbed51637b2964fd6f457fc1b1264a9cc2a2dcb45d8a1eea97ac0ca",
+      "src/config/ensembles.ts": "9d5c1f4c95e10a08af4f73692c749bbf4bdd32f9d43c8e2b1722bec574ef3327"
+    }
+  },
+  "midiFormat": {
+    "type": 1,
+    "ppq": 960,
+    "includesTempoMeterKeyAndSectionMarkers": true,
+    "writesInstrumentProgramChanges": false,
+    "midiChannelsPreservedFromTracks": true
+  },
+  "audio": {
+    "rendered": false,
+    "inspected": false,
+    "listenedTo": false
+  },
+  "comparisons": {
+    "chamber": {
+      "templateId": "ensemble.chamber",
+      "templateName": "Chamber",
+      "sourceTemplate": "specs/ensemble-templates/templates/chamber.json",
+      "templateSha256": "5d4401c699726e9898fd8b4910c8d116b4d22c6750220ac852edd9ef630ce0fd",
+      "sourceProject": "inputs/projects/chamber.json",
+      "sourceProjectSha256": "2c476fc0e3e45cf3c852c70b08ba843d5c845147865a7eedebb822fdfa36a698",
+      "compositionInputSha256": "9e09279687f84bf6a02c475d58492953b6495f1a999e17e3b523086c42e3bc5c",
+      "referenceArrangement": "inputs/reference-arrangements/chamber.json",
+      "referenceArrangementSha256": "408fbf8d36b5a490854ba86f17e125210dff47f3f1e0db29de63905ac8b11c65",
+      "pianoEngineInput": "inputs/piano-engine-inputs/chamber.json",
+      "pianoEngineInputSha256": "dc084dff5b5c70243ff76060b31473012250d42f60db46aa966727ee4d6060c7",
+      "comparisonInputSha256": "3c46fa150faf3d097d551cdce5ac9b7e50ce136dfbcbb43e71db4c5e6d630bed",
+      "composeOptions": {
+        "seed": 4001943009,
+        "density": 1,
+        "humanize": true,
+        "moments": true
+      },
+      "orchestration": {
+        "initialTake": 0,
+        "resultingTake": 1,
+        "pianoEngineSeed": 4001943009,
+        "composerSeed": 4001943009,
+        "realizerSeedSource": "Composer plan seed"
+      },
+      "composerStyle": {
+        "identity": "chamber-counterpoint",
+        "approach": "Intimate counterpoint: preserve inner-voice motion, let the ensemble lead breathe, and prefer economical guide-tone voicings.",
+        "leftHandRole": "independent low counterline or a lightly held chord-tone anchor",
+        "rightHandRole": "inner-voice motif with restrained color",
+        "leftHandRegister": "bass",
+        "rightHandRegister": "middle",
+        "preferredRightHandVoices": 3,
+        "extensionAppetite": "restrained",
+        "rhythmicCharacter": "elastic"
+      },
+      "legacyPianoNotes": 48,
+      "newPianoNotes": 24,
+      "referenceTrackCountWithNotesOrCC": 4,
+      "referenceNonPianoNoteCount": 101,
+      "outputs": {
+        "legacyPiano": {
+          "path": "exports/chamber/legacy-piano.mid",
+          "sha256": "a97922de5baed2fb06c7a34990c41bad108202efd237dad856437eb338058438"
+        },
+        "newPiano": {
+          "path": "exports/chamber/composer-v1-realizer-v1-piano.mid",
+          "sha256": "0fdcaa01018e45bbc183154d4ed9cda6d4094b1e2f3965a20c1fd78bf268b38c"
+        },
+        "reference": {
+          "path": "exports/chamber/reference-without-piano.mid",
+          "sha256": "db4767fa0981877151305ade37889f4c7c7d31d7025475467caa8be0b9ed2f1b"
+        },
+        "combined": {
+          "path": "exports/chamber/combined-new-piano.mid",
+          "sha256": "3f4519662deccb27b884ed53799cf6844d6ea6c0a8f00b2e4133a739baaf4be0"
+        }
+      },
+      "deterministicRepeat": {
+        "sameDerivedSeed": true,
+        "sameComparisonInputHash": true,
+        "sameLegacyPianoNotes": true,
+        "sameNewPianoNotes": true,
+        "sameNonPianoArrangement": true,
+        "sameLegacyMidiBytes": true,
+        "sameNewMidiBytes": true,
+        "sameReferenceMidiBytes": true,
+        "sameCombinedMidiBytes": true
+      },
+      "nonPianoArrangementUnchanged": true,
+      "templateFitAudit": {
+        "chordAttacks": {
+          "chordCount": 18,
+          "chordsWithPianoOnset": 14,
+          "pianoOnsetPitchClassesInChord": 23,
+          "totalPianoOnsetsInChordEvents": 24
+        },
+        "nearSilence": {
+          "bars": [
+            {
+              "bar": 8,
+              "target": 0
+            }
+          ],
+          "pianoOnsets": 2,
+          "onsetVelocities": [
+            22,
+            29
+          ]
+        },
+        "writtenActivityOverlap": {
+          "scope": "union of all active string notes",
+          "pianoNoteTimeTicks": 75475,
+          "overlapWithLeadNoteTimeTicks": 68002,
+          "fractionOfPianoNoteTimeWithLeadActive": 0.9009870818151706,
+          "pianoOnsetsDuringLeadActivity": 19,
+          "pianoOnsetCount": 24,
+          "byRole": {
+            "violins1": {
+              "fractionOfPianoNoteTimeOverlappingRole": 0.8973699900629347,
+              "pianoOnsetsDuringRoleActivity": 16
+            },
+            "violins2": {
+              "fractionOfPianoNoteTimeOverlappingRole": 0.6783570718781053,
+              "pianoOnsetsDuringRoleActivity": 10
+            },
+            "violas": {
+              "fractionOfPianoNoteTimeOverlappingRole": 0.6775223583968202,
+              "pianoOnsetsDuringRoleActivity": 9
+            },
+            "cellosBasses": {
+              "fractionOfPianoNoteTimeOverlappingRole": 0.6750447167936403,
+              "pianoOnsetsDuringRoleActivity": 9
+            }
+          },
+          "note": "Written-note overlap only; not an audibility or masking judgment."
+        },
+        "suspensionRealization": {
+          "plannedCount": 1,
+          "completeCount": 1,
+          "incomplete": [],
+          "planned": [
+            {
+              "chordId": "c12",
+              "chordSymbol": "C",
+              "tensionPitchClass": 5,
+              "resolutionPitchClass": 4,
+              "preparationFound": true,
+              "resolutionFound": true,
+              "complete": true
+            }
+          ],
+          "criterion": "Phase 6 test pattern: answer note in the planned tension pitch class crosses the chord boundary, and a settle note in the resolution pitch class starts within that chord."
+        },
+        "onsetGrid": {
+          "onQuarterGrid": 20,
+          "onEighthGrid": 21,
+          "onSixteenthGrid": 21,
+          "total": 24
+        },
+        "harmonicInteractionLabels": {
+          "leave-space": 17,
+          "interweave": 1
+        }
+      },
+      "channelCollisionGroups": {
+        "referenceWithoutPiano": {},
+        "combinedNewPiano": {
+          "1": [
+            "Violins I",
+            "Piano"
+          ]
+        }
+      }
+    },
+    "sonata": {
+      "templateId": "ensemble.sonata",
+      "templateName": "Sonata",
+      "sourceTemplate": "specs/ensemble-templates/templates/sonata.json",
+      "templateSha256": "6942c57f399f3ac20c784ccffd6bbccc2b44ecca0688a665c05b9a5f7a2b0343",
+      "sourceProject": "inputs/projects/sonata.json",
+      "sourceProjectSha256": "098e9b0e687b1dc92738e746849fe80f165d9d8ecd416387172fb64a331c317d",
+      "compositionInputSha256": "9e09279687f84bf6a02c475d58492953b6495f1a999e17e3b523086c42e3bc5c",
+      "referenceArrangement": "inputs/reference-arrangements/sonata.json",
+      "referenceArrangementSha256": "e47618f2925497be35809b51b03144aa48bc1cb4306ed543898962053f58e832",
+      "pianoEngineInput": "inputs/piano-engine-inputs/sonata.json",
+      "pianoEngineInputSha256": "1cacc0a451dff27737b43e940b38f6b58771dd77c525d408e3ba3cf2ee759532",
+      "comparisonInputSha256": "aff808b9ef7c544f72d9d1be2009484bd638fa67f2201c017e3195cb9c2adefc",
+      "composeOptions": {
+        "seed": 1759893709,
+        "density": 1,
+        "humanize": true,
+        "moments": true
+      },
+      "orchestration": {
+        "initialTake": 0,
+        "resultingTake": 1,
+        "pianoEngineSeed": 1759893709,
+        "composerSeed": 1759893709,
+        "realizerSeedSource": "Composer plan seed"
+      },
+      "composerStyle": {
+        "identity": "sonata-dialogue",
+        "approach": "Soloistic dialogue: develop a cantabile subject, let the bass answer it, and make phrase contrasts audible without default octave doubling.",
+        "leftHandRole": "responsive bass gesture that answers the right-hand line",
+        "rightHandRole": "cantabile motif and changing chord-tone color",
+        "leftHandRegister": "low-middle",
+        "rightHandRegister": "upper-middle",
+        "preferredRightHandVoices": 3,
+        "extensionAppetite": "selective",
+        "rhythmicCharacter": "speech-like"
+      },
+      "legacyPianoNotes": 79,
+      "newPianoNotes": 41,
+      "referenceTrackCountWithNotesOrCC": 2,
+      "referenceNonPianoNoteCount": 67,
+      "outputs": {
+        "legacyPiano": {
+          "path": "exports/sonata/legacy-piano.mid",
+          "sha256": "ee5c07c26462bb516fd2b6429e67588421f4f49dbd80ba2b7c43e65faef250aa"
+        },
+        "newPiano": {
+          "path": "exports/sonata/composer-v1-realizer-v1-piano.mid",
+          "sha256": "fd521bff1860c122bc1c509ee64b393bb1e51ac51347093e8fb74917464566fb"
+        },
+        "reference": {
+          "path": "exports/sonata/reference-without-piano.mid",
+          "sha256": "3a1ce99504ce4d14ce46207dadd2e743549fa0cc7b8bfb76bf60777634197525"
+        },
+        "combined": {
+          "path": "exports/sonata/combined-new-piano.mid",
+          "sha256": "fbd6e8263891be765e917136e99656fb8b95ea84f8e5acb2fb3e43b3a1612be6"
+        }
+      },
+      "deterministicRepeat": {
+        "sameDerivedSeed": true,
+        "sameComparisonInputHash": true,
+        "sameLegacyPianoNotes": true,
+        "sameNewPianoNotes": true,
+        "sameNonPianoArrangement": true,
+        "sameLegacyMidiBytes": true,
+        "sameNewMidiBytes": true,
+        "sameReferenceMidiBytes": true,
+        "sameCombinedMidiBytes": true
+      },
+      "nonPianoArrangementUnchanged": true,
+      "templateFitAudit": {
+        "chordAttacks": {
+          "chordCount": 18,
+          "chordsWithPianoOnset": 17,
+          "pianoOnsetPitchClassesInChord": 41,
+          "totalPianoOnsetsInChordEvents": 41
+        },
+        "nearSilence": {
+          "bars": [
+            {
+              "bar": 8,
+              "target": 0
+            }
+          ],
+          "pianoOnsets": 5,
+          "onsetVelocities": [
+            22,
+            29,
+            32,
+            30,
+            29
+          ]
+        },
+        "writtenActivityOverlap": {
+          "scope": "union of Violins I notes",
+          "pianoNoteTimeTicks": 154117,
+          "overlapWithLeadNoteTimeTicks": 145760,
+          "fractionOfPianoNoteTimeWithLeadActive": 0.9457749631773263,
+          "pianoOnsetsDuringLeadActivity": 22,
+          "pianoOnsetCount": 41,
+          "byRole": {
+            "violins1": {
+              "fractionOfPianoNoteTimeOverlappingRole": 0.9457749631773263,
+              "pianoOnsetsDuringRoleActivity": 22
+            }
+          },
+          "note": "Written-note overlap only; not an audibility or masking judgment."
+        },
+        "suspensionRealization": {
+          "plannedCount": 4,
+          "completeCount": 1,
+          "incomplete": [
+            {
+              "chordId": "c07",
+              "chordSymbol": "C/E",
+              "tensionPitchClass": 5,
+              "resolutionPitchClass": 4,
+              "preparationFound": false,
+              "resolutionFound": false,
+              "complete": false
+            },
+            {
+              "chordId": "c16",
+              "chordSymbol": "C",
+              "tensionPitchClass": 5,
+              "resolutionPitchClass": 4,
+              "preparationFound": true,
+              "resolutionFound": false,
+              "complete": false
+            },
+            {
+              "chordId": "c18",
+              "chordSymbol": "Dm7",
+              "tensionPitchClass": 4,
+              "resolutionPitchClass": 5,
+              "preparationFound": true,
+              "resolutionFound": false,
+              "complete": false
+            }
+          ],
+          "planned": [
+            {
+              "chordId": "c07",
+              "chordSymbol": "C/E",
+              "tensionPitchClass": 5,
+              "resolutionPitchClass": 4,
+              "preparationFound": false,
+              "resolutionFound": false,
+              "complete": false
+            },
+            {
+              "chordId": "c09",
+              "chordSymbol": "G",
+              "tensionPitchClass": 0,
+              "resolutionPitchClass": 11,
+              "preparationFound": true,
+              "resolutionFound": true,
+              "complete": true
+            },
+            {
+              "chordId": "c16",
+              "chordSymbol": "C",
+              "tensionPitchClass": 5,
+              "resolutionPitchClass": 4,
+              "preparationFound": true,
+              "resolutionFound": false,
+              "complete": false
+            },
+            {
+              "chordId": "c18",
+              "chordSymbol": "Dm7",
+              "tensionPitchClass": 4,
+              "resolutionPitchClass": 5,
+              "preparationFound": true,
+              "resolutionFound": false,
+              "complete": false
+            }
+          ],
+          "criterion": "Phase 6 test pattern: answer note in the planned tension pitch class crosses the chord boundary, and a settle note in the resolution pitch class starts within that chord."
+        },
+        "onsetGrid": {
+          "onQuarterGrid": 34,
+          "onEighthGrid": 35,
+          "onSixteenthGrid": 36,
+          "total": 41
+        },
+        "harmonicInteractionLabels": {
+          "leave-space": 17,
+          "interweave": 1
+        }
+      },
+      "channelCollisionGroups": {
+        "referenceWithoutPiano": {},
+        "combinedNewPiano": {
+          "1": [
+            "Violins I",
+            "Piano"
+          ]
+        }
+      }
+    },
+    "vocal-backing": {
+      "templateId": "ensemble.vocalbacking",
+      "templateName": "Vocal Backing",
+      "sourceTemplate": "specs/ensemble-templates/templates/vocalbacking.json",
+      "templateSha256": "9ac3fa57df9c80468a99a48f3e5a92c729e14332da24779cab96d218205baf08",
+      "sourceProject": "inputs/projects/vocal-backing.json",
+      "sourceProjectSha256": "e03bc17eb63dd9ad70e3f6f94c0f7bd189dc70ff74fe6e0ce3fd3c72c42a93d7",
+      "compositionInputSha256": "9e09279687f84bf6a02c475d58492953b6495f1a999e17e3b523086c42e3bc5c",
+      "referenceArrangement": "inputs/reference-arrangements/vocal-backing.json",
+      "referenceArrangementSha256": "7e041fffb3ff0ba3b3cb41f460b4ea0075855fd44ad7d944374f42743dd34419",
+      "pianoEngineInput": "inputs/piano-engine-inputs/vocal-backing.json",
+      "pianoEngineInputSha256": "0f6e09545a3cea64f56ac358cb495bb6fee41f384bb1b1c2482094d52452daca",
+      "comparisonInputSha256": "a48c221f98006797e56de58389d88f85382cc8a1565611757a765744eea17111",
+      "composeOptions": {
+        "seed": 130786751,
+        "density": 1,
+        "humanize": true,
+        "moments": true
+      },
+      "orchestration": {
+        "initialTake": 0,
+        "resultingTake": 1,
+        "pianoEngineSeed": 130786751,
+        "composerSeed": 130786751,
+        "realizerSeedSource": "Composer plan seed"
+      },
+      "composerStyle": {
+        "identity": "vocal-space",
+        "approach": "Supportive and restrained: keep the upper texture unassertive, use compact guide-tone shells, and leave broad melodic space.",
+        "leftHandRole": "soft low anchor, often root-light",
+        "rightHandRole": "supporting shell or a quiet motif fragment",
+        "leftHandRegister": "low-middle",
+        "rightHandRegister": "middle",
+        "preferredRightHandVoices": 2,
+        "extensionAppetite": "restrained",
+        "rhythmicCharacter": "unhurried"
+      },
+      "legacyPianoNotes": 114,
+      "newPianoNotes": 26,
+      "referenceTrackCountWithNotesOrCC": 4,
+      "referenceNonPianoNoteCount": 147,
+      "outputs": {
+        "legacyPiano": {
+          "path": "exports/vocal-backing/legacy-piano.mid",
+          "sha256": "886405828812e07a0e7726b6190e88f58fa95a50768d7dddc7427f7bc71ba2b2"
+        },
+        "newPiano": {
+          "path": "exports/vocal-backing/composer-v1-realizer-v1-piano.mid",
+          "sha256": "dc9c7a49cfd87994a272c75cd7da02cf62efc73186a1247fe6c814f68dd597fd"
+        },
+        "reference": {
+          "path": "exports/vocal-backing/reference-without-piano.mid",
+          "sha256": "05727c92d000a84b347ae3f36e27518f298ded140b1566e1cecffc36c0fe373d"
+        },
+        "combined": {
+          "path": "exports/vocal-backing/combined-new-piano.mid",
+          "sha256": "c27b1d49467966fee406092bf1e34d2091b8ead004a1346241c02abc93400031"
+        }
+      },
+      "deterministicRepeat": {
+        "sameDerivedSeed": true,
+        "sameComparisonInputHash": true,
+        "sameLegacyPianoNotes": true,
+        "sameNewPianoNotes": true,
+        "sameNonPianoArrangement": true,
+        "sameLegacyMidiBytes": true,
+        "sameNewMidiBytes": true,
+        "sameReferenceMidiBytes": true,
+        "sameCombinedMidiBytes": true
+      },
+      "nonPianoArrangementUnchanged": true,
+      "templateFitAudit": {
+        "chordAttacks": {
+          "chordCount": 18,
+          "chordsWithPianoOnset": 15,
+          "pianoOnsetPitchClassesInChord": 26,
+          "totalPianoOnsetsInChordEvents": 26
+        },
+        "nearSilence": {
+          "bars": [
+            {
+              "bar": 8,
+              "target": 0
+            }
+          ],
+          "pianoOnsets": 1,
+          "onsetVelocities": [
+            29
+          ]
+        },
+        "writtenActivityOverlap": null,
+        "suspensionRealization": {
+          "plannedCount": 1,
+          "completeCount": 1,
+          "incomplete": [],
+          "planned": [
+            {
+              "chordId": "c18",
+              "chordSymbol": "Dm7",
+              "tensionPitchClass": 4,
+              "resolutionPitchClass": 5,
+              "preparationFound": true,
+              "resolutionFound": true,
+              "complete": true
+            }
+          ],
+          "criterion": "Phase 6 test pattern: answer note in the planned tension pitch class crosses the chord boundary, and a settle note in the resolution pitch class starts within that chord."
+        },
+        "onsetGrid": {
+          "onQuarterGrid": 24,
+          "onEighthGrid": 25,
+          "onSixteenthGrid": 25,
+          "total": 26
+        },
+        "harmonicInteractionLabels": {
+          "leave-space": 11,
+          "interweave": 7
+        }
+      },
+      "channelCollisionGroups": {
+        "referenceWithoutPiano": {
+          "2": [
+            "Violins II",
+            "Harp"
+          ]
+        },
+        "combinedNewPiano": {
+          "2": [
+            "Violins II",
+            "Harp"
+          ]
+        }
+      }
+    },
+    "cinematic": {
+      "templateId": "ensemble.cinematic",
+      "templateName": "Cinematic",
+      "sourceTemplate": "specs/ensemble-templates/templates/cinematic.json",
+      "templateSha256": "d96f574db234b7ee25af6a16aab722a15d40eb57d2cc11baf2935508f76ad382",
+      "sourceProject": "inputs/projects/cinematic.json",
+      "sourceProjectSha256": "8bdc8e8936085abdbcb05783f204b6d424b8bfab1260b3862994f53715960846",
+      "compositionInputSha256": "9e09279687f84bf6a02c475d58492953b6495f1a999e17e3b523086c42e3bc5c",
+      "referenceArrangement": "inputs/reference-arrangements/cinematic.json",
+      "referenceArrangementSha256": "adca748871b5e5aa210536ca092b7547447d314fd8e68f3f80d3f2ab6830f027",
+      "pianoEngineInput": "inputs/piano-engine-inputs/cinematic.json",
+      "pianoEngineInputSha256": "b3b6a81f8c670efe8c142d8050bed7b790fb4024daed33864f57d81028e8ee0a",
+      "comparisonInputSha256": "de421aa6f52dcbbf4e5046a6198d5eec299bdc618c14192e8b10e9cad49bb242",
+      "composeOptions": {
+        "seed": 3899254770,
+        "density": 1,
+        "humanize": true,
+        "moments": true
+      },
+      "orchestration": {
+        "initialTake": 0,
+        "resultingTake": 1,
+        "pianoEngineSeed": 3899254770,
+        "composerSeed": 3899254770,
+        "realizerSeedSource": "Composer plan seed"
+      },
+      "composerStyle": {
+        "identity": "cinematic-expanse",
+        "approach": "Wide-register arc: open the harmony with available extensions, reserve broad voicings for arrivals, and otherwise keep the texture breathing.",
+        "leftHandRole": "wide bass foundation with occasional held common tone",
+        "rightHandRole": "open color voicing or a rising motif fragment",
+        "leftHandRegister": "bass",
+        "rightHandRegister": "high",
+        "preferredRightHandVoices": 4,
+        "extensionAppetite": "generous",
+        "rhythmicCharacter": "broad"
+      },
+      "legacyPianoNotes": 78,
+      "newPianoNotes": 33,
+      "referenceTrackCountWithNotesOrCC": 16,
+      "referenceNonPianoNoteCount": 979,
+      "outputs": {
+        "legacyPiano": {
+          "path": "exports/cinematic/legacy-piano.mid",
+          "sha256": "6b90ec9add1a2139841836ed65c4cfd48a03bac413683dfe75b5a9192ad568df"
+        },
+        "newPiano": {
+          "path": "exports/cinematic/composer-v1-realizer-v1-piano.mid",
+          "sha256": "f2e809e7a5f53faf3383aad18136ce62f545a5a2aaf15452e5077dd3550aa443"
+        },
+        "reference": {
+          "path": "exports/cinematic/reference-without-piano.mid",
+          "sha256": "00d2c29739f4b255a544cb025514d3cdef63dbfaddeddd1f7f6630ad37e2c76a"
+        },
+        "combined": {
+          "path": "exports/cinematic/combined-new-piano.mid",
+          "sha256": "2f8f6a51e7af75971cabf4530cd14d68d1258df059903d49d8e8c074c44b57d1"
+        }
+      },
+      "deterministicRepeat": {
+        "sameDerivedSeed": true,
+        "sameComparisonInputHash": true,
+        "sameLegacyPianoNotes": true,
+        "sameNewPianoNotes": true,
+        "sameNonPianoArrangement": true,
+        "sameLegacyMidiBytes": true,
+        "sameNewMidiBytes": true,
+        "sameReferenceMidiBytes": true,
+        "sameCombinedMidiBytes": true
+      },
+      "nonPianoArrangementUnchanged": true,
+      "templateFitAudit": {
+        "chordAttacks": {
+          "chordCount": 18,
+          "chordsWithPianoOnset": 16,
+          "pianoOnsetPitchClassesInChord": 33,
+          "totalPianoOnsetsInChordEvents": 33
+        },
+        "nearSilence": {
+          "bars": [
+            {
+              "bar": 8,
+              "target": 0
+            }
+          ],
+          "pianoOnsets": 1,
+          "onsetVelocities": [
+            29
+          ]
+        },
+        "writtenActivityOverlap": null,
+        "suspensionRealization": {
+          "plannedCount": 5,
+          "completeCount": 2,
+          "incomplete": [
+            {
+              "chordId": "c04",
+              "chordSymbol": "Em7",
+              "tensionPitchClass": 0,
+              "resolutionPitchClass": 11,
+              "preparationFound": false,
+              "resolutionFound": true,
+              "complete": false
+            },
+            {
+              "chordId": "c05",
+              "chordSymbol": "Fmaj7",
+              "tensionPitchClass": 11,
+              "resolutionPitchClass": 0,
+              "preparationFound": false,
+              "resolutionFound": true,
+              "complete": false
+            },
+            {
+              "chordId": "c18",
+              "chordSymbol": "Dm7",
+              "tensionPitchClass": 4,
+              "resolutionPitchClass": 5,
+              "preparationFound": false,
+              "resolutionFound": true,
+              "complete": false
+            }
+          ],
+          "planned": [
+            {
+              "chordId": "c03",
+              "chordSymbol": "Dm7",
+              "tensionPitchClass": 11,
+              "resolutionPitchClass": 0,
+              "preparationFound": true,
+              "resolutionFound": true,
+              "complete": true
+            },
+            {
+              "chordId": "c04",
+              "chordSymbol": "Em7",
+              "tensionPitchClass": 0,
+              "resolutionPitchClass": 11,
+              "preparationFound": false,
+              "resolutionFound": true,
+              "complete": false
+            },
+            {
+              "chordId": "c05",
+              "chordSymbol": "Fmaj7",
+              "tensionPitchClass": 11,
+              "resolutionPitchClass": 0,
+              "preparationFound": false,
+              "resolutionFound": true,
+              "complete": false
+            },
+            {
+              "chordId": "c16",
+              "chordSymbol": "C",
+              "tensionPitchClass": 5,
+              "resolutionPitchClass": 4,
+              "preparationFound": true,
+              "resolutionFound": true,
+              "complete": true
+            },
+            {
+              "chordId": "c18",
+              "chordSymbol": "Dm7",
+              "tensionPitchClass": 4,
+              "resolutionPitchClass": 5,
+              "preparationFound": false,
+              "resolutionFound": true,
+              "complete": false
+            }
+          ],
+          "criterion": "Phase 6 test pattern: answer note in the planned tension pitch class crosses the chord boundary, and a settle note in the resolution pitch class starts within that chord."
+        },
+        "onsetGrid": {
+          "onQuarterGrid": 26,
+          "onEighthGrid": 28,
+          "onSixteenthGrid": 28,
+          "total": 33
+        },
+        "harmonicInteractionLabels": {
+          "leave-space": 17,
+          "interweave": 1
+        }
+      },
+      "channelCollisionGroups": {
+        "referenceWithoutPiano": {
+          "2": [
+            "Violins II",
+            "Harp"
+          ],
+          "3": [
+            "Violas",
+            "Double Basses"
+          ]
+        },
+        "combinedNewPiano": {
+          "1": [
+            "Violins I",
+            "Piano"
+          ],
+          "2": [
+            "Violins II",
+            "Harp"
+          ],
+          "3": [
+            "Violas",
+            "Double Basses"
+          ]
+        }
+      }
+    },
+    "hybrid-studio": {
+      "templateId": "ensemble.hybridstudio",
+      "templateName": "Hybrid Studio",
+      "sourceTemplate": "specs/ensemble-templates/templates/hybridstudio.json",
+      "templateSha256": "5f0675fe86a130e186499239651d4c5c88d685b559ea3c2dcef4e4d36581721a",
+      "sourceProject": "inputs/projects/hybrid-studio.json",
+      "sourceProjectSha256": "c490cc6af3df5ee57443c7af3725ab52f2cffea5629c1cec37307f304d763ce7",
+      "compositionInputSha256": "9e09279687f84bf6a02c475d58492953b6495f1a999e17e3b523086c42e3bc5c",
+      "referenceArrangement": "inputs/reference-arrangements/hybrid-studio.json",
+      "referenceArrangementSha256": "5e46d86b470c94a0d1adcd05a141456343cd6e9ae7f110b5d25c41d1272ff341",
+      "pianoEngineInput": "inputs/piano-engine-inputs/hybrid-studio.json",
+      "pianoEngineInputSha256": "71733560a116284e9710fae6e5f05ce2db55d490400171518bb9597c4dd0b9c5",
+      "comparisonInputSha256": "9fee45aa98153c0a12ee42205fbb9ee682f7d2d4ac0e94b9843c6e29844232be",
+      "composeOptions": {
+        "seed": 3597702329,
+        "density": 1,
+        "humanize": true,
+        "moments": true
+      },
+      "orchestration": {
+        "initialTake": 0,
+        "resultingTake": 1,
+        "pianoEngineSeed": 3597702329,
+        "composerSeed": 3597702329,
+        "realizerSeedSource": "Composer plan seed"
+      },
+      "composerStyle": {
+        "identity": "hybrid-pulse-and-color",
+        "approach": "Pulse-and-color: create an adaptable rhythmic cell around the harmony, with selective syncopation and a bass role that avoids locking into every chord root.",
+        "leftHandRole": "elastic pulse anchor or held non-root chord tone",
+        "rightHandRole": "syncopated motif fragments with selective color",
+        "leftHandRegister": "low-middle",
+        "rightHandRegister": "upper-middle",
+        "preferredRightHandVoices": 3,
+        "extensionAppetite": "selective",
+        "rhythmicCharacter": "syncopated"
+      },
+      "legacyPianoNotes": 87,
+      "newPianoNotes": 24,
+      "referenceTrackCountWithNotesOrCC": 14,
+      "referenceNonPianoNoteCount": 363,
+      "outputs": {
+        "legacyPiano": {
+          "path": "exports/hybrid-studio/legacy-piano.mid",
+          "sha256": "0439e08d006143d5fc7a952341f218b4fd9e025954f78e6afb188d165a74272b"
+        },
+        "newPiano": {
+          "path": "exports/hybrid-studio/composer-v1-realizer-v1-piano.mid",
+          "sha256": "75bb007431d3000807429260d608fddeca140d2da50ddf7c9eb627db99563ecb"
+        },
+        "reference": {
+          "path": "exports/hybrid-studio/reference-without-piano.mid",
+          "sha256": "f40867e01618ff0fcba3372df1fc2d43e359ad6fae224411dfa392d9cebef0fa"
+        },
+        "combined": {
+          "path": "exports/hybrid-studio/combined-new-piano.mid",
+          "sha256": "779b2d44febf47752b9062ab1ac74715ffca78cdfa0962be382e2952caa149cb"
+        }
+      },
+      "deterministicRepeat": {
+        "sameDerivedSeed": true,
+        "sameComparisonInputHash": true,
+        "sameLegacyPianoNotes": true,
+        "sameNewPianoNotes": true,
+        "sameNonPianoArrangement": true,
+        "sameLegacyMidiBytes": true,
+        "sameNewMidiBytes": true,
+        "sameReferenceMidiBytes": true,
+        "sameCombinedMidiBytes": true
+      },
+      "nonPianoArrangementUnchanged": true,
+      "templateFitAudit": {
+        "chordAttacks": {
+          "chordCount": 18,
+          "chordsWithPianoOnset": 16,
+          "pianoOnsetPitchClassesInChord": 24,
+          "totalPianoOnsetsInChordEvents": 24
+        },
+        "nearSilence": {
+          "bars": [
+            {
+              "bar": 8,
+              "target": 0
+            }
+          ],
+          "pianoOnsets": 2,
+          "onsetVelocities": [
+            29,
+            32
+          ]
+        },
+        "writtenActivityOverlap": null,
+        "suspensionRealization": {
+          "plannedCount": 1,
+          "completeCount": 1,
+          "incomplete": [],
+          "planned": [
+            {
+              "chordId": "c09",
+              "chordSymbol": "G",
+              "tensionPitchClass": 0,
+              "resolutionPitchClass": 11,
+              "preparationFound": true,
+              "resolutionFound": true,
+              "complete": true
+            }
+          ],
+          "criterion": "Phase 6 test pattern: answer note in the planned tension pitch class crosses the chord boundary, and a settle note in the resolution pitch class starts within that chord."
+        },
+        "onsetGrid": {
+          "onQuarterGrid": 22,
+          "onEighthGrid": 23,
+          "onSixteenthGrid": 23,
+          "total": 24
+        },
+        "harmonicInteractionLabels": {
+          "leave-space": 17,
+          "interweave": 1
+        }
+      },
+      "channelCollisionGroups": {
+        "referenceWithoutPiano": {
+          "2": [
+            "Violins II",
+            "Harp"
+          ],
+          "3": [
+            "Violas",
+            "Double Basses"
+          ]
+        },
+        "combinedNewPiano": {
+          "1": [
+            "Violins I",
+            "Piano"
+          ],
+          "2": [
+            "Violins II",
+            "Harp"
+          ],
+          "3": [
+            "Violas",
+            "Double Basses"
+          ]
+        }
+      }
+    }
+  }
+}

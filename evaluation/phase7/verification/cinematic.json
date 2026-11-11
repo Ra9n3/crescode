@@ -1,0 +1,427 @@
+{
+  "legacyPiano": {
+    "format": 1,
+    "ppq": 960,
+    "bpm": 100,
+    "timeSignature": [
+      4,
+      4
+    ],
+    "markers": [
+      {
+        "tick": 0,
+        "text": "Verse"
+      },
+      {
+        "tick": 30720,
+        "text": "Chorus"
+      }
+    ],
+    "projectEndTick": 61440,
+    "projectBars": 16,
+    "instrumentTracks": [
+      {
+        "name": "Piano",
+        "midiChannel": 1,
+        "noteCount": 78,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      }
+    ],
+    "checks": {
+      "formatType1": true,
+      "ppq960": true,
+      "tempoMatches": true,
+      "timeSignatureMatches": true,
+      "markersMatch": true,
+      "allInstrumentTracksPresent": true,
+      "projectEndInEveryTrack": true,
+      "noteCountsMatch": true,
+      "noteDataMatchesSource": true,
+      "controllerDataMatchesSource": true,
+      "channelsMatchSource": true,
+      "parsedNotesValid": true
+    }
+  },
+  "newPiano": {
+    "format": 1,
+    "ppq": 960,
+    "bpm": 100,
+    "timeSignature": [
+      4,
+      4
+    ],
+    "markers": [
+      {
+        "tick": 0,
+        "text": "Verse"
+      },
+      {
+        "tick": 30720,
+        "text": "Chorus"
+      }
+    ],
+    "projectEndTick": 61440,
+    "projectBars": 16,
+    "instrumentTracks": [
+      {
+        "name": "Piano",
+        "midiChannel": 1,
+        "noteCount": 33,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      }
+    ],
+    "checks": {
+      "formatType1": true,
+      "ppq960": true,
+      "tempoMatches": true,
+      "timeSignatureMatches": true,
+      "markersMatch": true,
+      "allInstrumentTracksPresent": true,
+      "projectEndInEveryTrack": true,
+      "noteCountsMatch": true,
+      "noteDataMatchesSource": true,
+      "controllerDataMatchesSource": true,
+      "channelsMatchSource": true,
+      "parsedNotesValid": true
+    }
+  },
+  "referenceWithoutPiano": {
+    "format": 1,
+    "ppq": 960,
+    "bpm": 100,
+    "timeSignature": [
+      4,
+      4
+    ],
+    "markers": [
+      {
+        "tick": 0,
+        "text": "Verse"
+      },
+      {
+        "tick": 30720,
+        "text": "Chorus"
+      }
+    ],
+    "projectEndTick": 61440,
+    "projectBars": 16,
+    "instrumentTracks": [
+      {
+        "name": "Violins I",
+        "midiChannel": 1,
+        "noteCount": 84,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Violins II",
+        "midiChannel": 2,
+        "noteCount": 158,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Violas",
+        "midiChannel": 3,
+        "noteCount": 125,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Cellos/Basses",
+        "midiChannel": 4,
+        "noteCount": 21,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Double Basses",
+        "midiChannel": 3,
+        "noteCount": 38,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "French Horns",
+        "midiChannel": 5,
+        "noteCount": 166,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Trumpets",
+        "midiChannel": 6,
+        "noteCount": 104,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Trombones",
+        "midiChannel": 7,
+        "noteCount": 10,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Tuba",
+        "midiChannel": 8,
+        "noteCount": 3,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Flutes",
+        "midiChannel": 9,
+        "noteCount": 61,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Clarinets",
+        "midiChannel": 11,
+        "noteCount": 52,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Bassoons",
+        "midiChannel": 12,
+        "noteCount": 23,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Timpani",
+        "midiChannel": 13,
+        "noteCount": 21,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Cymbals",
+        "midiChannel": 15,
+        "noteCount": 1,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Aux",
+        "midiChannel": 16,
+        "noteCount": 52,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Harp",
+        "midiChannel": 2,
+        "noteCount": 60,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      }
+    ],
+    "checks": {
+      "formatType1": true,
+      "ppq960": true,
+      "tempoMatches": true,
+      "timeSignatureMatches": true,
+      "markersMatch": true,
+      "allInstrumentTracksPresent": true,
+      "projectEndInEveryTrack": true,
+      "noteCountsMatch": true,
+      "noteDataMatchesSource": true,
+      "controllerDataMatchesSource": true,
+      "channelsMatchSource": true,
+      "parsedNotesValid": true
+    }
+  },
+  "combinedNewPiano": {
+    "format": 1,
+    "ppq": 960,
+    "bpm": 100,
+    "timeSignature": [
+      4,
+      4
+    ],
+    "markers": [
+      {
+        "tick": 0,
+        "text": "Verse"
+      },
+      {
+        "tick": 30720,
+        "text": "Chorus"
+      }
+    ],
+    "projectEndTick": 61440,
+    "projectBars": 16,
+    "instrumentTracks": [
+      {
+        "name": "Violins I",
+        "midiChannel": 1,
+        "noteCount": 84,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Violins II",
+        "midiChannel": 2,
+        "noteCount": 158,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Violas",
+        "midiChannel": 3,
+        "noteCount": 125,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Cellos/Basses",
+        "midiChannel": 4,
+        "noteCount": 21,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Double Basses",
+        "midiChannel": 3,
+        "noteCount": 38,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "French Horns",
+        "midiChannel": 5,
+        "noteCount": 166,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Trumpets",
+        "midiChannel": 6,
+        "noteCount": 104,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Trombones",
+        "midiChannel": 7,
+        "noteCount": 10,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Tuba",
+        "midiChannel": 8,
+        "noteCount": 3,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Flutes",
+        "midiChannel": 9,
+        "noteCount": 61,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Clarinets",
+        "midiChannel": 11,
+        "noteCount": 52,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Bassoons",
+        "midiChannel": 12,
+        "noteCount": 23,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Timpani",
+        "midiChannel": 13,
+        "noteCount": 21,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Cymbals",
+        "midiChannel": 15,
+        "noteCount": 1,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Aux",
+        "midiChannel": 16,
+        "noteCount": 52,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Harp",
+        "midiChannel": 2,
+        "noteCount": 60,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      },
+      {
+        "name": "Piano",
+        "midiChannel": 1,
+        "noteCount": 33,
+        "endTick": 61440,
+        "noteDataMatchesSource": true
+      }
+    ],
+    "checks": {
+      "formatType1": true,
+      "ppq960": true,
+      "tempoMatches": true,
+      "timeSignatureMatches": true,
+      "markersMatch": true,
+      "allInstrumentTracksPresent": true,
+      "projectEndInEveryTrack": true,
+      "noteCountsMatch": true,
+      "noteDataMatchesSource": true,
+      "controllerDataMatchesSource": true,
+      "channelsMatchSource": true,
+      "parsedNotesValid": true
+    }
+  },
+  "sha256": {
+    "legacyPiano": "6b90ec9add1a2139841836ed65c4cfd48a03bac413683dfe75b5a9192ad568df",
+    "newPiano": "f2e809e7a5f53faf3383aad18136ce62f545a5a2aaf15452e5077dd3550aa443",
+    "referenceWithoutPiano": "00d2c29739f4b255a544cb025514d3cdef63dbfaddeddd1f7f6630ad37e2c76a",
+    "combinedNewPiano": "2f8f6a51e7af75971cabf4530cd14d68d1258df059903d49d8e8c074c44b57d1"
+  },
+  "channelCollisionGroups": {
+    "referenceWithoutPiano": {
+      "2": [
+        "Violins II",
+        "Harp"
+      ],
+      "3": [
+        "Violas",
+        "Double Basses"
+      ]
+    },
+    "combinedNewPiano": {
+      "1": [
+        "Violins I",
+        "Piano"
+      ],
+      "2": [
+        "Violins II",
+        "Harp"
+      ],
+      "3": [
+        "Violas",
+        "Double Basses"
+      ]
+    }
+  }
+}

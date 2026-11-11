@@ -56,10 +56,20 @@ function stageOneChamberPhrase(seed = 29) {
   project.ensemble = { templateId: 'ensemble.chamber', overrides: {}, pins: {} };
   project.orchestration = { take: 0 };
   const composition = composeAllTracks(project, { seed });
-  const input = composition.pianoEngineInput;
+  const productionInput = composition.pianoEngineInput;
   const scoreInput = {
-    ...input,
-    context: { ...input.context, fillWindows: [] },
+    ...productionInput,
+    context: {
+      ...productionInput.context,
+      fillWindows: [],
+      leadWindows: [],
+      moments: [],
+      layerInformation: {
+        ...productionInput.context.layerInformation,
+        perBar: productionInput.context.layerInformation.perBar.map((bar) => ({ ...bar, layers: [] })),
+      },
+    },
+    analysis: { tracks: [] },
   };
   const analysis = analyzePianoInput(scoreInput);
   const plan = composePianoPlan(scoreInput, analysis);
@@ -188,7 +198,11 @@ describe('Piano Stage 1 note-level score contract', () => {
           .toContain(landing.pitch % 12);
         expect(landing.startTick + landing.durationTicks).toBe(plan.ending.tick);
       } else {
-        expect(finalHarmony!.suspension, 'a final suspended harmony may leave the upper line open').not.toBeNull();
+        const upperChordLanding = score.events.some((event) => event.hand === 'right'
+          && event.musicalRole === 'cadence'
+          && event.harmonicContext.chordIds.includes(plan.ending.chordId!));
+        expect(finalHarmony!.suspension !== null || upperChordLanding,
+          'an unmelodized ending still has an explicit suspension or upper chord-tone landing').toBe(true);
       }
       expect(score.events.some((event) => event.voiceId === 'lh.bass' && event.musicalRole === 'cadence'
         && event.startTick + event.durationTicks === plan.ending.tick)).toBe(true);

@@ -84,8 +84,22 @@ describe('Piano Engine V5 production path', () => {
       expect(plan.template.eligible, entry.id).toBe(true);
       expect(result.pianoScore.events).toEqual(score.events);
       expect(result.pianoPlayability.findings).toBeDefined();
-      expect(result.pianoRealizedScoreEvents.some((entry) => entry.source.hand === 'left'), `${entry.id} retains left-hand identity`).toBe(true);
-      expect(result.pianoRealizedScoreEvents.some((entry) => entry.source.hand === 'right'), `${entry.id} retains right-hand identity`).toBe(true);
+      expect(result.pianoRealizedScoreEvents.some((event) => event.source.hand === 'left'), `${entry.id} retains left-hand identity`).toBe(true);
+      const openChordIds = new Set(plan.harmonicEvents
+        .filter((event) => event.orchestration.explicitLeadTrackIds.length === 0)
+        .map((event) => event.chord.id));
+      if (openChordIds.size > 0) {
+        expect(result.pianoRealizedScoreEvents.some((event) => event.source.hand === 'right'
+          && event.source.harmonicContext.chordIds.some((chordId) => openChordIds.has(chordId))),
+        `${entry.id} retains right-hand identity where no explicit lead is assigned`).toBe(true);
+      }
+      for (const event of result.pianoRealizedScoreEvents) {
+        const lead = plan.harmonicEvents.find((candidate) =>
+          candidate.chord.startTick <= event.note.startTick && event.note.startTick < candidate.chord.endTick
+          && candidate.orchestration.explicitLeadTrackIds.length > 0
+          && candidate.orchestration.leadResponse?.mode !== 'none');
+        if (lead) expect(event.source.voiceId, `${entry.id} yields its melody under an active lead`).not.toBe('rh.melody');
+      }
       expect(Object.keys(result)).not.toContain('pianoRealizedScoreEvents');
       expect(realization.realizedScoreEvents).toEqual(result.pianoRealizedScoreEvents);
       expect(realization.notes.length, `${entry.id} produced notes`).toBeGreaterThan(0);

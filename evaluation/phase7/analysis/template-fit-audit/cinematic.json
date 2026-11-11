@@ -1,0 +1,112 @@
+{
+  "chordAttacks": {
+    "chordCount": 18,
+    "chordsWithPianoOnset": 16,
+    "pianoOnsetPitchClassesInChord": 33,
+    "totalPianoOnsetsInChordEvents": 33
+  },
+  "nearSilence": {
+    "bars": [
+      {
+        "bar": 8,
+        "target": 0
+      }
+    ],
+    "pianoOnsets": 1,
+    "onsetVelocities": [
+      29
+    ]
+  },
+  "writtenActivityOverlap": null,
+  "suspensionRealization": {
+    "plannedCount": 5,
+    "completeCount": 2,
+    "incomplete": [
+      {
+        "chordId": "c04",
+        "chordSymbol": "Em7",
+        "tensionPitchClass": 0,
+        "resolutionPitchClass": 11,
+        "preparationFound": false,
+        "resolutionFound": true,
+        "complete": false
+      },
+      {
+        "chordId": "c05",
+        "chordSymbol": "Fmaj7",
+        "tensionPitchClass": 11,
+        "resolutionPitchClass": 0,
+        "preparationFound": false,
+        "resolutionFound": true,
+        "complete": false
+      },
+      {
+        "chordId": "c18",
+        "chordSymbol": "Dm7",
+        "tensionPitchClass": 4,
+        "resolutionPitchClass": 5,
+        "preparationFound": false,
+        "resolutionFound": true,
+        "complete": false
+      }
+    ],
+    "planned": [
+      {
+        "chordId": "c03",
+        "chordSymbol": "Dm7",
+        "tensionPitchClass": 11,
+        "resolutionPitchClass": 0,
+        "preparationFound": true,
+        "resolutionFound": true,
+        "complete": true
+      },
+      {
+        "chordId": "c04",
+        "chordSymbol": "Em7",
+        "tensionPitchClass": 0,
+        "resolutionPitchClass": 11,
+        "preparationFound": false,
+        "resolutionFound": true,
+        "complete": false
+      },
+      {
+        "chordId": "c05",
+        "chordSymbol": "Fmaj7",
+        "tensionPitchClass": 11,
+        "resolutionPitchClass": 0,
+        "preparationFound": false,
+        "resolutionFound": true,
+        "complete": false
+      },
+      {
+        "chordId": "c16",
+        "chordSymbol": "C",
+        "tensionPitchClass": 5,
+        "resolutionPitchClass": 4,
+        "preparationFound": true,
+        "resolutionFound": true,
+        "complete": true
+      },
+      {
+        "chordId": "c18",
+        "chordSymbol": "Dm7",
+        "tensionPitchClass": 4,
+        "resolutionPitchClass": 5,
+        "preparationFound": false,
+        "resolutionFound": true,
+        "complete": false
+      }
+    ],
+    "criterion": "Phase 6 test pattern: answer note in the planned tension pitch class crosses the chord boundary, and a settle note in the resolution pitch class starts within that chord."
+  },
+  "onsetGrid": {
+    "onQuarterGrid": 26,
+    "onEighthGrid": 28,
+    "onSixteenthGrid": 28,
+    "total": 33
+  },
+  "harmonicInteractionLabels": {
+    "leave-space": 17,
+    "interweave": 1
+  }
+}

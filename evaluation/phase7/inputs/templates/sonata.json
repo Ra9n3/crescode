@@ -1,0 +1,42 @@
+{
+  "id": "ensemble.sonata",
+  "name": "Sonata",
+  "description": "Soloist with accompaniment: one violin lead over piano and a low-string floor. Clarity above everything — the soloist owns the line, the accompaniment stays out of the way, and the piano answers in the violin's rests (call and response) instead of playing through them. Budget: at most 3 concurrent layers, energy clamp [0.15, 0.65]; the ceiling is a hard constraint, the floor is a soft directive. Octave doubling is forbidden — the solo line must not be blurred. Every role is a track the app already has.",
+  "roster": [
+    {
+      "role": "violins1",
+      "family": "Strings"
+    },
+    {
+      "role": "cellosBasses",
+      "family": "Strings"
+    },
+    {
+      "role": "piano",
+      "family": "Keys"
+    }
+  ],
+  "budget": {
+    "energyClamp": [
+      0.15,
+      0.65
+    ],
+    "maxLayers": 3
+  },
+  "rules": [
+    {
+      "type": "octaveDoubling",
+      "params": {
+        "policy": "forbidden"
+      }
+    },
+    {
+      "type": "fillGating",
+      "params": {
+        "fills": "piano",
+        "duringRestsOf": "violins1",
+        "minGapTicks": 480
+      }
+    }
+  ]
+}

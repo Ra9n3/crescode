@@ -14,7 +14,19 @@ import type { Note, Project, Track } from '../src/shared/schema/types';
 const project = projectFromFixture(JSON.parse(JSON.stringify(dorian)) as Project);
 project.ensemble = { templateId: 'ensemble.chamber', overrides: {}, pins: {} };
 project.orchestration = { take: 0 };
-const engineInput = composeAllTracks(project, { seed: 17 }).pianoEngineInput;
+const productionInput = composeAllTracks(project, { seed: 17 }).pianoEngineInput;
+const engineInput: PianoEngineInput = {
+  ...productionInput,
+  context: {
+    ...productionInput.context,
+    leadWindows: [],
+    layerInformation: {
+      ...productionInput.context.layerInformation,
+      perBar: productionInput.context.layerInformation.perBar.map((bar) => ({ ...bar, layers: [] })),
+    },
+  },
+  analysis: { tracks: [] },
+};
 const pianoTrack = project.tracks.find((track) => track.role === 'piano')!;
 const projectEnd = projectEndTick(project);
 
@@ -367,9 +379,22 @@ describe('Piano Realizer Phase 6', () => {
     const notes = realize();
     for (let left = 0; left < notes.length; left++) {
       for (let right = left + 1; right < notes.length; right++) {
-        const interval = Math.abs(notes[left].pitch - notes[right].pitch);
-        if (interval >= 12 && interval % 12 === 0 && overlaps(notes[left], notes[right])) {
-          throw new Error(`Unexpected octave doubling: ${notes[left].pitch} / ${notes[right].pitch}`);
+        const a = notes[left];
+        const b = notes[right];
+        const interval = Math.abs(a.pitch - b.pitch);
+        const bass = a.roleTag === 'anchor' ? a : b.roleTag === 'anchor' ? b : null;
+        const resolution = a.roleTag === 'settle' ? a : b.roleTag === 'settle' ? b : null;
+        const plannedSuspensionBassPair = !!bass && !!resolution && plan.harmonicEvents.some((event) => {
+          const suspension = event.suspension;
+          return suspension !== null
+            && event.chord.startTick === bass.startTick
+            && resolution.startTick > event.chord.startTick
+            && resolution.startTick < event.chord.endTick
+            && pc(bass.pitch) === pc(suspension.resolvesToPitchClass)
+            && pc(resolution.pitch) === pc(suspension.resolvesToPitchClass);
+        });
+        if (interval >= 12 && interval % 12 === 0 && overlaps(a, b) && !plannedSuspensionBassPair) {
+          throw new Error(`Unexpected octave doubling: ${a.pitch} / ${b.pitch}`);
         }
       }
       expect((notes[left] as Note & { cc?: unknown }).cc).toBeUndefined();

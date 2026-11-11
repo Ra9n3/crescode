@@ -8,17 +8,20 @@ import type { Articulation, Note, NoteRoleTag, Track } from '../../shared/schema
 import type { PianoGenerationIdentity } from './piano-engine';
 
 export type PianoHand = 'left' | 'right';
-export type PianoScoreVoiceId = 'lh.bass' | 'lh.support' | 'rh.inner' | 'rh.melody' | 'rh.suspension';
-export type PianoMusicalRole = 'bass' | 'support' | 'inner' | 'melody' | 'suspension' | 'cadence';
+export type PianoScoreVoiceId = 'lh.bass' | 'lh.support' | 'rh.inner' | 'rh.melody' | 'rh.suspension' | 'rh.octave';
+export type PianoMusicalRole = 'bass' | 'support' | 'inner' | 'melody' | 'suspension' | 'octave' | 'cadence';
 export type PianoGestureIntent =
   | 'bass-foundation'
   | 'bass-pulse'
+  | 'walking-bass-motion'
   | 'harmonic-support'
   | 'broken-chord-figure'
   | 'counterline-answer'
   | 'inner-voice'
   | 'inner-line-motion'
   | 'cantabile-subject'
+  | 'anticipated-subject'
+  | 'octave-reinforcement'
   | 'prepared-tension'
   | 'stepwise-resolution'
   | 'cadential-landing';
@@ -26,6 +29,9 @@ export type PianoTechniqueIntent =
   | 'sustained-bass-foundation'
   | 'pulsed-bass-pattern'
   | 'root-fifth-bass-pattern'
+  | 'walking-bass-line'
+  | 'rhythmic-ostinato'
+  | 'alberti-bass-accompaniment'
   | 'chord-tone-support'
   | 'broken-chord-accompaniment'
   | 'syncopated-pulse-accompaniment'
@@ -34,6 +40,9 @@ export type PianoTechniqueIntent =
   | 'voice-led-inner-tone'
   | 'moving-inner-voice'
   | 'phrase-led-upper-line'
+  | 'phrase-anticipation'
+  | 'octave-doubling'
+  | 'staccato-fill-gesture'
   | 'prepared-suspension'
   | 'stepwise-resolution'
   | 'final-harmony';

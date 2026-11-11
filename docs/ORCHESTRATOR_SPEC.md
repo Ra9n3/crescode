@@ -1278,8 +1278,9 @@ Explicit contextual exceptions annotate findings without hiding them. The
 existing template octave policy remains a separate safety stage. See
 [`PIANO_SCORE_STAGE1.md`](PIANO_SCORE_STAGE1.md) for the complete event
 contract, advisory thresholds, example coverage, listening-validation limit,
-and the 23 later techniques that this shared foundation will support; those
-techniques are not implemented here.
+and the 23-technique roadmap. That paragraph records the Stage 1/2 boundary;
+Stage 3 and Stage 4 have since added a context-gated subset. The current
+Composer event-level audit is in [`PIANO_SCORE_STAGE4_AUDIT.md`](PIANO_SCORE_STAGE4_AUDIT.md).
 
 ## 17. Falcon export profiles — winds, percussion, keys (Phase 12)
 

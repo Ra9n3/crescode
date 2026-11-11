@@ -31,7 +31,7 @@ const NO_BRASS_TEMPLATES = ['ensemble.chamber', 'ensemble.sonata', 'ensemble.voc
 const BRASS_ROLES = ['horns', 'trumpets', 'trombones', 'tuba'];
 const WIND_PIN_ROLES = new Set(['flutes', 'oboes', 'clarinets', 'bassoons']);
 const PERC_PIN_ROLES = new Set(['timpani', 'snare', 'cymbals', 'aux']);
-// Keys are out of this brass pin; current Harp compatibility and Piano V2
+// Keys are out of this brass pin; current Harp compatibility and Piano V5
 // production behavior have dedicated coverage in
 // tests/harp-regression.test.ts and tests/piano-engine-production.test.ts.
 const KEYS_PIN_ROLES = new Set(['harp', 'piano']);

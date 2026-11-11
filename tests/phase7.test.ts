@@ -312,7 +312,7 @@ describe('Phase 7: moments', () => {
       const energy = measureEnergy(run.project, template);
       expect(energy.violations.filter((v) => v.kind === 'aboveMax'), `clamp ${label}`).toHaveLength(0);
       const findings = checkTemplateRules(run.project, template, run.result.plan);
-      // The final Piano Engine V2 output is covered along with every other
+      // The final Piano Engine V5 output is covered along with every other
       // track: its forbidden-policy guard must not introduce a hard finding
       // inside a conductor moment.
       const hard = findings.filter((f) => f.severity === 'hard'

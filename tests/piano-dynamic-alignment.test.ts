@@ -3,9 +3,9 @@ import fixture from '../fixtures/three-chorus-40bars.json';
 import { resolveTemplate } from '../src/config/ensembles';
 import { composeAllTracks } from '../src/orchestrator/compose';
 import { analyzePianoInput } from '../src/orchestrator/keys/piano-analyzer';
-import { composePianoPlan, type PianoComposerPlan } from '../src/orchestrator/keys/piano-composer';
+import { composePianoPlan, composePianoScore, type PianoComposerPlan } from '../src/orchestrator/keys/piano-composer';
 import type { PianoEngineInput } from '../src/orchestrator/keys/piano-engine';
-import { realizePianoPlan } from '../src/orchestrator/keys/piano-realizer';
+import { realizePianoPlan, realizePianoPlanWithAudit } from '../src/orchestrator/keys/piano-realizer';
 import { projectFromFixture, isInstrumentTrack, type Note, type Project, type Track } from '../src/shared/schema';
 import { projectEndTick } from '../src/shared/schema/meter';
 
@@ -36,6 +36,11 @@ function productionCase(templateId: TemplateId, priorTake = 0): ProductionCase {
   const project = projectFromFixture(JSON.parse(JSON.stringify(fixture)) as Project);
   project.ensemble = { templateId, overrides: {}, pins: {} };
   project.orchestration = { take: priorTake };
+  // This suite pins independent Piano phrase dynamics, not lead-response
+  // yielding. Keep the actual Compose All path and Conductor phrase boundaries,
+  // but mixer-mute all non-Piano lanes so the Piano is the sole visible writer.
+  project.tracks = project.tracks.map((track) =>
+    isInstrumentTrack(track) && track.role !== 'piano' ? { ...track, muted: true } : track);
   const result = composeAllTracks(project, { seed: 11 });
   const pianoTarget = project.tracks.find((track) =>
     isInstrumentTrack(track) && track.family === 'Keys' && track.role === 'piano');
@@ -93,6 +98,25 @@ function meanVelocity(notes: readonly Note[]): number {
 }
 
 function realize(input: PianoEngineInput, project: Project, targetTrack: Track, plan: PianoComposerPlan): readonly Note[] {
+  const template = resolveTemplate(project.ensemble);
+  const externalTracks = template
+    ? input.analysis.tracks
+      .filter((track) => template.roster.some((entry) => entry.role === track.role))
+      .map(({ id, role, notes }) => ({ id, role, notes }))
+    : [];
+  const score = composePianoScore(input, plan, targetTrack, projectEndTick(project));
+  return realizePianoPlanWithAudit({
+    plan,
+    score,
+    targetTrack,
+    projectEndTick: projectEndTick(project),
+    externalTracks,
+    tempoMap: project.tempoMap,
+    timeSignature: project.timeSignature,
+  }).notes;
+}
+
+function realizeLegacy(input: PianoEngineInput, project: Project, targetTrack: Track, plan: PianoComposerPlan): readonly Note[] {
   const template = resolveTemplate(project.ensemble);
   const externalTracks = template
     ? input.analysis.tracks
@@ -264,8 +288,8 @@ describe('Piano V5 dynamic alignment', () => {
         },
       })),
     };
-    const originalNotes = realize(run.input, run.project, run.pianoTarget, run.plan);
-    const alteredNotes = realize(run.input, run.project, run.pianoTarget, alteredPlan);
+    const originalNotes = realizeLegacy(run.input, run.project, run.pianoTarget, run.plan);
+    const alteredNotes = realizeLegacy(run.input, run.project, run.pianoTarget, alteredPlan);
     expect(nonVelocityShape(alteredNotes)).toEqual(nonVelocityShape(originalNotes));
     expect(alteredNotes.map((note) => note.velocity)).not.toEqual(originalNotes.map((note) => note.velocity));
     expect(alteredPlan.phrases.map((phrase) => phrase.rhythmicPlan))

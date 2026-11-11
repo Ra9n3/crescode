@@ -1,0 +1,49 @@
+{
+  "chordAttacks": {
+    "chordCount": 18,
+    "chordsWithPianoOnset": 16,
+    "pianoOnsetPitchClassesInChord": 24,
+    "totalPianoOnsetsInChordEvents": 24
+  },
+  "nearSilence": {
+    "bars": [
+      {
+        "bar": 8,
+        "target": 0
+      }
+    ],
+    "pianoOnsets": 2,
+    "onsetVelocities": [
+      29,
+      32
+    ]
+  },
+  "writtenActivityOverlap": null,
+  "suspensionRealization": {
+    "plannedCount": 1,
+    "completeCount": 1,
+    "incomplete": [],
+    "planned": [
+      {
+        "chordId": "c09",
+        "chordSymbol": "G",
+        "tensionPitchClass": 0,
+        "resolutionPitchClass": 11,
+        "preparationFound": true,
+        "resolutionFound": true,
+        "complete": true
+      }
+    ],
+    "criterion": "Phase 6 test pattern: answer note in the planned tension pitch class crosses the chord boundary, and a settle note in the resolution pitch class starts within that chord."
+  },
+  "onsetGrid": {
+    "onQuarterGrid": 22,
+    "onEighthGrid": 23,
+    "onSixteenthGrid": 23,
+    "total": 24
+  },
+  "harmonicInteractionLabels": {
+    "leave-space": 17,
+    "interweave": 1
+  }
+}

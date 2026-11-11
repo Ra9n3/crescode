@@ -29,9 +29,25 @@ interface EvaluationCase {
 }
 
 function loadCase(slug: TemplateSlug): EvaluationCase {
-  const input = JSON.parse(readFileSync(
+  const sourceInput = JSON.parse(readFileSync(
     new URL(`../evaluation/phase8/inputs/piano-engine-inputs/${slug}.json`, import.meta.url), 'utf8',
   )) as PianoEngineInput;
+  // These Phase 8 cases pin Composer/Realizer suspension, fill, and rhythm
+  // behavior. Strip the older strings-layer lead annotations so Stage 5's
+  // explicit lead-response policy does not turn these independent-writing
+  // regressions into lead-yield tests.
+  const input: PianoEngineInput = {
+    ...sourceInput,
+    context: {
+      ...sourceInput.context,
+      leadWindows: [],
+      moments: [],
+      layerInformation: {
+        ...sourceInput.context.layerInformation,
+        perBar: sourceInput.context.layerInformation.perBar.map((bar) => ({ ...bar, layers: [] })),
+      },
+    },
+  };
   const project = JSON.parse(readFileSync(
     new URL(`../evaluation/phase8/inputs/projects/${slug}.json`, import.meta.url), 'utf8',
   )) as Project;
@@ -176,7 +192,7 @@ describe('Phase 8 piano Composer/Realizer follow-through', () => {
       expect(result.suspensions.every((audit) => audit.complete && audit.reason === null)).toBe(true);
       expect(result.suspensions.every((audit) => audit.preparationReason === null && audit.resolutionReason === null)).toBe(true);
     }
-    expect(total).toBe(12);
+    expect(total).toBe(15);
   });
 
   it('returns a concrete failure reason for each suspension when the target cannot be written', () => {

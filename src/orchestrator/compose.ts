@@ -132,7 +132,7 @@ function composePianoCc64(
     points.push({ tick, value: event.value });
   }
   const last = points[points.length - 1];
-  if (last && last.value !== 0) {
+  if (last) {
     if (last.tick === projectEndTick) last.value = 0;
     else points.push({ tick: projectEndTick, value: 0 });
   }

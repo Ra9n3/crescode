@@ -1,0 +1,331 @@
+{
+  "templateId": "ensemble.chamber",
+  "templateName": "Chamber",
+  "composerStyle": {
+    "identity": "chamber-counterpoint",
+    "approach": "Intimate counterpoint: preserve inner-voice motion, let the ensemble lead breathe, and prefer economical guide-tone voicings.",
+    "leftHandRole": "independent low counterline or a lightly held chord-tone anchor",
+    "rightHandRole": "inner-voice motif with restrained color",
+    "leftHandRegister": "bass",
+    "rightHandRegister": "middle",
+    "preferredRightHandVoices": 3,
+    "extensionAppetite": "restrained",
+    "rhythmicCharacter": "elastic"
+  },
+  "planSummary": {
+    "status": "composed",
+    "seed": 4001943009,
+    "phrases": 4,
+    "phraseFunctions": {
+      "statement": 1,
+      "release": 1,
+      "contrast": 1,
+      "arrival": 1
+    },
+    "motif": {
+      "id": "piano-motif-main",
+      "originChordId": "c01",
+      "originChordSymbol": "Dm7",
+      "pitchClasses": [
+        9,
+        5,
+        4,
+        5
+      ],
+      "intervalContour": [
+        -4,
+        -1,
+        1
+      ],
+      "developmentPalette": [
+        "sequence-in-new-harmony",
+        "rhythmic-augmentation",
+        "interval-expansion",
+        "invert-and-reframe",
+        "fragmented-recall"
+      ]
+    },
+    "harmonicEvents": 18,
+    "suspensions": [
+      {
+        "chordId": "c12",
+        "chordSymbol": "C",
+        "preparedBy": "c11",
+        "tensionPitchClass": 5,
+        "resolutionPitchClass": 4
+      }
+    ],
+    "fillDecisions": {
+      "leave-space": 1
+    },
+    "templateConstraints": {
+      "octaveDoubling": "climaxOnly",
+      "pianoFillGatingRules": [
+        {
+          "type": "fillGating",
+          "fills": "piano",
+          "duringRestsOf": "Strings",
+          "minGapTicks": 480,
+          "severity": "hard",
+          "source": "template.rules"
+        }
+      ],
+      "fillSource": "explicit-conductor-windows-only"
+    }
+  },
+  "legacyPiano": {
+    "noteCount": 48,
+    "projectEndTick": 61440,
+    "noteExtentTicks": {
+      "firstOnset": 16,
+      "lastNoteOff": 61440,
+      "span": 61424
+    },
+    "pitch": {
+      "min": 38,
+      "max": 84,
+      "mean": 66.58333333333333,
+      "uniquePitchCount": 18
+    },
+    "velocity": {
+      "min": 47,
+      "max": 92,
+      "mean": 68.66666666666667
+    },
+    "durationTicks": {
+      "min": 223,
+      "max": 3833,
+      "mean": 2246.3958333333335,
+      "total": 107827
+    },
+    "maxSimultaneousNotes": 5,
+    "onsetsPerBar": [
+      5,
+      2,
+      1,
+      7,
+      5,
+      1,
+      2,
+      0,
+      0,
+      0,
+      0,
+      0,
+      4,
+      4,
+      12,
+      5
+    ],
+    "onsetsOnQuarterGrid": 0,
+    "onsetsOnEighthGrid": 0,
+    "onsetsOnSixteenthGrid": 0,
+    "onsetsOffQuarterGrid": 48,
+    "roleTagCounts": {
+      "arrival": 12,
+      "anchor": 19,
+      "punctuation": 3,
+      "bed": 14
+    },
+    "articulationCounts": {
+      "staccato": 3,
+      "marcato": 1
+    },
+    "pitchClassCounts": {
+      "0": 10,
+      "2": 10,
+      "4": 4,
+      "5": 5,
+      "7": 3,
+      "9": 11,
+      "10": 4,
+      "11": 1
+    },
+    "invariantChecks": {
+      "integerTicks": true,
+      "positiveDurations": true,
+      "pitchInMidiRange": true,
+      "velocityInMidiRange": true,
+      "withinProjectEnd": true
+    }
+  },
+  "composerV1RealizerV1Piano": {
+    "noteCount": 24,
+    "projectEndTick": 61440,
+    "noteExtentTicks": {
+      "firstOnset": 0,
+      "lastNoteOff": 61440,
+      "span": 61440
+    },
+    "pitch": {
+      "min": 45,
+      "max": 75,
+      "mean": 59.833333333333336,
+      "uniquePitchCount": 12
+    },
+    "velocity": {
+      "min": 22,
+      "max": 72,
+      "mean": 56.208333333333336
+    },
+    "durationTicks": {
+      "min": 480,
+      "max": 8160,
+      "mean": 3144.7916666666665,
+      "total": 75475
+    },
+    "maxSimultaneousNotes": 3,
+    "onsetsPerBar": [
+      2,
+      0,
+      1,
+      2,
+      0,
+      1,
+      0,
+      2,
+      3,
+      0,
+      2,
+      1,
+      4,
+      1,
+      3,
+      2
+    ],
+    "onsetsOnQuarterGrid": 20,
+    "onsetsOnEighthGrid": 21,
+    "onsetsOnSixteenthGrid": 21,
+    "onsetsOffQuarterGrid": 4,
+    "roleTagCounts": {
+      "bed": 7,
+      "answer": 6,
+      "anchor": 7,
+      "settle": 1,
+      "arrival": 3
+    },
+    "articulationCounts": {
+      "legato": 18
+    },
+    "pitchClassCounts": {
+      "0": 5,
+      "2": 2,
+      "3": 1,
+      "4": 2,
+      "5": 5,
+      "7": 3,
+      "9": 5,
+      "10": 1
+    },
+    "invariantChecks": {
+      "integerTicks": true,
+      "positiveDurations": true,
+      "pitchInMidiRange": true,
+      "velocityInMidiRange": true,
+      "withinProjectEnd": true
+    }
+  },
+  "templateFitAudit": {
+    "chordAttacks": {
+      "chordCount": 18,
+      "chordsWithPianoOnset": 14,
+      "pianoOnsetPitchClassesInChord": 23,
+      "totalPianoOnsetsInChordEvents": 24
+    },
+    "nearSilence": {
+      "bars": [
+        {
+          "bar": 8,
+          "target": 0
+        }
+      ],
+      "pianoOnsets": 2,
+      "onsetVelocities": [
+        22,
+        29
+      ]
+    },
+    "writtenActivityOverlap": {
+      "scope": "union of all active string notes",
+      "pianoNoteTimeTicks": 75475,
+      "overlapWithLeadNoteTimeTicks": 68002,
+      "fractionOfPianoNoteTimeWithLeadActive": 0.9009870818151706,
+      "pianoOnsetsDuringLeadActivity": 19,
+      "pianoOnsetCount": 24,
+      "byRole": {
+        "violins1": {
+          "fractionOfPianoNoteTimeOverlappingRole": 0.8973699900629347,
+          "pianoOnsetsDuringRoleActivity": 16
+        },
+        "violins2": {
+          "fractionOfPianoNoteTimeOverlappingRole": 0.6783570718781053,
+          "pianoOnsetsDuringRoleActivity": 10
+        },
+        "violas": {
+          "fractionOfPianoNoteTimeOverlappingRole": 0.6775223583968202,
+          "pianoOnsetsDuringRoleActivity": 9
+        },
+        "cellosBasses": {
+          "fractionOfPianoNoteTimeOverlappingRole": 0.6750447167936403,
+          "pianoOnsetsDuringRoleActivity": 9
+        }
+      },
+      "note": "Written-note overlap only; not an audibility or masking judgment."
+    },
+    "suspensionRealization": {
+      "plannedCount": 1,
+      "completeCount": 1,
+      "incomplete": [],
+      "planned": [
+        {
+          "chordId": "c12",
+          "chordSymbol": "C",
+          "tensionPitchClass": 5,
+          "resolutionPitchClass": 4,
+          "preparationFound": true,
+          "resolutionFound": true,
+          "complete": true
+        }
+      ],
+      "criterion": "Phase 6 test pattern: answer note in the planned tension pitch class crosses the chord boundary, and a settle note in the resolution pitch class starts within that chord."
+    },
+    "onsetGrid": {
+      "onQuarterGrid": 20,
+      "onEighthGrid": 21,
+      "onSixteenthGrid": 21,
+      "total": 24
+    },
+    "harmonicInteractionLabels": {
+      "leave-space": 17,
+      "interweave": 1
+    }
+  },
+  "referenceNonPianoTracks": [
+    {
+      "role": "violins1",
+      "name": "Violins I",
+      "noteCount": 29,
+      "ccLaneCount": 5
+    },
+    {
+      "role": "violins2",
+      "name": "Violins II",
+      "noteCount": 30,
+      "ccLaneCount": 5
+    },
+    {
+      "role": "violas",
+      "name": "Violas",
+      "noteCount": 21,
+      "ccLaneCount": 5
+    },
+    {
+      "role": "cellosBasses",
+      "name": "Cellos/Basses",
+      "noteCount": 21,
+      "ccLaneCount": 5
+    }
+  ],
+  "referenceNonPianoNoteCount": 101,
+  "midiProjectDurationSeconds": 38.4
+}

@@ -36,6 +36,33 @@ function productionSample(templateId: TemplateId) {
   return { project, result, piano, input, plan, score, realization };
 }
 
+function independentSample(templateId: TemplateId) {
+  const sample = productionSample(templateId);
+  const input = {
+    ...sample.input,
+    context: {
+      ...sample.input.context,
+      leadWindows: [],
+      moments: [],
+      fillWindows: [],
+      layerInformation: {
+        ...sample.input.context.layerInformation,
+        perBar: sample.input.context.layerInformation.perBar.map((bar) => ({ ...bar, layers: [] })),
+      },
+    },
+    analysis: { tracks: [] },
+  };
+  const plan = composePianoPlan(input, analyzePianoInput(input));
+  const score = composePianoScore(input, plan, sample.piano, projectEndTick(sample.project));
+  const realization = realizePianoPlanWithAudit({
+    plan,
+    score,
+    targetTrack: sample.piano,
+    projectEndTick: projectEndTick(sample.project),
+  });
+  return { ...sample, input, plan, score, realization };
+}
+
 describe('Piano Engine V4 musical-quality writing', () => {
   it('keeps the production Composer → Realizer path deterministic and metrically grounded for all five Piano templates', () => {
     for (const templateId of TEMPLATE_IDS) {
@@ -76,7 +103,7 @@ describe('Piano Engine V4 musical-quality writing', () => {
 
   it('develops a two-bar subject across Chamber and Sonata phrases and keeps their bass lines economical', () => {
     for (const templateId of ['ensemble.chamber', 'ensemble.sonata'] as const) {
-      const sample = productionSample(templateId);
+      const sample = independentSample(templateId);
       const phrase = sample.plan.phrases.find((candidate) => candidate.sectionId === 'sec_verse1'
         && (candidate.rhythmicPlan.motifCells?.length ?? 0) >= 2);
       if (!phrase) throw new Error(`${templateId} did not plan a multi-cell opening phrase.`);

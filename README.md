@@ -1,6 +1,6 @@
 # Crescode — Orchestral MIDI Studio
 
-Set key / mode / BPM / meter, sketch sections and chords on the arranger, pick a **band** in the ▾ next to **Compose All**, preview, export MIDI, and finish the track in your DAW. The band (one of six ensemble templates) decides which of your tracks play. Production Compose All is coordinated by `src/orchestrator/compose.ts`: dedicated family renderers own their paths, while the generic rules interpreter in `src/engine/generate.ts` consumes `src/config/generation-rules.ts` for remaining rules-driven work and compatibility inputs. Piano Engine V2 replaces intermediate Piano output after the non-Piano parts are finalized; Harp remains with the keys renderer.
+Set key / mode / BPM / meter, sketch sections and chords on the arranger, pick a **band** in the ▾ next to **Compose All**, preview, export MIDI, and finish the track in your DAW. The band (one of six ensemble templates) decides which of your tracks play. Production Compose All is coordinated by `src/orchestrator/compose.ts`: dedicated family renderers own their paths, while the generic rules interpreter in `src/engine/generate.ts` consumes `src/config/generation-rules.ts` for remaining rules-driven work and compatibility inputs. Piano Engine V5 replaces intermediate Piano output after the non-Piano parts are finalized; Harp remains with the keys renderer.
 
 > **Delivery status, plainly:** this repository has the complete **frontend application**: schema, generation engine, export, arranger UI, the band system (six ensemble templates with header in/out and project pins), mixer, piano roll, routing, freeze, save/load, undo, plus tests. It runs in Chromium-based browsers (Edge or Chrome on Windows) as a single local HTML file, with the built-in Web Audio preview sound. The **Tauri shell, the Rust `crescode-engine.exe`, real VST3 scanning and hosting, and the Windows installer are not included yet** (see `docs/ENGINE_BUILD_GUIDE.md` for the implementation plan). The UI already speaks the engine protocol (`docs/PROTOCOL.md`), and degrades gracefully without the engine, as the brief requires.
 
@@ -110,7 +110,7 @@ The UI is built as vintage studio hardware: graphite control panels with brushed
 ```
 specs/ensemble-templates/  the six band templates (JSON): roster, energy budget, orchestration rules
 src/shared/schema/   types, JSON Schema, chord parser, modes, ranges, meter, factory, validation, band.ts (membership logic)
-src/orchestrator/   production Compose All coordinator, family renderers, Piano Engine V2
+src/orchestrator/   production Compose All coordinator, family renderers, Piano Engine V5
 src/engine/          generate.ts (generic rules interpreter), rules-schema.ts, suggestion/ (chord analysis), transport/ (follow)
 src/config/          generation-rules.ts (generic rules data) · ensembles.ts (band registry + template resolver)
 src/export/          midi.ts (MIDI writer), profile.ts and profiles/ (export transformations)

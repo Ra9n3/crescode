@@ -27,6 +27,7 @@ function withQuietBar(input: PianoEngineInput, quietBar: number, nearSilence: bo
     ...input,
     context: {
       ...input.context,
+      leadWindows: [],
       energy: input.context.energy.map((entry) => ({
         ...entry,
         target: entry.bar === quietBar ? 0 : 0.65,
@@ -118,7 +119,18 @@ describe('Piano Engine V5 production behavior', () => {
 
 describe('Piano Engine V5 explicit leave-space plans', () => {
   it('does not advertise motif attacks inside a fully reserved leave-space phrase', () => {
-    const { input } = productionInput();
+    const { input: production } = productionInput();
+    const input: PianoEngineInput = {
+      ...production,
+      context: {
+        ...production.context,
+        leadWindows: [],
+        layerInformation: {
+          ...production.context.layerInformation,
+          perBar: production.context.layerInformation.perBar.map((entry) => ({ ...entry, layers: [] })),
+        },
+      },
+    };
     const plan = composePianoPlan(input, analyzePianoInput(input));
     const reservedPhrases = plan.phrases.filter((phrase) => plan.fillDecisions.some((fill) =>
       fill.target.toLowerCase() === 'piano'

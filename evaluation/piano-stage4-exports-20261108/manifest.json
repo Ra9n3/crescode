@@ -1,0 +1,121 @@
+{
+  "generatedAt": "2026-11-08",
+  "fixture": "fixtures/three-chorus-40bars.json",
+  "templateId": "ensemble.chamber",
+  "options": {
+    "density": 1,
+    "moments": false,
+    "take": 0,
+    "seeds": [
+      11,
+      29,
+      47
+    ]
+  },
+  "format": "Standard MIDI File Type 1; 960 PPQ; conductor track plus Piano track only",
+  "exports": [
+    {
+      "seed": 11,
+      "file": "chamber-three-chorus-seed-11-piano-only.mid",
+      "sha256": "6fd66b47b7cdfcbf71a456d3d240aed8ec26b6112d0e2c60beaf2716d5a8c2a7",
+      "bytes": 1562,
+      "projectTracks": 1,
+      "midiTracksIncludingConductor": 2,
+      "bpm": 100,
+      "timeSignature": [
+        4,
+        4
+      ],
+      "ppq": 960,
+      "composerScoreEvents": 114,
+      "realizedPianoNotes": 114,
+      "parsedPianoNotes": 114,
+      "octavePolicy": {
+        "type": "octaveDoubling",
+        "policy": "climaxOnly",
+        "energyThreshold": 0.55,
+        "severity": "soft",
+        "source": "template.rules"
+      },
+      "techniqueIntentCounts": {
+        "broken-chord-accompaniment": 1,
+        "chord-tone-support": 33,
+        "final-harmony": 3,
+        "phrase-led-upper-line": 6,
+        "prepared-suspension": 6,
+        "staccato-fill-gesture": 3,
+        "stepwise-resolution": 6,
+        "sustained-bass-foundation": 27,
+        "voice-led-inner-tone": 29
+      }
+    },
+    {
+      "seed": 29,
+      "file": "chamber-three-chorus-seed-29-piano-only.mid",
+      "sha256": "8dd7e30301bfb50ccdf7ed1e1fdf6ef6152351bf8701b5bb1cc1593041a953aa",
+      "bytes": 1538,
+      "projectTracks": 1,
+      "midiTracksIncludingConductor": 2,
+      "bpm": 100,
+      "timeSignature": [
+        4,
+        4
+      ],
+      "ppq": 960,
+      "composerScoreEvents": 112,
+      "realizedPianoNotes": 112,
+      "parsedPianoNotes": 112,
+      "octavePolicy": {
+        "type": "octaveDoubling",
+        "policy": "climaxOnly",
+        "energyThreshold": 0.55,
+        "severity": "soft",
+        "source": "template.rules"
+      },
+      "techniqueIntentCounts": {
+        "broken-chord-accompaniment": 1,
+        "chord-tone-support": 33,
+        "final-harmony": 3,
+        "phrase-led-upper-line": 6,
+        "prepared-suspension": 4,
+        "staccato-fill-gesture": 3,
+        "stepwise-resolution": 6,
+        "sustained-bass-foundation": 27,
+        "voice-led-inner-tone": 29
+      }
+    },
+    {
+      "seed": 47,
+      "file": "chamber-three-chorus-seed-47-piano-only.mid",
+      "sha256": "fbd67e5e9ecde3071230b95def14d11635367168d46a3fb9b391b6284339917b",
+      "bytes": 1487,
+      "projectTracks": 1,
+      "midiTracksIncludingConductor": 2,
+      "bpm": 100,
+      "timeSignature": [
+        4,
+        4
+      ],
+      "ppq": 960,
+      "composerScoreEvents": 106,
+      "realizedPianoNotes": 106,
+      "parsedPianoNotes": 106,
+      "octavePolicy": {
+        "type": "octaveDoubling",
+        "policy": "climaxOnly",
+        "energyThreshold": 0.55,
+        "severity": "soft",
+        "source": "template.rules"
+      },
+      "techniqueIntentCounts": {
+        "chord-tone-support": 33,
+        "final-harmony": 3,
+        "phrase-led-upper-line": 3,
+        "prepared-suspension": 8,
+        "stepwise-resolution": 10,
+        "sustained-bass-foundation": 24,
+        "voice-led-inner-tone": 25
+      }
+    }
+  ]
+}

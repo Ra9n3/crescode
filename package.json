@@ -15,9 +15,7 @@
     "e2e:transport": "npm run build && node scripts/e2e-transport.mjs"
   },
   "dependencies": {
-    "@fontsource/barlow-condensed": "^5.3.0",
     "@fontsource/barlow-semi-condensed": "^5.3.0",
-    "@fontsource/inter": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
     "@fontsource/kaushan-script": "^5.3.0",
     "@iconify-icons/ph": "^2.0.0",

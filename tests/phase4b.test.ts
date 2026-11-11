@@ -303,12 +303,12 @@ describe('Piano Engine Phase 4B minimal musical Analyzer', () => {
       endBar: 3,
       confidence: {
         level: 'high',
-        scope: 'conductor annotation plus written activity',
+        scope: 'explicit orchestration plan plus written activity',
       },
       mandatoryPianoInstruction: false,
     });
     expect(interpretations.leadPassages.candidates[0].evidence.map((item) => item.source)).toEqual([
-      'PianoEngineContext.layerInformation.perBar',
+      'PianoEngineContext.leadWindows (strings-layer)',
       'PianoAnalysis.tracks[].notes',
     ]);
     expect(interpretations.leadPassages.candidates[0].limitations.join(' ')).toMatch(/does not claim exact loudness or prescribe piano behavior/);

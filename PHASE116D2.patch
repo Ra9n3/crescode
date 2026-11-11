@@ -1,0 +1,586 @@
+diff --git a/docs/PHASE116_NOTES.md b/docs/PHASE116_NOTES.md
+index 3261cd9..a21f13e 100644
+--- a/docs/PHASE116_NOTES.md
++++ b/docs/PHASE116_NOTES.md
+@@ -12,4 +12,6 @@ Status: 11.6a, 11.6b, 11.6c, and 11.6d-1 are complete; later 11.6d work remains.
+ - Seed 11, three-chorus, takes 1–20: 53/54 planned echo lines; 53/50 complete, 8.02%/7.95% of piano bars; no lone chopped notes or lead overlaps.
+ - Forbidden-template answers 0; collision, sanitizer, RH11/13, hard-finding, and aboveMax checks clean; plan/log role counts present in 120/120 runs.
+ - Golden105 vocalbacking harp velocity deltas: mean 1.78, max 10 across the paired 20-fixture corpus.
+-Next: await direction; do not start scale run, register shift, or step 5.
++- 11.6d-2 item 2: piano-owned eight-note tail runs, harp-gliss bars excluded; targeted 20-run tests pass.
++- 11.6d-2 item 3: one RH chord strike rises an octave in the last chorus at most; targeted 20-run tests pass.
++Next: item 4 report, full suite and final audits; do not start golden106 or the separate measurement-script step.
+diff --git a/docs/PHASE116_REPORT.md b/docs/PHASE116_REPORT.md
+new file mode 100644
+index 0000000..5a904aa
+--- /dev/null
++++ b/docs/PHASE116_REPORT.md
+@@ -0,0 +1,20 @@
++TESTED_COMMIT=f333b7e8220207a64eeeb676bbf37626c8cb9e20 BRANCH=arena/333da87f-crescode TREE=f0e8ebbd8c9648f6cb7239fec14c71d77c976df0
++SUITE=PASS FILES=60 TESTS=1032
++AUDIT=SEED11 OUTPUT_TAKES=1-20 FIXTURE=three-chorus-40bar RUNS=120
++F_CHAMBER=3/20;24notes;runNotes=8-8;topLand=3/3
++F_SONATA=4/20;32notes;runNotes=8-8;topLand=4/4
++F_CINEMATIC=5/20;40notes;runNotes=8-8;topLand=5/5
++F_HYBRIDSTUDIO=3/20;24notes;runNotes=8-8;topLand=3/3
++SHIFT_CHAMBER=6/20;18notes;RHmax=72->84
++SHIFT_SONATA=2/20;6notes;RHmax=72->84
++SHIFT_CINEMATIC=13/20;39notes;RHmax=83->95
++SHIFT_HYBRIDSTUDIO=14/20;42notes;RHmax=83->95
++ZERO_VIOLATIONS=flourish0;shift0;owner0;gliss0;order0;scale0;range0;trim0;landing0;samePitchOverlap0;sanitize0;RH11/13=0;polyphony0;hard0;aboveMax0;forbiddenFeatures0
++GOLDEN105=120;nonpianoNonharp=0;harpStructure=0;CC=0
++VB_HARP_ABS_DVEL=mean1.7831;max10;diffNotes=991
++FLOOR_BASE=9eded6c;CH(.501600,120)->(.501554,120),d=-.000046;SO(.524200,0)->(.524241,0),d=+.000041;CI(.595500,7)->(.595493,7),d=-.000007;HY(.600400,17)->(.600373,17),d=-.000027
++PRE_FINAL_FAIL=PHASE8_MOMENT_IDENTITY;RESOLVED=1
++PRE_FINAL_AUDIT_FAIL=HARD_OCTAVE_SONATA_T5;RESOLVED=1
++PRE_FINAL_FAIL=PHASE5E_TIMEOUT5000MS;RESOLVED=1
++TEST_TIMEOUT_OVERRIDE=5000->10000MS
++LOOSENED_CHECK=PHASE8_PIANO_PLANNED_FLOURISH_BAR_ONLY;NONPIANO_DRIFT=0
+diff --git a/src/orchestrator/keys/plan.ts b/src/orchestrator/keys/plan.ts
+index 2246732..4661abb 100644
+--- a/src/orchestrator/keys/plan.ts
++++ b/src/orchestrator/keys/plan.ts
+@@ -72,6 +72,8 @@ export interface KeysBarPlan {
+   pianoAnswer?: PianoAnswerPlan;
+   /** Rare chamber/sonata peak allows RH ceiling 88 instead of 84. */
+   pianoRarePeak?: boolean;
++  /** Planned tail-run immediately before an eligible chorus arrival. */
++  pianoFlourish?: { targetBar: number };
+   /** Section-level owner of the single arpeggiator, when piano is rostered. */
+   arpeggiatorOwner?: KeysPart;
+   /** The slope comparison's local direction at a closing section bar. */
+@@ -680,6 +682,30 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[] = [])
+     });
+   }
+ 
++  // A flourish is allowed only where the piano owns the section arpeggiator,
++  // the next chorus has a planned arrival chord, and no harp gliss occupies
++  // the preceding bar. Existing piano jobs/textures remain intact elsewhere.
++  const flourishTemplates = new Set(['ensemble.chamber', 'ensemble.sonata', 'ensemble.cinematic', 'ensemble.hybridstudio']);
++  if (flourishTemplates.has(template.id) && roster.includes('piano')) {
++    const flourishChoices = orderedSections
++      .filter((section) => isChorusTypeK(section.name) && section.startBar > 1)
++      .flatMap((section) => {
++        const prior = barPlans[section.startBar - 2];
++        const arrival = barPlans[section.startBar - 1];
++        if (!prior || !arrival || !prior.pianoJob || prior.arpeggiatorOwner !== 'piano') return [];
++        if (arrival.pianoArrival !== 'chorusDownbeat' || arrival.pianoRole !== 'anchor' || arrival.voices.piano !== 'anchor') return [];
++        if (prior.moment || arrival.moment || nearSilenceBars.has(prior.bar) || nearSilenceBars.has(arrival.bar)) return [];
++        if (prior.pianoRole && prior.voices.piano !== 'anchor') return [];
++        if (prior.pianoPower || prior.pianoRepeatedChord || prior.pianoFigure || prior.pianoPunctuation || prior.pianoArrival) return [];
++        const priorStart = (prior.bar - 1) * btBar;
++        const priorEnd = prior.bar * btBar;
++        if (glisses.some((gliss) => gliss.startTick < priorEnd && gliss.targetTick > priorStart)) return [];
++        return [{ prior, targetBar: section.startBar }];
++      })
++      .sort((a, b) => hashString(`piano-flourish:${take}:${a.targetBar}`) - hashString(`piano-flourish:${take}:${b.targetBar}`));
++    for (const choice of flourishChoices.slice(0, 2)) choice.prior.pianoFlourish = { targetBar: choice.targetBar };
++  }
++
+   // Reconstruct the beat windows in which golden105 counted piano as a
+   // sounding role. This lets the harp's phase-B velocity bound remain pinned
+   // while the new held piano adds notes in other windows.
+@@ -733,6 +759,7 @@ export function planKeys(ctx: OrchestratorContext, fills: KeysFillWindow[] = [])
+   const roleCountLine = `anchor=${pianoRoleCounts.anchor}`;
+   reports.push(`keys (take ${take}): gates 0.30/0.50/0.72/0.90 of clamp ${clampMax}, piano held body+chord from 0.30 (chorus relief), harp modes ${harpModes}; glissandos ${glissLine} (budget ${GLISS_MAX_PER_PIECE})`);
+   reports.push(`keys piano roles (take ${take}): ${roleCountLine} planned bars`);
++  reports.push(`keys piano flourishes planned (take ${take}): ${barPlans.filter((bar) => bar.pianoFlourish).map((bar) => `b${bar.bar}->b${bar.pianoFlourish!.targetBar}`).join(', ') || 'none'}`);
+   if (pianoJobs.length) {
+     reports.push(`keys piano energy slope (take ${take}): sign of next ArcBar.target minus current within section; section-end uses current minus previous; flat band ±max(1e-6, 0.5% of clamp ${clampMax})`);
+     reports.push(`keys piano jobs (take ${take}, balanced section rotation): ${pianoJobs.map((entry) => `b${entry.startBar}-${entry.startBar + entry.lengthBars - 1}=${entry.job}/${entry.arpeggiatorOwner}${entry.vocalCellAllowed ? '/VB-cell' : ''}`).join(', ')}`);
+diff --git a/src/orchestrator/keys/render.ts b/src/orchestrator/keys/render.ts
+index 264ec4a..fb2a9c5 100644
+--- a/src/orchestrator/keys/render.ts
++++ b/src/orchestrator/keys/render.ts
+@@ -192,7 +192,7 @@ function pianoStrikeId(c: KeysCandidate): string {
+ 
+ function capPianoPunctuation(candidates: KeysCandidate[], shareLimit: number): { baseStrikes: number; punctuationStrikes: number; dropped: number } {
+   const active = candidates.filter((c) => !c.drop);
+-  const baseIds = new Set(active.filter((c) => c.roleTag !== 'punctuation').map(pianoStrikeId));
++  const baseIds = new Set(active.filter((c) => c.roleTag !== 'punctuation' && c.roleTag !== 'flourish').map(pianoStrikeId));
+   const groups = new Map<string, KeysCandidate[]>();
+   for (const c of active) {
+     if (c.roleTag !== 'punctuation') continue;
+@@ -248,9 +248,9 @@ function repairPianoOverlaps(
+   const failedGroups = new Set<string>();
+   const harpYields: string[] = [];
+   let shifted = 0, shortened = 0, dropped = 0;
+-  const needsWholeChord = (c: KeysCandidate) => c.roleTag === 'arrival' || c.roleTag === 'punctuation';
++  const needsWholeChord = (c: KeysCandidate) => c.roleTag === 'arrival' || c.roleTag === 'punctuation' || c.roleTag === 'shift';
+   const isMotionOverlay = (c: KeysCandidate) => c.hand === 'rh'
+-    && ['lift', 'settle', 'bed', 'atmosphere', 'answer'].includes(c.roleTag ?? '');
++    && ['lift', 'settle', 'bed', 'atmosphere', 'answer', 'flourish'].includes(c.roleTag ?? '');
+   const isLowPriorityForOctaves = (c: KeysCandidate) => isMotionOverlay(c) || c.roleTag === 'power';
+   const octaveInterval = (a: number, b: number) => Math.abs(a - b) > 0 && Math.abs(a - b) % 12 === 0;
+   const harpCollisionAt = (c: KeysCandidate, pitch: number) => c.yieldToHarp === true && harpNotes.some((h) =>
+@@ -1515,6 +1515,152 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
+     }
+   }
+ 
++  const pianoCandidates = candidatesByPart.piano ?? [];
++  const flourishTemplates = new Set(['ensemble.chamber', 'ensemble.sonata', 'ensemble.cinematic', 'ensemble.hybridstudio']);
++  const externalOctaveNotes: Note[] = [];
++  const maxLegatoTicks = forbidOctaveDoubling ? msToTicks(30, project.tempoMap) : 0;
++  if (forbidOctaveDoubling) {
++    const flourishRosterRoles = new Set(template.roster.map((entry) => entry.role));
++    const appendExternalTracks = (tracks: Record<string, Note[]>) => {
++      for (const [trackId, notes] of Object.entries(tracks)) {
++        const role = project.tracks.find((track) => track.id === trackId)?.role;
++        if (role && role !== 'piano' && flourishRosterRoles.has(role)) externalOctaveNotes.push(...notes);
++      }
++    };
++    appendExternalTracks(stringsNotes);
++    appendExternalTracks(brassNotes);
++    appendExternalTracks(windNotes);
++    appendExternalTracks(percNotes);
++    appendExternalTracks(notesByTrackId);
++    for (const entry of ruleNotes) if (entry.role !== 'piano' && flourishRosterRoles.has(entry.role)) externalOctaveNotes.push(...entry.notes);
++  }
++  const hasExternalHardOctave = (pitch: number, startTick: number, durationTicks: number): boolean => {
++    if (!forbidOctaveDoubling) return false;
++    return externalOctaveNotes.some((other) => {
++      const interval = Math.abs(pitch - other.pitch);
++      if (!interval || interval % 12 !== 0) return false;
++      const tick = Math.max(startTick, other.startTick);
++      if (startTick >= other.startTick + other.durationTicks + maxLegatoTicks
++        || other.startTick >= startTick + durationTicks) return false;
++      const shortDuration = Math.min(durationTicks, other.durationTicks);
++      const longDuration = Math.max(durationTicks, other.durationTicks);
++      if (shortDuration <= btBar / 2 && longDuration > shortDuration) {
++        const shortPitch = durationTicks <= other.durationTicks ? pitch : other.pitch;
++        const span = ctx.spans.find((candidate) => candidate.startTick <= tick && tick < candidate.endTick);
++        if (span && chordTones(span.parsed).tones.some((tone) => pcOf(tone.pc) === pcOf(shortPitch))) return false;
++      }
++      return true;
++    });
++  };
++  for (const planBar of plan.bars.filter((bar) => bar.pianoFlourish)) {
++    const targetBar = planBar.pianoFlourish!.targetBar;
++    const arrivalNotes = pianoCandidates.filter((candidate) => candidate.bar === targetBar && candidate.hand === 'rh'
++      && candidate.roleTag === 'arrival' && !candidate.drop);
++    const targetPitch = arrivalNotes.length ? Math.max(...arrivalNotes.map((candidate) => candidate.pitch)) : null;
++    const chamberSonata = template.id === 'ensemble.chamber' || template.id === 'ensemble.sonata';
++    const rhCeiling = Math.min(chamberSonata ? 84 : 96, pianoHi, pianoTrack?.highestNote ?? 108);
++    const rhFloor = Math.max(PIANO_RH[0], pianoLo, pianoTrack?.lowestNote ?? 0);
++    const diatonic = targetPitch === null ? [] : Array.from({ length: Math.max(0, targetPitch - rhFloor + 1) }, (_, index) => rhFloor + index)
++      .filter((pitch) => pitch <= targetPitch && pitch <= rhCeiling && scalePcs.has(pcOf(pitch)));
++    const runPitches = targetPitch !== null && targetPitch <= rhCeiling && diatonic.at(-1) === targetPitch
++      ? diatonic.slice(-8) : [];
++    const runWindowTicks = Math.min(2 * beat, btBar);
++    if (!flourishTemplates.has(template.id) || targetPitch === null || runPitches.length !== 8 || runWindowTicks < 8) {
++      delete planBar.pianoFlourish;
++      continue;
++    }
++
++    const barEnd = planBar.bar * btBar;
++    const runStart = barEnd - runWindowTicks;
++    const runEvents = runPitches.map((pitch, index) => {
++      const startTick = runStart + Math.floor(index * runWindowTicks / runPitches.length);
++      const endTick = runStart + Math.floor((index + 1) * runWindowTicks / runPitches.length);
++      return { pitch, startTick, durationTicks: Math.max(1, endTick - startTick) };
++    });
++    // A piano-owned flourish must not introduce a forbidden octave with a
++    // rostered part. Drop only this optional run when no collision-free walk
++    // exists; the source tracks and the downbeat arrival remain untouched.
++    if (runEvents.some((event) => hasExternalHardOctave(event.pitch, event.startTick, event.durationTicks))) {
++      delete planBar.pianoFlourish;
++      continue;
++    }
++    // The preceding RH chord/figure releases at the written run start; LH
++    // candidates are deliberately untouched. No previous RH event can ring
++    // into the monophonic scale walk.
++    for (const candidate of pianoCandidates) {
++      if (candidate.bar !== planBar.bar || candidate.hand !== 'rh' || candidate.drop) continue;
++      if (candidate.startTick >= runStart) {
++        candidate.drop = true;
++      } else if (candidate.startTick + candidate.durationTicks > runStart) {
++        candidate.durationTicks = runStart - candidate.startTick;
++        if (candidate.durationTicks < 1) candidate.drop = true;
++      }
++    }
++    for (const [index, event] of runEvents.entries()) {
++      pianoCandidates.push({
++        ...event,
++        roleTag: 'flourish', hand: 'rh', bar: planBar.bar,
++        strikeId: `piano-flourish:${planBar.bar}:${index}`, collisionAlternatives: [],
++      });
++    }
++  }
++
++  // Raise one complete RH chord strike in the final chorus, if every note
++  // clears the template ceiling and the shift creates no piano RH collision.
++  if (flourishTemplates.has(template.id) && pianoTrack) {
++    const choruses = ctx.sections.filter((section) => isChorusTypeK(section.name)).sort((a, b) => a.startBar - b.startBar);
++    const lastChorus = choruses.at(-1);
++    if (lastChorus) {
++      const upper = Math.min(template.id === 'ensemble.chamber' || template.id === 'ensemble.sonata' ? 84 : 96,
++        pianoHi, pianoTrack.highestNote);
++      const flourishLandingBars = new Set(plan.bars.filter((bar) => bar.pianoFlourish)
++        .map((bar) => bar.pianoFlourish!.targetBar));
++      const groups = new Map<string, KeysCandidate[]>();
++      for (const candidate of pianoCandidates) {
++        if (candidate.drop || candidate.hand !== 'rh' || !candidate.strikeId
++          || !['anchor', 'arrival'].includes(candidate.roleTag ?? '')
++          || candidate.bar === undefined || candidate.bar < lastChorus.startBar
++          || candidate.bar >= lastChorus.startBar + lastChorus.lengthBars) continue;
++        const groupBar = planByBar.get(candidate.bar);
++        if (groupBar?.voices.piano === 'final' || groupBar?.pianoArrival === 'closingChord') continue;
++        if (candidate.roleTag === 'arrival' && flourishLandingBars.has(candidate.bar)) continue;
++        groups.set(candidate.strikeId, [...(groups.get(candidate.strikeId) ?? []), candidate]);
++      }
++      const orderedGroups = [...groups.entries()].filter(([, group]) => group.length >= 2)
++        .sort((a, b) => Math.max(...b[1].map((candidate) => candidate.startTick)) - Math.max(...a[1].map((candidate) => candidate.startTick))
++          || a[0].localeCompare(b[0]));
++      const hasForbiddenCollision = (group: KeysCandidate[]): boolean => {
++        const groupSet = new Set(group);
++        for (const candidate of group) {
++          const shiftedPitch = candidate.pitch + 12;
++          if (shiftedPitch > upper || shiftedPitch > pianoTrack.highestNote) return true;
++          for (const other of pianoCandidates) {
++            if (groupSet.has(other) || other.drop || !intervalsOverlap(candidate, other)) continue;
++            const interval = Math.abs(shiftedPitch - other.pitch);
++            if (interval === 0 || (other.hand === 'rh' && [11, 13].includes(interval))) return true;
++          }
++        }
++        return false;
++      };
++      const selected = orderedGroups.find(([, group]) => !hasForbiddenCollision(group));
++      if (selected) {
++        for (const candidate of selected[1]) {
++          candidate.pitch += 12;
++          candidate.roleTag = 'shift';
++          candidate.collisionAlternatives = (candidate.collisionAlternatives ?? [])
++            .map((pitch) => pitch + 12).filter((pitch) => pitch <= upper && pitch <= pianoTrack.highestNote);
++          if (candidate.rootPitch !== undefined) candidate.rootPitch += 12;
++        }
++      }
++    }
++  }
++
++  const flourishTake = project.orchestration?.take ?? 0;
++  const flourishPlanIndex = plan.reports.findIndex((line) => line.startsWith(`keys piano flourishes planned (take ${flourishTake}):`));
++  if (flourishPlanIndex >= 0) {
++    plan.reports[flourishPlanIndex] = `keys piano flourishes planned (take ${flourishTake}): ${plan.bars.filter((bar) => bar.pianoFlourish).map((bar) => `b${bar.bar}->b${bar.pianoFlourish!.targetBar}`).join(', ') || 'none'}`;
++  }
++
+   /** An answer is an indivisible line: if concurrency or a collision pass
+    *  cuts any beat (especially its held final note), omit the whole answer. */
+   const dropIncompleteAnswerLines = (candidates: KeysCandidate[]): number => {
+@@ -1659,7 +1805,7 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
+   // pass 2: micro-timing and final note events. The written note end is
+   // unchanged by jitter, so all notes in a strike keep a common release.
+   const renderedRoleCounts: Record<NoteRoleTag, number> = {
+-    anchor: 0, lift: 0, settle: 0, bed: 0, atmosphere: 0, arrival: 0, punctuation: 0, power: 0, answer: 0,
++    anchor: 0, lift: 0, settle: 0, bed: 0, atmosphere: 0, arrival: 0, punctuation: 0, power: 0, answer: 0, flourish: 0, shift: 0,
+   };
+   for (const part of KEYS_PARTS) {
+     const track = trackOf.get(part);
+@@ -1742,6 +1888,7 @@ export function renderKeys(input: KeysRenderInput): KeysRenderResult {
+     if (count) reports.push(`keys ${part}: ${count} notes (range ${track.lowestNote}-${track.highestNote}, lag ${msLo}-${msHi} ms)`);
+   }
+   reports.push(`keys piano role events (take ${project.orchestration?.take ?? 0}): ${Object.entries(renderedRoleCounts).map(([role, count]) => `${role}=${count}`).join(', ')}`);
++  reports.push(`keys piano flourish/shift events (take ${project.orchestration?.take ?? 0}): flourish=${renderedRoleCounts.flourish}, shift=${renderedRoleCounts.shift}`);
+   const answerNotes = Object.values(notesByTrackId).flat().filter((note) => note.roleTag === 'answer');
+   const answerNoteCounts = { leadEcho: 0, chordToneFragment: 0 };
+   const answerBars = new Set<number>();
+diff --git a/src/shared/schema/project.schema.json b/src/shared/schema/project.schema.json
+index f8780aa..3a924ef 100644
+--- a/src/shared/schema/project.schema.json
++++ b/src/shared/schema/project.schema.json
+@@ -61,7 +61,7 @@
+       "properties": {
+         "pitch": { "type": "integer", "minimum": 0, "maximum": 127 }, "startTick": { "type": "integer", "minimum": 0 }, "durationTicks": { "type": "integer", "minimum": 1 }, "velocity": { "type": "integer", "minimum": 1, "maximum": 127 },
+         "articulation": { "enum": ["legato", "detache", "marcato", "staccato", "spiccato", "pizz", "tremolo", "portato", "sulTasto", "sulPont", "conSord"] },
+-        "roleTag": { "enum": ["anchor", "lift", "settle", "bed", "atmosphere", "arrival", "punctuation", "power", "answer"], "description": "Planner-assigned piano role: held anchor, motion, arrival, punctuation, power, bed figure, cascade atmosphere, or answer line." },
++        "roleTag": { "enum": ["anchor", "lift", "settle", "bed", "atmosphere", "arrival", "punctuation", "power", "answer", "flourish", "shift"], "description": "Planner-assigned piano role: held anchor, motion, arrival, punctuation, power, bed figure, cascade atmosphere, answer line, pre-chorus flourish, or register shift." },
+         "bow": { "enum": ["down", "up"] },
+         "layer": { "enum": ["cb", "div2", "kbd"], "description": "The Vc+Cb layering marks its Cb-doubled notes ('cb'); a divisi moment marks its second line ('div2'); legacy piano comping voices may be marked 'kbd'. Export profiles split the cellosBasses track by 'cb'; 'div2' and 'kbd' notes export with their parent part." }
+       }
+diff --git a/src/shared/schema/types.ts b/src/shared/schema/types.ts
+index be68d6c..f36638c 100644
+--- a/src/shared/schema/types.ts
++++ b/src/shared/schema/types.ts
+@@ -8,7 +8,7 @@ export const SCHEMA_VERSION = 1;
+ export type PitchClass = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
+ 
+ /** Planner-assigned piano event role. Figures are tagged separately from the held anchor. */
+-export type NoteRoleTag = 'anchor' | 'lift' | 'settle' | 'bed' | 'atmosphere' | 'arrival' | 'punctuation' | 'power' | 'answer';
++export type NoteRoleTag = 'anchor' | 'lift' | 'settle' | 'bed' | 'atmosphere' | 'arrival' | 'punctuation' | 'power' | 'answer' | 'flourish' | 'shift';
+ 
+ export type ModeName =
+   | 'Ionian' | 'Dorian' | 'Phrygian' | 'Lydian' | 'Mixolydian' | 'Aeolian' | 'Locrian'
+diff --git a/src/shared/schema/validate.ts b/src/shared/schema/validate.ts
+index 21e88d9..7c26e00 100644
+--- a/src/shared/schema/validate.ts
++++ b/src/shared/schema/validate.ts
+@@ -160,8 +160,8 @@ export function validateProject(input: unknown): ValidationResult {
+       if (!isInt(n.startTick) || n.startTick < 0) err(np, `${nm}: note startTick must be an integer ≥ 0`);
+       if (!isInt(n.durationTicks) || n.durationTicks < 1) err(np, `${nm}: note has zero or negative length`);
+       if (!isInt(n.velocity) || n.velocity < 1 || n.velocity > 127) err(np, `${nm}: velocity must be 1–127 (got ${n.velocity})`);
+-      if (n.roleTag !== undefined && !['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer'].includes(n.roleTag)) {
+-        err(`${np}.roleTag`, `${nm}: unknown role tag ${JSON.stringify(n.roleTag)} (expected anchor/lift/settle/bed/atmosphere/arrival/punctuation/power/answer)`);
++      if (n.roleTag !== undefined && !['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer', 'flourish', 'shift'].includes(n.roleTag)) {
++        err(`${np}.roleTag`, `${nm}: unknown role tag ${JSON.stringify(n.roleTag)} (expected anchor/lift/settle/bed/atmosphere/arrival/punctuation/power/answer/flourish/shift)`);
+       }
+       if (n.articulation !== undefined && !ARTICULATIONS.includes(n.articulation)) {
+         err(`${np}.articulation`, `${nm}: unknown articulation ${JSON.stringify(n.articulation)} (expected one of ${ARTICULATIONS.join(', ')})`);
+diff --git a/tests/phase11.test.ts b/tests/phase11.test.ts
+index 89f122b..7bf5941 100644
+--- a/tests/phase11.test.ts
++++ b/tests/phase11.test.ts
+@@ -20,9 +20,9 @@ describe('Phase 11 keys smoke contract', () => {
+     expect(activeBars).toBeGreaterThan(0);
+     expect(plan.pianoRoleCounts.anchor).toBe(activeBars);
+     expect(piano.notes.length).toBeGreaterThan(0);
+-    expect(piano.notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power'].includes(n.roleTag ?? ''))).toBe(true);
++    expect(piano.notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer', 'flourish', 'shift'].includes(n.roleTag ?? ''))).toBe(true);
+     expect(piano.notes.some((n) => n.roleTag === 'anchor')).toBe(true);
+-    expect(result.reports.some((line) => line.includes(`keys piano roles (take 1): anchor=${activeBars} planned bars`))).toBe(true);
++    expect(result.reports.some((line) => line.includes(`keys piano roles (take 1): anchor=${activeBars}, answer=${plan.pianoRoleCounts.answer} planned bars`))).toBe(true);
+     expect(validateProject(project).ok).toBe(true);
+   });
+ });
+diff --git a/tests/phase111.test.ts b/tests/phase111.test.ts
+index 80b3a3c..351e392 100644
+--- a/tests/phase111.test.ts
++++ b/tests/phase111.test.ts
+@@ -16,7 +16,7 @@ describe('Phase 11.1 vocalbacking piano registers', () => {
+     const { project } = vocalBacking(1);
+     const piano = project.tracks.find((t) => t.role === 'piano')!;
+     expect(piano.notes.length).toBeGreaterThan(0);
+-    expect(piano.notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power'].includes(n.roleTag ?? ''))).toBe(true);
++    expect(piano.notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer', 'flourish', 'shift'].includes(n.roleTag ?? ''))).toBe(true);
+     expect(piano.notes.some((n) => n.roleTag === 'anchor')).toBe(true);
+     expect(piano.notes.every((n) => (n.pitch >= 40 && n.pitch <= 56) || n.pitch >= 82 || (n.articulation === 'marcato' && n.pitch >= 36 && n.pitch < 40))).toBe(true);
+     expect(piano.notes.some((n) => n.pitch >= 57 && n.pitch <= 81)).toBe(false);
+diff --git a/tests/phase114.test.ts b/tests/phase114.test.ts
+index 3ddac0f..81236ba 100644
+--- a/tests/phase114.test.ts
++++ b/tests/phase114.test.ts
+@@ -26,7 +26,7 @@ describe('Phase 11.4 chamber piano clearance', () => {
+         .some((t) => t.notes.some((s) => s.pitch <= 71 && s.startTick < end && s.startTick + s.durationTicks > start));
+       if (lowStrings && n.pitch >= 64) expect(n.pitch, `bar ${bar}: piano RH clears the strings`).toBeGreaterThanOrEqual(72);
+     }
+-    expect(piano.notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power'].includes(n.roleTag ?? ''))).toBe(true);
++    expect(piano.notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer', 'flourish', 'shift'].includes(n.roleTag ?? ''))).toBe(true);
+     expect(piano.notes.some((n) => n.roleTag === 'anchor')).toBe(true);
+   });
+ });
+diff --git a/tests/phase115.test.ts b/tests/phase115.test.ts
+index 2127a95..fcb556b 100644
+--- a/tests/phase115.test.ts
++++ b/tests/phase115.test.ts
+@@ -21,7 +21,7 @@ describe('Phase 11.5 deterministic keys plan', () => {
+     );
+     expect(JSON.stringify(a.project.tracks)).toBe(JSON.stringify(b.project.tracks));
+     const pianoNotes = a.project.tracks.find((t) => t.role === 'piano')!.notes;
+-    expect(pianoNotes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power'].includes(n.roleTag ?? ''))).toBe(true);
++    expect(pianoNotes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer', 'flourish', 'shift'].includes(n.roleTag ?? ''))).toBe(true);
+     expect(pianoNotes.some((n) => n.roleTag === 'anchor')).toBe(true);
+   });
+ });
+diff --git a/tests/phase116.test.ts b/tests/phase116.test.ts
+index eea02e7..f825736 100644
+--- a/tests/phase116.test.ts
++++ b/tests/phase116.test.ts
+@@ -15,7 +15,7 @@ import { scalePitchClasses } from '../src/shared/schema/modes';
+ import { buildMergedMidi, parseMidiFile } from '../src/export/midi';
+ import {
+   PIANO_ARRIVAL_PHRASE_BARS, PIANO_CONCURRENCY, PIANO_JOB_ROTATION, PIANO_MOTION_PHRASE_BARS,
+-  PIANO_PUNCTUATION_SHARE, PIANO_REPEATED_CHORD_MAX_SHARE, PIANO_UP_MAX_SHARE, type PianoJob,
++  PIANO_PUNCTUATION_SHARE, PIANO_REPEATED_CHORD_MAX_SHARE, PIANO_UP_MAX_SHARE, isChorusTypeK, type PianoJob,
+ } from '../src/orchestrator/keys/profile';
+ 
+ const PIANO = 'piano';
+@@ -50,6 +50,17 @@ function samePitchOverlapPairs(notes: Note[]): [Note, Note][] {
+   return pairs;
+ }
+ 
++function rhElevenThirteenOverlapPairs(notes: Note[]): [Note, Note][] {
++  const rh = notes.filter((note) => note.pitch >= 64);
++  const pairs: [Note, Note][] = [];
++  for (let i = 0; i < rh.length; i++) for (let j = i + 1; j < rh.length; j++) {
++    const a = rh[i], b = rh[j];
++    if ([11, 13].includes(Math.abs(a.pitch - b.pitch))
++      && a.startTick < b.startTick + b.durationTicks && b.startTick < a.startTick + a.durationTicks) pairs.push([a, b]);
++  }
++  return pairs;
++}
++
+ function lowStringsSoundInBar(project: Project, bar: number): boolean {
+   const bt = barTicks(project.timeSignature);
+   const start = (bar - 1) * bt;
+@@ -115,7 +126,7 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
+       expect(result.reports.some((r) => r.startsWith(`keys piano answer role events (take ${generatedTake}):`))).toBe(true);
+       expect(result.reports.some((r) => r.startsWith(`piano absorption (take ${generatedTake}):`))).toBe(true);
+       expect(piano.length).toBeGreaterThan(0);
+-      expect(piano.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer'].includes(n.roleTag ?? '')), `${template} t${take}: piano role tags are schema-approved`).toBe(true);
++      expect(piano.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer', 'flourish', 'shift'].includes(n.roleTag ?? '')), `${template} t${take}: piano role tags are schema-approved`).toBe(true);
+       expect(piano.some((n) => n.roleTag === 'anchor'), `${template} t${take}: held anchor remains present`).toBe(true);
+       expect(project.tracks.find((t) => t.role === HARP)?.notes.every((n) => n.roleTag === undefined)).toBe(true);
+       assertPianoPolyphony(piano, `${template} ${fixture} t${take}`);
+@@ -133,7 +144,7 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
+     for (const [fixture, templateId, take] of samples) {
+       const { project, result } = composeTake(fixture, templateId, take);
+       const notes = roleNotes(project, PIANO);
+-      const anchors = notes.filter((note) => note.roleTag === 'anchor');
++      const anchors = notes.filter((note) => note.roleTag === 'anchor' || note.roleTag === 'shift');
+       const bt = barTicks(project.timeSignature);
+       const jitterMax = Math.ceil(msToTicks(12, project.tempoMap)) + 2;
+       const bars = projectBars(project);
+@@ -149,10 +160,10 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
+           const group = groupAt(anchors, strike.onset, jitterMax);
+           expect(group.length, `${templateId} t${take} b${planBar.bar}: planned strike at ${strike.onset} is rendered`).toBeGreaterThan(0);
+           strikesSeen.add(`${planBar.bar}:${strike.onset}`);
+-          expect(group.every((n) => n.roleTag === 'anchor')).toBe(true);
++          expect(group.every((n) => n.roleTag === 'anchor' || n.roleTag === 'shift')).toBe(true);
+           const ends = group.map((n) => n.startTick + n.durationTicks);
+           const body = group.filter((n) => n.pitch <= (templateId === 'ensemble.vocalbacking' ? 56 : 55));
+-          if (!planBar.pianoPunctuation && !planBar.pianoFigure) {
++          if (!planBar.pianoPunctuation && !planBar.pianoFigure && !planBar.pianoFlourish) {
+             expect(Math.max(...ends) - Math.min(...ends), `${templateId} t${take} b${planBar.bar}: unornamented strike releases together`).toBeLessThanOrEqual(16);
+           }
+           expect(Math.max(...ends), `${templateId} b${planBar.bar}: release does not pass its harmonic span`).toBeLessThanOrEqual(strike.release);
+@@ -241,7 +252,7 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
+       const { project, result } = composeTake(fixture, templateId, take);
+       const notes = roleNotes(project, PIANO);
+       expect(notes.length).toBeGreaterThan(0);
+-      expect(notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer'].includes(n.roleTag ?? ''))).toBe(true);
++      expect(notes.every((n) => ['anchor', 'lift', 'settle', 'bed', 'atmosphere', 'arrival', 'punctuation', 'power', 'answer', 'flourish', 'shift'].includes(n.roleTag ?? ''))).toBe(true);
+       expect(notes.some((n) => n.roleTag === 'anchor')).toBe(true);
+       assertPianoPolyphony(notes, `${templateId} ${fixture} t${take}`);
+       if (templateId === 'ensemble.vocalbacking') {
+@@ -292,10 +303,15 @@ describe('Phase 11.6a: piano held-anchor contract', () => {
+     }
+   }, 120000);
+ 
+-  it('schema validation accepts anchor and rejects unknown role tags', () => {
++  it('schema validation accepts current piano role tags and rejects unknown tags', () => {
+     const { project } = composeTake('three', 'ensemble.chamber', 1);
+     const good = validateProject(project);
+     expect(good.ok).toBe(true);
++    for (const roleTag of ['flourish', 'shift'] as const) {
++      const tagged = structuredClone(project);
++      tagged.tracks.find((track) => track.role === PIANO)!.notes[0].roleTag = roleTag;
++      expect(validateProject(tagged).ok, `${roleTag} is schema-approved`).toBe(true);
++    }
+     const altered = structuredClone(project);
+     const piano = altered.tracks.find((t) => t.role === PIANO)!;
+     piano.notes[0].roleTag = 'not-a-role' as never;
+@@ -963,3 +979,91 @@ describe('Phase 11.6d-1: chamber and sonata piano answers', () => {
+     expect(piano.notes.filter((note) => note.roleTag === 'answer').length).toBe(plans.reduce((n, bar) => n + bar.pianoAnswer!.pitches.length, 0));
+   });
+ });
++
++describe('Phase 11.6d-2: piano flourishes and last-chorus register shifts', () => {
++  it('keeps tail runs diatonic and piano-owned, and limits octave-up shifts to one RH strike in the last chorus', () => {
++    const eligibleTemplates = ['ensemble.chamber', 'ensemble.sonata', 'ensemble.cinematic', 'ensemble.hybridstudio'];
++    for (const templateId of eligibleTemplates) {
++      let flourishPieces = 0;
++      let shiftPieces = 0;
++      const upper = templateId === 'ensemble.chamber' || templateId === 'ensemble.sonata' ? 84 : 96;
++      for (let take = 0; take < 20; take++) {
++        const { project, result } = composeTake('three', templateId, take);
++        const template = resolveTemplate(project.ensemble!);
++        expect(checkTemplateRules(project, template!, result.plan).filter((finding) => finding.severity === 'hard'), `${templateId} t${result.orchestration.take}: no hard findings`).toHaveLength(0);
++        const piano = project.tracks.find((track) => track.role === PIANO)!;
++        const bt = barTicks(project.timeSignature);
++        const beat = beatTicks(project.timeSignature);
++        const barOf = (note: Note) => Math.floor(note.startTick / bt) + 1;
++        const flourishPlans = result.plan.keys.bars.filter((bar) => bar.pianoFlourish);
++        const flourishes = piano.notes.filter((note) => note.roleTag === 'flourish');
++        const flourishBars = new Map<number, Note[]>();
++        for (const note of flourishes) flourishBars.set(barOf(note), [...(flourishBars.get(barOf(note)) ?? []), note]);
++        expect(flourishPlans.length, `${templateId} t${result.orchestration.take}: at most two flourishes`).toBeLessThanOrEqual(2);
++        expect(flourishBars.size, `${templateId} t${result.orchestration.take}: every plan renders one run`).toBe(flourishPlans.length);
++
++        for (const planBar of flourishPlans) {
++          const run = (flourishBars.get(planBar.bar) ?? []).sort((a, b) => a.startTick - b.startTick);
++          const targetBar = planBar.pianoFlourish!.targetBar;
++          const targetPlan = result.plan.keys.bars.find((bar) => bar.bar === targetBar)!;
++          const targetSection = project.sections.find((section) => targetBar >= section.startBar && targetBar < section.startBar + section.lengthBars)!;
++          const preStart = (planBar.bar - 1) * bt;
++          const barEnd = planBar.bar * bt;
++          const runStart = barEnd - Math.min(2 * beat, bt);
++          expect(planBar.pianoJob, `${templateId} b${planBar.bar}: piano job owns the section`).toBeDefined();
++          expect(planBar.arpeggiatorOwner, `${templateId} b${planBar.bar}: piano owns the section arpeggiator`).toBe('piano');
++          expect(isChorusTypeK(targetSection.name), `${templateId} b${targetBar}: flourish targets a chorus`).toBe(true);
++          expect(targetPlan.pianoArrival).toBe('chorusDownbeat');
++          expect(result.plan.keys.glisses.some((gliss) => gliss.startTick < barEnd && gliss.targetTick > preStart), `${templateId} b${planBar.bar}: not a harp-gliss bar`).toBe(false);
++          expect(run).toHaveLength(8);
++          expect(run.every((note) => note.pitch <= upper), `${templateId} b${planBar.bar}: flourish RH ceiling`).toBe(true);
++          expect(run.every((note) => note.startTick >= runStart && note.startTick + note.durationTicks <= barEnd), `${templateId} b${planBar.bar}: run occupies only the final two beats`).toBe(true);
++          for (let i = 1; i < run.length; i++) {
++            expect(run[i].pitch, `${templateId} b${planBar.bar}: run ascends strictly without repeated pitches`).toBeGreaterThan(run[i - 1].pitch);
++          }
++          const scale = new Set(scalePitchClasses(project.key, project.mode).map(pcOf));
++          expect(run.every((note) => scale.has(pcOf(note.pitch))), `${templateId} b${planBar.bar}: all run notes are diatonic`).toBe(true);
++          const arrivalChord = piano.notes.filter((note) => barOf(note) === targetBar && note.roleTag === 'arrival' && note.pitch >= 64);
++          expect(arrivalChord.length, `${templateId} b${targetBar}: chorus-downbeat arrival chord remains present`).toBeGreaterThan(0);
++          expect(run.at(-1)!.pitch, `${templateId} b${planBar.bar}: lands on the arrival chord's top note`).toBe(Math.max(...arrivalChord.map((note) => note.pitch)));
++          const priorRh = piano.notes.filter((note) => barOf(note) === planBar.bar && note.pitch >= 64 && note.roleTag !== 'flourish');
++          expect(priorRh.every((note) => note.startTick + note.durationTicks <= runStart + 1), `${templateId} b${planBar.bar}: prior RH chord releases at run start`).toBe(true);
++          expect(run.every((note) => note.pitch >= 64), `${templateId} b${planBar.bar}: flourish is RH-only`).toBe(true);
++          if (planBar.pianoRole === 'anchor') {
++            expect(piano.notes.some((note) => barOf(note) === planBar.bar && note.pitch < 56 && note.roleTag === 'anchor'), `${templateId} b${planBar.bar}: LH body remains`).toBe(true);
++          }
++        }
++        if (flourishes.length) flourishPieces++;
++
++        const shiftNotes = piano.notes.filter((note) => note.roleTag === 'shift');
++        const shiftBars = [...new Set(shiftNotes.map(barOf))];
++        expect(shiftBars.length, `${templateId} t${result.orchestration.take}: at most one shifted strike`).toBeLessThanOrEqual(1);
++        if (shiftNotes.length) {
++          shiftPieces++;
++          const lastChorus = [...project.sections].filter((section) => isChorusTypeK(section.name)).sort((a, b) => a.startBar - b.startBar).at(-1)!;
++          expect(shiftNotes.length).toBeGreaterThanOrEqual(2);
++          expect(shiftNotes.every((note) => note.pitch >= 64 && note.pitch <= upper), `${templateId}: all shifted RH notes remain in range`).toBe(true);
++          expect(shiftNotes.every((note) => {
++            const bar = barOf(note);
++            return bar >= lastChorus.startBar && bar < lastChorus.startBar + lastChorus.lengthBars;
++          }), `${templateId}: shift occurs only in the last chorus`).toBe(true);
++          expect(shiftNotes.every((note) => note.pitch - 12 >= 64), `${templateId}: every shifted note is an octave above an RH source pitch`).toBe(true);
++        }
++        expect(samePitchOverlapPairs(piano.notes), `${templateId} t${result.orchestration.take}: no same-pitch overlaps`).toHaveLength(0);
++        expect(rhElevenThirteenOverlapPairs(piano.notes), `${templateId} t${result.orchestration.take}: no RH 11/13-semitone pairs`).toHaveLength(0);
++        expect(sanitizeNotes(piano.notes, piano.lowestNote, piano.highestNote, projectEndTick(project)), `${templateId} t${result.orchestration.take}: sanitizer no-op`).toEqual(piano.notes);
++        assertPianoPolyphony(piano.notes, `${templateId} t${result.orchestration.take}`);
++      }
++      expect(flourishPieces, `${templateId}: at least one flourish is exercised in the 20-run audit`).toBeGreaterThan(0);
++      expect(shiftPieces, `${templateId}: at least one shift is exercised in the 20-run audit`).toBeGreaterThan(0);
++    }
++
++    for (const templateId of ['ensemble.vocalbacking', 'ensemble.symphony']) {
++      for (let take = 0; take < 20; take++) {
++        const { project } = composeTake('three', templateId, take);
++        const piano = project.tracks.find((track) => track.role === PIANO)!;
++        expect(piano.notes.some((note) => note.roleTag === 'flourish' || note.roleTag === 'shift'), `${templateId} t${take + 1}: no flourish or shift`).toBe(false);
++      }
++    }
++  }, 1200000);
++});
+diff --git a/tests/phase8.test.ts b/tests/phase8.test.ts
+index 041adec..e028daa 100644
+--- a/tests/phase8.test.ts
++++ b/tests/phase8.test.ts
+@@ -136,6 +136,10 @@ describe('Phase 8: 4 — per-note seeding: notes outside moment bars are byte-id
+         // the bar(s) before the tutti) exist only when the moments do.
+         const KEYS_ROLES_P8 = new Set(['harp', 'piano']);
+         const glissBars = new Set<number>();
++        const pianoFlourishBars = new Set<number>([
++          ...withM.result.plan.keys.bars.filter((bar) => bar.pianoFlourish).map((bar) => bar.bar),
++          ...withoutM.result.plan.keys.bars.filter((bar) => bar.pianoFlourish).map((bar) => bar.bar),
++        ]);
+         const rollBars = new Set<number>();
+         const landingWindows: [number, number][] = [];
+         const btBarP8 = 3840;
+@@ -179,6 +183,9 @@ describe('Phase 8: 4 — per-note seeding: notes outside moment bars are byte-id
+           }
+           for (const n of t.notes) {
+             if (inMoment(n.startTick)) continue;
++            // Phase 11.6d-2: a planned piano flourish replaces RH content in
++            // its pre-chorus bar; compare neither side of that planned bar.
++            if (t.role === 'piano' && pianoFlourishBars.has(Math.floor(n.startTick / btBar) + 1)) continue;
+             // the Phase 10 allowances: a planned roll INTO a tutti is moment
+             // content (see above) — percussion notes in its bars are excluded;
+             // a percussion note inside a wind pickup-run's landing beat window

@@ -1,0 +1,811 @@
+{
+  "legacyPiano": [
+    {
+      "pitch": 81,
+      "startTick": 16,
+      "durationTicks": 3824,
+      "velocity": 36,
+      "roleTag": "arrival"
+    },
+    {
+      "pitch": 84,
+      "startTick": 16,
+      "durationTicks": 3824,
+      "velocity": 36,
+      "roleTag": "arrival"
+    },
+    {
+      "pitch": 50,
+      "startTick": 17,
+      "durationTicks": 3823,
+      "velocity": 36,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 65,
+      "startTick": 17,
+      "durationTicks": 3823,
+      "velocity": 36,
+      "roleTag": "arrival"
+    },
+    {
+      "pitch": 74,
+      "startTick": 248,
+      "durationTicks": 3592,
+      "velocity": 36,
+      "roleTag": "arrival"
+    },
+    {
+      "pitch": 67,
+      "startTick": 3849,
+      "durationTicks": 3831,
+      "velocity": 45,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 74,
+      "startTick": 3849,
+      "durationTicks": 3831,
+      "velocity": 45,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 77,
+      "startTick": 3849,
+      "durationTicks": 3831,
+      "velocity": 45,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 83,
+      "startTick": 3849,
+      "durationTicks": 3831,
+      "velocity": 45,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 43,
+      "startTick": 3856,
+      "durationTicks": 3824,
+      "velocity": 45,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 55,
+      "startTick": 3856,
+      "durationTicks": 3824,
+      "velocity": 45,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 65,
+      "startTick": 7689,
+      "durationTicks": 3831,
+      "velocity": 46,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 81,
+      "startTick": 7689,
+      "durationTicks": 3831,
+      "velocity": 46,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 84,
+      "startTick": 7689,
+      "durationTicks": 3831,
+      "velocity": 46,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 50,
+      "startTick": 7695,
+      "durationTicks": 3825,
+      "velocity": 46,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 74,
+      "startTick": 7696,
+      "durationTicks": 3824,
+      "velocity": 46,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 64,
+      "startTick": 11529,
+      "durationTicks": 1911,
+      "velocity": 47,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 71,
+      "startTick": 11529,
+      "durationTicks": 1911,
+      "velocity": 47,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 74,
+      "startTick": 11529,
+      "durationTicks": 1911,
+      "velocity": 47,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 40,
+      "startTick": 11530,
+      "durationTicks": 1910,
+      "velocity": 47,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 47,
+      "startTick": 11530,
+      "durationTicks": 1910,
+      "velocity": 47,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 79,
+      "startTick": 11530,
+      "durationTicks": 1910,
+      "velocity": 47,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 72,
+      "startTick": 13447,
+      "durationTicks": 953,
+      "velocity": 47,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 41,
+      "startTick": 13452,
+      "durationTicks": 1908,
+      "velocity": 47,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 88,
+      "startTick": 13452,
+      "durationTicks": 948,
+      "velocity": 47,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 48,
+      "startTick": 13453,
+      "durationTicks": 1907,
+      "velocity": 47,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 65,
+      "startTick": 13453,
+      "durationTicks": 947,
+      "velocity": 47,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 69,
+      "startTick": 13453,
+      "durationTicks": 947,
+      "velocity": 47,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 72,
+      "startTick": 14411,
+      "durationTicks": 229,
+      "velocity": 47,
+      "roleTag": "punctuation",
+      "articulation": "staccato"
+    },
+    {
+      "pitch": 69,
+      "startTick": 14417,
+      "durationTicks": 223,
+      "velocity": 47,
+      "roleTag": "punctuation",
+      "articulation": "staccato"
+    },
+    {
+      "pitch": 88,
+      "startTick": 14417,
+      "durationTicks": 223,
+      "velocity": 47,
+      "roleTag": "punctuation",
+      "articulation": "staccato"
+    },
+    {
+      "pitch": 65,
+      "startTick": 14418,
+      "durationTicks": 222,
+      "velocity": 47,
+      "roleTag": "punctuation",
+      "articulation": "staccato"
+    },
+    {
+      "pitch": 50,
+      "startTick": 15371,
+      "durationTicks": 3829,
+      "velocity": 47,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 65,
+      "startTick": 15371,
+      "durationTicks": 3829,
+      "velocity": 47,
+      "roleTag": "arrival"
+    },
+    {
+      "pitch": 81,
+      "startTick": 15371,
+      "durationTicks": 3829,
+      "velocity": 47,
+      "roleTag": "arrival"
+    },
+    {
+      "pitch": 84,
+      "startTick": 15371,
+      "durationTicks": 3829,
+      "velocity": 47,
+      "roleTag": "arrival"
+    },
+    {
+      "pitch": 74,
+      "startTick": 15611,
+      "durationTicks": 3589,
+      "velocity": 47,
+      "roleTag": "arrival"
+    },
+    {
+      "pitch": 48,
+      "startTick": 19207,
+      "durationTicks": 3833,
+      "velocity": 48,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 72,
+      "startTick": 19213,
+      "durationTicks": 3827,
+      "velocity": 48,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 79,
+      "startTick": 19213,
+      "durationTicks": 3827,
+      "velocity": 48,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 64,
+      "startTick": 19219,
+      "durationTicks": 3821,
+      "velocity": 48,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 69,
+      "startTick": 23049,
+      "durationTicks": 3831,
+      "velocity": 49,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 79,
+      "startTick": 23049,
+      "durationTicks": 3831,
+      "velocity": 49,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 64,
+      "startTick": 23050,
+      "durationTicks": 3830,
+      "velocity": 49,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 72,
+      "startTick": 23050,
+      "durationTicks": 3830,
+      "velocity": 49,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 45,
+      "startTick": 23055,
+      "durationTicks": 3825,
+      "velocity": 49,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 52,
+      "startTick": 23055,
+      "durationTicks": 3825,
+      "velocity": 49,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 50,
+      "startTick": 46090,
+      "durationTicks": 3830,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 81,
+      "startTick": 46091,
+      "durationTicks": 3829,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 84,
+      "startTick": 46091,
+      "durationTicks": 3829,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 74,
+      "startTick": 46097,
+      "durationTicks": 3823,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 65,
+      "startTick": 46098,
+      "durationTicks": 3822,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 77,
+      "startTick": 47529,
+      "durationTicks": 471,
+      "velocity": 80,
+      "roleTag": "bed"
+    },
+    {
+      "pitch": 89,
+      "startTick": 48497,
+      "durationTicks": 463,
+      "velocity": 80,
+      "roleTag": "bed"
+    },
+    {
+      "pitch": 96,
+      "startTick": 49452,
+      "durationTicks": 468,
+      "velocity": 80,
+      "roleTag": "bed"
+    },
+    {
+      "pitch": 93,
+      "startTick": 49927,
+      "durationTicks": 3833,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 65,
+      "startTick": 49933,
+      "durationTicks": 3827,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 70,
+      "startTick": 49933,
+      "durationTicks": 3827,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 74,
+      "startTick": 49933,
+      "durationTicks": 3827,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 46,
+      "startTick": 49939,
+      "durationTicks": 3821,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 77,
+      "startTick": 51373,
+      "durationTicks": 467,
+      "velocity": 82,
+      "roleTag": "bed"
+    },
+    {
+      "pitch": 86,
+      "startTick": 52338,
+      "durationTicks": 462,
+      "velocity": 82,
+      "roleTag": "bed"
+    },
+    {
+      "pitch": 77,
+      "startTick": 53291,
+      "durationTicks": 469,
+      "velocity": 82,
+      "roleTag": "bed"
+    },
+    {
+      "pitch": 64,
+      "startTick": 53771,
+      "durationTicks": 1909,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 72,
+      "startTick": 53771,
+      "durationTicks": 1909,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 76,
+      "startTick": 53771,
+      "durationTicks": 469,
+      "velocity": 84,
+      "roleTag": "bed"
+    },
+    {
+      "pitch": 79,
+      "startTick": 53771,
+      "durationTicks": 1909,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 48,
+      "startTick": 53777,
+      "durationTicks": 1903,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 55,
+      "startTick": 53777,
+      "durationTicks": 1903,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 96,
+      "startTick": 54252,
+      "durationTicks": 468,
+      "velocity": 84,
+      "roleTag": "bed"
+    },
+    {
+      "pitch": 84,
+      "startTick": 54727,
+      "durationTicks": 473,
+      "velocity": 84,
+      "roleTag": "bed"
+    },
+    {
+      "pitch": 96,
+      "startTick": 55210,
+      "durationTicks": 470,
+      "velocity": 84,
+      "roleTag": "bed"
+    },
+    {
+      "pitch": 79,
+      "startTick": 55690,
+      "durationTicks": 1910,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 52,
+      "startTick": 55691,
+      "durationTicks": 1909,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 64,
+      "startTick": 55691,
+      "durationTicks": 1909,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 69,
+      "startTick": 55691,
+      "durationTicks": 1909,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 74,
+      "startTick": 55691,
+      "durationTicks": 1909,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 76,
+      "startTick": 55691,
+      "durationTicks": 469,
+      "velocity": 84,
+      "roleTag": "bed"
+    },
+    {
+      "pitch": 45,
+      "startTick": 55697,
+      "durationTicks": 1903,
+      "velocity": 92,
+      "roleTag": "anchor"
+    },
+    {
+      "pitch": 93,
+      "startTick": 56175,
+      "durationTicks": 465,
+      "velocity": 84,
+      "roleTag": "bed"
+    },
+    {
+      "pitch": 81,
+      "startTick": 56650,
+      "durationTicks": 470,
+      "velocity": 84,
+      "roleTag": "bed"
+    },
+    {
+      "pitch": 93,
+      "startTick": 57134,
+      "durationTicks": 466,
+      "velocity": 84,
+      "roleTag": "bed"
+    },
+    {
+      "pitch": 38,
+      "startTick": 57611,
+      "durationTicks": 1909,
+      "velocity": 55,
+      "roleTag": "anchor",
+      "articulation": "marcato"
+    },
+    {
+      "pitch": 65,
+      "startTick": 57618,
+      "durationTicks": 3822,
+      "velocity": 47,
+      "roleTag": "arrival"
+    },
+    {
+      "pitch": 81,
+      "startTick": 57619,
+      "durationTicks": 3821,
+      "velocity": 47,
+      "roleTag": "arrival"
+    },
+    {
+      "pitch": 84,
+      "startTick": 57619,
+      "durationTicks": 3821,
+      "velocity": 47,
+      "roleTag": "arrival"
+    },
+    {
+      "pitch": 74,
+      "startTick": 57850,
+      "durationTicks": 3590,
+      "velocity": 47,
+      "roleTag": "arrival"
+    }
+  ],
+  "composerV1RealizerV1Piano": [
+    {
+      "pitch": 77,
+      "startTick": 0,
+      "durationTicks": 11290,
+      "velocity": 37,
+      "roleTag": "bed",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 48,
+      "startTick": 7680,
+      "durationTicks": 3648,
+      "velocity": 30,
+      "roleTag": "anchor",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 79,
+      "startTick": 11520,
+      "durationTicks": 1824,
+      "velocity": 37,
+      "roleTag": "bed",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 81,
+      "startTick": 13440,
+      "durationTicks": 5645,
+      "velocity": 37,
+      "roleTag": "bed",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 48,
+      "startTick": 15360,
+      "durationTicks": 3648,
+      "velocity": 30,
+      "roleTag": "anchor",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 72,
+      "startTick": 19200,
+      "durationTicks": 8160,
+      "velocity": 29,
+      "roleTag": "answer",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 67,
+      "startTick": 26880,
+      "durationTicks": 3648,
+      "velocity": 29,
+      "roleTag": "bed",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 71,
+      "startTick": 27360,
+      "durationTicks": 480,
+      "velocity": 32,
+      "roleTag": "settle",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 50,
+      "startTick": 30720,
+      "durationTicks": 3533,
+      "velocity": 58,
+      "roleTag": "anchor",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 65,
+      "startTick": 30720,
+      "durationTicks": 7526,
+      "velocity": 68,
+      "roleTag": "arrival",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 52,
+      "startTick": 34560,
+      "durationTicks": 3533,
+      "velocity": 58,
+      "roleTag": "anchor",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 52,
+      "startTick": 38400,
+      "durationTicks": 3533,
+      "velocity": 58,
+      "roleTag": "anchor",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 72,
+      "startTick": 38400,
+      "durationTicks": 3533,
+      "velocity": 68,
+      "roleTag": "arrival",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 47,
+      "startTick": 42240,
+      "durationTicks": 3533,
+      "velocity": 58,
+      "roleTag": "anchor",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 67,
+      "startTick": 42240,
+      "durationTicks": 3533,
+      "velocity": 68,
+      "roleTag": "arrival",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 48,
+      "startTick": 46080,
+      "durationTicks": 3533,
+      "velocity": 58,
+      "roleTag": "anchor",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 62,
+      "startTick": 46080,
+      "durationTicks": 7526,
+      "velocity": 68,
+      "roleTag": "arrival",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 81,
+      "startTick": 47285,
+      "durationTicks": 356,
+      "velocity": 70,
+      "roleTag": "answer"
+    },
+    {
+      "pitch": 46,
+      "startTick": 49920,
+      "durationTicks": 3533,
+      "velocity": 58,
+      "roleTag": "anchor",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 48,
+      "startTick": 53760,
+      "durationTicks": 1766,
+      "velocity": 58,
+      "roleTag": "anchor",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 64,
+      "startTick": 53760,
+      "durationTicks": 3763,
+      "velocity": 68,
+      "roleTag": "arrival",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 45,
+      "startTick": 55680,
+      "durationTicks": 1766,
+      "velocity": 58,
+      "roleTag": "anchor",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 45,
+      "startTick": 57600,
+      "durationTicks": 3840,
+      "velocity": 58,
+      "roleTag": "anchor",
+      "articulation": "legato"
+    },
+    {
+      "pitch": 65,
+      "startTick": 57600,
+      "durationTicks": 3840,
+      "velocity": 68,
+      "roleTag": "arrival",
+      "articulation": "legato"
+    }
+  ]
+}

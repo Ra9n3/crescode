@@ -15,7 +15,7 @@ Start here for repository navigation. For product usage and setup, see [README.m
 
 `src/components/TopBar.tsx` → `src/store/store.ts` → `src/orchestrator/compose.ts`.
 
-`src/orchestrator/compose.ts` coordinates the production pipeline and dedicated family renderers. `src/engine/generate.ts` is the generic rules interpreter: it supplies remaining rules-driven work and compatibility inputs, but is **not** the sole owner of Compose All's musical decisions. The generic keys renderer in `src/orchestrator/keys/render.ts` owns Harp and produces intermediate Piano candidates; Piano Engine V2 replaces the final Piano output after the non-Piano parts are composed. See §16.11 in `docs/ORCHESTRATOR_SPEC.md` for the CC64 merge and export path. Harp remains with the existing keys/orchestration path and is not replaced by V2.
+`src/orchestrator/compose.ts` coordinates the production pipeline and dedicated family renderers. `src/engine/generate.ts` is the generic rules interpreter: it supplies remaining rules-driven work and compatibility inputs, but is **not** the sole owner of Compose All's musical decisions. The generic keys renderer in `src/orchestrator/keys/render.ts` owns Harp and produces intermediate Piano candidates; Piano Engine V5 replaces the final Piano output after the non-Piano parts are composed. See §16.11 in `docs/ORCHESTRATOR_SPEC.md` for the generation identity, localized quiet-bar behavior, orchestration visibility gates, CC64 merge, and export path. Harp remains with the existing keys/orchestration path and is not replaced by V5.
 
 ## Task-to-source and focused-test map
 

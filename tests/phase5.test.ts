@@ -373,8 +373,9 @@ describe('Piano Composer Phase 5 intention planning', () => {
     expect(firstEvent.orchestration.activeTrackIds).toContain(lead.id);
     expect(firstEvent.orchestration.analyzerEvidence).toBe('available');
     expect(firstEvent.orchestration.interaction).toBe('leave-space');
-    expect(firstEvent.hands.right.motion).toBe('inner-voice');
-    expect(firstEvent.hands.right.density).toBe('sparse');
+    expect(firstEvent.orchestration.leadResponse?.mode).toBe('silence');
+    expect(firstEvent.hands.right.motion).toBe('yield');
+    expect(firstEvent.hands.right.density).toBe('very-sparse');
 
     const momentEvent = leadPlan.harmonicEvents.find((event) => event.chord.startTick === BAR_4_4)!;
     expect(momentEvent.orchestration.momentKinds).toContain('soli');

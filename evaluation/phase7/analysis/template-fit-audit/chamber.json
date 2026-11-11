@@ -1,0 +1,75 @@
+{
+  "chordAttacks": {
+    "chordCount": 18,
+    "chordsWithPianoOnset": 14,
+    "pianoOnsetPitchClassesInChord": 23,
+    "totalPianoOnsetsInChordEvents": 24
+  },
+  "nearSilence": {
+    "bars": [
+      {
+        "bar": 8,
+        "target": 0
+      }
+    ],
+    "pianoOnsets": 2,
+    "onsetVelocities": [
+      22,
+      29
+    ]
+  },
+  "writtenActivityOverlap": {
+    "scope": "union of all active string notes",
+    "pianoNoteTimeTicks": 75475,
+    "overlapWithLeadNoteTimeTicks": 68002,
+    "fractionOfPianoNoteTimeWithLeadActive": 0.9009870818151706,
+    "pianoOnsetsDuringLeadActivity": 19,
+    "pianoOnsetCount": 24,
+    "byRole": {
+      "violins1": {
+        "fractionOfPianoNoteTimeOverlappingRole": 0.8973699900629347,
+        "pianoOnsetsDuringRoleActivity": 16
+      },
+      "violins2": {
+        "fractionOfPianoNoteTimeOverlappingRole": 0.6783570718781053,
+        "pianoOnsetsDuringRoleActivity": 10
+      },
+      "violas": {
+        "fractionOfPianoNoteTimeOverlappingRole": 0.6775223583968202,
+        "pianoOnsetsDuringRoleActivity": 9
+      },
+      "cellosBasses": {
+        "fractionOfPianoNoteTimeOverlappingRole": 0.6750447167936403,
+        "pianoOnsetsDuringRoleActivity": 9
+      }
+    },
+    "note": "Written-note overlap only; not an audibility or masking judgment."
+  },
+  "suspensionRealization": {
+    "plannedCount": 1,
+    "completeCount": 1,
+    "incomplete": [],
+    "planned": [
+      {
+        "chordId": "c12",
+        "chordSymbol": "C",
+        "tensionPitchClass": 5,
+        "resolutionPitchClass": 4,
+        "preparationFound": true,
+        "resolutionFound": true,
+        "complete": true
+      }
+    ],
+    "criterion": "Phase 6 test pattern: answer note in the planned tension pitch class crosses the chord boundary, and a settle note in the resolution pitch class starts within that chord."
+  },
+  "onsetGrid": {
+    "onQuarterGrid": 20,
+    "onEighthGrid": 21,
+    "onSixteenthGrid": 21,
+    "total": 24
+  },
+  "harmonicInteractionLabels": {
+    "leave-space": 17,
+    "interweave": 1
+  }
+}

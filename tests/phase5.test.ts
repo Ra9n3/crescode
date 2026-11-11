@@ -347,7 +347,7 @@ describe('Piano Composer Phase 5 intention planning', () => {
     expect(suspendedPlan.ending.reason).toMatch(/preserve its open color/);
   });
 
-  it('uses Analyzer lead/activity evidence to yield, and exposes evidence missingness instead of treating it as silence', () => {
+  it('uses Analyzer lead/activity evidence for lower support, yields to explicit moments, and preserves evidence missingness', () => {
     const base = fourBarDevelopmentInput();
     const lead: PianoAnalysisTrack = {
       id: 'written-violin-lead',
@@ -372,10 +372,12 @@ describe('Piano Composer Phase 5 intention planning', () => {
     expect(firstEvent.orchestration.explicitLeadTrackIds).toContain(lead.id);
     expect(firstEvent.orchestration.activeTrackIds).toContain(lead.id);
     expect(firstEvent.orchestration.analyzerEvidence).toBe('available');
-    expect(firstEvent.orchestration.interaction).toBe('leave-space');
-    expect(firstEvent.orchestration.leadResponse?.mode).toBe('silence');
-    expect(firstEvent.hands.right.motion).toBe('yield');
-    expect(firstEvent.hands.right.density).toBe('very-sparse');
+    expect(firstEvent.orchestration.interaction).toBe('interweave');
+    expect(['restrained-accompaniment', 'answer-in-gap']).toContain(firstEvent.orchestration.leadResponse?.mode);
+    expect(firstEvent.orchestration.leadResponse?.harmonyCompatibility).toBe('supplied-chord-tones');
+    expect(firstEvent.hands.right.motion).not.toBe('yield');
+    expect(firstEvent.hands.right.role).toMatch(/withhold Piano melody|one complementary chord-tone answer/);
+    expect(firstEvent.hands.right.density).not.toBe('very-sparse');
 
     const momentEvent = leadPlan.harmonicEvents.find((event) => event.chord.startTick === BAR_4_4)!;
     expect(momentEvent.orchestration.momentKinds).toContain('soli');

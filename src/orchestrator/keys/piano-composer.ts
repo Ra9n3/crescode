@@ -989,16 +989,38 @@ function momentDecision(reading: Pick<OrchestrationReading,
     return 'leave-space';
   }
   if (reading.explicitLeadTrackIds.length) {
+    // A lead assignment constrains Piano's register and melodic role; overall
+    // track count does not prove that its lower support lane is occupied.
+    // Preserve a hard yield only when source register evidence is missing or
+    // an explicit spotlight above has already claimed the passage.
     const registerKnown = reading.registerOccupancy.availability === 'available'
       && reading.leadPassages.length > 0;
-    const upperOccupancy = reading.registerOccupancy.middle + reading.registerOccupancy.high;
-    const arrangementCrowded = reading.activeTrackIds.length >= 5
-      || (reading.registerOccupancy.total >= 14 && upperOccupancy >= 8);
-    return registerKnown && !arrangementCrowded ? 'interweave' : 'leave-space';
+    return registerKnown ? 'interweave' : 'leave-space';
   }
   if (reading.activeTrackIds.length >= 4) return 'leave-space';
   if (reading.inPianoFill) return 'interweave';
   return 'interweave';
+}
+
+function leadSupportHighPitch(lowestLeadPitch: number | null | undefined): number | null {
+  if (lowestLeadPitch === null || lowestLeadPitch === undefined || !Number.isFinite(lowestLeadPitch)) return null;
+  // The realized left-hand support occupies MIDI 40–63 and stays at least
+  // seven semitones below the written lead; the lead does not monopolize the
+  // Piano's entire middle register merely because its mean pitch is not high.
+  const high = Math.min(63, Math.floor(lowestLeadPitch - 7));
+  return high >= 40 ? high : null;
+}
+
+function chordHasLeadSupportTone(
+  chord: PianoEngineInput['context']['harmony'][number],
+  highPitch: number | null,
+): boolean {
+  if (highPitch === null) return false;
+  const chordPitchClasses = new Set(chord.parsed.pitchClasses.map(pc));
+  for (let pitch = 40; pitch <= highPitch; pitch++) {
+    if (chordPitchClasses.has(pc(pitch))) return true;
+  }
+  return false;
 }
 
 function leadResponseForChord(
@@ -1043,7 +1065,9 @@ function leadResponseForChord(
     highestPitch: Math.max(...leadNotes.map((note) => note.pitch)),
   } : null;
   const leadPitchRange = localPitchRange ?? passagePitchRange;
-  const upperLead = leadPitchRange !== null && leadPitchRange.lowestPitch >= 60;
+  const supportHighPitch = leadSupportHighPitch(leadPitchRange?.lowestPitch);
+  const hasChordToneInSeparateLowerLane = harmonyAvailable
+    && chordHasLeadSupportTone(chord, supportHighPitch);
   const leadOnsetTicks = [...new Set(leadNotes
     .filter((note) => note.startTick >= chord.startTick && note.startTick < chord.endTick)
     .map((note) => note.startTick))].sort((a, b) => a - b);
@@ -1078,7 +1102,7 @@ function leadResponseForChord(
   const answerPhraseSuitable = phrase !== null
     && (phrase.function === 'development' || phrase.function === 'contrast' || phrase.function === 'reprise');
   const responseCanFit = answerPhraseSuitable
-    && upperLead
+    && hasChordToneInSeparateLowerLane
     && !lowFoundationBusy
     && !arrangementCrowded
     && reading.registerOccupancy.availability === 'available'
@@ -1105,16 +1129,14 @@ function leadResponseForChord(
     };
   }
 
-  const canAccompany = upperLead
-    && !lowRegisterCrowded
-    && !arrangementCrowded
+  const canAccompany = hasChordToneInSeparateLowerLane
     && reading.registerOccupancy.availability === 'available'
     && reading.evidence !== 'unavailable'
     && !spotlightYield
-    && !leadRhythmBusy
+    && !reading.inPianoFill
     && !energy?.nearSilence
-    && (energyTarget ?? 0) >= 0.32
-    && harmonyAvailable;
+    && energyTarget !== null
+    && energyTarget > 0;
   if (canAccompany) return {
     mode: 'restrained-accompaniment',
     passageIds,
@@ -1122,19 +1144,18 @@ function leadResponseForChord(
     selectedGap: null,
     leadPitchRange,
     harmonyCompatibility: 'supplied-chord-tones',
-    rationale: `The explicit lead is written in a higher register (${leadPitchRange!.lowestPitch}-${leadPitchRange!.highestPitch}); use only a sparse, quiet lower chord-tone foundation, with no piano melody doubling.`,
+    rationale: `The explicit lead leaves a supplied chord tone in Piano's lower register (40-${supportHighPitch}); use spaced, quiet accompaniment below its lowest written pitch (${leadPitchRange?.lowestPitch ?? 'unknown'}), while withholding Piano melody.`,
   };
 
   const reason = !harmonyAvailable ? 'resolved chord tones are unavailable'
-    : !upperLead ? 'the written lead overlaps Piano support registers'
-      : lowFoundationBusy ? 'a low orchestral foundation is already active'
-        : arrangementCrowded ? 'the measured orchestral activity is crowded'
-          : spotlightYield ? 'the supplied moment or orchestration gate calls for space'
+    : supportHighPitch === null ? 'the written lead overlaps Piano support registers'
+      : !hasChordToneInSeparateLowerLane ? 'no supplied chord tone fits the separated lower support range'
+        : spotlightYield ? 'the supplied moment or orchestration gate explicitly calls for space'
+          : reading.inPianoFill ? 'an explicit Piano fill reservation owns this harmonic span'
             : reading.registerOccupancy.availability !== 'available' ? 'register occupancy evidence is incomplete'
-              : reading.inPianoFill ? 'an explicit Piano fill reservation overlaps'
-                : energy?.nearSilence ? 'the supplied energy arc marks near-silence'
-                  : (energyTarget ?? 0) < 0.32 ? 'section energy is too low for extra attacks'
-                    : 'the local lead context does not leave a safe accompaniment lane';
+              : energy?.nearSilence ? 'the supplied energy arc marks near-silence'
+                : energyTarget === null || energyTarget <= 0 ? 'the supplied energy target is zero or unavailable'
+                  : 'the local lead context does not leave a safe accompaniment lane';
   return {
     mode: 'silence',
     passageIds,
@@ -1833,17 +1854,13 @@ function textureIntention(
     || (reading.registerOccupancy.total >= 14 && upperRegisterActivity >= 8);
   const hasExplicitLead = reading.explicitLeadTrackIds.length > 0;
   const leadPitchRanges = reading.leadPassages.flatMap((passage) => passage.pitchRange ? [passage.pitchRange] : []);
-  const leadIsClearlyUpper = leadPitchRanges.length > 0
-    && leadPitchRanges.every((range) => range.meanPitch >= 60 && range.highestPitch >= 67);
-  const leadFoundationCrowded = reading.registerOccupancy.availability === 'available'
-    && reading.registerOccupancy.low > 2.25;
+  const leadHasSeparateLowerLane = leadPitchRanges.length > 0
+    && leadPitchRanges.every((range) => leadSupportHighPitch(range.lowestPitch) !== null);
   const leadHasSupportLane = hasExplicitLead
-    && leadIsClearlyUpper
-    && !ensembleDense
-    && !registerCrowded
-    && !leadFoundationCrowded
+    && leadHasSeparateLowerLane
     && reading.registerOccupancy.availability === 'available'
     && reading.interaction !== 'yield-to-spotlight'
+    && reading.interaction !== 'leave-space'
     && reading.evidence !== 'unavailable';
   const leadHasAnswerGap = reading.leadPassages.some((passage) => passage.gapWindows.some((gap) =>
     gap.startTick > passage.startTick
@@ -3227,7 +3244,22 @@ function scoreFigureTicks(
     inner: [startTick],
   };
   if (kind === 'yield') return { kind, bass: [], support: [], inner: [] };
-  if (kind === 'lead-accompaniment') return { kind, bass: [], support: [startTick], inner: [] };
+  if (kind === 'lead-accompaniment') {
+    const activeBassRoles = new Set(['cellosBasses', 'basses', 'tuba', 'trombones']);
+    const lowFoundationBusy = (event.orchestration.activeRoles ?? []).some((role) => activeBassRoles.has(role))
+      || (event.orchestration.registerOccupancy?.availability === 'available'
+        && event.orchestration.registerOccupancy.low > 2.25);
+    // When an orchestral bass role already contributes to this event, offset
+    // Piano from the harmonic downbeat; Hybrid keeps a light anticipatory pulse.
+    // Otherwise use the chord's downbeat and midpoint as a measured figure.
+    const firstOffset = lowFoundationBusy
+      ? identity === 'hybrid-pulse-and-color' ? PPQ / 2 : PPQ
+      : 0;
+    const support = spacedScoreTicks(startTick, endTick, firstOffset, 2 * PPQ, grid,
+      density >= 0.35 ? 2 : 1)
+      .filter((tick) => scoreAttackAllowed(plan, tick));
+    return { kind, bass: [], support, inner: [] };
+  }
   if (kind === 'lead-answer') {
     const gap = event.orchestration.leadResponse?.selectedGap;
     if (!gap) return { kind, bass: [], support: [], inner: [] };
@@ -3409,23 +3441,28 @@ function scoreSupportPatternPitch(
 function scoreLeadSupportPitch(
   event: PianoHarmonicEvent,
   target: PianoScoreTarget,
-  bassPitch: number,
   previousMidi: number | null,
+  preferDifferentTone = false,
 ): number | null {
   const leadLowestPitch = event.orchestration.leadResponse?.leadPitchRange?.lowestPitch;
   if (leadLowestPitch === undefined) return null;
-  const low = Math.max(target.lowestNote, 40, bassPitch + 3);
+  const low = Math.max(target.lowestNote, 40);
   const high = Math.min(target.highestNote, 63, leadLowestPitch - 7);
   if (low > high) return null;
-  const pitchClasses = uniquePitchClasses(event.chord.availablePitchClasses)
-    .filter((pitchClass) => pitchClass !== scorePc(bassPitch));
-  return chooseScorePitch({
-    pitchClasses,
-    range: [low, high],
-    preferredMidi: previousMidi ?? (low + high) / 2,
-    previousMidi,
-    excluded: [bassPitch],
-  });
+  // Lead accompaniment deliberately omits a Piano bass event. Do not reserve
+  // space above the Composer's notated-bass candidate or discard its chord
+  // tone; that virtual anchor can otherwise leave a valid lower lane empty.
+  const pitchClasses = uniquePitchClasses(event.chord.availablePitchClasses);
+  const available = scorePitchesForClasses(pitchClasses, [low, high]);
+  const alternatives = preferDifferentTone && previousMidi !== null
+    ? available.filter((pitch) => pitch !== previousMidi)
+    : available;
+  const candidates = alternatives.length ? alternatives : available;
+  const preferred = previousMidi ?? (low + high) / 2;
+  candidates.sort((a, b) => Math.abs(a - preferred) - Math.abs(b - preferred)
+    || Math.abs(a - (low + high) / 2) - Math.abs(b - (low + high) / 2)
+    || a - b);
+  return candidates[0] ?? null;
 }
 
 function shouldWriteClimaxOctave(
@@ -3755,7 +3792,7 @@ export function composePianoScore(
         const previousSupport = previousPitchByVoice.get('lh.support') ?? null;
         const isLeadResponse = figure.kind === 'lead-accompaniment' || figure.kind === 'lead-answer';
         const pitch = isLeadResponse
-          ? activeBass === null ? null : scoreLeadSupportPitch(source, target!, activeBass, previousSupport)
+          ? scoreLeadSupportPitch(source, target!, previousSupport, supportIndex > 0)
           : tick === start && support !== null && figure.kind !== 'alberti-bass'
             ? support
             : activeBass === null ? null
@@ -3763,7 +3800,8 @@ export function composePianoScore(
                 figure.kind, ascendingFigure, plan.templateConstraints.octaveDoubling, support);
         if (pitch === null) continue;
         const nextTick = supportTicks[supportIndex + 1] ?? end;
-        const patterned = figure.kind !== 'sustained' && figure.kind !== 'lead-accompaniment';
+        const patterned = figure.kind !== 'sustained'
+          && (figure.kind !== 'lead-accompaniment' || figure.support.length > 1);
         const rawDuration = !patterned
           ? finalLanding ? span : Math.max(1, Math.round(span * 0.82))
           : nextTick < end ? Math.max(1, Math.round((nextTick - tick) * 0.88)) : Math.max(1, nextTick - tick);

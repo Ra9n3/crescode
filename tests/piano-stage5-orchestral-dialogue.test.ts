@@ -30,7 +30,27 @@ interface ProductionSample {
   readonly project: Project;
   readonly piano: Track;
   readonly input: PianoEngineInput;
+  readonly result: ReturnType<typeof composeAllTracks>;
 }
+
+interface ProductionSampleOptions {
+  readonly sections?: readonly Project['sections'][number][];
+  readonly moments?: boolean;
+  readonly humanize?: boolean;
+}
+
+const STRUCTURAL_SECTION_LAYOUT: readonly Project['sections'][number][] = [
+  { id: 'sec_intro', name: 'Intro', startBar: 1, lengthBars: 4 },
+  { id: 'sec_verse', name: 'Verse', startBar: 5, lengthBars: 4 },
+  { id: 'sec_prechorus', name: 'Pre-Chorus', startBar: 9, lengthBars: 4 },
+  { id: 'sec_chorus', name: 'Chorus', startBar: 13, lengthBars: 8 },
+  { id: 'sec_bridge', name: 'Bridge', startBar: 21, lengthBars: 4 },
+  { id: 'sec_outro', name: 'Outro', startBar: 25, lengthBars: 4 },
+  { id: 'sec_breakdown', name: 'Breakdown', startBar: 29, lengthBars: 4 },
+  { id: 'sec_build', name: 'Build', startBar: 33, lengthBars: 4 },
+  { id: 'sec_theme', name: 'Theme', startBar: 37, lengthBars: 2 },
+  { id: 'sec_interlude', name: 'Interlude', startBar: 39, lengthBars: 2 },
+];
 
 interface LeadScenario {
   readonly input: PianoEngineInput;
@@ -50,18 +70,30 @@ const visibleState: PianoAnalysisTrackCompositionState = {
   composerVisible: true,
 };
 
-function productionSample(templateId: TemplateId, seed = 17): ProductionSample {
-  const key = `${templateId}:${seed}`;
+function productionSample(
+  templateId: TemplateId,
+  seed = 17,
+  options: ProductionSampleOptions = {},
+): ProductionSample {
+  const sectionKey = options.sections?.map((section) =>
+    `${section.id}:${section.name}:${section.startBar}+${section.lengthBars}`).join(',') ?? 'fixture-sections';
+  const key = `${templateId}:${seed}:${sectionKey}:moments=${options.moments ?? false}:humanize=${options.humanize ?? false}`;
   const cached = samples.get(key);
   if (cached) return cached;
   const project = projectFromFixture(JSON.parse(JSON.stringify(threeChorus)) as Project);
   project.ensemble = { templateId, overrides: {}, pins: {} };
   project.orchestration = { take: 0 };
-  const result = composeAllTracks(project, { seed, density: 1, moments: false });
+  if (options.sections) project.sections = options.sections.map((section) => ({ ...section }));
+  const result = composeAllTracks(project, {
+    seed,
+    density: 1,
+    moments: options.moments ?? false,
+    ...(options.humanize === undefined ? {} : { humanize: options.humanize }),
+  });
   const piano = result.tracks.find((track) => isInstrumentTrack(track)
     && track.family === 'Keys' && track.role === 'piano');
   if (!piano) throw new Error(`${templateId} did not create an unlocked Piano target.`);
-  const sample = { project, piano, input: result.pianoEngineInput };
+  const sample = { project, piano, input: result.pianoEngineInput, result };
   samples.set(key, sample);
   return sample;
 }
@@ -217,7 +249,7 @@ function scoreSignature(score: PianoScore): string {
 }
 
 describe('Piano Stage 5 orchestral dialogue and intelligent accompaniment', () => {
-  it('projects real Compose All lead assignments and writes only a single lower chord-tone under them', () => {
+  it('projects real Compose All lead assignments and writes lower chord-tone support beneath them', () => {
     const sample = productionSample('ensemble.sonata', 17);
     expect(sample.input.context.leadWindows.length).toBeGreaterThan(0);
     expect(sample.input.context.leadWindows.every((window) =>
@@ -369,10 +401,10 @@ describe('Piano Stage 5 orchestral dialogue and intelligent accompaniment', () =
     }).violations).toEqual([]);
   });
 
-  it('chooses silence for register overlap or crowded activity rather than forcing a response', () => {
+  it('yields only when the lead occupies the Piano support range; upper-register crowding leaves room below', () => {
     const sample = productionSample('ensemble.chamber');
     const lowLead = leadScenario(sample, 37, (phrase) => [{
-      pitch: 54,
+      pitch: 42,
       startTick: phrase.startTick,
       durationTicks: phrase.endTick - phrase.startTick,
       velocity: 70,
@@ -386,31 +418,263 @@ describe('Piano Stage 5 orchestral dialogue and intelligent accompaniment', () =
     expect(lowResult.score.events.some((event) => event.harmonicContext.chordIds
       .some((chordId) => lowChordIds.has(chordId)))).toBe(false);
 
+    const middleLead = leadScenario(sample, 39, (phrase) => [{
+      pitch: 59,
+      startTick: phrase.startTick,
+      durationTicks: phrase.endTick - phrase.startTick,
+      velocity: 70,
+    }]);
+    const middleResult = planAndScore(sample, middleLead.input);
+    const middleLeadEvents = middleResult.plan.harmonicEvents.filter((event) =>
+      event.orchestration.explicitLeadTrackIds.includes(middleLead.leadId));
+    expect(middleLeadEvents.length).toBeGreaterThan(0);
+    expect(middleLeadEvents.every((event) =>
+      event.orchestration.leadResponse?.mode === 'restrained-accompaniment')).toBe(true);
+
     const crowded = leadScenario(sample, 41, (phrase) => [{
       pitch: 84,
       startTick: phrase.startTick,
       durationTicks: phrase.endTick - phrase.startTick,
       velocity: 72,
-    }], (phrase) => Array.from({ length: 4 }, (_, index) => trackWithNotes(
-      `stage5-crowd-${index}`,
-      'Strings',
-      `violins${index + 1}`,
-      [{
-        pitch: 76 + index,
-        startTick: phrase.startTick + index * 30,
+    }], (phrase) => [
+      ...Array.from({ length: 4 }, (_, index) => trackWithNotes(
+        `stage5-crowd-${index}`,
+        'Strings',
+        `violins${index + 1}`,
+        [{
+          pitch: 76 + index,
+          startTick: phrase.startTick + index * 30,
+          durationTicks: phrase.endTick - phrase.startTick,
+          velocity: 68,
+        }],
+      )),
+      trackWithNotes('stage5-low-foundation', 'Strings', 'cellosBasses', [{
+        pitch: 32,
+        startTick: phrase.startTick,
         durationTicks: phrase.endTick - phrase.startTick,
-        velocity: 68,
-      }],
-    )));
+        velocity: 64,
+      }]),
+    ]);
     const crowdedResult = planAndScore(sample, crowded.input);
     const crowdedEvents = crowdedResult.plan.harmonicEvents.filter((event) =>
       event.orchestration.explicitLeadTrackIds.includes(crowded.leadId));
     expect(crowdedEvents.length).toBeGreaterThan(0);
-    expect(crowdedEvents.every((event) => event.orchestration.leadResponse?.mode === 'silence')).toBe(true);
+    expect(crowdedEvents.every((event) =>
+      event.orchestration.leadResponse?.mode === 'restrained-accompaniment')).toBe(true);
     const crowdedChordIds = new Set(crowdedEvents.map((event) => event.chord.id));
-    expect(crowdedResult.score.events.some((event) => event.harmonicContext.chordIds
-      .some((chordId) => crowdedChordIds.has(chordId)))).toBe(false);
+    const lowerSupport = crowdedResult.score.events.filter((event) =>
+      event.harmonicContext.chordIds.some((chordId) => crowdedChordIds.has(chordId)));
+    expect(lowerSupport.length).toBeGreaterThan(0);
+    expect(lowerSupport.every((event) => event.hand === 'left' && event.pitch <= 84 - 7)).toBe(true);
+    const chordById = new Map(crowdedResult.plan.harmonicEvents.map((event) => [event.chord.id, event.chord]));
+    expect(lowerSupport.every((event) => {
+      const chord = chordById.get(event.harmonicContext.chordIds[0]);
+      return chord !== undefined && event.startTick >= chord.startTick + PPQ;
+    })).toBe(true);
+    expect(crowdedResult.score.events.some((event) => event.phraseId === crowded.phrase.id
+      && event.voiceId === 'rh.melody')).toBe(false);
   });
+
+  it('keeps lead accompaniment below the written part across templates, registers, and seeds', () => {
+    const identities = new Set<string>();
+    for (const templateId of TEMPLATE_IDS) {
+      const sample = productionSample(templateId, 17);
+      for (const { seed, pitch } of [{ seed: 11, pitch: 59 }, { seed: 29, pitch: 84 }]) {
+        const scenario = leadScenario(sample, seed, (phrase) => [{
+          pitch,
+          startTick: phrase.startTick,
+          durationTicks: phrase.endTick - phrase.startTick,
+          velocity: 72,
+        }]);
+        const first = planAndScore(sample, scenario.input);
+        const replay = planAndScore(sample, scenario.input);
+        identities.add(first.plan.template.style.identity);
+        const leadEvents = first.plan.harmonicEvents.filter((event) =>
+          event.orchestration.explicitLeadTrackIds.includes(scenario.leadId));
+        expect(leadEvents.length).toBeGreaterThan(0);
+        expect(leadEvents.every((event) =>
+          event.orchestration.leadResponse?.mode === 'restrained-accompaniment')).toBe(true);
+        const leadChordIds = new Set(leadEvents.map((event) => event.chord.id));
+        const accompaniment = first.score.events.filter((event) => event.voiceId === 'lh.support'
+          && event.harmonicContext.chordIds.some((chordId) => leadChordIds.has(chordId)));
+        expect(accompaniment.length,
+          `${templateId} seed=${seed} pitch=${pitch} modes=${leadEvents.map((event) => event.orchestration.leadResponse?.mode).join(',')}`)
+          .toBeGreaterThan(0);
+        expect(accompaniment.every((event) => event.hand === 'left'
+          && event.pitch <= pitch - 7
+          && event.harmonicContext.pitchClasses.includes(event.pitch % 12)),
+        `${templateId} seed=${seed} pitch=${pitch} accompaniment=${JSON.stringify(accompaniment.map((event) => ({
+          pitch: event.pitch, hand: event.hand, voiceId: event.voiceId, startTick: event.startTick,
+          durationTicks: event.durationTicks, chordIds: event.harmonicContext.chordIds,
+          pitchClasses: event.harmonicContext.pitchClasses,
+        })))}`).toBe(true);
+        expect(first.score.events.some((event) => event.voiceId === 'rh.melody'
+          && event.startTick < scenario.phrase.endTick
+          && event.startTick + event.durationTicks > scenario.phrase.startTick)).toBe(false);
+        expect(scoreSignature(replay.score)).toBe(scoreSignature(first.score));
+      }
+    }
+    expect(identities.size).toBe(TEMPLATE_IDS.length);
+  });
+
+  it('respects Piano fill and supplied near-silence gaps without abandoning the surrounding section', () => {
+    const sample = productionSample('ensemble.sonata');
+    const scenario = leadScenario(sample, 43, (phrase) => [{
+      pitch: 84,
+      startTick: phrase.startTick,
+      durationTicks: phrase.endTick - phrase.startTick,
+      velocity: 72,
+    }]);
+    const reservedChordId = scenario.harmonyChord.id;
+    const withFill: PianoEngineInput = {
+      ...scenario.input,
+      context: {
+        ...scenario.input.context,
+        fillWindows: [{
+          target: 'piano',
+          startTick: scenario.harmonyChord.startTick,
+          endTick: scenario.harmonyChord.endTick,
+        }],
+      },
+    };
+    const fillResult = planAndScore(sample, withFill);
+    const reservedEvent = fillResult.plan.harmonicEvents.find((event) => event.chord.id === reservedChordId);
+    expect(reservedEvent?.orchestration.leadResponse?.mode).toBe('silence');
+    expect(reservedEvent?.orchestration.leadResponse?.rationale).toContain('fill reservation');
+    expect(fillResult.score.events.some((event) => event.harmonicContext.chordIds.includes(reservedChordId))).toBe(false);
+    const surroundingChordIds = new Set(fillResult.plan.harmonicEvents
+      .filter((event) => event.chord.id !== reservedChordId
+        && event.orchestration.explicitLeadTrackIds.includes(scenario.leadId))
+      .map((event) => event.chord.id));
+    expect(fillResult.plan.harmonicEvents.some((event) => surroundingChordIds.has(event.chord.id)
+      && event.orchestration.leadResponse?.mode === 'restrained-accompaniment')).toBe(true);
+    expect(fillResult.score.events.some((event) => event.harmonicContext.chordIds
+      .some((chordId) => surroundingChordIds.has(chordId)))).toBe(true);
+
+    const quietBar = scenario.input.context.barWindows.find((bar) =>
+      scenario.harmonyChord.startTick >= bar.startTick && scenario.harmonyChord.startTick < bar.endTick);
+    if (!quietBar) throw new Error('The selected harmony must belong to a supplied bar window.');
+    const withQuietBar: PianoEngineInput = {
+      ...scenario.input,
+      context: {
+        ...scenario.input.context,
+        energy: scenario.input.context.energy.map((energy) => energy.bar === quietBar.bar
+          ? { ...energy, target: 0, nearSilence: true }
+          : energy),
+      },
+    };
+    const quietResult = planAndScore(sample, withQuietBar);
+    const quietLeadEvent = quietResult.plan.harmonicEvents.find((event) =>
+      event.chord.id === reservedChordId);
+    expect(quietLeadEvent?.orchestration.leadResponse?.mode).toBe('silence');
+    expect(quietLeadEvent?.orchestration.leadResponse?.rationale).toContain('near-silence');
+    expect(quietResult.score.events.some((event) => event.startTick >= quietBar.startTick
+      && event.startTick < quietBar.endTick)).toBe(false);
+    expect(quietResult.score.events.some((event) => event.startTick < quietBar.startTick
+      || event.startTick >= quietBar.endTick)).toBe(true);
+  });
+
+  it('audits every supported structural archetype in Compose → Analyzer → Composer → Realizer, preserving template personalities', () => {
+    const eligibleIdentities = new Map<TemplateId, string>();
+    for (const templateId of TEMPLATE_IDS) {
+      for (const seed of [11, 17, 29]) {
+        const sample = productionSample(templateId, seed, {
+          sections: STRUCTURAL_SECTION_LAYOUT,
+          moments: true,
+          humanize: true,
+        });
+        const { input, result } = sample;
+        expect(input.context.template.pianoEligible).toBe(true);
+        const analyzer = analyzePianoInput(input);
+        const plan = composePianoPlan(input, analyzer);
+        eligibleIdentities.set(templateId, plan.template.style.identity);
+        expect(scoreSignature(result.pianoScore)).toBe(scoreSignature(planAndScore(sample, input).score));
+
+        for (const section of input.context.sections) {
+          const scoreEvents = result.pianoScore.events.filter((event) => event.sectionId === section.id);
+          const realizedEvents = result.pianoRealizedScoreEvents.filter((event) =>
+            event.source.sectionId === section.id);
+          const finalNotes = sample.piano.notes.filter((note) =>
+            note.startTick >= section.startTick && note.startTick < section.endTick);
+          expect(realizedEvents.length).toBe(scoreEvents.length);
+          expect(finalNotes.length).toBe(realizedEvents.length);
+
+          const leadEvents = plan.harmonicEvents.filter((event) =>
+            event.sectionIds.includes(section.id) && event.orchestration.explicitLeadTrackIds.length > 0);
+          for (const leadEvent of leadEvents) {
+            const response = leadEvent.orchestration.leadResponse;
+            if (response?.mode !== 'restrained-accompaniment' && response?.mode !== 'answer-in-gap') continue;
+            const notes = result.pianoScore.events.filter((event) => event.voiceId === 'lh.support'
+              && event.startTick >= leadEvent.chord.startTick && event.startTick < leadEvent.chord.endTick);
+            expect(notes.length,
+              `${templateId} seed=${seed} section=${section.name} chord=${leadEvent.chord.id} response=${response.mode} range=${response.leadPitchRange?.lowestPitch}-${response.leadPitchRange?.highestPitch}`)
+              .toBeGreaterThan(0);
+            expect(notes.every((event) => event.hand === 'left'
+              && event.pitch <= (response.leadPitchRange?.lowestPitch ?? event.pitch) - 7
+              && event.harmonicContext.pitchClasses.includes(event.pitch % 12)),
+            `${templateId} seed=${seed} section=${section.name} notes=${JSON.stringify(notes.map((event) => ({
+              pitch: event.pitch, hand: event.hand, voiceId: event.voiceId, startTick: event.startTick,
+              durationTicks: event.durationTicks, chordIds: event.harmonicContext.chordIds,
+              pitchClasses: event.harmonicContext.pitchClasses,
+            })))}`).toBe(true);
+            expect(result.pianoScore.events.some((event) => event.voiceId === 'rh.melody'
+              && event.startTick < leadEvent.chord.endTick
+              && event.startTick + event.durationTicks > leadEvent.chord.startTick)).toBe(false);
+          }
+        }
+
+        const verse = input.context.sections.find((section) => section.name === 'Verse');
+        const chorus = input.context.sections.find((section) => section.name === 'Chorus');
+        expect(verse).toBeDefined();
+        expect(chorus).toBeDefined();
+        expect(result.pianoScore.events.some((event) => event.sectionId === verse!.id)).toBe(true);
+        expect(result.pianoScore.events.some((event) => event.sectionId === chorus!.id)).toBe(true);
+
+        if (templateId === 'ensemble.hybridstudio') {
+          expect(result.pianoScore.events.some((event) => event.sectionId === verse!.id
+            || event.sectionId === chorus!.id)).toBe(true);
+        }
+        if (templateId === 'ensemble.cinematic') {
+          expect(result.pianoScore.events.some((event) => event.sectionId === verse!.id)).toBe(true);
+        }
+        if (templateId === 'ensemble.vocalbacking') {
+          for (const section of [verse!, chorus!]) {
+            const voices = new Set(result.pianoScore.events.filter((event) => event.sectionId === section.id)
+              .map((event) => event.voiceId));
+            expect(voices.has('lh.support')).toBe(true);
+            expect(voices.size).toBeGreaterThan(1);
+          }
+        }
+        if (templateId === 'ensemble.sonata' || templateId === 'ensemble.chamber') {
+          const intro = input.context.sections.find((section) => section.name === 'Intro');
+          if (!intro) throw new Error('The supported section audit must contain an Intro.');
+          const voices = new Set(result.pianoScore.events.filter((event) => event.sectionId === intro.id)
+            .map((event) => event.voiceId));
+          expect(voices.has('lh.bass')).toBe(true);
+          expect(voices.has('rh.melody')).toBe(true);
+          expect(voices.size).toBeGreaterThan(2);
+        }
+      }
+    }
+    expect(eligibleIdentities.size).toBe(TEMPLATE_IDS.length);
+    expect(new Set(eligibleIdentities.values()).size).toBe(TEMPLATE_IDS.length);
+
+    for (const seed of [11, 17, 29]) {
+      const project = projectFromFixture(JSON.parse(JSON.stringify(threeChorus)) as Project);
+      project.ensemble = { templateId: 'ensemble.symphony', overrides: {}, pins: {} };
+      project.orchestration = { take: 0 };
+      project.sections = STRUCTURAL_SECTION_LAYOUT.map((section) => ({ ...section }));
+      const result = composeAllTracks(project, { seed, density: 1, humanize: true, moments: true });
+      const { pianoEngineInput: input } = result;
+      const plan = composePianoPlan(input, analyzePianoInput(input));
+      expect(input.context.template.pianoEligible).toBe(false);
+      expect(plan.harmonicEvents).toHaveLength(0);
+      expect(result.pianoScore.events).toHaveLength(0);
+      expect(result.pianoRealizedScoreEvents).toHaveLength(0);
+      const piano = result.tracks.find((track) => isInstrumentTrack(track) && track.role === 'piano');
+      expect(piano && isInstrumentTrack(piano) ? piano.notes : []).toHaveLength(0);
+    }
+  }, 30_000);
 
   it('retains standalone Piano writing, all five template identities, deterministic seeds, and playability', () => {
     const signatures = new Set<string>();

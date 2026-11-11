@@ -13,7 +13,6 @@ import type {
   PianoEngineInput,
   PianoFillWindow,
   PianoLayerInformation,
-  PianoLeadWindow,
   PianoRelevantMoment,
   PianoMomentKind,
 } from './piano-engine';
@@ -250,22 +249,8 @@ export interface PianoExistingContextFacts {
   };
 }
 
-export interface PianoLeadNoteObservation {
-  readonly pitch: number;
-  readonly startTick: number;
-  readonly durationTicks: number;
-}
-
-export interface PianoLeadGapObservation {
-  readonly startTick: number;
-  readonly endTick: number;
-  readonly durationTicks: number;
-}
-
 export interface PianoLeadPassageCandidate {
-  readonly id: string;
   readonly kind: 'potentialLeadPassage';
-  readonly source: PianoLeadWindow['source'];
   readonly instrument: PianoInstrumentIdentity;
   readonly startBar: number;
   readonly endBar: number;
@@ -273,29 +258,10 @@ export interface PianoLeadPassageCandidate {
   readonly endTick: number;
   readonly sectionId: string;
   readonly sectionName: string;
-  readonly activity: {
-    readonly onsetNoteCount: number;
-    readonly activeNoteCount: number;
-    readonly durationUnionTicks: number;
-    readonly occupancyRatio: number;
-  };
-  /** Exact written note facts and rests observed inside the explicit lead window. */
-  readonly observedNotes: readonly PianoLeadNoteObservation[];
-  readonly gapWindows: readonly PianoLeadGapObservation[];
-  readonly rhythm: {
-    readonly onsetTicks: readonly number[];
-    readonly meanInterOnsetTicks: number | null;
-    readonly medianInterOnsetTicks: number | null;
-  };
-  readonly pitchRange: {
-    readonly lowestPitch: number;
-    readonly highestPitch: number;
-    readonly meanPitch: number;
-  } | null;
   readonly confidence: {
     readonly level: 'high';
-    /** Confidence applies to the explicit plan label and written overlap only. */
-    readonly scope: 'explicit orchestration plan plus written activity';
+    /** Confidence applies to the explicit label and written overlap only. */
+    readonly scope: 'conductor annotation plus written activity';
     readonly basis: string;
   };
   readonly evidence: readonly {
@@ -729,84 +695,41 @@ function observeTrack(
 interface LeadEvidenceRow {
   readonly track: PianoAnalysisTrack;
   readonly window: PianoBarWindow;
-  readonly source: PianoLeadWindow['source'];
+  readonly overlappingNoteCount: number;
 }
 
-function leadGapWindows(
-  notes: readonly PianoLeadNoteObservation[],
-  startTick: number,
-  endTick: number,
-): PianoLeadGapObservation[] {
-  const intervals = notes
-    .map((note) => ({
-      start: Math.max(startTick, note.startTick),
-      end: Math.min(endTick, note.startTick + note.durationTicks),
-    }))
-    .filter((interval) => interval.end > interval.start)
-    .sort((a, b) => a.start - b.start || a.end - b.end);
-  const gaps: PianoLeadGapObservation[] = [];
-  let cursor = startTick;
-  for (const interval of intervals) {
-    if (interval.start > cursor) gaps.push({ startTick: cursor, endTick: interval.start, durationTicks: interval.start - cursor });
-    cursor = Math.max(cursor, interval.end);
-  }
-  if (cursor < endTick) gaps.push({ startTick: cursor, endTick, durationTicks: endTick - cursor });
-  return gaps;
-}
-
-function median(values: readonly number[]): number | null {
-  if (!values.length) return null;
-  const sorted = [...values].sort((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
-}
-
-function leadPassageCandidates(input: PianoEngineInput): PianoLeadPassageCandidate[] {
+function leadPassageCandidates(
+  input: PianoEngineInput,
+  observations: readonly PianoInstrumentObservedFacts[],
+): PianoLeadPassageCandidate[] {
   const bars = [...input.context.barWindows].sort((a, b) => a.bar - b.bar || a.startTick - b.startTick);
-  const tracksById = new Map(input.analysis.tracks.map((track) => [track.id, track] as const));
-  const rowsByWindow = new Map<string, LeadEvidenceRow>();
-  const addWindow = (trackId: string, source: PianoLeadWindow['source'], startTick: number, endTick: number) => {
-    const track = tracksById.get(trackId);
-    if (!track || track.compositionState?.composerVisible === false || endTick <= startTick) return;
-    for (const bar of bars) {
-      if (bar.startTick >= endTick || bar.endTick <= startTick) continue;
-      const window = {
-        ...bar,
-        startTick: Math.max(bar.startTick, startTick),
-        endTick: Math.min(bar.endTick, endTick),
-      };
-      const key = `${trackId}:${window.startTick}:${window.endTick}`;
-      if (!rowsByWindow.has(key)) rowsByWindow.set(key, { track, window, source });
-    }
-  };
+  const observedByTrack = new Map(observations.map((observation) => [observation.instrument.id, observation]));
+  const evidenceRows: LeadEvidenceRow[] = [];
 
-  for (const leadWindow of input.context.leadWindows ?? []) {
-    const track = tracksById.get(leadWindow.trackId);
-    if (!track || track.family !== leadWindow.family) continue;
-    addWindow(leadWindow.trackId, leadWindow.source, leadWindow.startTick, leadWindow.endTick);
-  }
-  // Preserve compatibility with legacy/synthetic callers that provide only
-  // the original strings-layer projection and no consolidated lead windows.
-  for (const bar of bars) {
-    const annotation = input.context.layerInformation.perBar.find((item) => item.bar === bar.bar);
-    for (const trackId of annotation?.layers.filter((slot) => slot.layer === 'lead').flatMap((slot) => slot.trackIds) ?? []) {
-      addWindow(trackId, 'strings-layer', bar.startTick, bar.endTick);
+  for (const window of bars) {
+    const annotation = input.context.layerInformation.perBar.find((item) => item.bar === window.bar);
+    if (!annotation) continue;
+    const leadIds = new Set(annotation.layers
+      .filter((slot) => slot.layer === 'lead')
+      .flatMap((slot) => slot.trackIds));
+    for (const trackId of leadIds) {
+      const track = input.analysis.tracks.find((candidate) => candidate.id === trackId);
+      const barFacts = observedByTrack.get(trackId)?.byBar.find((item) => item.bar === window.bar);
+      if (!track || track.compositionState?.composerVisible === false
+        || !barFacts || barFacts.activeNoteCount === 0) continue;
+      evidenceRows.push({ track, window, overlappingNoteCount: barFacts.activeNoteCount });
     }
   }
 
-  const evidenceRows = [...rowsByWindow.values()]
-    .sort((a, b) => a.track.id.localeCompare(b.track.id)
-      || a.source.localeCompare(b.source)
-      || a.window.sectionId.localeCompare(b.window.sectionId)
-      || a.window.startTick - b.window.startTick);
+  evidenceRows.sort((a, b) => a.track.id.localeCompare(b.track.id) || a.window.bar - b.window.bar);
   const groups: LeadEvidenceRow[][] = [];
   for (const row of evidenceRows) {
     const previousGroup = groups[groups.length - 1];
     const previous = previousGroup?.[previousGroup.length - 1];
     if (previous
       && previous.track.id === row.track.id
-      && previous.source === row.source
       && previous.window.sectionId === row.window.sectionId
+      && previous.window.bar + 1 === row.window.bar
       && previous.window.endTick === row.window.startTick) {
       previousGroup.push(row);
     } else {
@@ -814,85 +737,40 @@ function leadPassageCandidates(input: PianoEngineInput): PianoLeadPassageCandida
     }
   }
 
-  return groups.flatMap((group): PianoLeadPassageCandidate[] => {
+  return groups.map((group) => {
     const first = group[0];
     const last = group[group.length - 1];
-    const startTick = first.window.startTick;
-    const endTick = last.window.endTick;
-    const observedNotes = first.track.notes
-      .filter((note) => Number.isFinite(note.pitch)
-        && Number.isFinite(note.startTick)
-        && Number.isFinite(note.durationTicks)
-        && note.durationTicks > 0
-        && note.startTick < endTick
-        && note.startTick + note.durationTicks > startTick)
-      .map((note) => ({ pitch: note.pitch, startTick: note.startTick, durationTicks: note.durationTicks }))
-      .sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
-    if (!observedNotes.length) return [];
-
-    const activity = intervalActivity(first.track.notes, startTick, endTick);
-    const onsetTicks = [...new Set(observedNotes
-      .filter((note) => note.startTick >= startTick && note.startTick < endTick)
-      .map((note) => note.startTick))].sort((a, b) => a - b);
-    const interOnsetIntervals = onsetTicks.slice(1).map((tick, index) => tick - onsetTicks[index]);
-    const pitchRange = observedNotes.length ? {
-      lowestPitch: Math.min(...observedNotes.map((note) => note.pitch)),
-      highestPitch: Math.max(...observedNotes.map((note) => note.pitch)),
-      meanPitch: observedNotes.reduce((sum, note) => sum + note.pitch, 0) / observedNotes.length,
-    } : null;
-    const sourceFact = first.source === 'strings-layer'
-      ? `The Conductor assigns a strings lead layer to ${first.track.id}`
-      : first.source === 'brass-plan'
-        ? `The brass planner assigns the lead voice to ${first.track.id}`
-        : `The winds planner assigns the lead voice to ${first.track.id}`;
-    const id = `${first.track.id}:${startTick}-${endTick}:${first.source}`;
-    return [{
-      id,
+    const count = group.reduce((sum, row) => sum + row.overlappingNoteCount, 0);
+    return {
       kind: 'potentialLeadPassage',
-      source: first.source,
       instrument: trackIdentity(first.track),
       startBar: first.window.bar,
       endBar: last.window.bar,
-      startTick,
-      endTick,
+      startTick: first.window.startTick,
+      endTick: last.window.endTick,
       sectionId: first.window.sectionId,
       sectionName: first.window.sectionName,
-      activity: {
-        onsetNoteCount: activity.onsetNoteCount,
-        activeNoteCount: activity.activeNoteCount,
-        durationUnionTicks: activity.durationUnionTicks,
-        occupancyRatio: activity.occupancyRatio,
-      },
-      observedNotes,
-      gapWindows: leadGapWindows(observedNotes, startTick, endTick),
-      rhythm: {
-        onsetTicks,
-        meanInterOnsetTicks: interOnsetIntervals.length
-          ? interOnsetIntervals.reduce((sum, value) => sum + value, 0) / interOnsetIntervals.length : null,
-        medianInterOnsetTicks: median(interOnsetIntervals),
-      },
-      pitchRange,
       confidence: {
         level: 'high',
-        scope: 'explicit orchestration plan plus written activity',
-        basis: `${sourceFact} in the supplied lead window, and Composer-visible written notes overlap it; the Analyzer does not infer leadership from pitch or activity alone.`,
+        scope: 'conductor annotation plus written activity',
+        basis: 'An explicit strings-only conductor lead label is present and the same track has written notes overlapping the annotated bars; this does not independently infer musical leadership.',
       },
       evidence: [
         {
-          source: `PianoEngineContext.leadWindows (${first.source})`,
-          fact: `${sourceFact} in bars ${first.window.bar}-${last.window.bar}; the window is copied from the existing family plan.`,
+          source: 'PianoEngineContext.layerInformation.perBar',
+          fact: `The conductor assigns the strings lead layer to track ${first.track.id} in bars ${first.window.bar}-${last.window.bar}.`,
         },
         {
           source: 'PianoAnalysis.tracks[].notes',
-          fact: `${activity.onsetNoteCount} note onset(s), ${activity.durationUnionTicks} ticks of union activity, and ${leadGapWindows(observedNotes, startTick, endTick).length} exact temporal gap(s) are observed inside the planned window.`,
+          fact: `${count} per-bar note-overlap observation(s) confirm written activity in the annotated passage; a sustained note crossing bars can be counted in more than one bar.`,
         },
       ],
       mandatoryPianoInstruction: false,
       limitations: [
-        'This explicit-plan candidate follows the available mute/solo/lock/band gate; it does not claim exact loudness or prescribe piano behavior.',
-        'Onsets, pitch range, and gaps are raw written-event observations; only the Composer judges accompaniment or response suitability.',
+        'This is an explicitly labeled, written-activity candidate after the available mute/solo/lock/band gate; it does not claim exact loudness or prescribe piano behavior.',
+        'Lead annotations for non-strings families are not present in the Phase 4A context.',
       ],
-    }];
+    };
   });
 }
 
@@ -907,11 +785,7 @@ function freezeOutput<T>(value: T): T {
 /** Analyze a PianoEngineInput without mutation, random draws, or note generation. */
 export function analyzePianoInput(input: PianoEngineInput): PianoAnalyzerReport {
   const instruments = input.analysis.tracks.map((track) => observeTrack(track, input));
-  const leadCandidates = leadPassageCandidates(input);
-  const annotatedFamilies: string[] = [...new Set([
-    ...input.context.layerInformation.annotatedFamilies,
-    ...leadCandidates.map((candidate) => candidate.instrument.family),
-  ])];
+  const annotatedFamilies: string[] = [...input.context.layerInformation.annotatedFamilies];
   const presentFamilies = [...new Set(input.analysis.tracks.map((track) => track.family))];
   const annotatedFamilySet = new Set(annotatedFamilies);
   const unavailableFamilies = presentFamilies.filter((family) => !annotatedFamilySet.has(family));
@@ -929,22 +803,21 @@ export function analyzePianoInput(input: PianoEngineInput): PianoAnalyzerReport 
         'Activity counts note onsets and distinct overlapping note events; occupancy is the union of clipped note durations, so overlapping intervals count once.',
         'Pitch histograms use note onsets; register bins are fixed MIDI octaves and are not normalized to instrument ranges, which are unavailable in PianoAnalysis.',
         'Harmony, moment, and fill relationships report temporal overlap only and do not judge harmonic correctness, response, or musical suitability.',
-        'Lead candidates use only explicit strings/brass/winds plan windows plus Composer-visible written notes; exact lead-note pitches, onsets, durations, and gaps are observations, not response recommendations.',
       ],
     },
     existingContextFacts: contextFacts,
     interpretations: {
       leadPassages: {
         availability: 'partial',
-        candidates: leadCandidates,
+        candidates: leadPassageCandidates(input, instruments),
         annotatedFamilies,
         unavailableFamilies,
-        limitation: 'Only explicit strings-layer or brass/winds planner lead windows plus overlapping written activity on a Composer-visible track can support a lead candidate; raw pitch or activity alone never promotes a track to lead evidence.'
+        limitation: 'Only explicitly supplied strings-layer lead labels plus overlapping written activity on a Composer-visible track can support a lead candidate; raw pitch, note density, mute-excluded writing, and other families are not promoted to lead evidence.',
       },
       responseOpportunities: {
         availability: 'unavailable',
         candidates: [],
-        reason: 'The Analyzer reports exact rests and timing around explicit lead windows but does not decide whether a Piano answer is suitable; a rest alone is not evidence of response suitability. Piano/Keys fill reservations remain context facts, not response claims; only the Composer selects a response.'
+        reason: 'No explicit lead/answer relationship is supplied in the Phase 4A context. Piano/Keys fill reservations remain context facts, not response claims; a rest alone is not evidence of a response.',
       },
       phraseOpportunities: {
         availability: 'unavailable',

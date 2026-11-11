@@ -62,7 +62,6 @@ function stageOneChamberPhrase(seed = 29) {
     context: {
       ...productionInput.context,
       fillWindows: [],
-      leadWindows: [],
       moments: [],
       layerInformation: {
         ...productionInput.context.layerInformation,

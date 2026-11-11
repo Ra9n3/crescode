@@ -167,7 +167,6 @@ describe('Piano Engine Phase 4A ephemeral context contract', () => {
       harmony: 'src/orchestrator/spine/index.ts: chordSpans(project)',
       energy: 'src/orchestrator/spine/energyArc.ts: ArcBar.target and ArcBar.nearSilence',
       layerInformation: 'src/orchestrator/conductor/index.ts: ConductorPlan.bars[].layers (strings-only, partial)',
-      leadWindows: 'ConductorPlan strings lead layers plus brass/winds plan bars with voice kind lead',
       moments: 'src/orchestrator/conductor/index.ts: ConductorPlan.moments (keys-relevant kinds)',
       fillWindows: 'src/orchestrator/conductor/index.ts: ConductorPlan.fills (piano/Keys targets)',
       generationIdentity: 'piano-engine-v5: orchestration seed + ComposeOptions seed/take/density, hashed with hashString',

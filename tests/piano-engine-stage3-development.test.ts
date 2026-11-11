@@ -53,7 +53,6 @@ function composerSample(templateId: TemplateId, seed: number, fixture: unknown =
     ...productionInput,
     context: {
       ...productionInput.context,
-      leadWindows: [],
       layerInformation: {
         ...productionInput.context.layerInformation,
         perBar: productionInput.context.layerInformation.perBar.map((bar) => ({ ...bar, layers: [] })),

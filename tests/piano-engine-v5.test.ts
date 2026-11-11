@@ -27,7 +27,6 @@ function withQuietBar(input: PianoEngineInput, quietBar: number, nearSilence: bo
     ...input,
     context: {
       ...input.context,
-      leadWindows: [],
       energy: input.context.energy.map((entry) => ({
         ...entry,
         target: entry.bar === quietBar ? 0 : 0.65,
@@ -124,8 +123,7 @@ describe('Piano Engine V5 explicit leave-space plans', () => {
       ...production,
       context: {
         ...production.context,
-        leadWindows: [],
-        layerInformation: {
+          layerInformation: {
           ...production.context.layerInformation,
           perBar: production.context.layerInformation.perBar.map((entry) => ({ ...entry, layers: [] })),
         },

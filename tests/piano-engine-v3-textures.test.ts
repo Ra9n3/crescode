@@ -256,7 +256,7 @@ describe('Piano Engine V3 context-aware textures', () => {
     expect(flourishPlan.fillDecisions.some((fill) => fill.decision === 'consider-brief-gesture')).toBe(true);
   });
 
-  it('uses a lower support lane for an upper lead and thins crowded register occupancy', () => {
+  it('thins under a written lead or crowded upper-register occupancy', () => {
     const baseline = shapedInput('ensemble.vocalbacking');
     const baselinePhrase = texturePhrase(planFor(baseline.input), 'v3-section-2', 'development');
     expect(baselinePhrase?.texture.kind).toBe('broken-chords');
@@ -299,8 +299,7 @@ describe('Piano Engine V3 context-aware textures', () => {
       }] },
     };
     const leadPhrase = texturePhrase(planFor(leadInput), 'v3-section-2', 'development');
-    expect(leadPhrase?.texture.kind).toBe('melody-accompaniment');
-    expect(leadPhrase?.texture.rationale).toMatch(/one quiet lower chord-tone anchor/);
+    expect(leadPhrase?.texture.kind).toBe('sparse-sustained');
     expect(leadPhrase?.texture.evidence.some((entry) => entry.includes(leadId))).toBe(true);
   });
 

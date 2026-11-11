@@ -40,7 +40,6 @@ function loadCase(slug: TemplateSlug): EvaluationCase {
     ...sourceInput,
     context: {
       ...sourceInput.context,
-      leadWindows: [],
       moments: [],
       layerInformation: {
         ...sourceInput.context.layerInformation,

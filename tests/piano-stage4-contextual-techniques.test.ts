@@ -40,7 +40,6 @@ function composerSample(templateId: string, seed = 11) {
     ...productionInput,
     context: {
       ...productionInput.context,
-      leadWindows: [],
       layerInformation: {
         ...productionInput.context.layerInformation,
         perBar: productionInput.context.layerInformation.perBar.map((bar) => ({ ...bar, layers: [] })),

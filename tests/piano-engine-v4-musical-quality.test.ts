@@ -42,7 +42,6 @@ function independentSample(templateId: TemplateId) {
     ...sample.input,
     context: {
       ...sample.input.context,
-      leadWindows: [],
       moments: [],
       fillWindows: [],
       layerInformation: {

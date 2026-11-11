@@ -1,0 +1,1591 @@
+{
+  "title": "Piano Stage 4 Musical Auditions",
+  "generatedOn": "2026-11-08",
+  "productionPath": [
+    "composeAllTracks",
+    "buildPianoEngineInput",
+    "analyzePianoInput",
+    "composePianoPlan",
+    "composePianoScore",
+    "realizePianoPlanWithAudit",
+    "buildPerTrackMidi (Piano only)",
+    "parseMidiFile round-trip"
+  ],
+  "noForcedTechniquesOrManualNotes": true,
+  "exportScope": "Only the realized Piano track is exported; companion lines are generated in the same composition for context and are not included in the MIDI.",
+  "auditionSearch": {
+    "configurations": 2100,
+    "fixtures": [
+      "multi-chorus-16bars.json",
+      "dorian-16bars.json"
+    ],
+    "rosters": "Piano plus one or two unlocked/unmuted Composer-generated string companions; other template roles out of band",
+    "bpm": 96,
+    "meter": "4/4",
+    "density": 0.85,
+    "moments": false,
+    "observedTechniqueEvents": {
+      "alberti-bass-accompaniment": 1032,
+      "walking-bass-line": 288,
+      "rhythmic-ostinato": 0,
+      "arpeggiated-chord-accompaniment": 8695,
+      "independent-counterline": 0,
+      "moving-inner-voice": 8528
+    },
+    "notSelected": [
+      "rhythmic-ostinato",
+      "independent-counterline"
+    ],
+    "countsAreRawScoreEventsNotQualityRatings": true
+  },
+  "wav": {
+    "rendered": false,
+    "reason": "No existing UVI Grand Model D setup or compatible local WAV renderer/assets were available; no environment or dependency changes were made."
+  },
+  "auditions": [
+    {
+      "id": "alberti-dorian-chamber-violin-seed-9",
+      "file": "01-alberti-dorian-chamber-violin-seed-9.mid",
+      "seed": 9,
+      "selectedTechnique": "alberti-bass-accompaniment",
+      "selectedTechniquesInPhrase": [
+        {
+          "intent": "alberti-bass-accompaniment",
+          "count": 24
+        }
+      ],
+      "generationIdentity": {
+        "algorithm": "piano-engine-v5",
+        "key": "piano-engine-v5|orchestrationSeed=3951618747|userSeed=9|take=1|density=0.850",
+        "orchestrationSeed": 3951618747,
+        "userSeed": 9,
+        "take": 1,
+        "density": 0.85,
+        "seed": 4043046078
+      },
+      "template": {
+        "id": "ensemble.chamber",
+        "requestedCompanionRoles": [
+          "violins1"
+        ],
+        "outOfBandRoles": [
+          "violins2",
+          "violas",
+          "cellosBasses"
+        ]
+      },
+      "context": {
+        "fixture": "dorian-16bars.json",
+        "projectName": "Stage 4 dorian-16bars",
+        "keyPitchClass": 2,
+        "keyName": "D",
+        "mode": "Dorian",
+        "bpm": 96,
+        "tempoMap": [
+          {
+            "tick": 0,
+            "bpm": 96
+          }
+        ],
+        "timeSignature": {
+          "numerator": 4,
+          "denominator": 4
+        },
+        "density": 0.85,
+        "moments": false,
+        "sectionStructure": [
+          {
+            "id": "sec_verse",
+            "name": "Verse",
+            "startBar": 1,
+            "lengthBars": 8
+          },
+          {
+            "id": "sec_chorus",
+            "name": "Chorus",
+            "startBar": 9,
+            "lengthBars": 8
+          }
+        ],
+        "inputInstrumentTracks": {
+          "allUnlocked": true,
+          "allUnmuted": true,
+          "allNoteEmpty": true,
+          "noManualNotesInserted": true,
+          "companionsComposerGenerated": true
+        }
+      },
+      "phrase": {
+        "id": "sec_verse:phrase-1",
+        "sectionId": "sec_verse",
+        "function": "statement",
+        "texture": "broken-chords",
+        "intendedDensity": "moderate",
+        "startTick": 0,
+        "endTick": 26880,
+        "energyTargets": [
+          0.454,
+          0.467,
+          0.48,
+          0.493,
+          0.507,
+          0.52,
+          0.533
+        ],
+        "chordSpans": [
+          {
+            "symbol": "Dm7",
+            "startTick": 0,
+            "durationTicks": 3840
+          },
+          {
+            "symbol": "G7",
+            "startTick": 3840,
+            "durationTicks": 3840
+          },
+          {
+            "symbol": "Dm7",
+            "startTick": 7680,
+            "durationTicks": 3840
+          },
+          {
+            "symbol": "Em7",
+            "startTick": 11520,
+            "durationTicks": 1920
+          },
+          {
+            "symbol": "Fmaj7",
+            "startTick": 13440,
+            "durationTicks": 1920
+          },
+          {
+            "symbol": "Dm9",
+            "startTick": 15360,
+            "durationTicks": 3840
+          },
+          {
+            "symbol": "C/E",
+            "startTick": 19200,
+            "durationTicks": 3840
+          },
+          {
+            "symbol": "Am7",
+            "startTick": 23040,
+            "durationTicks": 3840
+          }
+        ],
+        "intentCounts": {
+          "sustained-bass-foundation": 4,
+          "alberti-bass-accompaniment": 24,
+          "voice-led-inner-tone": 8,
+          "prepared-suspension": 1,
+          "stepwise-resolution": 1,
+          "broken-chord-accompaniment": 2
+        }
+      },
+      "inspection": {
+        "scoreEventCount": 71,
+        "realizedScoreEventCount": 71,
+        "pianoTrackNotes": 71,
+        "targetScoreEvents": 24,
+        "targetRealizedEvents": 24,
+        "targetNotesMatchedInMidi": 24,
+        "targetPitchSequence": [
+          50,
+          41,
+          45,
+          50,
+          50,
+          41,
+          43,
+          50,
+          50,
+          41,
+          45,
+          50,
+          53,
+          45,
+          50,
+          53,
+          52,
+          43,
+          48,
+          52,
+          52,
+          43,
+          45,
+          52
+        ],
+        "targetPitchNames": [
+          "D3",
+          "F2",
+          "A2",
+          "D3",
+          "D3",
+          "F2",
+          "G2",
+          "D3",
+          "D3",
+          "F2",
+          "A2",
+          "D3",
+          "F3",
+          "A2",
+          "D3",
+          "F3",
+          "E3",
+          "G2",
+          "C3",
+          "E3",
+          "E3",
+          "G2",
+          "A2",
+          "E3"
+        ],
+        "targetPitchRange": [
+          41,
+          53
+        ],
+        "targetOnsets": [
+          0,
+          960,
+          1920,
+          2880,
+          3840,
+          4800,
+          5760,
+          6720,
+          7680,
+          8640,
+          9600,
+          10560,
+          15360,
+          16320,
+          17280,
+          18240,
+          19200,
+          20160,
+          21120,
+          22080,
+          23040,
+          24000,
+          24960,
+          25920
+        ],
+        "targetOnsetIntervals": [
+          960,
+          960,
+          960,
+          960,
+          960,
+          960,
+          960,
+          960,
+          960,
+          960,
+          960,
+          4800,
+          960,
+          960,
+          960,
+          960,
+          960,
+          960,
+          960,
+          960,
+          960,
+          960,
+          960
+        ],
+        "targetVoiceIds": [
+          "lh.support"
+        ],
+        "targetEvents": [
+          {
+            "tick": 0,
+            "pitch": 50,
+            "pitchName": "D3",
+            "durationTicks": 845,
+            "scoreVelocity": 41,
+            "realizedVelocity": 41,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "Dm7"
+            ]
+          },
+          {
+            "tick": 960,
+            "pitch": 41,
+            "pitchName": "F2",
+            "durationTicks": 845,
+            "scoreVelocity": 38,
+            "realizedVelocity": 38,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "Dm7"
+            ]
+          },
+          {
+            "tick": 1920,
+            "pitch": 45,
+            "pitchName": "A2",
+            "durationTicks": 845,
+            "scoreVelocity": 38,
+            "realizedVelocity": 38,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "Dm7"
+            ]
+          },
+          {
+            "tick": 2880,
+            "pitch": 50,
+            "pitchName": "D3",
+            "durationTicks": 960,
+            "scoreVelocity": 38,
+            "realizedVelocity": 38,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "Dm7"
+            ]
+          },
+          {
+            "tick": 3840,
+            "pitch": 50,
+            "pitchName": "D3",
+            "durationTicks": 845,
+            "scoreVelocity": 41,
+            "realizedVelocity": 41,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "G7"
+            ]
+          },
+          {
+            "tick": 4800,
+            "pitch": 41,
+            "pitchName": "F2",
+            "durationTicks": 845,
+            "scoreVelocity": 38,
+            "realizedVelocity": 38,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "G7"
+            ]
+          },
+          {
+            "tick": 5760,
+            "pitch": 43,
+            "pitchName": "G2",
+            "durationTicks": 845,
+            "scoreVelocity": 38,
+            "realizedVelocity": 38,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "G7"
+            ]
+          },
+          {
+            "tick": 6720,
+            "pitch": 50,
+            "pitchName": "D3",
+            "durationTicks": 960,
+            "scoreVelocity": 38,
+            "realizedVelocity": 38,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "G7"
+            ]
+          },
+          {
+            "tick": 7680,
+            "pitch": 50,
+            "pitchName": "D3",
+            "durationTicks": 845,
+            "scoreVelocity": 41,
+            "realizedVelocity": 41,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "Dm7"
+            ]
+          },
+          {
+            "tick": 8640,
+            "pitch": 41,
+            "pitchName": "F2",
+            "durationTicks": 845,
+            "scoreVelocity": 38,
+            "realizedVelocity": 38,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "Dm7"
+            ]
+          },
+          {
+            "tick": 9600,
+            "pitch": 45,
+            "pitchName": "A2",
+            "durationTicks": 845,
+            "scoreVelocity": 38,
+            "realizedVelocity": 38,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "Dm7"
+            ]
+          },
+          {
+            "tick": 10560,
+            "pitch": 50,
+            "pitchName": "D3",
+            "durationTicks": 960,
+            "scoreVelocity": 38,
+            "realizedVelocity": 38,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "Dm7"
+            ]
+          },
+          {
+            "tick": 15360,
+            "pitch": 53,
+            "pitchName": "F3",
+            "durationTicks": 845,
+            "scoreVelocity": 54,
+            "realizedVelocity": 54,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "Dm9"
+            ]
+          },
+          {
+            "tick": 16320,
+            "pitch": 45,
+            "pitchName": "A2",
+            "durationTicks": 845,
+            "scoreVelocity": 51,
+            "realizedVelocity": 51,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "Dm9"
+            ]
+          },
+          {
+            "tick": 17280,
+            "pitch": 50,
+            "pitchName": "D3",
+            "durationTicks": 845,
+            "scoreVelocity": 51,
+            "realizedVelocity": 51,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "Dm9"
+            ]
+          },
+          {
+            "tick": 18240,
+            "pitch": 53,
+            "pitchName": "F3",
+            "durationTicks": 960,
+            "scoreVelocity": 51,
+            "realizedVelocity": 51,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "Dm9"
+            ]
+          },
+          {
+            "tick": 19200,
+            "pitch": 52,
+            "pitchName": "E3",
+            "durationTicks": 845,
+            "scoreVelocity": 54,
+            "realizedVelocity": 54,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "C/E"
+            ]
+          },
+          {
+            "tick": 20160,
+            "pitch": 43,
+            "pitchName": "G2",
+            "durationTicks": 845,
+            "scoreVelocity": 51,
+            "realizedVelocity": 51,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "C/E"
+            ]
+          },
+          {
+            "tick": 21120,
+            "pitch": 48,
+            "pitchName": "C3",
+            "durationTicks": 845,
+            "scoreVelocity": 51,
+            "realizedVelocity": 51,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "C/E"
+            ]
+          },
+          {
+            "tick": 22080,
+            "pitch": 52,
+            "pitchName": "E3",
+            "durationTicks": 960,
+            "scoreVelocity": 51,
+            "realizedVelocity": 51,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "C/E"
+            ]
+          },
+          {
+            "tick": 23040,
+            "pitch": 52,
+            "pitchName": "E3",
+            "durationTicks": 845,
+            "scoreVelocity": 54,
+            "realizedVelocity": 54,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "Am7"
+            ]
+          },
+          {
+            "tick": 24000,
+            "pitch": 43,
+            "pitchName": "G2",
+            "durationTicks": 845,
+            "scoreVelocity": 51,
+            "realizedVelocity": 51,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "Am7"
+            ]
+          },
+          {
+            "tick": 24960,
+            "pitch": 45,
+            "pitchName": "A2",
+            "durationTicks": 845,
+            "scoreVelocity": 51,
+            "realizedVelocity": 51,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "Am7"
+            ]
+          },
+          {
+            "tick": 25920,
+            "pitch": 52,
+            "pitchName": "E3",
+            "durationTicks": 960,
+            "scoreVelocity": 51,
+            "realizedVelocity": 51,
+            "voiceId": "lh.support",
+            "intent": "alberti-bass-accompaniment",
+            "chords": [
+              "Am7"
+            ]
+          }
+        ],
+        "pianoMelodyEventsInPhrase": [],
+        "pianoMelodyEventsInWholePiece": 6,
+        "generatedCompanionTracks": [
+          {
+            "role": "violins1",
+            "family": "Strings",
+            "totalNotes": 44,
+            "phraseNotes": 12,
+            "phrasePitchRange": [
+              86,
+              93
+            ],
+            "targetOnsetsSharingCompanionAttack": 0,
+            "targetOnsetsDuringCompanionSustain": 20
+          }
+        ],
+        "leadPassages": [],
+        "playability": {
+          "allWarnings": 2,
+          "allViolations": 0,
+          "phraseWarnings": [],
+          "phraseViolations": []
+        }
+      },
+      "midi": {
+        "format": 1,
+        "ppq": 960,
+        "bpm": 96,
+        "timeSignature": [
+          4,
+          4
+        ],
+        "tracks": [
+          {
+            "name": "Piano",
+            "noteCount": 0,
+            "ccCount": 0,
+            "endTick": 61440
+          },
+          {
+            "name": "Piano",
+            "noteCount": 71,
+            "ccCount": 18,
+            "endTick": 61440
+          }
+        ],
+        "noteBearingInstrumentTracks": 1,
+        "noteCount": 71,
+        "pitchRange": [
+          38,
+          74
+        ],
+        "firstTick": 0,
+        "lastEndTick": 61440,
+        "bytes": 799,
+        "sha256": "804273d8792749acbe86a7cf0aa48d3af3f3e32fe661ea1ecd2530c112c690b2"
+      }
+    },
+    {
+      "id": "walking-multi-chorus-sonata-violin-seed-1",
+      "file": "02-walking-multi-chorus-sonata-violin-seed-1.mid",
+      "seed": 1,
+      "selectedTechnique": "walking-bass-line",
+      "selectedTechniquesInPhrase": [
+        {
+          "intent": "walking-bass-line",
+          "count": 12
+        }
+      ],
+      "generationIdentity": {
+        "algorithm": "piano-engine-v5",
+        "key": "piano-engine-v5|orchestrationSeed=2335335547|userSeed=1|take=1|density=0.850",
+        "orchestrationSeed": 2335335547,
+        "userSeed": 1,
+        "take": 1,
+        "density": 0.85,
+        "seed": 4156972635
+      },
+      "template": {
+        "id": "ensemble.sonata",
+        "requestedCompanionRoles": [
+          "violins1"
+        ],
+        "outOfBandRoles": [
+          "cellosBasses"
+        ]
+      },
+      "context": {
+        "fixture": "multi-chorus-16bars.json",
+        "projectName": "Stage 4 multi-chorus-16bars",
+        "keyPitchClass": 2,
+        "keyName": "D",
+        "mode": "Dorian",
+        "bpm": 96,
+        "tempoMap": [
+          {
+            "tick": 0,
+            "bpm": 96
+          }
+        ],
+        "timeSignature": {
+          "numerator": 4,
+          "denominator": 4
+        },
+        "density": 0.85,
+        "moments": false,
+        "sectionStructure": [
+          {
+            "id": "sec_verse1",
+            "name": "Verse",
+            "startBar": 1,
+            "lengthBars": 4
+          },
+          {
+            "id": "sec_chorus1",
+            "name": "Chorus",
+            "startBar": 5,
+            "lengthBars": 4
+          },
+          {
+            "id": "sec_verse2",
+            "name": "Verse",
+            "startBar": 9,
+            "lengthBars": 4
+          },
+          {
+            "id": "sec_chorus2",
+            "name": "Chorus",
+            "startBar": 13,
+            "lengthBars": 4
+          }
+        ],
+        "inputInstrumentTracks": {
+          "allUnlocked": true,
+          "allUnmuted": true,
+          "allNoteEmpty": true,
+          "noManualNotesInserted": true,
+          "companionsComposerGenerated": true
+        }
+      },
+      "phrase": {
+        "id": "sec_chorus1:phrase-1",
+        "sectionId": "sec_chorus1",
+        "function": "statement",
+        "texture": "melody-accompaniment",
+        "intendedDensity": "moderate",
+        "startTick": 15360,
+        "endTick": 26880,
+        "energyTargets": [
+          0.552,
+          0.552,
+          0.552
+        ],
+        "chordSpans": [
+          {
+            "symbol": "Dm9",
+            "startTick": 15360,
+            "durationTicks": 3840
+          },
+          {
+            "symbol": "C/E",
+            "startTick": 19200,
+            "durationTicks": 3840
+          },
+          {
+            "symbol": "Am7",
+            "startTick": 23040,
+            "durationTicks": 3840
+          }
+        ],
+        "intentCounts": {
+          "walking-bass-line": 12,
+          "broken-chord-accompaniment": 3,
+          "voice-led-inner-tone": 3,
+          "phrase-led-upper-line": 8,
+          "prepared-suspension": 1
+        }
+      },
+      "inspection": {
+        "scoreEventCount": 78,
+        "realizedScoreEventCount": 77,
+        "pianoTrackNotes": 77,
+        "targetScoreEvents": 12,
+        "targetRealizedEvents": 12,
+        "targetNotesMatchedInMidi": 12,
+        "targetPitchSequence": [
+          50,
+          48,
+          50,
+          48,
+          48,
+          52,
+          55,
+          55,
+          55,
+          57,
+          55,
+          57
+        ],
+        "targetPitchNames": [
+          "D3",
+          "C3",
+          "D3",
+          "C3",
+          "C3",
+          "E3",
+          "G3",
+          "G3",
+          "G3",
+          "A3",
+          "G3",
+          "A3"
+        ],
+        "targetPitchRange": [
+          48,
+          57
+        ],
+        "targetOnsets": [
+          15360,
+          16320,
+          17280,
+          18240,
+          19200,
+          20160,
+          21120,
+          22080,
+          23040,
+          24000,
+          24960,
+          25920
+        ],
+        "targetOnsetIntervals": [
+          960,
+          960,
+          960,
+          960,
+          960,
+          960,
+          960,
+          960,
+          960,
+          960,
+          960
+        ],
+        "targetVoiceIds": [
+          "lh.bass"
+        ],
+        "targetEvents": [
+          {
+            "tick": 15360,
+            "pitch": 50,
+            "pitchName": "D3",
+            "durationTicks": 864,
+            "scoreVelocity": 59,
+            "realizedVelocity": 59,
+            "voiceId": "lh.bass",
+            "intent": "walking-bass-line",
+            "chords": [
+              "Dm9"
+            ]
+          },
+          {
+            "tick": 16320,
+            "pitch": 48,
+            "pitchName": "C3",
+            "durationTicks": 864,
+            "scoreVelocity": 55,
+            "realizedVelocity": 55,
+            "voiceId": "lh.bass",
+            "intent": "walking-bass-line",
+            "chords": [
+              "Dm9"
+            ]
+          },
+          {
+            "tick": 17280,
+            "pitch": 50,
+            "pitchName": "D3",
+            "durationTicks": 864,
+            "scoreVelocity": 55,
+            "realizedVelocity": 55,
+            "voiceId": "lh.bass",
+            "intent": "walking-bass-line",
+            "chords": [
+              "Dm9"
+            ]
+          },
+          {
+            "tick": 18240,
+            "pitch": 48,
+            "pitchName": "C3",
+            "durationTicks": 960,
+            "scoreVelocity": 55,
+            "realizedVelocity": 55,
+            "voiceId": "lh.bass",
+            "intent": "walking-bass-line",
+            "chords": [
+              "Dm9"
+            ]
+          },
+          {
+            "tick": 19200,
+            "pitch": 48,
+            "pitchName": "C3",
+            "durationTicks": 864,
+            "scoreVelocity": 59,
+            "realizedVelocity": 59,
+            "voiceId": "lh.bass",
+            "intent": "walking-bass-line",
+            "chords": [
+              "C/E"
+            ]
+          },
+          {
+            "tick": 20160,
+            "pitch": 52,
+            "pitchName": "E3",
+            "durationTicks": 864,
+            "scoreVelocity": 55,
+            "realizedVelocity": 55,
+            "voiceId": "lh.bass",
+            "intent": "walking-bass-line",
+            "chords": [
+              "C/E"
+            ]
+          },
+          {
+            "tick": 21120,
+            "pitch": 55,
+            "pitchName": "G3",
+            "durationTicks": 864,
+            "scoreVelocity": 55,
+            "realizedVelocity": 55,
+            "voiceId": "lh.bass",
+            "intent": "walking-bass-line",
+            "chords": [
+              "C/E"
+            ]
+          },
+          {
+            "tick": 22080,
+            "pitch": 55,
+            "pitchName": "G3",
+            "durationTicks": 960,
+            "scoreVelocity": 55,
+            "realizedVelocity": 55,
+            "voiceId": "lh.bass",
+            "intent": "walking-bass-line",
+            "chords": [
+              "C/E"
+            ]
+          },
+          {
+            "tick": 23040,
+            "pitch": 55,
+            "pitchName": "G3",
+            "durationTicks": 864,
+            "scoreVelocity": 59,
+            "realizedVelocity": 59,
+            "voiceId": "lh.bass",
+            "intent": "walking-bass-line",
+            "chords": [
+              "Am7"
+            ]
+          },
+          {
+            "tick": 24000,
+            "pitch": 57,
+            "pitchName": "A3",
+            "durationTicks": 864,
+            "scoreVelocity": 55,
+            "realizedVelocity": 55,
+            "voiceId": "lh.bass",
+            "intent": "walking-bass-line",
+            "chords": [
+              "Am7"
+            ]
+          },
+          {
+            "tick": 24960,
+            "pitch": 55,
+            "pitchName": "G3",
+            "durationTicks": 864,
+            "scoreVelocity": 55,
+            "realizedVelocity": 55,
+            "voiceId": "lh.bass",
+            "intent": "walking-bass-line",
+            "chords": [
+              "Am7"
+            ]
+          },
+          {
+            "tick": 25920,
+            "pitch": 57,
+            "pitchName": "A3",
+            "durationTicks": 960,
+            "scoreVelocity": 55,
+            "realizedVelocity": 55,
+            "voiceId": "lh.bass",
+            "intent": "walking-bass-line",
+            "chords": [
+              "Am7"
+            ]
+          }
+        ],
+        "pianoMelodyEventsInPhrase": [
+          {
+            "tick": 15360,
+            "pitch": 77,
+            "pitchName": "F5",
+            "durationTicks": 2160
+          },
+          {
+            "tick": 17760,
+            "pitch": 81,
+            "pitchName": "A5",
+            "durationTicks": 864
+          },
+          {
+            "tick": 18720,
+            "pitch": 81,
+            "pitchName": "A5",
+            "durationTicks": 480
+          },
+          {
+            "tick": 21120,
+            "pitch": 79,
+            "pitchName": "G5",
+            "durationTicks": 1728
+          },
+          {
+            "tick": 23040,
+            "pitch": 76,
+            "pitchName": "E5",
+            "durationTicks": 1296
+          },
+          {
+            "tick": 24480,
+            "pitch": 84,
+            "pitchName": "C6",
+            "durationTicks": 432
+          },
+          {
+            "tick": 24960,
+            "pitch": 84,
+            "pitchName": "C6",
+            "durationTicks": 864
+          },
+          {
+            "tick": 25920,
+            "pitch": 76,
+            "pitchName": "E5",
+            "durationTicks": 480
+          }
+        ],
+        "pianoMelodyEventsInWholePiece": 12,
+        "generatedCompanionTracks": [
+          {
+            "role": "violins1",
+            "family": "Strings",
+            "totalNotes": 36,
+            "phraseNotes": 5,
+            "phrasePitchRange": [
+              69,
+              76
+            ],
+            "targetOnsetsSharingCompanionAttack": 0,
+            "targetOnsetsDuringCompanionSustain": 9
+          }
+        ],
+        "leadPassages": [],
+        "playability": {
+          "allWarnings": 4,
+          "allViolations": 0,
+          "phraseWarnings": [],
+          "phraseViolations": []
+        }
+      },
+      "midi": {
+        "format": 1,
+        "ppq": 960,
+        "bpm": 96,
+        "timeSignature": [
+          4,
+          4
+        ],
+        "tracks": [
+          {
+            "name": "Piano",
+            "noteCount": 0,
+            "ccCount": 0,
+            "endTick": 61440
+          },
+          {
+            "name": "Piano",
+            "noteCount": 77,
+            "ccCount": 30,
+            "endTick": 61440
+          }
+        ],
+        "noteBearingInstrumentTracks": 1,
+        "noteCount": 77,
+        "pitchRange": [
+          45,
+          86
+        ],
+        "firstTick": 0,
+        "lastEndTick": 61440,
+        "bytes": 919,
+        "sha256": "a1da14a638b002bb3fc1870d2c7122b581b9f46641f7520967229521ff670518"
+      }
+    },
+    {
+      "id": "arpeggiation-moving-inner-dorian-chamber-cello-seed-1",
+      "file": "03-arpeggiation-moving-inner-dorian-chamber-cello-seed-1.mid",
+      "seed": 1,
+      "selectedTechnique": "moving-inner-voice",
+      "selectedTechniquesInPhrase": [
+        {
+          "intent": "arpeggiated-chord-accompaniment",
+          "count": 14
+        },
+        {
+          "intent": "moving-inner-voice",
+          "count": 14
+        }
+      ],
+      "generationIdentity": {
+        "algorithm": "piano-engine-v5",
+        "key": "piano-engine-v5|orchestrationSeed=3479659929|userSeed=1|take=1|density=0.850",
+        "orchestrationSeed": 3479659929,
+        "userSeed": 1,
+        "take": 1,
+        "density": 0.85,
+        "seed": 3148268728
+      },
+      "template": {
+        "id": "ensemble.chamber",
+        "requestedCompanionRoles": [
+          "cellosBasses"
+        ],
+        "outOfBandRoles": [
+          "violins1",
+          "violins2",
+          "violas"
+        ]
+      },
+      "context": {
+        "fixture": "dorian-16bars.json",
+        "projectName": "Stage 4 dorian-16bars",
+        "keyPitchClass": 2,
+        "keyName": "D",
+        "mode": "Dorian",
+        "bpm": 96,
+        "tempoMap": [
+          {
+            "tick": 0,
+            "bpm": 96
+          }
+        ],
+        "timeSignature": {
+          "numerator": 4,
+          "denominator": 4
+        },
+        "density": 0.85,
+        "moments": false,
+        "sectionStructure": [
+          {
+            "id": "sec_verse",
+            "name": "Verse",
+            "startBar": 1,
+            "lengthBars": 8
+          },
+          {
+            "id": "sec_chorus",
+            "name": "Chorus",
+            "startBar": 9,
+            "lengthBars": 8
+          }
+        ],
+        "inputInstrumentTracks": {
+          "allUnlocked": true,
+          "allUnmuted": true,
+          "allNoteEmpty": true,
+          "noManualNotesInserted": true,
+          "companionsComposerGenerated": true
+        }
+      },
+      "phrase": {
+        "id": "sec_verse:phrase-1",
+        "sectionId": "sec_verse",
+        "function": "statement",
+        "texture": "arpeggiated",
+        "intendedDensity": "moderate",
+        "startTick": 0,
+        "endTick": 26880,
+        "energyTargets": [
+          0.351,
+          0.456,
+          0.474,
+          0.491,
+          0.509,
+          0.526,
+          0.544
+        ],
+        "chordSpans": [
+          {
+            "symbol": "Dm7",
+            "startTick": 0,
+            "durationTicks": 3840
+          },
+          {
+            "symbol": "G7",
+            "startTick": 3840,
+            "durationTicks": 3840
+          },
+          {
+            "symbol": "Dm7",
+            "startTick": 7680,
+            "durationTicks": 3840
+          },
+          {
+            "symbol": "Em7",
+            "startTick": 11520,
+            "durationTicks": 1920
+          },
+          {
+            "symbol": "Fmaj7",
+            "startTick": 13440,
+            "durationTicks": 1920
+          },
+          {
+            "symbol": "Dm9",
+            "startTick": 15360,
+            "durationTicks": 3840
+          },
+          {
+            "symbol": "C/E",
+            "startTick": 19200,
+            "durationTicks": 3840
+          },
+          {
+            "symbol": "Am7",
+            "startTick": 23040,
+            "durationTicks": 3840
+          }
+        ],
+        "intentCounts": {
+          "sustained-bass-foundation": 2,
+          "arpeggiated-chord-accompaniment": 14,
+          "voice-led-inner-tone": 8,
+          "moving-inner-voice": 14
+        }
+      },
+      "inspection": {
+        "scoreEventCount": 70,
+        "realizedScoreEventCount": 70,
+        "pianoTrackNotes": 70,
+        "targetScoreEvents": 14,
+        "targetRealizedEvents": 14,
+        "targetNotesMatchedInMidi": 14,
+        "targetPitchSequence": [
+          65,
+          69,
+          71,
+          65,
+          65,
+          69,
+          67,
+          65,
+          65,
+          69,
+          72,
+          67,
+          72,
+          67
+        ],
+        "targetPitchNames": [
+          "F4",
+          "A4",
+          "B4",
+          "F4",
+          "F4",
+          "A4",
+          "G4",
+          "F4",
+          "F4",
+          "A4",
+          "C5",
+          "G4",
+          "C5",
+          "G4"
+        ],
+        "targetPitchRange": [
+          65,
+          72
+        ],
+        "targetOnsets": [
+          960,
+          2880,
+          4800,
+          6720,
+          8640,
+          10560,
+          12480,
+          14400,
+          16320,
+          18240,
+          20160,
+          22080,
+          24000,
+          25920
+        ],
+        "targetOnsetIntervals": [
+          1920,
+          1920,
+          1920,
+          1920,
+          1920,
+          1920,
+          1920,
+          1920,
+          1920,
+          1920,
+          1920,
+          1920,
+          1920
+        ],
+        "targetVoiceIds": [
+          "rh.inner"
+        ],
+        "targetEvents": [
+          {
+            "tick": 960,
+            "pitch": 65,
+            "pitchName": "F4",
+            "durationTicks": 1728,
+            "scoreVelocity": 43,
+            "realizedVelocity": 43,
+            "voiceId": "rh.inner",
+            "intent": "moving-inner-voice",
+            "chords": [
+              "Dm7"
+            ]
+          },
+          {
+            "tick": 2880,
+            "pitch": 69,
+            "pitchName": "A4",
+            "durationTicks": 960,
+            "scoreVelocity": 43,
+            "realizedVelocity": 43,
+            "voiceId": "rh.inner",
+            "intent": "moving-inner-voice",
+            "chords": [
+              "Dm7"
+            ]
+          },
+          {
+            "tick": 4800,
+            "pitch": 71,
+            "pitchName": "B4",
+            "durationTicks": 1728,
+            "scoreVelocity": 43,
+            "realizedVelocity": 43,
+            "voiceId": "rh.inner",
+            "intent": "moving-inner-voice",
+            "chords": [
+              "G7"
+            ]
+          },
+          {
+            "tick": 6720,
+            "pitch": 65,
+            "pitchName": "F4",
+            "durationTicks": 960,
+            "scoreVelocity": 43,
+            "realizedVelocity": 43,
+            "voiceId": "rh.inner",
+            "intent": "moving-inner-voice",
+            "chords": [
+              "G7"
+            ]
+          },
+          {
+            "tick": 8640,
+            "pitch": 65,
+            "pitchName": "F4",
+            "durationTicks": 1728,
+            "scoreVelocity": 43,
+            "realizedVelocity": 43,
+            "voiceId": "rh.inner",
+            "intent": "moving-inner-voice",
+            "chords": [
+              "Dm7"
+            ]
+          },
+          {
+            "tick": 10560,
+            "pitch": 69,
+            "pitchName": "A4",
+            "durationTicks": 960,
+            "scoreVelocity": 43,
+            "realizedVelocity": 43,
+            "voiceId": "rh.inner",
+            "intent": "moving-inner-voice",
+            "chords": [
+              "Dm7"
+            ]
+          },
+          {
+            "tick": 12480,
+            "pitch": 67,
+            "pitchName": "G4",
+            "durationTicks": 960,
+            "scoreVelocity": 43,
+            "realizedVelocity": 43,
+            "voiceId": "rh.inner",
+            "intent": "moving-inner-voice",
+            "chords": [
+              "Em7"
+            ]
+          },
+          {
+            "tick": 14400,
+            "pitch": 65,
+            "pitchName": "F4",
+            "durationTicks": 960,
+            "scoreVelocity": 56,
+            "realizedVelocity": 56,
+            "voiceId": "rh.inner",
+            "intent": "moving-inner-voice",
+            "chords": [
+              "Fmaj7"
+            ]
+          },
+          {
+            "tick": 16320,
+            "pitch": 65,
+            "pitchName": "F4",
+            "durationTicks": 1728,
+            "scoreVelocity": 56,
+            "realizedVelocity": 56,
+            "voiceId": "rh.inner",
+            "intent": "moving-inner-voice",
+            "chords": [
+              "Dm9"
+            ]
+          },
+          {
+            "tick": 18240,
+            "pitch": 69,
+            "pitchName": "A4",
+            "durationTicks": 960,
+            "scoreVelocity": 56,
+            "realizedVelocity": 56,
+            "voiceId": "rh.inner",
+            "intent": "moving-inner-voice",
+            "chords": [
+              "Dm9"
+            ]
+          },
+          {
+            "tick": 20160,
+            "pitch": 72,
+            "pitchName": "C5",
+            "durationTicks": 1728,
+            "scoreVelocity": 56,
+            "realizedVelocity": 56,
+            "voiceId": "rh.inner",
+            "intent": "moving-inner-voice",
+            "chords": [
+              "C/E"
+            ]
+          },
+          {
+            "tick": 22080,
+            "pitch": 67,
+            "pitchName": "G4",
+            "durationTicks": 960,
+            "scoreVelocity": 56,
+            "realizedVelocity": 56,
+            "voiceId": "rh.inner",
+            "intent": "moving-inner-voice",
+            "chords": [
+              "C/E"
+            ]
+          },
+          {
+            "tick": 24000,
+            "pitch": 72,
+            "pitchName": "C5",
+            "durationTicks": 1728,
+            "scoreVelocity": 56,
+            "realizedVelocity": 56,
+            "voiceId": "rh.inner",
+            "intent": "moving-inner-voice",
+            "chords": [
+              "Am7"
+            ]
+          },
+          {
+            "tick": 25920,
+            "pitch": 67,
+            "pitchName": "G4",
+            "durationTicks": 960,
+            "scoreVelocity": 56,
+            "realizedVelocity": 56,
+            "voiceId": "rh.inner",
+            "intent": "moving-inner-voice",
+            "chords": [
+              "Am7"
+            ]
+          }
+        ],
+        "pianoMelodyEventsInPhrase": [],
+        "pianoMelodyEventsInWholePiece": 5,
+        "generatedCompanionTracks": [
+          {
+            "role": "cellosBasses",
+            "family": "Strings",
+            "totalNotes": 27,
+            "phraseNotes": 12,
+            "phrasePitchRange": [
+              74,
+              81
+            ],
+            "targetOnsetsSharingCompanionAttack": 0,
+            "targetOnsetsDuringCompanionSustain": 13
+          }
+        ],
+        "leadPassages": [],
+        "playability": {
+          "allWarnings": 0,
+          "allViolations": 0,
+          "phraseWarnings": [],
+          "phraseViolations": []
+        }
+      },
+      "midi": {
+        "format": 1,
+        "ppq": 960,
+        "bpm": 96,
+        "timeSignature": [
+          4,
+          4
+        ],
+        "tracks": [
+          {
+            "name": "Piano",
+            "noteCount": 0,
+            "ccCount": 0,
+            "endTick": 61440
+          },
+          {
+            "name": "Piano",
+            "noteCount": 70,
+            "ccCount": 18,
+            "endTick": 61440
+          }
+        ],
+        "noteBearingInstrumentTracks": 1,
+        "noteCount": 70,
+        "pitchRange": [
+          33,
+          77
+        ],
+        "firstTick": 0,
+        "lastEndTick": 61440,
+        "bytes": 802,
+        "sha256": "c276b12da5ab44d15d69e4970679feb4a7dd487c0e900e36b28569c10997fe46"
+      }
+    }
+  ]
+}

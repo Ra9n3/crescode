@@ -311,7 +311,7 @@ describe('Piano Engine Phase 4B minimal musical Analyzer', () => {
       'PianoEngineContext.layerInformation.perBar',
       'PianoAnalysis.tracks[].notes',
     ]);
-    expect(interpretations.leadPassages.candidates[0].limitations.join(' ')).toMatch(/does not claim the track is audible/);
+    expect(interpretations.leadPassages.candidates[0].limitations.join(' ')).toMatch(/does not claim exact loudness or prescribe piano behavior/);
     expect(interpretations.leadPassages.unavailableFamilies).toContain('Brass');
     expect(interpretations.responseOpportunities.candidates).toEqual([]);
     expect(interpretations.responseOpportunities.reason).toMatch(/a rest alone is not evidence/);

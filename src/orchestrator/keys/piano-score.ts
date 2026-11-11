@@ -12,16 +12,27 @@ export type PianoScoreVoiceId = 'lh.bass' | 'lh.support' | 'rh.inner' | 'rh.melo
 export type PianoMusicalRole = 'bass' | 'support' | 'inner' | 'melody' | 'suspension' | 'cadence';
 export type PianoGestureIntent =
   | 'bass-foundation'
+  | 'bass-pulse'
   | 'harmonic-support'
+  | 'broken-chord-figure'
+  | 'counterline-answer'
   | 'inner-voice'
+  | 'inner-line-motion'
   | 'cantabile-subject'
   | 'prepared-tension'
   | 'stepwise-resolution'
   | 'cadential-landing';
 export type PianoTechniqueIntent =
   | 'sustained-bass-foundation'
+  | 'pulsed-bass-pattern'
+  | 'root-fifth-bass-pattern'
   | 'chord-tone-support'
+  | 'broken-chord-accompaniment'
+  | 'syncopated-pulse-accompaniment'
+  | 'arpeggiated-chord-accompaniment'
+  | 'independent-counterline'
   | 'voice-led-inner-tone'
+  | 'moving-inner-voice'
   | 'phrase-led-upper-line'
   | 'prepared-suspension'
   | 'stepwise-resolution'

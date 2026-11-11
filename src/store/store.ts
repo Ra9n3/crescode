@@ -388,7 +388,7 @@ export const useStore = create<State>((set, get) => ({
     const lockedKept = project.tracks.filter((t) => t.locked).length;
     // Production orchestrator: strings and dedicated family renderers run
     // alongside the generic rules generator for remaining work/compatibility
-    // inputs; Piano Engine V2 finalizes Piano. The take increments INSIDE this
+    // inputs; Piano Engine V5 finalizes Piano. The take increments INSIDE this
     // same edit, so one Ctrl+Z restores notes and take together.
     // Phase 8.2: res.tracks carries the composed basses desk too (inserted
     // after the cellos in score order when the project lacked it) — written

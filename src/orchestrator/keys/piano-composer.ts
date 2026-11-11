@@ -1519,7 +1519,6 @@ function phraseRhythmicPlan(
     if (!canPlaceMotif || hasLeadYield) return [];
     if (variation === 'cadence' || isLanding) return [0, 3];
     if (variation === 'fragment' || operation === 'fragmented-recall') return [0, 1];
-    if (density === 'very-sparse') return [0];
     if (texture === 'sparse-sustained') return [0, 3];
     if (density === 'sparse') return [0, 1, 3];
     return [0, 1, 2, 3];
@@ -1671,12 +1670,12 @@ function textureIntention(
   if (phraseIsQuiet || reading.interaction === 'yield-to-spotlight'
     || leadNeedsSpace || hasExplicitLeaveSpace || release) {
     kind = 'sparse-sustained';
-    rationale = phraseIsQuiet
-      ? 'The exact supplied near-silence span is a phrase of its own; leave it to the explicit quiet-bar gate rather than carrying the phrase-wide texture through neighboring bars.'
-      : reading.interaction === 'yield-to-spotlight' || leadNeedsSpace
-        ? 'The marked orchestral spotlight or written register occupancy calls for a restrained sustained response, not a competing figure.'
-        : hasExplicitLeaveSpace
-          ? 'An explicit Composer leave-space reservation overlaps this phrase; preserve the reserved span instead of layering another texture.'
+    rationale = hasExplicitLeaveSpace
+      ? 'An explicit Composer leave-space reservation overlaps this phrase; preserve the reserved span instead of layering another texture.'
+      : phraseIsQuiet
+        ? 'The exact supplied near-silence span is a phrase of its own; leave it to the explicit quiet-bar gate rather than carrying the phrase-wide texture through neighboring bars.'
+        : reading.interaction === 'yield-to-spotlight' || leadNeedsSpace
+          ? 'The marked orchestral spotlight or written register occupancy calls for a restrained sustained response, not a competing figure.'
           : 'The phrase is releasing or descending toward its boundary; thin the attacks and let the supplied harmony settle.';
   } else if (hasSelectedFill && hasRoomForFiguration) {
     kind = 'short-flourishes';
@@ -2819,6 +2818,239 @@ function scoreAttackAllowed(plan: PianoComposerPlan, tick: number, plannedSuspen
   return !plan.attackRestrictions.some((window) => tick >= window.startTick && tick < window.endTick);
 }
 
+type PianoScoreFigureKind = 'sustained' | 'broken-chords' | 'arpeggiated' | 'dialogue' | 'pulse' | 'flourish';
+
+interface PianoScoreFigureTicks {
+  readonly kind: PianoScoreFigureKind;
+  readonly bass: readonly number[];
+  readonly support: readonly number[];
+  readonly inner: readonly number[];
+}
+
+function scoreFigureKind(
+  phrase: PianoPhraseIntention | null,
+  event: PianoHarmonicEvent,
+  identity: PianoTemplateIdentity,
+): PianoScoreFigureKind {
+  const hybridPulseUnderLead = identity === 'hybrid-pulse-and-color'
+    && event.orchestration.explicitLeadTrackIds.length > 0
+    && event.hands.right.role.toLowerCase().includes('pulse')
+    && event.orchestration.interaction === 'interweave';
+  if (event.dynamicIntent.sourceEnergyNearSilence
+    || event.hands.left.motion === 'yield'
+    || event.hands.right.motion === 'yield'
+    || event.orchestration.interaction === 'yield-to-spotlight'
+    || event.orchestration.interaction === 'leave-space') return 'sustained';
+  if (hybridPulseUnderLead) return 'pulse';
+
+  switch (phrase?.texture.kind ?? 'sparse-sustained') {
+    case 'broken-chords':
+      return 'broken-chords';
+    case 'arpeggiated':
+      return identity === 'hybrid-pulse-and-color' ? 'pulse' : 'arpeggiated';
+    case 'melody-accompaniment':
+      return identity === 'hybrid-pulse-and-color' ? 'pulse'
+        : identity === 'cinematic-expanse' ? 'arpeggiated' : 'broken-chords';
+    case 'contrapuntal-dialogue':
+      return 'dialogue';
+    case 'short-flourishes':
+      return 'flourish';
+    case 'block-chords':
+    case 'sparse-sustained':
+    default:
+      return 'sustained';
+  }
+}
+
+function spacedScoreTicks(
+  startTick: number,
+  endTick: number,
+  offsetTicks: number,
+  stepTicks: number,
+  gridTicks: number,
+  limit: number,
+): number[] {
+  const grid = Math.max(1, Math.round(gridTicks));
+  const step = Math.max(grid, Math.round(stepTicks / grid) * grid);
+  const first = Math.ceil((startTick + Math.max(0, offsetTicks)) / grid) * grid;
+  const ticks: number[] = [];
+  for (let tick = first; tick < endTick && ticks.length < limit; tick += step) {
+    if (tick >= startTick) ticks.push(tick);
+  }
+  return ticks;
+}
+
+function scoreFigureTicks(
+  kind: PianoScoreFigureKind,
+  startTick: number,
+  endTick: number,
+  phrase: PianoPhraseIntention | null,
+  event: PianoHarmonicEvent,
+  identity: PianoTemplateIdentity,
+  density: number,
+  plan: PianoComposerPlan,
+): PianoScoreFigureTicks {
+  const grid = Math.max(1, phrase?.rhythmicPlan.gridTicks ?? PPQ / 2);
+  const isSparse = density < 0.35 || phrase?.intendedDensity === 'very-sparse'
+    || event.hands.right.density === 'very-sparse';
+  const hybridLeadPulse = kind === 'pulse' && identity === 'hybrid-pulse-and-color'
+    && event.orchestration.explicitLeadTrackIds.length > 0
+    && event.hands.right.role.toLowerCase().includes('pulse');
+  const repetitionLimit = isSparse ? (hybridLeadPulse ? 1 : 0)
+    : density < 0.55 ? 2 : density < 0.8 ? 3 : 4;
+  const base = {
+    bass: [startTick],
+    support: [startTick],
+    inner: [startTick],
+  };
+  if (kind === 'sustained' || (isSparse && !hybridLeadPulse)) {
+    return { kind: 'sustained', bass: base.bass, support: base.support, inner: base.inner };
+  }
+
+  const styleStep = identity === 'hybrid-pulse-and-color' || identity === 'sonata-dialogue'
+    ? PPQ : identity === 'vocal-space' ? 4 * PPQ : 2 * PPQ;
+  const step = Math.max(styleStep, density < 0.45 ? styleStep * 2 : styleStep);
+  const bass = [...base.bass];
+  const support = [...base.support];
+  const inner = [...base.inner];
+
+  if (kind === 'pulse') {
+    bass.push(...spacedScoreTicks(startTick, endTick, step, step, grid, repetitionLimit));
+    support.push(...spacedScoreTicks(startTick, endTick, Math.max(grid, PPQ / 2), step, grid,
+      Math.min(3, repetitionLimit + (hybridLeadPulse ? 1 : 0))));
+  } else if (kind === 'broken-chords') {
+    const answerOffset = identity === 'chamber-counterpoint' ? 2 * PPQ : PPQ;
+    support.push(...spacedScoreTicks(startTick, endTick, answerOffset, 2 * PPQ, grid, Math.min(2, repetitionLimit || 1)));
+    inner.push(...spacedScoreTicks(startTick, endTick, answerOffset + PPQ, 4 * PPQ, grid, 1));
+  } else if (kind === 'arpeggiated') {
+    support.push(...spacedScoreTicks(startTick, endTick, step, step, grid, repetitionLimit));
+    inner.push(...spacedScoreTicks(startTick, endTick, PPQ, 2 * PPQ, grid, Math.min(2, repetitionLimit)));
+  } else if (kind === 'dialogue') {
+    const responseOffset = identity === 'sonata-dialogue' ? PPQ : 2 * PPQ;
+    support.push(...spacedScoreTicks(startTick, endTick, responseOffset, 2 * PPQ, grid, Math.min(2, repetitionLimit || 1)));
+    inner.push(...spacedScoreTicks(startTick, endTick, responseOffset + PPQ, 4 * PPQ, grid, 1));
+  } else if (kind === 'flourish') {
+    const fillTicks = plan.fillDecisions
+      .filter((decision) => decision.target.toLowerCase() === 'piano'
+        && decision.decision === 'consider-brief-gesture'
+        && intersects(decision.startTick, decision.endTick, startTick, endTick))
+      .flatMap((decision) => spacedScoreTicks(
+        Math.max(startTick, decision.startTick), Math.min(endTick, decision.endTick),
+        grid, Math.max(grid, PPQ / 2), grid, Math.min(3, Math.max(1, repetitionLimit)),
+      ));
+    inner.push(...fillTicks);
+  }
+
+  const allowed = (ticks: readonly number[]) => [...new Set(ticks)]
+    .filter((tick) => tick >= startTick && tick < endTick && scoreAttackAllowed(plan, tick))
+    .sort((a, b) => a - b);
+  return {
+    kind,
+    bass: allowed(bass),
+    support: allowed(support),
+    inner: allowed(inner),
+  };
+}
+
+function scoreBassPatternPitch(
+  event: PianoHarmonicEvent,
+  target: PianoScoreTarget,
+  previousMidi: number | null,
+  position: number,
+  excludedPitchClasses: readonly number[],
+): number | null {
+  const range = scoreRange(event.hands.left.register, target);
+  const excluded = new Set(excludedPitchClasses.map(scorePc));
+  const available = uniquePitchClasses(event.chord.availablePitchClasses)
+    .filter((tone) => !excluded.has(tone));
+  if (!available.length) return null;
+  const root = scorePc(event.chord.rootPitchClass);
+  const fifth = scorePc(root + 7);
+  const preferredClass = position % 2 === 1 && available.includes(fifth)
+    ? fifth : available.includes(root) ? root
+      : available.includes(scorePc(event.voicing.leftHandBassPitchClass))
+        ? scorePc(event.voicing.leftHandBassPitchClass) : available[0];
+  const preferredClasses = scorePitchesForClasses([preferredClass], range).length
+    ? [preferredClass] : available;
+  return chooseScorePitch({
+    pitchClasses: preferredClasses,
+    range,
+    preferredMidi: previousMidi ?? (range[0] + range[1]) / 2,
+    previousMidi,
+    desiredPitchClass: preferredClass,
+  });
+}
+
+function scoreSupportPatternPitch(
+  event: PianoHarmonicEvent,
+  target: PianoScoreTarget,
+  bassPitch: number,
+  previousMidi: number | null,
+  position: number,
+  kind: PianoScoreFigureKind,
+  ascending: boolean,
+  octaveDoubling: PianoComposerPlan['templateConstraints']['octaveDoubling'],
+  fallback: number | null,
+): number | null {
+  const low = Math.max(target.lowestNote, 40, bassPitch + 3);
+  const high = Math.min(target.highestNote, 67, bassPitch + 12);
+  const fallbackAllowed = fallback !== null && fallback !== bassPitch
+    && (octaveDoubling !== 'forbidden' || scorePc(fallback) !== scorePc(bassPitch));
+  if (low > high) return fallbackAllowed ? fallback : null;
+  const range: [number, number] = [low, high];
+  const tones = uniquePitchClasses(event.chord.availablePitchClasses)
+    .filter((tone) => octaveDoubling !== 'forbidden' || tone !== scorePc(bassPitch));
+  const candidates = scorePitchesForClasses(tones, range).filter((pitch) => pitch !== bassPitch);
+  if (!candidates.length) return fallbackAllowed ? fallback : null;
+
+  if (kind === 'arpeggiated' && candidates.length > 1) {
+    const ordered = [...candidates].sort((a, b) => a - b);
+    const startIndex = Math.max(0, ordered.indexOf(fallback ?? previousMidi ?? ordered[0]));
+    const direction = ascending ? 1 : -1;
+    const rawIndex = startIndex + direction * position;
+    return ordered[((rawIndex % ordered.length) + ordered.length) % ordered.length];
+  }
+
+  const preferredClass = tones.length ? tones[(position + (ascending ? 0 : tones.length - 1)) % tones.length] : undefined;
+  return chooseScorePitch({
+    pitchClasses: tones,
+    range,
+    preferredMidi: previousMidi ?? (range[0] + range[1]) / 2,
+    previousMidi,
+    desiredPitchClass: preferredClass,
+    excluded: [bassPitch],
+  }) ?? (fallbackAllowed ? fallback : null);
+}
+
+function avoidScoreUnisonRearticulation(events: readonly PianoScoreEvent[]): PianoScoreEvent[] {
+  const priority: Readonly<Record<PianoScoreVoiceId, number>> = {
+    'lh.support': 1,
+    'rh.inner': 2,
+    'lh.bass': 3,
+    'rh.melody': 4,
+    'rh.suspension': 5,
+  };
+  const ordered = [...events].sort((a, b) => priority[b.voiceId] - priority[a.voiceId]
+    || a.startTick - b.startTick || a.id.localeCompare(b.id));
+  const accepted: PianoScoreEvent[] = [];
+  for (const event of ordered) {
+    let endTick = scoreEndOf(event);
+    let suppress = false;
+    for (const higher of accepted) {
+      if (higher.pitch !== event.pitch || higher.startTick >= endTick || scoreEndOf(higher) <= event.startTick) continue;
+      if (higher.startTick <= event.startTick) {
+        suppress = true;
+        break;
+      }
+      endTick = Math.min(endTick, higher.startTick);
+    }
+    if (suppress || endTick <= event.startTick) continue;
+    accepted.push(endTick === scoreEndOf(event)
+      ? event : { ...event, durationTicks: endTick - event.startTick });
+  }
+  return accepted;
+}
+
 function scoreRests(plan: PianoComposerPlan, events: readonly PianoScoreEvent[], projectEndTick: number): PianoScoreRest[] {
   const rests: PianoScoreRest[] = [];
   for (const phrase of plan.phrases) {
@@ -2918,13 +3150,26 @@ export function composePianoScore(
     articulation: PianoScoreEvent['articulation'];
     allowed: boolean;
     allowTie: boolean;
+    velocityAdjustment?: number;
     contextEvents?: readonly PianoHarmonicEvent[];
   }) => {
     const { source, phraseId, sectionId, hand, voiceId, pitch, startTick, durationTicks } = values;
     if (!Number.isInteger(pitch) || pitch < target!.lowestNote || pitch > target!.highestNote
       || !Number.isInteger(startTick) || startTick < 0 || startTick >= validEnd
       || !Number.isInteger(durationTicks) || durationTicks < 1) return;
-    const clippedDuration = Math.min(durationTicks, validEnd - startTick);
+    let clippedDuration = Math.min(durationTicks, validEnd - startTick);
+    if (clippedDuration < 1 || !values.allowed) return;
+    const attackGaps = [
+      ...plan.fillDecisions.filter((decision) => decision.target.toLowerCase() === 'piano'
+        && decision.decision === 'leave-space')
+        .map((decision) => ({ startTick: decision.startTick, endTick: decision.endTick })),
+      ...(values.musicalRole === 'suspension' ? [] : plan.attackRestrictions),
+    ];
+    const noteEnd = startTick + clippedDuration;
+    const nextGap = attackGaps
+      .filter((window) => window.startTick > startTick && window.startTick < noteEnd)
+      .reduce((nearest, window) => Math.min(nearest, window.startTick), noteEnd);
+    clippedDuration = nextGap - startTick;
     if (clippedDuration < 1) return;
     const previousIndex = lastEventByVoice.get(voiceId);
     const previous = previousIndex === undefined ? undefined : mutableEvents[previousIndex];
@@ -2946,7 +3191,13 @@ export function composePianoScore(
       previousPitchByVoice.set(voiceId, pitch);
       return;
     }
-    if (!values.allowed) return;
+    const dynamicIntent = scoreDynamicIntent(source, values.musicalRole);
+    const adjustedDynamicIntent = values.velocityAdjustment
+      ? {
+          ...dynamicIntent,
+          velocity: Math.round(scoreClamp(dynamicIntent.velocity + values.velocityAdjustment, 1, 127)),
+        }
+      : dynamicIntent;
     const event: PianoScoreEvent = {
       id: `${plan.generationIdentity.key}:score:${nextEventId++}`,
       pitch,
@@ -2961,7 +3212,7 @@ export function composePianoScore(
       techniqueIntent: values.techniqueIntent,
       noteRoleTag: values.noteRoleTag,
       articulation: values.articulation,
-      dynamicIntent: scoreDynamicIntent(source, values.musicalRole),
+      dynamicIntent: adjustedDynamicIntent,
       harmonicContext: mergedContext,
     };
     mutableEvents.push(event);
@@ -2972,10 +3223,11 @@ export function composePianoScore(
   for (let index = 0; index < harmonic.length; index++) {
     const source = harmonic[index];
     const start = Math.max(0, source.chord.startTick);
-    const end = Math.min(validEnd, source.chord.endTick);
+    const chordEnd = Math.min(validEnd, source.chord.endTick);
+    const phrase = source.phraseId ? phraseById.get(source.phraseId) ?? null : null;
+    const end = phrase ? Math.min(chordEnd, phrase.endTick) : chordEnd;
     const span = end - start;
     if (span < 1 || start >= validEnd) continue;
-    const phrase = source.phraseId ? phraseById.get(source.phraseId) ?? null : null;
     const phraseId = phrase?.id ?? source.phraseId;
     const sectionId = phrase?.sectionId ?? source.sectionIds[0] ?? null;
     const finalLanding = source.chord.id === plan.ending.chordId;
@@ -2988,32 +3240,87 @@ export function composePianoScore(
         ]
       : [];
     const { bass, support } = chooseLeftHandPair(source, target!, previousPitchByVoice.get('lh.bass') ?? null, restrictedBassPitchClasses);
+    const figureKind = finalLanding ? 'sustained'
+      : scoreFigureKind(phrase, source, plan.template.style.identity);
+    const figure = scoreFigureTicks(figureKind, start, end, phrase, source,
+      plan.template.style.identity, density, plan);
+    const supportWritten = finalLanding || density >= 0.35 || index % 2 === 0;
     bassPitchByChord.set(source.chord.id, allowedAtDownbeat ? bass : null);
-    supportPitchByChord.set(source.chord.id, allowedAtDownbeat && (finalLanding || density >= 0.35 || index % 2 === 0)
-      ? support : null);
-    if (bass !== null) {
+    supportPitchByChord.set(source.chord.id, allowedAtDownbeat && supportWritten ? support : null);
+
+    const bassTicks = figure.bass;
+    for (let bassIndex = 0; bassIndex < bassTicks.length; bassIndex++) {
+      const tick = bassTicks[bassIndex];
+      if (bass === null) continue;
+      const pitch = tick === start ? bass
+        : scoreBassPatternPitch(source, target!, previousPitchByVoice.get('lh.bass') ?? bass,
+          bassIndex, restrictedBassPitchClasses);
+      if (pitch === null) continue;
+      const nextTick = bassTicks[bassIndex + 1] ?? end;
+      const duration = nextTick < end && figure.kind !== 'sustained'
+        ? Math.max(1, Math.round((nextTick - tick) * 0.9))
+        : Math.max(1, nextTick - tick);
       addEvent({
-        source, phraseId, sectionId, hand: 'left', voiceId: 'lh.bass', pitch: bass,
-        startTick: start, durationTicks: span,
-        musicalRole: finalLanding ? 'cadence' : 'bass',
-        gestureIntent: finalLanding ? 'cadential-landing' : 'bass-foundation',
-        techniqueIntent: finalLanding ? 'final-harmony' : 'sustained-bass-foundation',
-        noteRoleTag: finalLanding ? 'settle' : 'anchor',
+        source, phraseId, sectionId, hand: 'left', voiceId: 'lh.bass', pitch,
+        startTick: tick, durationTicks: duration,
+        musicalRole: finalLanding && tick === start ? 'cadence' : 'bass',
+        gestureIntent: finalLanding && tick === start ? 'cadential-landing'
+          : figure.kind === 'pulse' ? 'bass-pulse' : 'bass-foundation',
+        techniqueIntent: finalLanding && tick === start ? 'final-harmony'
+          : figure.kind === 'pulse' ? 'pulsed-bass-pattern' : 'sustained-bass-foundation',
+        noteRoleTag: finalLanding && tick === start ? 'settle' : 'anchor',
         articulation: 'legato',
-        allowed: allowedAtDownbeat, allowTie: true,
+        allowed: scoreAttackAllowed(plan, tick),
+        allowTie: figure.kind !== 'pulse',
+        velocityAdjustment: tick === start ? 0 : -3,
       });
     }
-    if (support !== null && (finalLanding || density >= 0.35 || index % 2 === 0)) {
-      addEvent({
-        source, phraseId, sectionId, hand: 'left', voiceId: 'lh.support', pitch: support,
-        startTick: start, durationTicks: finalLanding ? span : Math.max(1, Math.round(span * 0.82)),
-        musicalRole: finalLanding ? 'cadence' : 'support',
-        gestureIntent: finalLanding ? 'cadential-landing' : 'harmonic-support',
-        techniqueIntent: finalLanding ? 'final-harmony' : 'chord-tone-support',
-        noteRoleTag: finalLanding ? 'settle' : 'bed',
-        articulation: 'legato',
-        allowed: allowedAtDownbeat, allowTie: true,
-      });
+
+    if (supportWritten) {
+      const supportTicks = figure.support;
+      const ascendingFigure = unitRandom(plan.seed, `score-arpeggio-direction:${phraseId ?? 'unphrased'}:${source.chord.id}`) >= 0.5;
+      let firstWrittenSupport: number | null = null;
+      for (let supportIndex = 0; supportIndex < supportTicks.length; supportIndex++) {
+        const tick = supportTicks[supportIndex];
+        const activeBass = [...mutableEvents].reverse().find((candidate) => candidate.voiceId === 'lh.bass'
+          && candidate.startTick <= tick && scoreEndOf(candidate) > tick)?.pitch ?? bass;
+        const previousSupport = previousPitchByVoice.get('lh.support') ?? null;
+        const pitch = tick === start && support !== null
+          ? support
+          : activeBass === null ? null
+            : scoreSupportPatternPitch(source, target!, activeBass, previousSupport, supportIndex,
+              figure.kind, ascendingFigure, plan.templateConstraints.octaveDoubling, support);
+        if (pitch === null) continue;
+        const nextTick = supportTicks[supportIndex + 1] ?? end;
+        const patterned = figure.kind !== 'sustained';
+        const duration = !patterned
+          ? finalLanding ? span : Math.max(1, Math.round(span * 0.82))
+          : nextTick < end ? Math.max(1, Math.round((nextTick - tick) * 0.88)) : Math.max(1, nextTick - tick);
+        const counterline = figure.kind === 'dialogue';
+        const technique: PianoTechniqueIntent = finalLanding && tick === start ? 'final-harmony'
+          : figure.kind === 'arpeggiated' ? 'arpeggiated-chord-accompaniment'
+            : counterline ? 'independent-counterline'
+              : figure.kind === 'pulse' ? 'syncopated-pulse-accompaniment'
+                : patterned ? 'broken-chord-accompaniment' : 'chord-tone-support';
+        addEvent({
+          source, phraseId, sectionId, hand: 'left', voiceId: 'lh.support', pitch,
+          startTick: tick, durationTicks: duration,
+          musicalRole: finalLanding && tick === start ? 'cadence' : 'support',
+          gestureIntent: finalLanding && tick === start ? 'cadential-landing'
+            : counterline ? 'counterline-answer'
+              : patterned ? 'broken-chord-figure' : 'harmonic-support',
+          techniqueIntent: technique,
+          noteRoleTag: finalLanding && tick === start ? 'settle'
+            : counterline ? 'answer'
+              : figure.kind === 'flourish' && tick !== start ? 'flourish' : 'bed',
+          articulation: 'legato',
+          allowed: scoreAttackAllowed(plan, tick),
+          allowTie: !patterned,
+          velocityAdjustment: tick === start ? 0 : figure.kind === 'pulse' ? -5 : -3,
+        });
+        if (firstWrittenSupport === null) firstWrittenSupport = pitch;
+      }
+      if (firstWrittenSupport !== null) supportPitchByChord.set(source.chord.id, firstWrittenSupport);
     }
 
     const rightZone = scoreRange(source.hands.right.register, target!);
@@ -3027,25 +3334,58 @@ export function composePianoScore(
       pitchClasses: rightPitchClasses,
       range: rightZone,
       preferredMidi: (rightZone[0] + rightZone[1]) / 2 - 4,
-      previousMidi: previousPitchByVoice.get('rh.inner') ?? null,
+      previousMidi: previousInnerPitch,
       minimumPitch: support === null ? undefined : support + 3,
       excluded: [bass, support].filter((pitch): pitch is number => pitch !== null),
     });
     const innerWritten = innerPitch !== null && (finalLanding || density >= 0.55 || index % 2 === 0);
-    innerPitchByChord.set(source.chord.id, allowedAtDownbeat && innerWritten ? innerPitch : null);
+    const ascendingInner = unitRandom(plan.seed, `score-inner-direction:${phraseId ?? 'unphrased'}:${source.chord.id}`) >= 0.5;
+    let firstWrittenInner: number | null = null;
     if (innerWritten) {
-      addEvent({
-        source, phraseId, sectionId, hand: 'right', voiceId: 'rh.inner', pitch: innerPitch,
-        startTick: start, durationTicks: span,
-        musicalRole: finalLanding ? 'cadence' : 'inner',
-        gestureIntent: finalLanding ? 'cadential-landing' : 'inner-voice',
-        techniqueIntent: finalLanding ? 'final-harmony' : 'voice-led-inner-tone',
-        noteRoleTag: finalLanding ? 'settle' : 'bed',
-        articulation: 'legato',
-        allowed: allowedAtDownbeat, allowTie: true,
-      });
+      for (let innerIndex = 0; innerIndex < figure.inner.length; innerIndex++) {
+        const tick = figure.inner[innerIndex];
+        const activeBass = [...mutableEvents].reverse().find((candidate) => candidate.voiceId === 'lh.bass'
+          && candidate.startTick <= tick && scoreEndOf(candidate) > tick)?.pitch ?? bass;
+        const activeSupport = [...mutableEvents].reverse().find((candidate) => candidate.voiceId === 'lh.support'
+          && candidate.startTick <= tick && scoreEndOf(candidate) > tick)?.pitch ?? support;
+        const variedInnerPitch = tick === start ? innerPitch : chooseScorePitch({
+          pitchClasses: rightPitchClasses,
+          range: rightZone,
+          preferredMidi: previousPitchByVoice.get('rh.inner') ?? innerPitch,
+          previousMidi: previousPitchByVoice.get('rh.inner') ?? innerPitch,
+          desiredPitchClass: rightPitchClasses.length
+            ? rightPitchClasses[(innerIndex + (ascendingInner ? 0 : rightPitchClasses.length - 1)) % rightPitchClasses.length]
+            : undefined,
+          minimumPitch: activeSupport === null ? undefined : activeSupport + 3,
+          excluded: [activeBass, activeSupport].filter((pitch): pitch is number => pitch !== null),
+        });
+        if (variedInnerPitch === null) continue;
+        const nextTick = figure.inner[innerIndex + 1] ?? end;
+        const patterned = figure.kind !== 'sustained';
+        const duration = patterned && nextTick < end
+          ? Math.max(1, Math.round((nextTick - tick) * 0.9)) : Math.max(1, nextTick - tick);
+        const counterline = figure.kind === 'dialogue';
+        addEvent({
+          source, phraseId, sectionId, hand: 'right', voiceId: 'rh.inner', pitch: variedInnerPitch,
+          startTick: tick, durationTicks: duration,
+          musicalRole: finalLanding && tick === start ? 'cadence' : 'inner',
+          gestureIntent: finalLanding && tick === start ? 'cadential-landing'
+            : counterline ? 'counterline-answer'
+              : patterned && tick !== start ? 'inner-line-motion' : 'inner-voice',
+          techniqueIntent: finalLanding && tick === start ? 'final-harmony'
+            : patterned && tick !== start ? 'moving-inner-voice' : 'voice-led-inner-tone',
+          noteRoleTag: finalLanding && tick === start ? 'settle'
+            : counterline ? 'answer'
+              : figure.kind === 'flourish' && tick !== start ? 'flourish' : 'bed',
+          articulation: 'legato',
+          allowed: scoreAttackAllowed(plan, tick),
+          allowTie: !patterned,
+          velocityAdjustment: tick === start ? 0 : -2,
+        });
+        if (firstWrittenInner === null) firstWrittenInner = variedInnerPitch;
+      }
     }
-
+    innerPitchByChord.set(source.chord.id, firstWrittenInner);
   }
 
   const plannedSuspensionWindows: Array<{ startTick: number; endTick: number }> = [];
@@ -3140,7 +3480,7 @@ export function composePianoScore(
         // A very short or syncopated cell can quantize two positions together.
         // Keep the phrase anchor on a collision, but prefer the resolving third
         // over an unresolved chromatic neighbor when those two coincide.
-        for (const [tick, collisions] of byTick) {
+        for (const collisions of byTick.values()) {
           const resolvingThird = collisions.find((attack) => attack.position === 3);
           const anchor = collisions.find((attack) => attack.position === 0);
           const selected = resolvingThird && collisions.some((attack) => attack.position === 2)
@@ -3170,14 +3510,15 @@ export function composePianoScore(
     for (const cellAttacks of [...cells.values()].sort((a, b) => a[0].cellStartTick - b[0].cellStartTick)) {
       cellAttacks.sort((a, b) => a.startTick - b.startTick || a.position - b.position);
       let cellAnchorPitch: number | null = null;
-      let pendingResolution: {
+      const pendingResolutionRef: { current: {
         readonly tensionPitch: number;
         readonly distance: number;
         readonly tick: number;
         readonly candidates: readonly number[];
-      } | null = null;
+      } | null } = { current: null };
 
       for (const attack of cellAttacks) {
+        const pendingResolution = pendingResolutionRef.current;
         const source = attack.source;
         const activeRightEvents = activeRightEventsAt(attack.startTick);
         const simultaneousRightPitches = activeRightEvents.map((event) => event.pitch);
@@ -3257,7 +3598,7 @@ export function composePianoScore(
         if (melodyPitch === null) continue;
         if (cellAnchorPitch === null) cellAnchorPitch = melodyPitch - contourOffset;
         if (isTension && resolvesAtTick !== null) {
-          pendingResolution = {
+          pendingResolutionRef.current = {
             tensionPitch: melodyPitch,
             distance: Math.max(1, Math.min(2, plan.motif.tensionResolution.kind === 'chromatic-neighbor'
               ? plan.motif.tensionResolution.semitonesToResolution : 1)),
@@ -3265,7 +3606,7 @@ export function composePianoScore(
             candidates: resolutionCandidates,
           };
         } else if (attack.position === 3 && pendingResolution?.tick === attack.startTick) {
-          pendingResolution = null;
+          pendingResolutionRef.current = null;
         }
         const written: PianoWrittenMelodyEvent = {
           ...attack,
@@ -3476,12 +3817,13 @@ export function composePianoScore(
     });
   }
 
-  const rests = scoreRests(plan, mutableEvents, validEnd);
+  const events = avoidScoreUnisonRearticulation(mutableEvents);
+  const rests = scoreRests(plan, events, validEnd);
   return createPianoScore({
     generationIdentity: plan.generationIdentity,
     templateId: plan.template.id,
     projectEndTick: validEnd,
-    events: mutableEvents,
+    events,
     rests,
   });
 }

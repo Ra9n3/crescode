@@ -8,7 +8,7 @@ import { createPianoScore, pianoScoreEventToNote, type PianoScore, type PianoSco
 import { realizePianoPlanWithAudit } from '../src/orchestrator/keys/piano-realizer';
 import { projectFromFixture } from '../src/shared/schema';
 import { barTicks, projectEndTick } from '../src/shared/schema/meter';
-import type { Project } from '../src/shared/schema/types';
+import { PPQ, type Project } from '../src/shared/schema/types';
 
 const GENERATION_IDENTITY = {
   algorithm: 'piano-engine-v5' as const,

@@ -170,7 +170,7 @@ describe('Piano Engine Phase 4A ephemeral context contract', () => {
       moments: 'src/orchestrator/conductor/index.ts: ConductorPlan.moments (keys-relevant kinds)',
       fillWindows: 'src/orchestrator/conductor/index.ts: ConductorPlan.fills (piano/Keys targets)',
       generationIdentity: 'piano-engine-v5: orchestration seed + ComposeOptions seed/take/density, hashed with hashString',
-      seed: 'PianoGenerationIdentity.seed: deterministic Composer/Realizer stream',
+      seed: 'PianoGenerationIdentity.seed: deterministic Composer decisions',
       analysis: 'composeAllTracks finalized tracks, excluding piano; production mute/solo/lock/band state is snapshotted',
     });
   });

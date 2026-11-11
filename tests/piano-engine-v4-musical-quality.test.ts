@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import threeChorus from '../fixtures/three-chorus-40bars.json';
 import { composeAllTracks } from '../src/orchestrator/compose';
 import { analyzePianoInput } from '../src/orchestrator/keys/piano-analyzer';
-import { composePianoPlan } from '../src/orchestrator/keys/piano-composer';
+import { composePianoPlan, composePianoScore } from '../src/orchestrator/keys/piano-composer';
 import { realizePianoPlanWithAudit } from '../src/orchestrator/keys/piano-realizer';
 import { isInstrumentTrack, projectFromFixture, type Project } from '../src/shared/schema';
 import { projectEndTick } from '../src/shared/schema/meter';
@@ -26,12 +26,14 @@ function productionSample(templateId: TemplateId) {
   if (!piano) throw new Error(`${templateId} production composition returned no Piano track.`);
   const input = result.pianoEngineInput;
   const plan = composePianoPlan(input, analyzePianoInput(input));
+  const score = composePianoScore(input, plan, piano, projectEndTick(project));
   const realization = realizePianoPlanWithAudit({
     plan,
+    score,
     targetTrack: piano,
     projectEndTick: projectEndTick(project),
   });
-  return { project, result, piano, input, plan, realization };
+  return { project, result, piano, input, plan, score, realization };
 }
 
 describe('Piano Engine V4 musical-quality writing', () => {
@@ -39,8 +41,12 @@ describe('Piano Engine V4 musical-quality writing', () => {
     for (const templateId of TEMPLATE_IDS) {
       const sample = productionSample(templateId);
       const repeatedPlan = composePianoPlan(sample.input, analyzePianoInput(sample.input));
+      const repeatedScore = composePianoScore(
+        sample.input, repeatedPlan, sample.piano, projectEndTick(sample.project),
+      );
       const repeatedRealization = realizePianoPlanWithAudit({
         plan: repeatedPlan,
+        score: repeatedScore,
         targetTrack: sample.piano,
         projectEndTick: projectEndTick(sample.project),
       });

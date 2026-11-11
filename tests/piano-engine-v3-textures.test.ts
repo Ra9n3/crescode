@@ -124,7 +124,7 @@ function shapedInput(templateId: TemplateId, options: TextureOptions = {}): Text
   const targets = options.targets ?? Array.from({ length: 12 }, (_, index) =>
     index < 4 ? 0.35 : index < 8 ? 0.45 : [0.5, 0.9, 0.45, 0.15][index - 8]);
   const nearSilenceBars = new Set(options.nearSilenceBars ?? []);
-  const energy = barWindows.map((bar, index) => ({
+  const energy = barWindows.map((bar) => ({
     bar: bar.bar,
     target: Math.max(0, Math.min(1, targets[bar.bar - 1] ?? 0.45)),
     nearSilence: nearSilenceBars.has(bar.bar),
@@ -456,7 +456,7 @@ describe('Piano Engine V3 context-aware textures', () => {
     expect(pianoProfile.exportName).toBe('Piano');
     const perTrackFile = buildPerTrackMidi(project, [piano], uvi).find((file) => file.fileName === 'Piano.mid');
     expect(perTrackFile).toBeDefined();
-    const perTrack = parseMidiFile(perTrackFile!.data).tracks.find((track) => track.name === 'Piano');
+    const perTrack = parseMidiFile(perTrackFile!.data).tracks.find((track) => track.name === 'Piano' && track.notes.length > 0);
     expect(perTrack).toBeDefined();
     expect(eventShape(perTrack!.notes)).toEqual(eventShape(piano.notes));
     const expectedPedal = piano.cc?.find((lane) => lane.cc === 64)?.points

@@ -57,6 +57,10 @@ export interface PianoIntervalActivity {
   readonly absolutePitchDistribution: readonly PianoPitchCount[];
   /** Fixed MIDI-octave histogram of note onsets, not instrument-range normalized. */
   readonly registerDistribution: readonly PianoRegisterCount[];
+  /** Exact pitch histogram of every distinct note event overlapping the window. */
+  readonly activePitchDistribution: readonly PianoPitchCount[];
+  /** Fixed MIDI-octave histogram of overlapping note events, not instrument-range normalized. */
+  readonly activeRegisterDistribution: readonly PianoRegisterCount[];
   readonly lowestPitch: number | null;
   readonly highestPitch: number | null;
   readonly meanPitch: number | null;
@@ -355,14 +359,23 @@ function intervalActivity(
   const onsetsByTick = new Map<number, number>();
   const pitches = new Map<number, number>();
   const registers = new Map<number, number>();
+  const activePitches = new Map<number, number>();
+  const activeRegisters = new Map<number, number>();
   for (const note of onsets) {
     onsetsByTick.set(note.startTick - startTick, (onsetsByTick.get(note.startTick - startTick) ?? 0) + 1);
     pitches.set(note.pitch, (pitches.get(note.pitch) ?? 0) + 1);
     const octave = midiOctave(note.pitch);
     registers.set(octave, (registers.get(octave) ?? 0) + 1);
   }
+  for (const note of active) {
+    activePitches.set(note.pitch, (activePitches.get(note.pitch) ?? 0) + 1);
+    const octave = midiOctave(note.pitch);
+    activeRegisters.set(octave, (activeRegisters.get(octave) ?? 0) + 1);
+  }
   const sortedPitches = [...pitches.keys()].sort((a, b) => a - b);
   const sortedRegisters = [...registers.keys()].sort((a, b) => a - b);
+  const sortedActivePitches = [...activePitches.keys()].sort((a, b) => a - b);
+  const sortedActiveRegisters = [...activeRegisters.keys()].sort((a, b) => a - b);
   const meanPitch = onsets.length
     ? onsets.reduce((sum, note) => sum + note.pitch, 0) / onsets.length
     : null;
@@ -381,6 +394,8 @@ function intervalActivity(
     })),
     absolutePitchDistribution: sortedPitches.map((pitch) => ({ pitch, noteCount: pitches.get(pitch)! })),
     registerDistribution: sortedRegisters.map((octave) => ({ midiOctave: octave, noteCount: registers.get(octave)! })),
+    activePitchDistribution: sortedActivePitches.map((pitch) => ({ pitch, noteCount: activePitches.get(pitch)! })),
+    activeRegisterDistribution: sortedActiveRegisters.map((octave) => ({ midiOctave: octave, noteCount: activeRegisters.get(octave)! })),
     lowestPitch: sortedPitches.length ? sortedPitches[0] : null,
     highestPitch: sortedPitches.length ? sortedPitches[sortedPitches.length - 1] : null,
     meanPitch,
@@ -801,7 +816,7 @@ export function analyzePianoInput(input: PianoEngineInput): PianoAnalyzerReport 
         'Bar assignment uses only the exact ConductorPlan.bars startTick/endTick projection; windows are half-open and are never reconstructed from meter or note events.',
         'Onset positions are exact tick offsets and normalized window positions, not inferred beats.',
         'Activity counts note onsets and distinct overlapping note events; occupancy is the union of clipped note durations, so overlapping intervals count once.',
-        'Pitch histograms use note onsets; register bins are fixed MIDI octaves and are not normalized to instrument ranges, which are unavailable in PianoAnalysis.',
+        'Onset pitch histograms and overlapping-note pitch histograms are separate; fixed MIDI-octave bins are not normalized to instrument ranges, which are unavailable in PianoAnalysis.',
         'Harmony, moment, and fill relationships report temporal overlap only and do not judge harmonic correctness, response, or musical suitability.',
       ],
     },

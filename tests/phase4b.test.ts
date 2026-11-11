@@ -159,10 +159,12 @@ describe('Piano Engine Phase 4B minimal musical Analyzer', () => {
       { bar: second.bar, startTick: second.startTick, endTick: second.endTick, onsetNoteCount: 1 },
       { bar: third.bar, startTick: third.startTick, endTick: third.endTick, onsetNoteCount: 1 },
     ]);
+    expect(observed.byBar[1].activePitchDistribution).toContainEqual({ pitch: 60, noteCount: 1 });
+    expect(observed.byBar[1].absolutePitchDistribution).not.toContainEqual({ pitch: 60, noteCount: 1 });
     expect(observed.unassignedBarOnsetNoteCount).toBe(1);
   });
 
-  it('reports onset counts/distribution, duration-union occupancy, absolute pitch, and MIDI-octave register', () => {
+  it('reports onset and active-register distributions, duration-union occupancy, and absolute pitch', () => {
     const input = makeInput({
       barWindows: sourceInput.context.barWindows.slice(0, 1),
       sections: simpleSections.slice(0, 1),
@@ -186,6 +188,16 @@ describe('Piano Engine Phase 4B minimal musical Analyzer', () => {
       { pitch: 72, noteCount: 1 },
     ]);
     expect(bar.registerDistribution).toEqual([
+      { midiOctave: 3, noteCount: 1 },
+      { midiOctave: 4, noteCount: 1 },
+      { midiOctave: 5, noteCount: 1 },
+    ]);
+    expect(bar.activePitchDistribution).toEqual([
+      { pitch: 48, noteCount: 1 },
+      { pitch: 60, noteCount: 1 },
+      { pitch: 72, noteCount: 1 },
+    ]);
+    expect(bar.activeRegisterDistribution).toEqual([
       { midiOctave: 3, noteCount: 1 },
       { midiOctave: 4, noteCount: 1 },
       { midiOctave: 5, noteCount: 1 },

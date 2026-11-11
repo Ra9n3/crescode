@@ -1,0 +1,889 @@
+{
+  "title": "Piano Stage 4A — Compose All audition set",
+  "date": "2026-11-08",
+  "fixture": "fixtures/dorian-16bars.json",
+  "compositionPath": "projectFromFixture → composeAllTracks → Piano Engine V5 → PianoScore → Realizer → finalized tracks",
+  "productionExportTransform": "src/export/profile.ts chunksForTrack with src/export/profiles/uvi-orchestral-suite.json; merged semantics exclude fileScope=fileOnly parts; Piano maps to UVI Grand Model D on channel 16 with CC64 enabled",
+  "options": {
+    "seed": 0,
+    "density": 1,
+    "moments": true,
+    "initialTake": 0
+  },
+  "serializationNote": "Because repository dependencies (including midi-file) are absent and must not be installed, the profile-transformed chunks were serialized by a temporary Node-only Standard MIDI File writer. It mirrors the app merged writer’s track/channel/note/CC/tempo/meter/key-signature/section-marker structure, but it is not src/export/midi.ts and byte-for-byte app export parity is unverified.",
+  "leadEvidenceNote": "Piano Analyzer lead candidates remain limited to explicitly annotated strings layers plus written activity. The manifest separately records Brass/Wind lead spans present in the orchestration plan; those plans are not silently recast as Piano Analyzer lead evidence.",
+  "listeningNote": "These are fresh audition candidates, not a claim of musical success. No audio render or listening evaluation was performed.",
+  "examples": [
+    {
+      "label": "Cinematic",
+      "file": "01-cinematic-orchestra.mid",
+      "templateId": "ensemble.cinematic",
+      "seed": 0,
+      "initialTake": 0,
+      "resultingTake": 1,
+      "density": 1,
+      "moments": true,
+      "standalone": false,
+      "exportProfile": "uvi-orchestral-suite",
+      "pianoScoreEvents": 57,
+      "pianoSourceNotes": 57,
+      "pianoExportNotes": 57,
+      "pianoChannel": 16,
+      "pianoCc64Points": 34,
+      "pianoPlayability": {
+        "warnings": 0,
+        "violations": 0
+      },
+      "analyzedNonPianoTrackCount": 18,
+      "nonPianoTracksWithNotes": 16,
+      "annotatedLeadBars": [
+        {
+          "bar": 1,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 2,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 3,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 4,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 5,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 6,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 7,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 16,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        }
+      ],
+      "brassLeadSpans": [],
+      "windLeadSpans": [],
+      "pianoTechniqueEventCounts": {
+        "sustained-bass-foundation": 8,
+        "chord-tone-support": 16,
+        "voice-led-inner-tone": 10,
+        "prepared-suspension": 7,
+        "stepwise-resolution": 7,
+        "phrase-led-upper-line": 4,
+        "octave-doubling": 1,
+        "final-harmony": 4
+      },
+      "activeMergedTracks": [
+        {
+          "name": "Violins 1 Ensemble",
+          "sourceRole": "violins1",
+          "channel": 1,
+          "noteCount": 46,
+          "cc64Points": 0
+        },
+        {
+          "name": "Violins 2 Ensemble",
+          "sourceRole": "violins2",
+          "channel": 2,
+          "noteCount": 161,
+          "cc64Points": 0
+        },
+        {
+          "name": "Viola Ensemble",
+          "sourceRole": "violas",
+          "channel": 3,
+          "noteCount": 128,
+          "cc64Points": 0
+        },
+        {
+          "name": "Cello Ensemble",
+          "sourceRole": "cellosBasses",
+          "channel": 4,
+          "noteCount": 22,
+          "cc64Points": 0
+        },
+        {
+          "name": "Bass Ensemble",
+          "sourceRole": "basses",
+          "channel": 5,
+          "noteCount": 39,
+          "cc64Points": 0
+        },
+        {
+          "name": "French Horn Ensemble",
+          "sourceRole": "horns",
+          "channel": 6,
+          "noteCount": 169,
+          "cc64Points": 0
+        },
+        {
+          "name": "Trumpet Ensemble",
+          "sourceRole": "trumpets",
+          "channel": 8,
+          "noteCount": 105,
+          "cc64Points": 0
+        },
+        {
+          "name": "Trombone Ensemble",
+          "sourceRole": "trombones",
+          "channel": 7,
+          "noteCount": 11,
+          "cc64Points": 0
+        },
+        {
+          "name": "Tuba solo",
+          "sourceRole": "tuba",
+          "channel": 9,
+          "noteCount": 4,
+          "cc64Points": 0
+        },
+        {
+          "name": "Flute Solo",
+          "sourceRole": "flutes",
+          "channel": 11,
+          "noteCount": 64,
+          "cc64Points": 0
+        },
+        {
+          "name": "Clarinet Solo",
+          "sourceRole": "clarinets",
+          "channel": 13,
+          "noteCount": 56,
+          "cc64Points": 0
+        },
+        {
+          "name": "Bassoon Solo",
+          "sourceRole": "bassoons",
+          "channel": 14,
+          "noteCount": 24,
+          "cc64Points": 0
+        },
+        {
+          "name": "Piano",
+          "sourceRole": "piano",
+          "channel": 16,
+          "noteCount": 57,
+          "cc64Points": 34
+        },
+        {
+          "name": "Harp",
+          "sourceRole": "harp",
+          "channel": 15,
+          "noteCount": 61,
+          "cc64Points": 0
+        }
+      ],
+      "fileOnlySidecars": [
+        {
+          "file": "01-cinematic-orchestra--fileonly-timpani.mid",
+          "name": "Timpani",
+          "sourceRole": "timpani",
+          "channel": 10,
+          "noteCount": 22,
+          "midiBytes": 318,
+          "sha256": "e96684a6c4f100b11fd974a98be75f5e6e2f6c5667c9d45ddb71339dfd7a9df2"
+        },
+        {
+          "file": "01-cinematic-orchestra--fileonly-cymbals.mid",
+          "name": "Cymbals",
+          "sourceRole": "cymbals",
+          "channel": 12,
+          "noteCount": 1,
+          "midiBytes": 128,
+          "sha256": "26c616875a4be6591da37e1a99242a3f045aeb69fb59ee13d5cd170dbb5fb85f"
+        }
+      ],
+      "mergedMidiTracks": 16,
+      "midiBytes": 10805,
+      "sha256": "2179929db78287acb78d8b16ad692d1930db1ff79126beabd73fb31be883e870"
+    },
+    {
+      "label": "Hybrid Studio",
+      "file": "02-hybrid-studio-orchestra.mid",
+      "templateId": "ensemble.hybridstudio",
+      "seed": 0,
+      "initialTake": 0,
+      "resultingTake": 1,
+      "density": 1,
+      "moments": true,
+      "standalone": false,
+      "exportProfile": "uvi-orchestral-suite",
+      "pianoScoreEvents": 55,
+      "pianoSourceNotes": 55,
+      "pianoExportNotes": 55,
+      "pianoChannel": 16,
+      "pianoCc64Points": 10,
+      "pianoPlayability": {
+        "warnings": 2,
+        "violations": 0
+      },
+      "analyzedNonPianoTrackCount": 18,
+      "nonPianoTracksWithNotes": 14,
+      "annotatedLeadBars": [
+        {
+          "bar": 1,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 2,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 3,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 4,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 5,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 6,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 7,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 9,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 10,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 11,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 12,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 13,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 14,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 15,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 16,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        }
+      ],
+      "brassLeadSpans": [
+        {
+          "startBar": 14,
+          "endBar": 15
+        }
+      ],
+      "windLeadSpans": [],
+      "pianoTechniqueEventCounts": {
+        "sustained-bass-foundation": 7,
+        "chord-tone-support": 16,
+        "voice-led-inner-tone": 11,
+        "phrase-led-upper-line": 8,
+        "phrase-anticipation": 5,
+        "prepared-suspension": 2,
+        "stepwise-resolution": 2,
+        "final-harmony": 4
+      },
+      "activeMergedTracks": [
+        {
+          "name": "Violins 1 Ensemble",
+          "sourceRole": "violins1",
+          "channel": 1,
+          "noteCount": 45,
+          "cc64Points": 0
+        },
+        {
+          "name": "Violins 2 Ensemble",
+          "sourceRole": "violins2",
+          "channel": 2,
+          "noteCount": 43,
+          "cc64Points": 0
+        },
+        {
+          "name": "Viola Ensemble",
+          "sourceRole": "violas",
+          "channel": 3,
+          "noteCount": 34,
+          "cc64Points": 0
+        },
+        {
+          "name": "Cello Ensemble",
+          "sourceRole": "cellosBasses",
+          "channel": 4,
+          "noteCount": 22,
+          "cc64Points": 0
+        },
+        {
+          "name": "Bass Ensemble",
+          "sourceRole": "basses",
+          "channel": 5,
+          "noteCount": 41,
+          "cc64Points": 0
+        },
+        {
+          "name": "French Horn Ensemble",
+          "sourceRole": "horns",
+          "channel": 6,
+          "noteCount": 28,
+          "cc64Points": 0
+        },
+        {
+          "name": "Trumpet Ensemble",
+          "sourceRole": "trumpets",
+          "channel": 8,
+          "noteCount": 7,
+          "cc64Points": 0
+        },
+        {
+          "name": "Trombone Ensemble",
+          "sourceRole": "trombones",
+          "channel": 7,
+          "noteCount": 34,
+          "cc64Points": 0
+        },
+        {
+          "name": "Flute Solo",
+          "sourceRole": "flutes",
+          "channel": 11,
+          "noteCount": 24,
+          "cc64Points": 0
+        },
+        {
+          "name": "Clarinet Solo",
+          "sourceRole": "clarinets",
+          "channel": 13,
+          "noteCount": 8,
+          "cc64Points": 0
+        },
+        {
+          "name": "Piano",
+          "sourceRole": "piano",
+          "channel": 16,
+          "noteCount": 55,
+          "cc64Points": 10
+        },
+        {
+          "name": "Harp",
+          "sourceRole": "harp",
+          "channel": 15,
+          "noteCount": 31,
+          "cc64Points": 0
+        }
+      ],
+      "fileOnlySidecars": [
+        {
+          "file": "02-hybrid-studio-orchestra--fileonly-snare.mid",
+          "name": "Snare",
+          "sourceRole": "snare",
+          "channel": 11,
+          "noteCount": 32,
+          "midiBytes": 439,
+          "sha256": "78c1fff68f03f7b5c7d3ab7bf037ec6061bbc9ba9e94a25506f2ee19ea444670"
+        },
+        {
+          "file": "02-hybrid-studio-orchestra--fileonly-cymbals.mid",
+          "name": "Cymbals",
+          "sourceRole": "cymbals",
+          "channel": 12,
+          "noteCount": 1,
+          "midiBytes": 132,
+          "sha256": "fa17ff417209f2c7b438d7576e46c5a52e8a170c33b94ab06dd63fc1baec1476"
+        }
+      ],
+      "mergedMidiTracks": 16,
+      "midiBytes": 5221,
+      "sha256": "c264bcf52db1e028a0d6ea8777794706d263468f0b81cd3b1a0e0e61e7643976"
+    },
+    {
+      "label": "Vocal Backing",
+      "file": "03-vocal-backing.mid",
+      "templateId": "ensemble.vocalbacking",
+      "seed": 0,
+      "initialTake": 0,
+      "resultingTake": 1,
+      "density": 1,
+      "moments": true,
+      "standalone": false,
+      "exportProfile": "uvi-orchestral-suite",
+      "pianoScoreEvents": 70,
+      "pianoSourceNotes": 70,
+      "pianoExportNotes": 70,
+      "pianoChannel": 16,
+      "pianoCc64Points": 30,
+      "pianoPlayability": {
+        "warnings": 0,
+        "violations": 0
+      },
+      "analyzedNonPianoTrackCount": 17,
+      "nonPianoTracksWithNotes": 4,
+      "annotatedLeadBars": [],
+      "brassLeadSpans": [],
+      "windLeadSpans": [],
+      "pianoTechniqueEventCounts": {
+        "sustained-bass-foundation": 10,
+        "chord-tone-support": 10,
+        "voice-led-inner-tone": 12,
+        "phrase-led-upper-line": 18,
+        "arpeggiated-chord-accompaniment": 6,
+        "moving-inner-voice": 8,
+        "prepared-suspension": 1,
+        "stepwise-resolution": 1,
+        "final-harmony": 4
+      },
+      "activeMergedTracks": [
+        {
+          "name": "Violins 2 Ensemble",
+          "sourceRole": "violins2",
+          "channel": 2,
+          "noteCount": 28,
+          "cc64Points": 0
+        },
+        {
+          "name": "Viola Ensemble",
+          "sourceRole": "violas",
+          "channel": 3,
+          "noteCount": 28,
+          "cc64Points": 0
+        },
+        {
+          "name": "Cello Ensemble",
+          "sourceRole": "cellosBasses",
+          "channel": 4,
+          "noteCount": 28,
+          "cc64Points": 0
+        },
+        {
+          "name": "Piano",
+          "sourceRole": "piano",
+          "channel": 16,
+          "noteCount": 70,
+          "cc64Points": 30
+        },
+        {
+          "name": "Harp",
+          "sourceRole": "harp",
+          "channel": 15,
+          "noteCount": 67,
+          "cc64Points": 0
+        }
+      ],
+      "fileOnlySidecars": [],
+      "mergedMidiTracks": 17,
+      "midiBytes": 3133,
+      "sha256": "f379b8a952a88a6bd4930002e706fa06e856bfd72c54d8805931a01ca096052e"
+    },
+    {
+      "label": "Chamber",
+      "file": "04-chamber.mid",
+      "templateId": "ensemble.chamber",
+      "seed": 0,
+      "initialTake": 0,
+      "resultingTake": 1,
+      "density": 1,
+      "moments": true,
+      "standalone": false,
+      "exportProfile": "uvi-orchestral-suite",
+      "pianoScoreEvents": 52,
+      "pianoSourceNotes": 52,
+      "pianoExportNotes": 52,
+      "pianoChannel": 16,
+      "pianoCc64Points": 30,
+      "pianoPlayability": {
+        "warnings": 0,
+        "violations": 0
+      },
+      "analyzedNonPianoTrackCount": 17,
+      "nonPianoTracksWithNotes": 4,
+      "annotatedLeadBars": [
+        {
+          "bar": 1,
+          "trackIds": [
+            "trk_04_violins2"
+          ]
+        },
+        {
+          "bar": 2,
+          "trackIds": [
+            "trk_04_violins2"
+          ]
+        },
+        {
+          "bar": 3,
+          "trackIds": [
+            "trk_04_violins2"
+          ]
+        },
+        {
+          "bar": 4,
+          "trackIds": [
+            "trk_04_violins2"
+          ]
+        },
+        {
+          "bar": 5,
+          "trackIds": [
+            "trk_04_violins2"
+          ]
+        },
+        {
+          "bar": 6,
+          "trackIds": [
+            "trk_04_violins2"
+          ]
+        },
+        {
+          "bar": 7,
+          "trackIds": [
+            "trk_04_violins2"
+          ]
+        },
+        {
+          "bar": 13,
+          "trackIds": [
+            "trk_04_violins2"
+          ]
+        },
+        {
+          "bar": 14,
+          "trackIds": [
+            "trk_04_violins2"
+          ]
+        },
+        {
+          "bar": 15,
+          "trackIds": [
+            "trk_04_violins2"
+          ]
+        },
+        {
+          "bar": 16,
+          "trackIds": [
+            "trk_04_violins2"
+          ]
+        }
+      ],
+      "brassLeadSpans": [],
+      "windLeadSpans": [],
+      "pianoTechniqueEventCounts": {
+        "sustained-bass-foundation": 9,
+        "chord-tone-support": 16,
+        "voice-led-inner-tone": 10,
+        "prepared-suspension": 1,
+        "stepwise-resolution": 1,
+        "phrase-led-upper-line": 11,
+        "final-harmony": 4
+      },
+      "activeMergedTracks": [
+        {
+          "name": "Violins 1 Ensemble",
+          "sourceRole": "violins1",
+          "channel": 1,
+          "noteCount": 30,
+          "cc64Points": 0
+        },
+        {
+          "name": "Violins 2 Ensemble",
+          "sourceRole": "violins2",
+          "channel": 2,
+          "noteCount": 31,
+          "cc64Points": 0
+        },
+        {
+          "name": "Viola Ensemble",
+          "sourceRole": "violas",
+          "channel": 3,
+          "noteCount": 22,
+          "cc64Points": 0
+        },
+        {
+          "name": "Cello Ensemble",
+          "sourceRole": "cellosBasses",
+          "channel": 4,
+          "noteCount": 22,
+          "cc64Points": 0
+        },
+        {
+          "name": "Piano",
+          "sourceRole": "piano",
+          "channel": 16,
+          "noteCount": 52,
+          "cc64Points": 30
+        }
+      ],
+      "fileOnlySidecars": [],
+      "mergedMidiTracks": 17,
+      "midiBytes": 2741,
+      "sha256": "16be06598624cff0b2dbb72da59ebfe73c79dbd4ac6571731194b4cc3b7705ac"
+    },
+    {
+      "label": "Sonata",
+      "file": "05-sonata.mid",
+      "templateId": "ensemble.sonata",
+      "seed": 0,
+      "initialTake": 0,
+      "resultingTake": 1,
+      "density": 1,
+      "moments": true,
+      "standalone": false,
+      "exportProfile": "uvi-orchestral-suite",
+      "pianoScoreEvents": 52,
+      "pianoSourceNotes": 52,
+      "pianoExportNotes": 52,
+      "pianoChannel": 16,
+      "pianoCc64Points": 32,
+      "pianoPlayability": {
+        "warnings": 0,
+        "violations": 0
+      },
+      "analyzedNonPianoTrackCount": 17,
+      "nonPianoTracksWithNotes": 2,
+      "annotatedLeadBars": [
+        {
+          "bar": 1,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 2,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 3,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 4,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 5,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 6,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 7,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 9,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 10,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 11,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 12,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 13,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 14,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 15,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        },
+        {
+          "bar": 16,
+          "trackIds": [
+            "trk_03_violins1"
+          ]
+        }
+      ],
+      "brassLeadSpans": [],
+      "windLeadSpans": [],
+      "pianoTechniqueEventCounts": {
+        "sustained-bass-foundation": 10,
+        "chord-tone-support": 16,
+        "voice-led-inner-tone": 9,
+        "prepared-suspension": 4,
+        "stepwise-resolution": 4,
+        "phrase-led-upper-line": 6,
+        "final-harmony": 3
+      },
+      "activeMergedTracks": [
+        {
+          "name": "Violins 1 Ensemble",
+          "sourceRole": "violins1",
+          "channel": 1,
+          "noteCount": 41,
+          "cc64Points": 0
+        },
+        {
+          "name": "Cello Ensemble",
+          "sourceRole": "cellosBasses",
+          "channel": 4,
+          "noteCount": 28,
+          "cc64Points": 0
+        },
+        {
+          "name": "Piano",
+          "sourceRole": "piano",
+          "channel": 16,
+          "noteCount": 52,
+          "cc64Points": 32
+        }
+      ],
+      "fileOnlySidecars": [],
+      "mergedMidiTracks": 17,
+      "midiBytes": 2072,
+      "sha256": "346fa38c6a29f5292039d914c000db73b0eca6b04e0ffe953635847b5f6d8fbc"
+    },
+    {
+      "label": "Standalone Piano (Chamber rules)",
+      "file": "06-standalone-piano-chamber.mid",
+      "templateId": "ensemble.chamber",
+      "seed": 0,
+      "initialTake": 0,
+      "resultingTake": 1,
+      "density": 1,
+      "moments": true,
+      "standalone": true,
+      "exportProfile": "uvi-orchestral-suite",
+      "pianoScoreEvents": 60,
+      "pianoSourceNotes": 60,
+      "pianoExportNotes": 60,
+      "pianoChannel": 16,
+      "pianoCc64Points": 32,
+      "pianoPlayability": {
+        "warnings": 0,
+        "violations": 0
+      },
+      "analyzedNonPianoTrackCount": 0,
+      "nonPianoTracksWithNotes": 0,
+      "annotatedLeadBars": [],
+      "brassLeadSpans": [],
+      "windLeadSpans": [],
+      "pianoTechniqueEventCounts": {
+        "sustained-bass-foundation": 12,
+        "chord-tone-support": 17,
+        "voice-led-inner-tone": 10,
+        "phrase-led-upper-line": 13,
+        "prepared-suspension": 2,
+        "stepwise-resolution": 2,
+        "final-harmony": 4
+      },
+      "activeMergedTracks": [
+        {
+          "name": "Piano",
+          "sourceRole": "piano",
+          "channel": 16,
+          "noteCount": 60,
+          "cc64Points": 32
+        }
+      ],
+      "fileOnlySidecars": [],
+      "mergedMidiTracks": 1,
+      "midiBytes": 799,
+      "sha256": "1520058dadd4791f8759ad29cd19d6024e988cd0a82a31ca5782f11211e8ecd5"
+    }
+  ]
+}

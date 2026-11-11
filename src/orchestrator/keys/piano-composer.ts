@@ -8,7 +8,7 @@
  * voice, and expressive-intent decisions before the Realizer converts them.
  */
 import { PPQ } from '../../shared/schema/types';
-import type { PianoAnalyzerReport, PianoInstrumentObservedFacts } from './piano-analyzer';
+import type { PianoAnalyzerReport, PianoInstrumentObservedFacts, PianoIntervalActivity } from './piano-analyzer';
 import type { PianoEngineInput, PianoGenerationIdentity, PianoMomentKind, PianoTemplateRule } from './piano-engine';
 import { createPianoScore, type PianoScore, type PianoScoreEvent, type PianoScoreRest, type PianoScoreTarget, type PianoScoreVoiceId, type PianoMusicalRole, type PianoGestureIntent, type PianoTechniqueIntent } from './piano-score';
 
@@ -246,6 +246,29 @@ export interface PianoSuspensionIntent {
   readonly evidence: string;
 }
 
+/**
+ * Register occupancy observed by Analyzer for a score-planning window. These
+ * counts describe overlapping note events, not source loudness, lead roles,
+ * counterpoint, or exact simultaneous polyphony. Missing context stays null.
+ */
+export interface PianoAccompanimentActivityEvidence {
+  readonly availability: 'available' | 'partial' | 'unavailable';
+  readonly source: 'source-bar-overlap' | 'resolved-chord-overlap';
+  readonly activeTrackIds: readonly string[];
+  /** Active notes in a bass role or in the Piano's low register. */
+  readonly bassFoundationTrackIds: readonly string[];
+  /** Non-bass tracks with written activity in the Piano mid/upper registers. */
+  readonly midUpperActivityTrackIds: readonly string[];
+  /** Mean overlapping-note counts per intersecting source bar. */
+  readonly activeNotesPerBar: {
+    readonly pianoBass: number | null;
+    readonly pianoSupport: number | null;
+    readonly pianoInner: number | null;
+    readonly pianoUpper: number | null;
+    readonly total: number | null;
+  };
+}
+
 export interface PianoHarmonicEvent {
   readonly chord: {
     readonly id: string;
@@ -300,6 +323,8 @@ export interface PianoHarmonicEvent {
       readonly total: number;
       readonly availability: 'available' | 'unavailable';
     };
+    /** Analyzer activity for this chord span; never used to infer an orchestral lead. */
+    readonly accompanimentActivity?: PianoAccompanimentActivityEvidence;
   };
   readonly dynamicIntent: {
     readonly intensity: PianoIntensity;
@@ -435,6 +460,7 @@ interface OrchestrationReading {
   readonly explicitLeadTrackIds: readonly string[];
   readonly moments: readonly PianoEngineInput['context']['moments'][number][];
   readonly inPianoFill: boolean;
+  readonly accompanimentActivity: PianoAccompanimentActivityEvidence;
   readonly registerOccupancy: {
     /** Mean written note-onset count per supplied bar, from source octaves. */
     readonly low: number;
@@ -894,6 +920,130 @@ function composerVisible(instrument: PianoInstrumentObservedFacts): boolean {
   return instrument.compositionState?.composerVisible !== false;
 }
 
+const PIANO_BASS_FOUNDATION_ROLES = new Set(['cellosBasses', 'basses', 'tuba', 'trombones', 'bassoons']);
+
+function activePitchCount(activity: PianoIntervalActivity, low: number, high: number): number {
+  return activity.activePitchDistribution.reduce((sum, item) =>
+    item.pitch >= low && item.pitch <= high ? sum + item.noteCount : sum, 0);
+}
+
+interface PianoActivitySlice {
+  readonly bar: number;
+  readonly activity: PianoIntervalActivity;
+}
+
+interface PianoActivityCounts {
+  pianoBass: number;
+  pianoSupport: number;
+  pianoInner: number;
+  pianoUpper: number;
+  total: number;
+}
+
+function summarizeAccompanimentActivity(
+  instruments: readonly PianoInstrumentObservedFacts[],
+  slicesByTrack: ReadonlyMap<string, readonly PianoActivitySlice[]>,
+  availability: PianoAccompanimentActivityEvidence['availability'],
+  source: PianoAccompanimentActivityEvidence['source'],
+): PianoAccompanimentActivityEvidence {
+  const barIds = [...new Set([...slicesByTrack.values()].flatMap((slices) => slices.map((slice) => slice.bar)))];
+  const byBar = new Map<number, PianoActivityCounts>();
+  const activeTrackIds: string[] = [];
+  const bassFoundationTrackIds: string[] = [];
+  const midUpperActivityTrackIds: string[] = [];
+
+  for (const instrument of instruments) {
+    const slices = slicesByTrack.get(instrument.instrument.id) ?? [];
+    let active = false;
+    let bassFoundation = false;
+    let midUpperActivity = false;
+    for (const slice of slices) {
+      const activity = slice.activity;
+      const counts = byBar.get(slice.bar) ?? { pianoBass: 0, pianoSupport: 0, pianoInner: 0, pianoUpper: 0, total: 0 };
+      counts.pianoBass += activePitchCount(activity, 29, 55);
+      counts.pianoSupport += activePitchCount(activity, 40, 67);
+      counts.pianoInner += activePitchCount(activity, 50, 76);
+      counts.pianoUpper += activePitchCount(activity, 60, 101);
+      counts.total += activity.activeNoteCount;
+      byBar.set(slice.bar, counts);
+
+      if (activity.activeNoteCount > 0) active = true;
+      if (activity.activeNoteCount > 0 && (PIANO_BASS_FOUNDATION_ROLES.has(instrument.instrument.role)
+        || activePitchCount(activity, 29, 55) > 0)) bassFoundation = true;
+      if (activePitchCount(activity, 50, 101) > 0
+        && !PIANO_BASS_FOUNDATION_ROLES.has(instrument.instrument.role)) midUpperActivity = true;
+    }
+    if (active) activeTrackIds.push(instrument.instrument.id);
+    if (bassFoundation) bassFoundationTrackIds.push(instrument.instrument.id);
+    if (midUpperActivity) midUpperActivityTrackIds.push(instrument.instrument.id);
+  }
+
+  const average = (key: keyof PianoActivityCounts): number | null => {
+    if (!barIds.length) return null;
+    const total = barIds.reduce((sum, bar) => sum + (byBar.get(bar)?.[key] ?? 0), 0);
+    return total / barIds.length;
+  };
+  return {
+    availability: barIds.length ? availability : availability === 'unavailable' ? 'unavailable' : 'partial',
+    source,
+    activeTrackIds,
+    bassFoundationTrackIds,
+    midUpperActivityTrackIds,
+    activeNotesPerBar: {
+      pianoBass: average('pianoBass'),
+      pianoSupport: average('pianoSupport'),
+      pianoInner: average('pianoInner'),
+      pianoUpper: average('pianoUpper'),
+      total: average('total'),
+    },
+  };
+}
+
+function accompanimentActivityFromBars(
+  analyzer: PianoAnalyzerReport,
+  instruments: readonly PianoInstrumentObservedFacts[],
+  barIds: ReadonlySet<number>,
+): PianoAccompanimentActivityEvidence {
+  const slicesByTrack = new Map(instruments.map((instrument) => [
+    instrument.instrument.id,
+    instrument.byBar.filter((bar) => barIds.has(bar.bar)).map((bar) => ({ bar: bar.bar, activity: bar })),
+  ]));
+  const requestedBars = [...barIds];
+  const availability = barIds.size > 0 && instruments.length > 0
+    && analyzer.observedFacts.barAssignmentAvailability === 'available'
+    && instruments.every((instrument) => requestedBars.every((barId) =>
+      instrument.byBar.some((bar) => bar.bar === barId)))
+    ? 'available' as const
+    : barIds.size === 0 ? 'unavailable' as const : 'partial' as const;
+  return summarizeAccompanimentActivity(instruments, slicesByTrack, availability, 'source-bar-overlap');
+}
+
+function accompanimentActivityForChord(
+  analyzer: PianoAnalyzerReport,
+  chordId: string,
+): PianoAccompanimentActivityEvidence {
+  const instruments = analyzer.observedFacts.instruments.filter(composerVisible);
+  const slicesByTrack = new Map<string, PianoActivitySlice[]>();
+  let allFactsAvailable = analyzer.existingContextFacts.harmony.availability === 'available' && instruments.length > 0;
+  for (const instrument of instruments) {
+    const relationships = instrument.relationships.harmony;
+    const span = relationships.spans.find((candidate) => candidate.chord.id === chordId);
+    if (relationships.availability !== 'available' || !span || !span.byBar.length) {
+      allFactsAvailable = false;
+      slicesByTrack.set(instrument.instrument.id, []);
+      continue;
+    }
+    slicesByTrack.set(instrument.instrument.id, span.byBar.map((item) => ({
+      bar: item.bar,
+      activity: item.activity,
+    })));
+  }
+  const availability = instruments.length === 0
+    ? 'partial' as const
+    : allFactsAvailable ? 'available' as const : 'unavailable' as const;
+  return summarizeAccompanimentActivity(instruments, slicesByTrack, availability, 'resolved-chord-overlap');
+}
+
 function orchestrationReading(
   input: PianoEngineInput,
   analyzer: PianoAnalyzerReport,
@@ -903,8 +1053,9 @@ function orchestrationReading(
   const bars = input.context.barWindows.filter((bar) => intersects(bar.startTick, bar.endTick, startTick, endTick));
   const barIds = new Set(bars.map((bar) => bar.bar));
   const visibleInstruments = analyzer.observedFacts.instruments.filter(composerVisible);
+  const accompanimentActivity = accompanimentActivityFromBars(analyzer, visibleInstruments, barIds);
   const active = visibleInstruments.filter((instrument) =>
-    instrument.byBar.some((bar) => barIds.has(bar.bar) && bar.activeNoteCount > 0));
+    accompanimentActivity.activeTrackIds.includes(instrument.instrument.id));
   const activeTrackIds = active.map((instrument) => instrument.instrument.id);
   const activeRoles = active.map((instrument) => instrument.instrument.role);
   const registerCounts = { low: 0, middle: 0, high: 0 };
@@ -945,6 +1096,7 @@ function orchestrationReading(
     moments,
     inPianoFill,
     registerOccupancy,
+    accompanimentActivity,
     evidence,
   };
   return { ...reading, interaction: momentDecision(reading) };
@@ -1404,7 +1556,6 @@ function motifOperation(
   input: PianoEngineInput,
 ): { operation: PianoPhraseIntention['motif']['operation']; rationale: string } {
   if (!motif) return { operation: 'unavailable', rationale: 'No resolved harmony was supplied from which to build a chord-relative motif.' };
-  if (phraseIndex === 0) return { operation: 'introduce', rationale: 'Establish a short chord-relative cell with a prepared neighbor and resolution.' };
   if (reading.explicitLeadTrackIds.length && phraseFunctionName !== 'arrival') {
     if (profile.public.identity === 'hybrid-pulse-and-color') {
       return {
@@ -1414,6 +1565,7 @@ function motifOperation(
     }
     return { operation: 'withhold-under-lead', rationale: 'An explicit conductor lead annotation is active; the piano motif yields rather than competing.' };
   }
+  if (phraseIndex === 0) return { operation: 'introduce', rationale: 'Establish a short chord-relative cell with a prepared neighbor and resolution.' };
   if (phraseFunctionName === 'arrival' || phraseFunctionName === 'statement-and-landing') {
     return { operation: 'fragment-to-landing', rationale: 'Recall only part of the cell so the supplied final harmony, not a repeated pattern, carries the landing.' };
   }
@@ -1657,11 +1809,21 @@ function textureIntention(
   const energyTrend = sourceTrend(dynamics.sourceEnergy);
   const energyPeak = dynamics.sourceEnergy.trajectory.length
     ? Math.max(...dynamics.sourceEnergy.trajectory.map((point) => point.target)) : null;
-  const upperRegisterActivity = reading.registerOccupancy.middle + reading.registerOccupancy.high;
-  const registerCrowded = reading.registerOccupancy.availability === 'available' && upperRegisterActivity >= 7;
+  const activeUpperRegisterActivity = reading.accompanimentActivity.activeNotesPerBar.pianoUpper;
+  const upperRegisterActivity = Math.max(reading.registerOccupancy.middle + reading.registerOccupancy.high,
+    activeUpperRegisterActivity ?? 0);
+  const activeTotal = reading.accompanimentActivity.activeNotesPerBar.total;
+  const registerCrowded = (reading.registerOccupancy.availability === 'available' && upperRegisterActivity >= 7)
+    || (reading.accompanimentActivity.availability === 'available' && activeUpperRegisterActivity !== null
+      && activeUpperRegisterActivity >= 7);
   const ensembleDense = reading.activeTrackIds.length >= 5
-    || (reading.registerOccupancy.total >= 14 && upperRegisterActivity >= 8);
+    || (reading.registerOccupancy.total >= 14 && upperRegisterActivity >= 8)
+    || (reading.accompanimentActivity.availability === 'available' && activeTotal !== null
+      && activeTotal >= 14 && (activeUpperRegisterActivity ?? 0) >= 8);
   const hasExplicitLead = reading.explicitLeadTrackIds.length > 0;
+  const nonLeadMidUpperActivity = reading.accompanimentActivity.midUpperActivityTrackIds
+    .filter((trackId) => !reading.explicitLeadTrackIds.includes(trackId));
+  const hasExistingMidUpperLine = nonLeadMidUpperActivity.length > 0;
   const leadNeedsSpace = hasExplicitLead && (ensembleDense || registerCrowded || reading.interaction !== 'interweave');
   const release = (phrase.function === 'release'
       && (dynamics.sourceEnergy.descendingTowardEnd
@@ -1702,7 +1864,7 @@ function textureIntention(
     && harmony.some((chord) => new Set(chord.parsed.pitchClasses).size >= 3)) {
     kind = 'arpeggiated';
     rationale = 'The existing energy trajectory rises over sufficiently long, multi-tone harmony; unfold those chord tones toward the phrase peak.';
-  } else if (hasRoomForFiguration && motif !== null
+  } else if (hasRoomForFiguration && !hasExistingMidUpperLine && motif !== null
     && (profile.public.identity === 'chamber-counterpoint' || profile.public.identity === 'sonata-dialogue')
     && (phrase.function === 'development' || phrase.function === 'contrast' || phrase.function === 'reprise')
     && dynamics.peak >= 2 && harmony.length >= 2) {
@@ -1728,7 +1890,12 @@ function textureIntention(
     `Section ${phrase.section.name}; phrase function ${phrase.function}; ${phrase.firstInSection ? 'section entry' : phrase.lastInSection ? 'section release' : 'interior phrase'}.`,
     `Energy shape ${dynamics.shape}, trend ${energyTrend.toFixed(3)}, peak ${energyPeak === null ? 'unavailable' : energyPeak.toFixed(2)}${dynamics.sourceEnergy.nearSilence ? ', with supplied near-silence' : ''}.`,
     `${harmony.length} resolved chord span(s) overlap this phrase; mean clipped span ${Math.round(meanChordSpan)} ticks.`,
-    `Analyzer reports ${reading.activeTrackIds.length} active written track(s); register onsets/bar low ${occupancy.low.toFixed(1)}, middle ${occupancy.middle.toFixed(1)}, high ${occupancy.high.toFixed(1)} (${occupancy.availability}).`,
+    `Analyzer reports ${reading.activeTrackIds.length} active written track(s); onset register counts/bar low ${occupancy.low.toFixed(1)}, middle ${occupancy.middle.toFixed(1)}, high ${occupancy.high.toFixed(1)} (${occupancy.availability}).`,
+    `Overlapping note events/bar in Piano ranges bass 29–55, support 40–67, inner 50–76, upper 60–101: ${[reading.accompanimentActivity.activeNotesPerBar.pianoBass, reading.accompanimentActivity.activeNotesPerBar.pianoSupport, reading.accompanimentActivity.activeNotesPerBar.pianoInner, reading.accompanimentActivity.activeNotesPerBar.pianoUpper].map((value) => value === null ? 'unavailable' : value.toFixed(1)).join(', ')} (${reading.accompanimentActivity.availability}).`,
+    ...(reading.accompanimentActivity.bassFoundationTrackIds.length
+      ? [`Observed low-register/bass-role foundation: ${reading.accompanimentActivity.bassFoundationTrackIds.join(', ')}.`] : []),
+    ...(hasExistingMidUpperLine
+      ? [`Observed non-bass mid/upper activity: ${nonLeadMidUpperActivity.join(', ')}; this is register occupancy, not an inferred lead or response cue.`] : []),
     ...(reading.explicitLeadTrackIds.length ? [`Explicit lead evidence: ${reading.explicitLeadTrackIds.join(', ')}; interaction ${reading.interaction}.`] : [`Orchestration interaction: ${reading.interaction}; no explicit lead candidate overlaps.`]),
     ...(reading.moments.length ? [`Supplied moments: ${unique(reading.moments.map((moment) => moment.kind)).join(', ')}.`] : []),
     ...(hasSelectedFill ? ['A selected explicit piano fill reservation overlaps this phrase.'] : []),
@@ -2076,10 +2243,20 @@ function makeOrchestrationReadingForEvent(
   chord: PianoEngineInput['context']['harmony'][number],
 ): OrchestrationReading {
   const reading = orchestrationReading(input, analyzer, chord.startTick, chord.endTick);
+  const accompanimentActivity = accompanimentActivityForChord(analyzer, chord.id);
   const relationIds = chordActivityIds(analyzer, chord.id);
+  const exactActivityAvailable = accompanimentActivity.availability === 'available';
+  const activeTrackIds = exactActivityAvailable
+    ? [...accompanimentActivity.activeTrackIds]
+    : unique([...reading.activeTrackIds, ...relationIds]);
+  const active = analyzer.observedFacts.instruments
+    .filter(composerVisible)
+    .filter((instrument) => activeTrackIds.includes(instrument.instrument.id));
   const enriched = {
     ...reading,
-    activeTrackIds: unique([...reading.activeTrackIds, ...relationIds]),
+    activeTrackIds,
+    activeRoles: active.map((instrument) => instrument.instrument.role),
+    accompanimentActivity,
   };
   return { ...enriched, interaction: momentDecision(enriched) };
 }
@@ -2181,9 +2358,13 @@ function composeHarmonicEvents(
     const momentYield = reading.interaction === 'yield-to-spotlight'
       || (reading.interaction === 'leave-space' && (!hasLead || reading.activeTrackIds.length >= 4));
     const textureKind = selectedPhrase?.texture.kind;
+    const upperRegisterActivity = Math.max(
+      reading.registerOccupancy.middle + reading.registerOccupancy.high,
+      reading.accompanimentActivity.activeNotesPerBar.pianoUpper ?? 0,
+    );
+    const hasBassFoundation = reading.accompanimentActivity.bassFoundationTrackIds.length > 0;
     const baseHandDensity: PianoDensity = nearSilence || momentYield ? 'very-sparse'
-      : hasLead || reading.activeTrackIds.length >= 5
-        || (reading.registerOccupancy.middle + reading.registerOccupancy.high >= 7) ? 'sparse'
+      : hasLead || reading.activeTrackIds.length >= 5 || upperRegisterActivity >= 7 ? 'sparse'
         : textureKind === 'sparse-sustained' || textureKind === 'short-flourishes' ? 'sparse'
           : textureKind === 'block-chords'
             ? arrival && profile.voicingVoices >= 4 ? 'broad' : 'moderate'
@@ -2191,10 +2372,9 @@ function composeHarmonicEvents(
               : profile.voicingVoices <= 2 ? 'sparse' : 'moderate';
     const handDensity = scalePianoDensity(baseHandDensity, generationDensity(input));
     const lhRole = nearSilence || momentYield ? 'yielding held tone or silence'
-      : selectedPhrase?.texture.leftHandRole
-        ?? (reading.activeRoles.some((role) => ['cellosBasses', 'basses', 'tuba', 'trombones'].includes(role))
-          ? 'root-light counter-foundation under existing bass activity'
-          : previousBass === bass ? 'hold a common bass tone through the chord change' : profile.public.leftHandRole);
+      : hasBassFoundation ? 'root-light counter-foundation under the observed low-register line'
+        : selectedPhrase?.texture.leftHandRole
+          ?? (previousBass === bass ? 'hold a common bass tone through the chord change' : profile.public.leftHandRole);
     const rhRole = nearSilence || momentYield ? 'withhold or leave a single color-tone trace'
       : hasLead ? hybridPulseUnderLead
         ? 'sparse chord-relative pulse and color beneath the annotated lead; avoid its melodic contour'
@@ -2258,8 +2438,7 @@ function composeHarmonicEvents(
           register: profile.public.leftHandRegister,
           motion: nearSilence || momentYield ? 'yield'
             : previousBass === bass ? 'hold-common-tone'
-              : reading.activeRoles.some((role) => ['cellosBasses', 'basses', 'tuba', 'trombones'].includes(role))
-                ? 'sparse-approach' : 'change-with-harmony',
+              : hasBassFoundation ? 'sparse-approach' : 'change-with-harmony',
         },
         right: {
           role: rhRole,
@@ -2284,6 +2463,7 @@ function composeHarmonicEvents(
         interaction,
         analyzerEvidence: reading.evidence,
         registerOccupancy: { ...reading.registerOccupancy },
+        accompanimentActivity: reading.accompanimentActivity,
       },
       dynamicIntent: {
         intensity,
@@ -2528,8 +2708,11 @@ export function composePianoPlan(input: PianoEngineInput, analyzer: PianoAnalyze
   let previousTexture: PianoTextureKind | null = null;
   for (const [index, phrase] of phraseWindowsForPlan.entries()) {
     const reading = orchestrationReading(input, analyzer, phrase.startTick, phrase.endTick);
+    // Texture progression belongs to one section; motif identity may continue
+    // across sections, but the accompaniment surface must be re-established.
+    const precedingSectionTexture = phrase.firstInSection ? null : previousTexture;
     const plan = composePhraseIntention(input, phrase, index, motif, profile, reading,
-      previousOperation, previousTexture, fillPlans);
+      previousOperation, precedingSectionTexture, fillPlans);
     phrasePlans.push(plan);
     if (plan.motif.operation !== 'unavailable') previousOperation = plan.motif.operation;
     previousTexture = plan.texture.kind;
@@ -2920,13 +3103,30 @@ function scoreFigureKind(
       break;
   }
 
-  // Stage 4 technique selection requires known, open low-register capacity;
-  // explicit lead/moment spans and incomplete evidence remain ineligible.
   const occupancy = event.orchestration.registerOccupancy;
-  const activeBassRoles = new Set(['cellosBasses', 'basses', 'tuba', 'trombones']);
-  const lowFoundationIsClear = occupancy?.availability === 'available'
-    && occupancy.low <= 2.25
-    && !(event.orchestration.activeRoles ?? []).some((role) => activeBassRoles.has(role));
+  const accompanimentActivity = event.orchestration.accompanimentActivity;
+  const observedBassFoundation = accompanimentActivity?.availability === 'available'
+    ? accompanimentActivity.bassFoundationTrackIds.length > 0
+    : (accompanimentActivity?.bassFoundationTrackIds.length ?? 0) > 0
+      || (event.orchestration.activeRoles ?? []).some((role) => PIANO_BASS_FOUNDATION_ROLES.has(role));
+  const exactActivityAvailable = accompanimentActivity
+    ? accompanimentActivity.availability === 'available'
+      && accompanimentActivity.activeNotesPerBar.total !== null
+    : event.orchestration.analyzerEvidence === 'available' && occupancy?.availability === 'available';
+  const localSupportActivity = accompanimentActivity?.activeNotesPerBar.pianoSupport ?? null;
+  const localUpperActivity = accompanimentActivity?.activeNotesPerBar.pianoUpper ?? null;
+  const localRegistersCrowded = (localSupportActivity !== null && localSupportActivity >= 6)
+    || (localUpperActivity !== null && localUpperActivity >= 8);
+  const lowFoundationIsClear = exactActivityAvailable && !observedBassFoundation
+    && (accompanimentActivity
+      ? (accompanimentActivity.activeNotesPerBar.pianoBass ?? Number.POSITIVE_INFINITY) <= 2.25
+      : occupancy?.availability === 'available' && occupancy.low <= 2.25);
+  const nonLeadMidUpperActivity = accompanimentActivity?.midUpperActivityTrackIds
+    .some((trackId) => !event.orchestration.explicitLeadTrackIds.includes(trackId)) ?? false;
+  if (baseKind === 'dialogue' && nonLeadMidUpperActivity) baseKind = 'broken-chords';
+
+  // Stage 4 patterns remain optional: they need a locally open bass register,
+  // complete Analyzer activity evidence, and the existing phrase/energy gates.
   const usableContext = phrase !== null
     && (phrase.intendedDensity === 'moderate' || phrase.intendedDensity === 'broad')
     && phrase.function !== 'release'
@@ -2938,6 +3138,7 @@ function scoreFigureKind(
     && event.orchestration.explicitLeadTrackIds.length === 0
     && event.orchestration.momentKinds.length === 0
     && event.orchestration.analyzerEvidence !== 'unavailable'
+    && !localRegistersCrowded
     && lowFoundationIsClear
     && event.chord.endTick - event.chord.startTick >= 4 * PPQ;
   if (!usableContext || !phrase) return baseKind;

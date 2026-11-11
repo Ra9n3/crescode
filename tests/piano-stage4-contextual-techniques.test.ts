@@ -128,6 +128,22 @@ function contextualPhrasePlan(
         total: options.busyBass ? 5 : 0,
         availability: options.occupancyKnown === false ? 'unavailable' as const : 'available' as const,
       },
+      accompanimentActivity: {
+        availability: options.occupancyKnown === false ? 'unavailable' as const : 'available' as const,
+        source: 'resolved-chord-overlap' as const,
+        activeTrackIds: options.busyBass ? ['basses'] : [],
+        bassFoundationTrackIds: options.busyBass ? ['basses'] : [],
+        midUpperActivityTrackIds: [],
+        activeNotesPerBar: options.occupancyKnown === false
+          ? { pianoBass: null, pianoSupport: null, pianoInner: null, pianoUpper: null, total: null }
+          : {
+              pianoBass: options.busyBass ? 5 : 0,
+              pianoSupport: options.busyBass ? 5 : 0,
+              pianoInner: 0,
+              pianoUpper: 0,
+              total: options.busyBass ? 5 : 0,
+            },
+      },
     },
     dynamicIntent: {
       ...event.dynamicIntent,

@@ -11,6 +11,7 @@ import { PPQ } from '../../shared/schema/types';
 import type { PianoAnalyzerReport, PianoInstrumentObservedFacts, PianoIntervalActivity } from './piano-analyzer';
 import type { PianoEngineInput, PianoGenerationIdentity, PianoMomentKind, PianoTemplateRule } from './piano-engine';
 import { composeTextureTheme, type PianoCompositionDiagnostics } from './piano-texture-theme';
+import type { PianoCompositionMode } from './piano-composition-identity';
 import { createPianoScore, type PianoScore, type PianoScoreEvent, type PianoScoreRest, type PianoScoreTarget, type PianoScoreVoiceId, type PianoMusicalRole, type PianoGestureIntent, type PianoTechniqueIntent } from './piano-score';
 
 export type PianoPlanStatus = 'composed' | 'ineligible' | 'insufficient-harmony';
@@ -4285,6 +4286,8 @@ export function composePianoScoreWithDiagnostics(
   plan: PianoComposerPlan,
   target: PianoScoreTarget | null,
   projectEndTick: number,
+  /** 'identity' (default) or 'classic'; Classic runs the Texture-and-Theme Composer exactly as accepted. */
+  mode?: PianoCompositionMode,
 ): PianoScoreComposition {
   const validEnd = Number.isInteger(projectEndTick) && projectEndTick > 0 ? projectEndTick : 0;
   const validTarget = target !== null
@@ -4310,7 +4313,7 @@ export function composePianoScoreWithDiagnostics(
     };
   }
   const density = scoreClamp(generationDensity(input), 0.1, 1);
-  const composition = composeTextureTheme(input, plan, target!, validEnd, density);
+  const composition = composeTextureTheme(input, plan, target!, validEnd, density, mode);
   const harmonicById = new Map(plan.harmonicEvents.map((event) => [event.chord.id, event]));
   const fallbackHarmony = plan.harmonicEvents[0];
   let nextEventId = 0;
@@ -4455,6 +4458,7 @@ export function composePianoScore(
   plan: PianoComposerPlan,
   target: PianoScoreTarget | null,
   projectEndTick: number,
+  mode?: PianoCompositionMode,
 ): PianoScore {
-  return composePianoScoreWithDiagnostics(input, plan, target, projectEndTick).score;
+  return composePianoScoreWithDiagnostics(input, plan, target, projectEndTick, mode).score;
 }

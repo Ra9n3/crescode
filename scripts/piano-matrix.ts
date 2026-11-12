@@ -20,6 +20,9 @@ import { isInstrumentTrack, projectFromFixture, type Note, type Project } from '
 import { barTicks, projectEndTick } from '../src/shared/schema/meter';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+// This matrix documents the accepted Texture-and-Theme Composer, which is now the Classic mode.
+// Set PIANO_COMPOSITION=identity to run the same matrix on the identity composer instead.
+const PIANO_MODE = process.env.PIANO_COMPOSITION === 'identity' ? 'identity' as const : 'classic' as const;
 const label = process.argv.slice(2).find((arg) => /^[a-z0-9-]+$/i.test(arg)) ?? 'run';
 const outRoot = path.join(here, '..', 'evaluation', 'piano-texture-theme-20261112', label);
 const PROFILE = EXPORT_PROFILES.find((entry) => entry.id === 'uvi-orchestral-suite')!.profile;
@@ -94,7 +97,7 @@ for (const fixtureId of FIXTURES) {
           if (template.standalone) {
             project.tracks = project.tracks.filter((track) => !isInstrumentTrack(track) || track.role === 'piano');
           }
-          const result = composeAllTracks(project, { seed, density: density.value });
+          const result = composeAllTracks(project, { seed, density: density.value, pianoComposition: PIANO_MODE });
           const piano = result.tracks.find((track) => isInstrumentTrack(track) && track.role === 'piano');
           const notes = piano && isInstrumentTrack(piano) ? piano.notes : [];
           const bar = barTicks(project.timeSignature);

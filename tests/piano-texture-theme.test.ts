@@ -28,7 +28,7 @@ function compose(
   if (options.standalone) {
     project.tracks = project.tracks.filter((track) => !isInstrumentTrack(track) || track.role === 'piano');
   }
-  const result = composeAllTracks(project, { seed: options.seed ?? 0, density: options.density ?? 1 });
+  const result = composeAllTracks(project, { seed: options.seed ?? 0, density: options.density ?? 1, pianoComposition: 'classic' });
   const piano = result.tracks.find((track) => isInstrumentTrack(track) && track.role === 'piano');
   return { project, result, piano, score: result.pianoScore, diagnostics: result.pianoDiagnostics };
 }
@@ -161,7 +161,7 @@ describe('Piano Texture-and-Theme Composer (production Compose All)', () => {
       const alonePlan = composePianoPlan(aloneInput, analyzePianoInput(aloneInput));
       const target = full.project.tracks.find((track) => isInstrumentTrack(track) && track.role === 'piano');
       if (!target || !isInstrumentTrack(target)) throw new Error('fixture needs a Piano track');
-      const alone = composePianoScoreWithDiagnostics(aloneInput, alonePlan, target, projectEndTick(full.project));
+      const alone = composePianoScoreWithDiagnostics(aloneInput, alonePlan, target, projectEndTick(full.project), 'classic');
       expect(JSON.stringify(full.diagnostics!.theme), `${templateId} theme`).toBe(JSON.stringify(alone.diagnostics!.theme));
       expect(JSON.stringify(full.diagnostics!.independentDraft), `${templateId} independent draft`)
         .toBe(JSON.stringify(alone.diagnostics!.independentDraft));

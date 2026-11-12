@@ -24,7 +24,7 @@ function productionSample(templateId = 'ensemble.chamber', seed = 11) {
   const project = projectFromFixture(JSON.parse(JSON.stringify(dorian)) as Project);
   project.ensemble = { templateId, overrides: {}, pins: {} };
   project.orchestration = { take: 0 };
-  const result = composeAllTracks(project, { seed, density: 0.85, moments: false });
+  const result = composeAllTracks(project, { seed, density: 0.85, moments: false, pianoComposition: 'classic' });
   const piano = result.tracks.find((track) => isInstrumentTrack(track) && track.role === 'piano');
   if (!piano) throw new Error(`${templateId} returned no Piano target.`);
   const sample = { project, input: result.pianoEngineInput, piano };
@@ -95,7 +95,7 @@ function controlledInput(
 function writeScore(sample: ReturnType<typeof productionSample>, input = sample.input) {
   const analyzer = analyzePianoInput(input);
   const plan = composePianoPlan(input, analyzer);
-  const score = composePianoScore(input, plan, sample.piano, projectEndTick(sample.project));
+  const score = composePianoScore(input, plan, sample.piano, projectEndTick(sample.project), 'classic');
   return { analyzer, plan, score };
 }
 
@@ -140,10 +140,10 @@ function activeNotesInWindow(score: PianoScore, startTick: number, endTick: numb
 function writeComposition(sample: ReturnType<typeof productionSample>, input = sample.input) {
   const plan = composePianoPlan(input, analyzePianoInput(input));
   if (!isInstrumentTrack(sample.piano)) throw new Error('The sample needs an instrument Piano track.');
-  const { score, diagnostics } = composePianoScoreWithDiagnostics(input, plan, sample.piano, projectEndTick(sample.project));
+  const { score, diagnostics } = composePianoScoreWithDiagnostics(input, plan, sample.piano, projectEndTick(sample.project), 'classic');
   if (!diagnostics) throw new Error('The production composer returned no diagnostics.');
   // The diagnostics-bearing entry point and composePianoScore are the same production writer.
-  expect(JSON.stringify(composePianoScore(input, plan, sample.piano, projectEndTick(sample.project))))
+  expect(JSON.stringify(composePianoScore(input, plan, sample.piano, projectEndTick(sample.project), 'classic')))
     .toBe(JSON.stringify(score));
   return { plan, score, diagnostics };
 }
@@ -389,7 +389,7 @@ describe('Piano Stage 4A contextual accompaniment from finalized tracks', () => 
     project.ensemble = { templateId: 'ensemble.chamber', overrides: {}, pins: {} };
     project.orchestration = { take: 0 };
     project.tracks = project.tracks.filter((track) => !isInstrumentTrack(track) || track.role === 'piano');
-    const result = composeAllTracks(project, { seed: 11, density: 0.85 });
+    const result = composeAllTracks(project, { seed: 11, density: 0.85, pianoComposition: 'classic' });
     const score = result.pianoScore;
     const diagnostics = result.pianoDiagnostics!;
     const input = result.pianoEngineInput;

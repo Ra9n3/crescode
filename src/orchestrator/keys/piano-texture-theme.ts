@@ -16,6 +16,10 @@
  *
  * Nothing here is persisted: diagnostics are an ephemeral sidecar.
  */
+import {
+  DEFAULT_PIANO_COMPOSITION_MODE, IDENTITY_RHYTHMS, derivePianoCompositionIdentity, dynamicBias, identityHash, trajectoryBias,
+  type PianoCompositionIdentity, type PianoCompositionMode, type PianoIdentityTemplateFacts, type PianoThemeContour,
+} from './piano-composition-identity';
 import { PPQ } from '../../shared/schema/types';
 import type { Articulation, NoteRoleTag } from '../../shared/schema/types';
 import type { PianoEngineInput } from './piano-engine';
@@ -31,11 +35,17 @@ export type PianoTextureLevel = 0 | 1 | 2 | 3;
 export type PianoThemeOperation =
   | 'statement' | 'sequence' | 'fragment-extension' | 'inversion' | 'rising-fragments'
   | 'register-lift' | 'ornamented-reprise' | 'augmented-skeleton' | 'answer-fragment'
-  | 'cadential-return' | 'rest';
+  | 'cadential-return' | 'rest'
+  /** Identity composer only. */
+  | 'descending-sequence' | 'hand-exchange' | 'tail-sequence';
 export type PianoLeftPattern =
   | 'sustain' | 'broken-quarters' | 'bass-and-chord' | 'walking' | 'pulse-quarters'
-  | 'alberti-eighths' | 'rolling-arpeggio' | 'broken-tenths' | 'stride' | 'ostinato-332';
-export type PianoRightStyle = 'held' | 'restrike' | 'flowing-inner' | 'offbeat-stabs' | 'block-chords';
+  | 'alberti-eighths' | 'rolling-arpeggio' | 'broken-tenths' | 'stride' | 'ostinato-332'
+  /** Identity composer only. */
+  | 'half-notes' | 'cell-figure';
+export type PianoRightStyle = 'held' | 'restrike' | 'flowing-inner' | 'offbeat-stabs' | 'block-chords'
+  /** Identity composer only. */
+  | 'answer-chords';
 export type PianoLayer = 'melody' | 'bass' | 'accompaniment' | 'inner';
 
 export interface PianoArcBar {
@@ -59,6 +69,8 @@ export interface PianoArcBar {
   readonly octaveDouble: boolean;
   readonly run: 'up' | 'down' | null;
   readonly finalLanding: boolean;
+  /** Identity composer only: the theme bar is reduced to its structural notes. */
+  readonly themeSkeleton?: boolean;
 }
 
 export interface PianoArcPhrase {
@@ -113,6 +125,10 @@ interface BarDirective {
   melodyTrim: number;
   rightCap: PianoRightStyle | null;
   leftCap: PianoTextureLevel | null;
+  /** Identity composer only: protected traits. Nothing here forces a note through a real conflict. */
+  protectHead?: boolean;
+  rightThin?: boolean;
+  leftLight?: boolean;
 }
 
 export interface PianoDraftEvent {
@@ -144,7 +160,9 @@ export interface PianoLayerActivity {
 
 export interface PianoCompositionDiagnostics {
   readonly version: 1;
-  readonly algorithm: 'piano-texture-theme-v1';
+  readonly algorithm: 'piano-texture-theme-v1' | 'piano-composition-identity-v1';
+  /** Present only when the identity composer wrote the piece; absent in Classic mode. */
+  readonly identity?: PianoCompositionIdentity;
   readonly templateIdentity: PianoTemplateIdentity;
   readonly density: number;
   readonly randomStreams: { readonly independent: string; readonly adaptation: string };
@@ -437,6 +455,7 @@ function planArc(
   theme: PianoTheme | null,
   density: number,
   octaveAllowedAt: (energy: number) => boolean,
+  idn: PianoCompositionIdentity | null = null,
 ): ArcContext {
   const seed = compositionSeed(plan);
   const energyByBar = new Map(input.context.energy.map((entry) => [entry.bar, entry]));
@@ -497,6 +516,12 @@ function planArc(
   for (const draft of climaxPool.length ? climaxPool : live.filter((entry) => entry !== lastLive)) {
     if (!climax || draft.mean >= climax.mean - 1e-9) climax = draft;
   }
+  if (idn && idn.trajectory.climax !== 'energy' && climax) {
+    // Several phrases can be about equally energetic; the identity decides which one is the high point.
+    const top = climax.mean;
+    const near = (climaxPool.length ? climaxPool : live.filter((entry) => entry !== lastLive)).filter((draft) => draft.mean >= top - 0.06);
+    if (near.length > 1) climax = idn.trajectory.climax === 'early' ? near.find((draft) => draft !== firstLive) ?? near[0] : near[near.length - 1];
+  }
   if (climax && firstLive && climax === firstLive && live.length > 2) climax = null;
   const liveMeanMin = live.length ? Math.min(...live.map((draft) => draft.mean)) : 0;
   const climaxIsEnergetic = !!climax && climax.mean - liveMeanMin >= 0.08;
@@ -514,7 +539,7 @@ function planArc(
     else if (previous === climax && climax && draft.mean < climax.mean - 0.1) role = 'release';
     else if (draft.bars.length <= 1) role = 'response';
     else if (draft.firstInSection && draft.nameOccurrence > 1) role = 'reprise';
-    else if (draft.firstInSection && draft.distinctIndex >= 2) role = 'contrast';
+    else if (draft.firstInSection && draft.distinctIndex >= (idn ? idn.development.contrastFromSection : 2)) role = 'contrast';
     else role = 'development';
     roles.set(draft.id, role);
   });
@@ -532,9 +557,12 @@ function planArc(
     }
   };
 
-  const levelFor = (energy: number, role: PianoArcRole, position: number): PianoTextureLevel => {
-    const raw = shaped(energy) * 3.8 * densityFactor + roleBias(role, position) + profile.levelBias;
-    return clamp(Math.round(raw), 0, ceiling) as PianoTextureLevel;
+  const piecePosition = (bar: typeof windows[number]): number => (windows.length > 1 ? windows.indexOf(bar) / (windows.length - 1) : 0.5);
+  const levelFor = (energy: number, role: PianoArcRole, position: number, piece = 0.5): PianoTextureLevel => {
+    const raw = shaped(energy) * 3.8 * densityFactor + roleBias(role, position) + profile.levelBias
+      + (idn ? idn.trajectory.levelBias + trajectoryBias(idn.trajectory.shape, piece) : 0);
+    // The identity's floor never lifts a level above the template or density ceiling.
+    return clamp(Math.round(raw), Math.min(ceiling, idn ? idn.trajectory.levelFloor : 0), ceiling) as PianoTextureLevel;
   };
 
   // Pair bars so a texture is held for at least two bars before it changes.
@@ -546,7 +574,7 @@ function planArc(
       const pair = draft.energies.slice(index, index + 2);
       const mean = pair.reduce((sum, value) => sum + value, 0) / pair.length;
       const position = draft.bars.length > 1 ? index / (draft.bars.length - 1) : 1;
-      const level = role === 'breath' ? 0 : levelFor(mean, role, position);
+      const level = role === 'breath' ? 0 : levelFor(mean, role, position, piecePosition(draft.bars[index]));
       for (let k = 0; k < pair.length; k++) levels.push(level);
     }
     phraseLevels.set(draft.id, levels);
@@ -577,9 +605,10 @@ function planArc(
     developmentCount.set(role, devIndex + 1);
 
     let operation: PianoThemeOperation;
-    let mapping: { themeBar: number | null; shift: number; invert: boolean; octave: number; ornament: boolean; run: 'up' | 'down' | null; hand: PianoHand }[];
+    let mapping: { themeBar: number | null; shift: number; invert: boolean; octave: number; ornament: boolean; run: 'up' | 'down' | null; hand: PianoHand; skeleton: boolean }[];
     const base = (themeBar: number | null, shift = 0) => ({
       themeBar, shift, invert: false, octave: 0, ornament: false, run: null as 'up' | 'down' | null, hand: 'right' as PianoHand,
+      skeleton: false,
     });
     const statementShape = (): ReturnType<typeof base>[] => {
       if (count === 1) return [base(0)];
@@ -600,7 +629,59 @@ function planArc(
       profile.leftHandTheme && entries.length >= 6
         ? entries.map((entry, index) => (index === 2 || index === 3 ? { ...entry, hand: 'left' as PianoHand } : entry))
         : entries;
-    if (!theme || role === 'breath') {
+    if (idn && theme && role !== 'breath') {
+      // The identity decides how each phrase role treats the theme; the transformations themselves
+      // are the composer's existing ones plus three more that use the same machinery.
+      operation = role === 'development' ? idn.development.cycle[devIndex % idn.development.cycle.length] : idn.development.operations[role];
+      const leftAllowed = profile.leftHandTheme && idn.accompaniment.leftHandTheme !== 'never';
+      const exchange = (entries: ReturnType<typeof base>[]): ReturnType<typeof base>[] => !leftAllowed ? entries
+        : idn.accompaniment.leftHandTheme === 'frequent'
+          ? (entries.length >= 4 ? entries.map((entry, index) => (index % 4 === 2 || index % 4 === 3 ? { ...entry, hand: 'left' as PianoHand } : entry)) : entries)
+          : dialogue(entries);
+      const closing = (entries: ReturnType<typeof base>[]): ReturnType<typeof base>[] => {
+        if (count >= 4) { entries[count - 2] = base(2); entries[count - 1] = base(3); }
+        return entries;
+      };
+      switch (operation) {
+        case 'ornamented-reprise': mapping = exchange(statementShape().map((entry) => ({ ...entry, ornament: true }))); break;
+        case 'register-lift': {
+          const lift = profile.melodyCenter <= 74 ? 1 : 0;
+          mapping = statementShape().map((entry) => ({ ...entry, octave: lift }));
+          break;
+        }
+        case 'rising-fragments':
+          mapping = Array.from({ length: count }, (_, index) => base(index % 2 === 0 ? 0 : 1, Math.floor(index / 2) + 1));
+          mapping[count - 1] = { ...mapping[count - 1], run: 'up' };
+          break;
+        case 'inversion':
+          mapping = statementShape().map((entry, index) => ({
+            ...entry, invert: true, hand: (leftAllowed && index < 2 && count >= 3 ? 'left' : 'right') as PianoHand,
+          }));
+          break;
+        case 'augmented-skeleton': mapping = statementShape().map((entry) => ({ ...entry, skeleton: true })); break;
+        case 'answer-fragment': mapping = Array.from({ length: count }, (_, index) => base(index === count - 1 ? 3 : 2)); break;
+        case 'sequence': mapping = exchange(closing(Array.from({ length: count }, (_, index) => base(index % 2, 2 + Math.floor(index / 2))))); break;
+        case 'descending-sequence': mapping = closing(Array.from({ length: count }, (_, index) => base(index % 2, -1 - Math.floor(index / 2)))); break;
+        case 'fragment-extension':
+          mapping = Array.from({ length: count }, (_, index) => base(0, index));
+          if (count >= 2) mapping[count - 1] = base(3);
+          break;
+        case 'tail-sequence':
+          // The head once for recognition, then the theme's second bar walked down by step.
+          mapping = count <= 2 ? [base(1), base(3)].slice(0, count)
+            : [base(0), ...Array.from({ length: count - 2 }, (_, index) => base(1, -index)), base(3)];
+          break;
+        case 'hand-exchange':
+          mapping = statementShape().map((entry, index) => ({
+            ...entry,
+            hand: (leftAllowed && (count >= 4 ? Math.floor(index / 2) % 2 === 1 : index === 1) ? 'left' : 'right') as PianoHand,
+          }));
+          break;
+        default: mapping = statementShape();
+      }
+      if (!idn.techniques.ornaments) mapping = mapping.map((entry) => ({ ...entry, ornament: false }));
+      if (idn.techniques.runs === 'none') mapping = mapping.map((entry) => ({ ...entry, run: null }));
+    } else if (!theme || role === 'breath') {
       operation = 'rest';
       mapping = Array.from({ length: count }, () => base(null));
     } else if (role === 'statement') {
@@ -660,17 +741,25 @@ function planArc(
         : role === 'response' ? -0.2 : 0;
       // Dynamics follow the piece's own arc as well as absolute energy, so the formal peak reaches
       // the top of the template's range and the quietest phrase its bottom. No global offset.
-      const intensity = clamp(shaped(energy) * 5.2 + roleLift + hairpin - (isFinal && energy < 0.7 ? 0.5 : 0), 0.6, profile.intensityCap);
+      const classicIntensity = shaped(energy) * 5.2 + roleLift + hairpin - (isFinal && energy < 0.7 ? 0.5 : 0);
+      // Identity: its own swell inside the phrase, its own contrast width and its own curve over the
+      // piece. The template's intensity cap is applied last and is never exceeded.
+      const identityHairpin = idn && role !== 'build' && role !== 'release'
+        ? idn.dynamics.hairpinDepth * (0.5 - Math.abs(position - idn.dynamics.hairpinPeak)) : hairpin;
+      const intensity = clamp(idn
+        ? 3 + (classicIntensity - hairpin + identityHairpin - 3) * idn.dynamics.contrast + dynamicBias(idn.dynamics.shape, piecePosition(window))
+        : classicIntensity, 0.6, profile.intensityCap);
       const fillHere = density >= 0.4 && level >= 1 && !isRestricted && plan.fillDecisions.some((decision) =>
         decision.target.toLowerCase() === 'piano' && decision.decision === 'consider-brief-gesture'
         && decision.startTick < window.endTick && decision.endTick > window.startTick);
-      const fillRun: 'up' | 'down' | null = fillHere
+      const fillRun: 'up' | 'down' | null = fillHere && (!idn || idn.techniques.runs === 'free')
         ? (unitRandom(seed, `independent:fill-direction:${window.bar}`) < 0.5 ? 'up' : 'down') : null;
+      const alternate = !!idn && idn.accompaniment.changeBySection && draft.distinctIndex % 2 === 1;
       const patternList = level === 0 ? ['sustain' as PianoLeftPattern] : profile.left[level as 1 | 2 | 3];
       const patternDraw = unitRandom(seed, `independent:left-pattern:${sectionKey}:${level}`);
       const map = mapping[index];
       const themeBar = map.themeBar === null || !themeBars ? null : map.themeBar % themeBars;
-      const octaveDouble = role === 'climax' && level >= 3 && octaveAllowedAt(energy);
+      const octaveDouble = role === 'climax' && level >= 3 && octaveAllowedAt(energy) && (!idn || idn.techniques.octaves);
       bars.push({
         bar: window.bar,
         startTick: window.startTick,
@@ -680,8 +769,12 @@ function planArc(
         restricted: isRestricted,
         level,
         intensity,
-        leftPattern: patternList[Math.floor(patternDraw * patternList.length)] ?? patternList[0],
-        rightStyle: level === 0 ? 'held' : profile.right[level as 1 | 2 | 3],
+        leftPattern: idn && level > 0
+          ? (alternate ? idn.accompaniment.leftAlternate : idn.accompaniment.left)[level as 1 | 2 | 3]
+          : patternList[Math.floor(patternDraw * patternList.length)] ?? patternList[0],
+        rightStyle: level === 0 ? 'held'
+          : idn ? (alternate ? idn.accompaniment.rightAlternate : idn.accompaniment.right)[level as 1 | 2 | 3]
+            : profile.right[level as 1 | 2 | 3],
         themeBar: isRestricted ? null : themeBar,
         themeStepShift: map.shift,
         themeInvert: map.invert,
@@ -691,6 +784,7 @@ function planArc(
         octaveDouble,
         run: level >= 2 && map.run ? map.run : fillRun,
         finalLanding: isFinal,
+        ...(map.skeleton ? { themeSkeleton: true } : {}),
       });
     });
     const rationale = role === 'breath' ? 'Every bar of the phrase is a supplied near-silence or explicit rest window.'
@@ -779,6 +873,96 @@ function buildTheme(seed: number, profile: TextureProfile, chords: readonly Chor
   };
 }
 
+/** Scale steps of a theme head for one contour; a leap is always answered by step. */
+function contourSteps(contour: PianoThemeContour, count: number, draw: (label: string) => number): number[] {
+  const steps: number[] = [];
+  let current = contour === 'descent-rise' || contour === 'fall' ? 4 : contour === 'repeat-step' && draw('repeat-direction') < 0.4 ? 3 : 0;
+  const repeatDirection = current === 3 ? -1 : 1;
+  const swing = draw('pendulum-first') < 0.5 ? 1 : -1;
+  steps.push(current);
+  for (let index = 1; index < count; index++) {
+    let delta: number;
+    switch (contour) {
+      case 'arch': delta = current >= 4 ? -1 : draw(`arch-${index}`) < 0.3 && current <= 2 ? 2 : 1; break;
+      case 'leap-fill': delta = index === 1 ? (draw('leap') < 0.5 ? 3 : 4) : -1; break;
+      case 'descent-rise': delta = index === count - 1 ? 1 : draw(`fall-${index}`) < 0.3 ? -2 : -1; break;
+      case 'rise': delta = draw(`rise-${index}`) < 0.25 && index === 1 ? 2 : 1; break;
+      case 'fall': delta = -1; break;
+      case 'pendulum': delta = (index % 2 === 1 ? 1 : -1) * swing * (index % 4 >= 2 ? -1 : 1); break;
+      case 'repeat-step': delta = index % 2 === 1 ? 0 : repeatDirection; break;
+      default: delta = index % 2 === 1 ? 2 : -1;
+    }
+    current += delta;
+    steps.push(current);
+  }
+  return steps;
+}
+
+/**
+ * The theme of an identity-driven piece. Same data shape as the Classic theme
+ * (four bars of eighth-slot notes in scale steps), but contour, rhythm cell and
+ * the way the four bars relate all come from the composition identity.
+ */
+function buildIdentityTheme(idn: PianoCompositionIdentity, chords: readonly ChordInfo[], scale: readonly number[]): PianoTheme | null {
+  if (!chords.length) return null;
+  const draw = (label: string) => unitRandom(idn.generation.compositionSeed, `identity:theme:${label}`);
+  const first = chords[0];
+  const anchorOptions = first.tones.filter((tone) => tone !== first.root && scale.includes(tone));
+  const anchor = anchorOptions.length ? anchorOptions[Math.floor(draw('anchor') * anchorOptions.length)] ?? anchorOptions[0] : first.root;
+  const { contour, form, headRhythm, landingRhythm, cadenceRhythm, range } = idn.theme;
+  const head = IDENTITY_RHYTHMS[headRhythm];
+  const landing = IDENTITY_RHYTHMS[landingRhythm];
+  const cadence = IDENTITY_RHYTHMS[cadenceRhythm];
+  const fit = (step: number): number => clamp(step, range[0], range[1]);
+  const structural = (pos: number, dur: number, index: number, last: boolean) => index === 0 || last || pos % 4 === 0 || dur >= 3;
+
+  const headSteps = contourSteps(contour, head.length, draw).map(fit);
+  const sequenceShift = contour === 'descent-rise' || contour === 'fall' ? 1 : -1;
+  const sequenceSteps = headSteps.map((step) => fit(step + sequenceShift));
+  const landingFrom = (last: number): number[] => {
+    const peak = fit(contour === 'leap-fill' || last >= 5 ? last - 1 : last + 1);
+    return landing.map((_, index) => fit(peak - index));
+  };
+  const fromAbove = draw('cadence-approach') < 0.6;
+  const cadenceSteps = cadence.map((_, index) => (fromAbove ? cadence.length - 1 - index : index - (cadence.length - 1)));
+
+  const makeBar = (rhythm: readonly (readonly [number, number])[], steps: readonly number[]): PianoThemeNote[] =>
+    rhythm.map(([pos, dur], index) => ({
+      pos, dur, step: steps[index] ?? 0, structural: structural(pos, dur, index, index === rhythm.length - 1),
+    }));
+  let bars: PianoThemeNote[][];
+  let rhythm: string[];
+  if (form === 'sentence') {
+    // The opening is repeated at once on another step, then continues to the cadence.
+    bars = [makeBar(head, headSteps), makeBar(head, sequenceSteps), makeBar(landing, landingFrom(sequenceSteps[sequenceSteps.length - 1])), makeBar(cadence, cadenceSteps)];
+    rhythm = [headRhythm, headRhythm, landingRhythm, cadenceRhythm];
+  } else if (form === 'question-answer') {
+    // A two-bar idea heard twice: first left open on a step away from the anchor, then closed.
+    const open = landingFrom(headSteps[headSteps.length - 1]);
+    open[open.length - 1] = fit(draw('open-ending') < 0.5 ? 1 : 4);
+    bars = [makeBar(head, headSteps), makeBar(landing, open), makeBar(head, headSteps), makeBar(cadence, cadenceSteps)];
+    rhythm = [headRhythm, landingRhythm, headRhythm, cadenceRhythm];
+  } else if (form === 'long-line') {
+    // No internal repeat: the second idea is answered by its own rising form.
+    const second = landingFrom(headSteps[headSteps.length - 1]);
+    const third = landing.map((_, index) => fit(second[second.length - 1] + index));
+    bars = [makeBar(head, headSteps), makeBar(landing, second), makeBar(landing, third), makeBar(cadence, cadenceSteps)];
+    rhythm = [headRhythm, landingRhythm, landingRhythm, cadenceRhythm];
+  } else {
+    bars = [makeBar(head, headSteps), makeBar(landing, landingFrom(headSteps[headSteps.length - 1])), makeBar(head, sequenceSteps), makeBar(cadence, cadenceSteps)];
+    rhythm = [headRhythm, landingRhythm, headRhythm, cadenceRhythm];
+  }
+  return {
+    id: 'piano-theme-main',
+    scalePitchClasses: [...scale],
+    anchorPitchClass: anchor,
+    contour: `${contour} ${form}`,
+    rhythm,
+    bars,
+    eventCount: bars.reduce((sum, bar) => sum + bar.length, 0),
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /* Rendering                                                           */
 /* ------------------------------------------------------------------ */
@@ -817,10 +1001,11 @@ interface RenderOptions {
   readonly directives: ReadonlyMap<number, BarDirective>;
   readonly evidence: ExternalEvidence | null;
   readonly records: PianoAdaptationRecord[] | null;
+  readonly idn: PianoCompositionIdentity | null;
 }
 
 function render(options: RenderOptions): PianoDraftEvent[] {
-  const { plan, profile, theme, arc, chords, scale, target, endTick, density, directives, evidence, records } = options;
+  const { plan, profile, theme, arc, chords, scale, target, endTick, density, directives, evidence, records, idn } = options;
   const seed = compositionSeed(plan);
   const events: PianoDraftEvent[] = [];
   const octaveForbidden = plan.templateConstraints.octaveDoubling === 'forbidden';
@@ -923,7 +1108,10 @@ function render(options: RenderOptions): PianoDraftEvent[] {
     }
 
     let output = notes;
-    const skeleton = directive.melody === 'skeleton' || bar.level === 0
+    // Identity: the theme's rhythm is the piece's identity, so a thin texture alone does not reduce it
+    // to its skeleton. The head always sounds whole; at low density the other bars may still thin out.
+    const thinTexture = bar.level === 0 && (!idn || (density < 0.4 && bar.themeBar !== 0));
+    const skeleton = directive.melody === 'skeleton' || thinTexture || bar.themeSkeleton === true
       || (profile.melodyPresence === 'selective' && (bar.themeBar === 1 || bar.themeBar === 3))
       || (density < 0.4 && bar.themeBar === 1);
     if (skeleton) {
@@ -1044,7 +1232,20 @@ function render(options: RenderOptions): PianoDraftEvent[] {
     'broken-tenths': [0, 1, 2, 1, 0, 1, 2, 1],
     stride: [0, null, [1, 2], null, 0, null, [1, 2], null],
     'ostinato-332': [0, null, 1, 0, null, 1, 0, 1],
+    'half-notes': [0, null, null, null, 1, null, null, null],
   };
+  // Identity only: the left hand repeats the rhythm of the theme's head. The bass sounds on the
+  // downbeat; the other attacks of the cell alternate between two chord tones above it.
+  const cellSequence: (number | null)[] = Array.from({ length: 8 }, () => null);
+  if (idn) {
+    cellSequence[0] = 0;
+    let upper = 1;
+    for (const slot of idn.rhythm.cell) {
+      if (slot <= 0 || slot > 7) continue;
+      cellSequence[slot] = upper;
+      upper = upper === 1 ? 2 : 1;
+    }
+  }
   const LEFT_TECHNIQUE: Readonly<Record<PianoLeftPattern, PianoTechniqueIntent>> = {
     sustain: 'chord-tone-support',
     'broken-quarters': 'broken-chord-accompaniment',
@@ -1056,6 +1257,8 @@ function render(options: RenderOptions): PianoDraftEvent[] {
     'broken-tenths': 'broken-tenth-accompaniment',
     stride: 'stride-accompaniment',
     'ostinato-332': 'rhythmic-ostinato',
+    'half-notes': 'broken-chord-accompaniment',
+    'cell-figure': 'rhythmic-ostinato',
   };
 
   for (const bar of arc.bars) {
@@ -1108,8 +1311,13 @@ function render(options: RenderOptions): PianoDraftEvent[] {
     if (directive.melody === 'answers' && evidence) {
       const lead = evidence.leadNotesByBar.get(bar.bar) ?? [];
       const busy = (tick: number) => lead.some((note) => Math.abs(note.start - tick) < EIGHTH);
+      // Protected theme head (identity only): its notes also stay where the lead attacks at the same
+      // moment, as long as the lead is not in the same register. A lead within a fourth is a real
+      // conflict and the note still goes.
+      const clear = (note: MelodyNote) => !lead.some((other) => Math.abs(other.start - note.tick) < EIGHTH && Math.abs(other.pitch - note.pitch) < 5);
       const kept = melody.filter((note, index) => !busy(note.tick)
-        || (note.structural && (index === 0 || note.dur >= 2 * PPQ)));
+        || (note.structural && (index === 0 || note.dur >= 2 * PPQ))
+        || (directive.protectHead === true && clear(note)));
       if (records && kept.length !== melody.length) {
         records.push({
           bar: bar.bar, kind: 'answer-in-lead-rests',
@@ -1196,7 +1404,11 @@ function render(options: RenderOptions): PianoDraftEvent[] {
       const bass = chooseBass(chord);
       const slots = Math.max(1, Math.round((end - start) / EIGHTH));
       const pattern: PianoLeftPattern = leftLevel === 0 ? 'sustain'
-        : leftLevel === bar.level ? bar.leftPattern : profile.left[leftLevel as 1 | 2 | 3][0];
+        : leftLevel === bar.level || directive.leftLight ? bar.leftPattern
+          : idn ? idn.accompaniment.left[leftLevel as 1 | 2 | 3] : profile.left[leftLevel as 1 | 2 | 3][0];
+      // Protected rhythm cell under a busy low register (identity only): the cell keeps sounding in
+      // the middle of the hand, the repeated bass notes are left to the orchestra's bass.
+      const lightCell = directive.leftLight === true && pattern === 'cell-figure';
       const bassVelocity = velocityFor(intensity, (segmentIndex === 0 ? 1 : -2) + trim);
       if (leftTheme) {
         // The left hand carries the theme: a short downbeat bass only where it fits under the hand.
@@ -1258,7 +1470,7 @@ function render(options: RenderOptions): PianoDraftEvent[] {
           });
         }
       } else {
-        const sequence = SEQUENCES[pattern].slice(0, slots);
+        const sequence = (pattern === 'cell-figure' ? cellSequence : SEQUENCES[pattern]).slice(0, slots);
         const attacks = sequence.map((entry, slot) => ({ entry, slot })).filter((item) => item.entry !== null);
         attacks.forEach(({ entry, slot }, attackIndex) => {
           const tick = start + slot * EIGHTH;
@@ -1266,6 +1478,7 @@ function render(options: RenderOptions): PianoDraftEvent[] {
           const length = (nextSlot - slot) * EIGHTH;
           const indices = Array.isArray(entry) ? entry as readonly number[] : [entry as number];
           for (const index of indices) {
+            if (lightCell && index === 0 && slot > 0) continue;
             const isBass = index === 0;
             const pitch = ladder[Math.min(index, ladder.length - 1)];
             if (!isBass && pitch === bass) continue;
@@ -1293,7 +1506,7 @@ function render(options: RenderOptions): PianoDraftEvent[] {
     /* ---------------- right hand under (or without) the melody ---------------- */
     const style: PianoRightStyle = level === 0 ? 'held'
       : directive.rightCap ?? bar.rightStyle;
-    const innerCount = level === 0 ? (density >= 0.6 ? 2 : 1)
+    const innerCount = directive.rightThin ? 1 : level === 0 ? (density >= 0.6 ? 2 : 1)
       : level === 1 ? Math.min(2, profile.innerVoices)
         : level === 2 ? profile.innerVoices
           : Math.min(3, profile.innerVoices + 1);
@@ -1383,6 +1596,27 @@ function render(options: RenderOptions): PianoDraftEvent[] {
           strike(start + half * EIGHTH, (slots - half) * EIGHTH * 0.96, tones.slice(-Math.max(1, tones.length - 1)), -10,
             chordal ? 'rhythmic-chord-accompaniment' : 'voice-led-inner-tone', 'inner-voice', 'bed', 'legato');
         }
+      } else if (style === 'answer-chords') {
+        // Identity only: chords in the gaps of the melody. Each chord falls on a slot where the line is
+        // holding or resting, so the right hand answers the theme's own rhythm instead of a fixed one.
+        const limit = level >= 3 ? 3 : 2;
+        const chosen: number[] = [];
+        for (let slot = sounding.length ? 1 : 0; slot < slots && chosen.length < limit; slot++) {
+          if (melodyAttackSlots.has(slot)) continue;
+          if (chosen.length && slot - chosen[chosen.length - 1] < 2) continue;
+          // Prefer the slot right after a melody attack: that is where an answer is heard as one.
+          if (sounding.length && !melodyAttackSlots.has(slot - 1) && slot % 2 === 1) continue;
+          chosen.push(slot);
+        }
+        if (!chosen.length) {
+          strike(start, slots * EIGHTH * 0.96, tones, -8, chordal ? 'held-chord-support' : 'voice-led-inner-tone', chordal ? 'harmonic-support' : 'inner-voice', 'bed', 'legato');
+        }
+        chosen.forEach((slot, index) => {
+          let next = chosen[index + 1] ?? slots;
+          for (let probe = slot + 1; probe < next; probe++) if (melodyAttackSlots.has(probe)) { next = probe; break; }
+          strike(start + slot * EIGHTH, Math.min(next - slot, 2) * EIGHTH * 0.9, level >= 3 ? tones : tones.slice(-2), slot % 4 === 0 ? -7 : -9,
+            'rhythmic-chord-accompaniment', chordal ? 'chordal-weight' : 'inner-voice', 'answer', 'legato');
+        });
       } else if (style === 'offbeat-stabs') {
         const pattern = level >= 3 ? [1, 2.5, 4, 5.5, 7] : [2, 5];
         strike(start, EIGHTH * 0.8, tones, -6, 'rhythmic-chord-accompaniment', 'chordal-weight', 'punctuation', 'staccato');
@@ -1480,7 +1714,9 @@ function adaptDirectives(
   evidence: ExternalEvidence,
   profile: TextureProfile,
   records: PianoAdaptationRecord[],
+  idn: PianoCompositionIdentity | null = null,
 ): Map<number, BarDirective> {
+  const protects = (trait: 'theme-head' | 'rhythm-cell' | 'bass-motion'): boolean => !!idn && idn.protectedTraits.includes(trait);
   const directives = new Map<number, BarDirective>();
   const roleByPhrase = new Map(arc.phrases.map((phrase) => [phrase.phraseId, phrase.role]));
   // One register decision per phrase, so the theme never jumps octaves mid-phrase.
@@ -1511,6 +1747,7 @@ function adaptDirectives(
       const ids = (evidence.leadIdsByBar.get(bar.bar) ?? []).join(', ');
       directive.melody = 'answers';
       directive.melodyTrim = -3;
+      if (protects('theme-head') && bar.themeBar === 0) directive.protectHead = true;
       records.push({
         bar: bar.bar, kind: 'accompany-lead',
         reason: 'An annotated lead is sounding: the Piano keeps its accompaniment and moves its theme into an answering role.',
@@ -1552,7 +1789,15 @@ function adaptDirectives(
       });
     }
     const upper = evidence.upperOnsetsByBar.get(bar.bar) ?? 0;
-    if (upper >= 12 && directive.level >= 2 && bar.rightStyle !== 'held') {
+    if (upper >= 12 && directive.level >= 2 && bar.rightStyle === 'answer-chords' && protects('rhythm-cell')) {
+      directive.rightThin = true;
+      directive.velocityTrim = Math.min(directive.velocityTrim, -3);
+      records.push({
+        bar: bar.bar, kind: 'right-hand-thinned',
+        reason: 'Right-hand answers reduced to a single soft note each: the registers above are busy, and the answering rhythm is a protected trait of this piece.',
+        evidence: `${upper} non-lead onsets between MIDI 60 and 96 in bar ${bar.bar}.`,
+      });
+    } else if (upper >= 12 && directive.level >= 2 && bar.rightStyle !== 'held') {
       directive.rightCap = 'held';
       records.push({
         bar: bar.bar, kind: 'right-hand-thinned',
@@ -1561,7 +1806,14 @@ function adaptDirectives(
       });
     }
     const bass = evidence.bassOnsetsByBar.get(bar.bar) ?? 0;
-    if (bass >= 8 && directive.level >= 2) {
+    if (bass >= 8 && directive.level >= 2 && bar.leftPattern === 'cell-figure' && protects('rhythm-cell')) {
+      directive.leftLight = true;
+      records.push({
+        bar: bar.bar, kind: 'left-hand-simplified',
+        reason: 'Left-hand figure keeps its rhythm on the upper notes only: the repeated bass notes are left out against an actively moving low register. The rhythm of the theme is a protected trait of this piece.',
+        evidence: `${bass} onsets between MIDI 28 and 55 in bar ${bar.bar}.`,
+      });
+    } else if (bass >= 8 && directive.level >= 2) {
       // Against a running low register the left hand moves to its quarter-note pattern: the
       // downbeat bass and the harmony stay, the eighth-note figuration is left to the bass line.
       directive.leftCap = 1;
@@ -1629,6 +1881,7 @@ function buildDiagnostics(
   evidence: ExternalEvidence,
   records: readonly PianoAdaptationRecord[],
   profile: TextureProfile,
+  idn: PianoCompositionIdentity | null = null,
 ): PianoCompositionDiagnostics {
   const roleByPhrase = new Map(arc.phrases.map((phrase) => [phrase.phraseId, phrase.role]));
   const bars = arc.bars.map((bar) => ({
@@ -1730,7 +1983,7 @@ function buildDiagnostics(
 
   return {
     version: 1,
-    algorithm: 'piano-texture-theme-v1',
+    algorithm: idn ? 'piano-composition-identity-v1' : 'piano-texture-theme-v1',
     templateIdentity: identity,
     density,
     randomStreams: { independent: 'independent:*', adaptation: 'none drawn; adaptation is evidence-driven and deterministic' },
@@ -1756,7 +2009,33 @@ function buildDiagnostics(
       textureLevelBars: levelBars,
     },
     flags,
+    ...(idn ? { identity: idn } : {}),
   };
+}
+
+/** Template facts an identity has to respect, read from the template's own profile. */
+export function pianoIdentityTemplateFacts(templateIdentity: string): PianoIdentityTemplateFacts {
+  const profile = PROFILES[templateIdentity] ?? PROFILES['adaptive-spacious'];
+  return {
+    templateIdentity: PROFILES[templateIdentity] ? templateIdentity : 'adaptive-spacious',
+    contours: profile.contours,
+    leftHandTheme: profile.leftHandTheme,
+    melodyCenter: profile.melodyCenter,
+  };
+}
+
+/**
+ * The project seed of the Piano: user seed, template and the song itself
+ * (harmony and form). It does not contain the take, so pressing Compose All
+ * again walks through one seeded order of archetypes instead of redrawing it.
+ */
+function pianoProjectSeed(input: PianoEngineInput, plan: PianoComposerPlan, chords: readonly ChordInfo[]): number {
+  return identityHash([
+    `seed:${plan.generationIdentity.userSeed}`,
+    `template:${plan.template.id}`,
+    ...chords.map((chord) => `${chord.startTick}-${chord.endTick}:${chord.root}/${chord.bass}:${chord.tones.join('.')}`),
+    ...input.context.sections.map((section) => `${section.id}:${section.name}`),
+  ].join('|'));
 }
 
 /**
@@ -1770,12 +2049,20 @@ export function composeTextureTheme(
   target: PianoScoreTarget,
   projectEndTick: number,
   density: number,
+  mode: PianoCompositionMode = DEFAULT_PIANO_COMPOSITION_MODE,
 ): PianoTextureThemeResult {
   const identity = plan.template.style.identity;
   const profile = PROFILES[identity] ?? PROFILES['adaptive-spacious'];
   const scale = inferScale(input);
   const chords = chordInfos(input, scale);
-  const theme = buildTheme(compositionSeed(plan), profile, chords, scale);
+  // Classic mode never derives an identity: `idn` stays null and every identity branch below is skipped.
+  const idn = mode === 'classic' ? null : derivePianoCompositionIdentity({
+    projectSeed: pianoProjectSeed(input, plan, chords),
+    take: plan.generationIdentity.take,
+    compositionSeed: compositionSeed(plan),
+    template: pianoIdentityTemplateFacts(identity),
+  });
+  const theme = idn ? buildIdentityTheme(idn, chords, scale) : buildTheme(compositionSeed(plan), profile, chords, scale);
   const octaveRule = input.context.rules.find((rule) => rule.type === 'octaveDoubling');
   const octaveAllowedAt = (energy: number): boolean => {
     if (!octaveRule || octaveRule.type !== 'octaveDoubling') return false;
@@ -1783,22 +2070,22 @@ export function composeTextureTheme(
     if (octaveRule.policy === 'climaxOnly') return energy >= (octaveRule.energyThreshold ?? 1);
     return false;
   };
-  const arc = planArc(input, plan, profile, theme, density, octaveAllowedAt);
-  const shared = { input, plan, profile, identity, theme, arc, chords, scale, target, endTick: projectEndTick, density };
+  const arc = planArc(input, plan, profile, theme, density, octaveAllowedAt, idn);
+  const shared = { input, plan, profile, identity, theme, arc, chords, scale, target, endTick: projectEndTick, density, idn };
 
   const independentDirectives = new Map<number, BarDirective>();
   const independent = resolveUnisons(render({ ...shared, directives: independentDirectives, evidence: null, records: null }));
 
   const evidence = collectEvidence(input, plan, arc);
   const records: PianoAdaptationRecord[] = [];
-  const directives = adaptDirectives(arc, evidence, profile, records);
+  const directives = adaptDirectives(arc, evidence, profile, records, idn);
   const adapted = evidence.available
     ? resolveUnisons(render({ ...shared, directives, evidence, records }))
     : independent;
 
   return {
     events: adapted,
-    diagnostics: buildDiagnostics(identity, density, theme, arc, independent, adapted, directives, evidence, records, profile),
+    diagnostics: buildDiagnostics(identity, density, theme, arc, independent, adapted, directives, evidence, records, profile, idn),
   };
 }
 

@@ -48,6 +48,7 @@ import { EMPTY_KEYS_PLAN } from './keys/plan';
 import { buildPianoEngineInput, type PianoEngineInput } from './keys/piano-engine';
 import { analyzePianoInput } from './keys/piano-analyzer';
 import { composePianoPlan, composePianoScoreWithDiagnostics } from './keys/piano-composer';
+import type { PianoCompositionMode } from './keys/piano-composition-identity';
 import type { PianoCompositionDiagnostics } from './keys/piano-texture-theme';
 import { validatePianoScorePlayability } from './keys/piano-playability';
 import type { PianoScore } from './keys/piano-score';
@@ -62,6 +63,12 @@ export interface ComposeOptions {
   /** Phase 7: plan moments (default true). Tests disable them to pin that
    *  the texture draws are untouched outside moment bars. */
   moments?: boolean;
+  /**
+   * Piano composition mode. Default 'identity': every generation gets a
+   * coordinated composition identity. 'classic' is the regression mode and
+   * reproduces the accepted Texture-and-Theme Composer exactly.
+   */
+  pianoComposition?: PianoCompositionMode;
 }
 
 export interface ComposeResult {
@@ -781,7 +788,7 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   const pianoTrack = project.tracks.find((track) => isInstrumentTrack(track)
     && track.family === 'Keys' && track.role === 'piano' && !track.locked
     && isInBand(track.role, ensemble, template));
-  const pianoComposition = composePianoScoreWithDiagnostics(pianoEngineInput, pianoPlanV5, pianoTrack ?? null, projectEndTick(project));
+  const pianoComposition = composePianoScoreWithDiagnostics(pianoEngineInput, pianoPlanV5, pianoTrack ?? null, projectEndTick(project), options.pianoComposition);
   const pianoScore = pianoComposition.score;
   const pianoPlayability = validatePianoScorePlayability(pianoScore, {
     lowestNote: pianoTrack?.lowestNote,

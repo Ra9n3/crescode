@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import dorian from '../fixtures/dorian-16bars.json';
 import { composeAllTracks } from '../src/orchestrator/compose';
 import { analyzePianoInput } from '../src/orchestrator/keys/piano-analyzer';
-import { composePianoPlan, composePianoScore, type PianoPhraseIntention } from '../src/orchestrator/keys/piano-composer';
+import { composePianoPlan, composePianoScore, composePianoScoreWithDiagnostics } from '../src/orchestrator/keys/piano-composer';
 import { validatePianoScorePlayability } from '../src/orchestrator/keys/piano-playability';
 import { createPianoScore, pianoScoreEventToNote, type PianoScore, type PianoScoreEvent } from '../src/orchestrator/keys/piano-score';
 import { realizePianoPlanWithAudit } from '../src/orchestrator/keys/piano-realizer';
@@ -77,30 +77,6 @@ function stageOneChamberPhrase(seed = 29) {
   return { project, composition, scoreInput, plan, target, score };
 }
 
-function weightedMotifTicks(phrase: PianoPhraseIntention, cellIndex: number): number[] {
-  const cell = phrase.rhythmicPlan.motifCells?.[cellIndex];
-  if (!cell) return [];
-  const grid = Math.max(1, phrase.rhythmicPlan.gridTicks ?? PPQ / 2);
-  const cellTicks = Math.max(1, phrase.rhythmicPlan.cellTicks ?? 2 * PPQ);
-  const start = phrase.startTick + cell.startOffsetTicks;
-  const end = Math.min(phrase.endTick, start + cellTicks);
-  const span = end - start;
-  if (span <= 0) return [];
-  const sourceWeights = phrase.rhythmicPlan.weights.length === 4
-    ? phrase.rhythmicPlan.weights : [0.25, 0.25, 0.25, 0.25];
-  const total = sourceWeights.reduce((sum, weight) => sum + Math.max(0, weight), 0) || 1;
-  const weights = sourceWeights.map((weight) => Math.max(0, weight) / total);
-  const offsets = [0, weights[0], weights[0] + weights[1], weights[0] + weights[1] + weights[2]];
-  const firstGrid = Math.ceil(start / grid) * grid;
-  const lastGrid = Math.floor((end - 1) / grid) * grid;
-  return cell.positions.map((position) => {
-    const displacement = phrase.rhythmicPlan.syncopation?.displacedPosition === position
-      ? phrase.rhythmicPlan.syncopation.offsetTicks : 0;
-    const quantized = Math.round((start + offsets[position] * span + displacement) / grid) * grid;
-    return Math.max(firstGrid, Math.min(lastGrid, quantized));
-  });
-}
-
 describe('Piano Stage 1 note-level score contract', () => {
   it('writes a controlled Chamber phrase with an upper line, connected bass, support, coordinated hands, rests, and a clear landing', () => {
     const { plan, target, score } = stageOneChamberPhrase();
@@ -120,7 +96,10 @@ describe('Piano Stage 1 note-level score contract', () => {
     expect(phraseEvents.some((left) => phraseEvents.some((right) =>
       left.hand !== right.hand && left.startTick === right.startTick))).toBe(true);
     expect(phraseEvents.some((event) => event.voiceId === 'rh.melody' && event.pitch > 60)).toBe(true);
-    expect(phraseEvents.some((event) => event.voiceId === 'lh.bass' && event.durationTicks >= 960)).toBe(true);
+    // The bass is a connected line: successive bass notes of the phrase never leap beyond an octave.
+    const bassLine = phraseEvents.filter((event) => event.voiceId === 'lh.bass').sort((a, b) => a.startTick - b.startTick);
+    expect(bassLine.length).toBeGreaterThan(1);
+    expect(bassLine.slice(1).every((event, index) => Math.abs(event.pitch - bassLine[index].pitch) <= 12)).toBe(true);
     expect(score.rests.some((rest) => rest.phraseId === phrase!.id)).toBe(true);
 
     for (const event of score.events) {
@@ -138,7 +117,7 @@ describe('Piano Stage 1 note-level score contract', () => {
       .toBe(Math.min(score.projectEndTick, plan.ending.tick!));
   });
 
-  it('realizes Chamber motif contour, weighted rhythm, harmonic resolutions, voice identity, and landings in Composer score events', () => {
+  it('production contract — independent composition: the Piano writes its own theme, bass, accompaniment and inner voices without taking material from other instruments', () => {
     const samples = [11, 29, 47].map((seed) => stageOneChamberPhrase(seed));
     const signatures: string[] = [];
 
@@ -153,18 +132,17 @@ describe('Piano Stage 1 note-level score contract', () => {
       const pitchCounts = new Map<number, number>();
       for (const event of melody) pitchCounts.set(event.pitch, (pitchCounts.get(event.pitch) ?? 0) + 1);
       expect(Math.max(...pitchCounts.values()) / melody.length).toBeLessThan(0.5);
-      expect(melody.slice(1).every((event, index) => Math.abs(event.pitch - melody[index].pitch) <= 12)).toBe(true);
+      // Inside a phrase the line never leaps beyond an octave; a register lift may separate phrases.
+      expect(melody.slice(1).every((event, index) => event.phraseId !== melody[index].phraseId
+        || Math.abs(event.pitch - melody[index].pitch) <= 12)).toBe(true);
 
-      const plannedTicks = new Set<number>();
-      for (const phrase of plan.phrases) {
-        for (const [cellIndex] of (phrase.rhythmicPlan.motifCells ?? []).entries()) {
-          for (const tick of weightedMotifTicks(phrase, cellIndex)) plannedTicks.add(tick);
-        }
-      }
-      expect(melody.every((event) => plannedTicks.has(event.startTick)
-        || (event.musicalRole === 'cadence' && plan.ending.chordId !== null
-          && event.harmonicContext.chordIds.includes(plan.ending.chordId))),
-      'upper-line attacks should come from Composer motif cells or the explicit final landing').toBe(true);
+      // The upper line is the piece-wide theme: metrically placed on the eighth-note grid, with more
+      // than one note length, and present in more than one phrase.
+      expect(melody.every((event) => event.startTick % (PPQ / 2) === 0)).toBe(true);
+      expect(new Set(melody.map((event) => event.durationTicks)).size).toBeGreaterThan(1);
+      expect(new Set(melody.map((event) => event.phraseId)).size).toBeGreaterThan(1);
+      expect(melody.some((event) => event.techniqueIntent === 'theme-statement')).toBe(true);
+      expect(melody.some((event) => event.techniqueIntent === 'theme-development')).toBe(true);
 
       const voiceIds = new Set(score.events.map((event) => event.voiceId));
       expect([...voiceIds]).toEqual(expect.arrayContaining(['lh.bass', 'lh.support', 'rh.inner', 'rh.melody']));
@@ -212,46 +190,57 @@ describe('Piano Stage 1 note-level score contract', () => {
     }
     expect(new Set(signatures).size).toBeGreaterThan(1);
 
-    const { plan, score } = samples[1]; // Seed 29 provides a complete planned four-position Chamber cell.
-    const phrase = plan.phrases.find((candidate) =>
-      candidate.rhythmicPlan.motifCells?.some((cell) => cell.positions.length === 4))!;
-    const cellIndex = phrase.rhythmicPlan.motifCells!.findIndex((cell) => cell.positions.length === 4);
-    const cell = phrase.rhythmicPlan.motifCells![cellIndex];
-    const ticks = weightedMotifTicks(phrase, cellIndex);
-    const events = ticks.map((tick) => score.events.find((event) => event.voiceId === 'rh.melody'
-      && event.phraseId === phrase.id && event.startTick === tick));
-    expect(events.every((event) => event !== undefined)).toBe(true);
-    expect(events[0]!.harmonicContext.chordIds.length).toBeGreaterThan(0);
-
-    const contour = cell.variation === 'reframe'
-      ? plan.motif!.intervalContour.map((interval) => -interval)
-      : [...plan.motif!.intervalContour];
-    const anchorPitchClass = events[0]!.pitch % 12;
-    for (let position = 1; position < cell.positions.length; position++) {
-      const attackPosition = cell.positions[position];
-      const expectedPitchClass = ((anchorPitchClass
-        + contour.slice(0, attackPosition).reduce((sum, interval) => sum + interval, 0)) % 12 + 12) % 12;
-      const source = plan.harmonicEvents.find((candidate) => candidate.chord.startTick <= ticks[position]
-        && ticks[position] < candidate.chord.endTick)!;
-      const consonantTarget = source.chord.availablePitchClasses.map((pitchClass) => ((pitchClass % 12) + 12) % 12)
-        .includes(expectedPitchClass);
-      if (consonantTarget || attackPosition === 2) {
-        expect(events[position]!.pitch % 12).toBe(expectedPitchClass);
+    // The theme returns: its opening bar (rhythm and interval shape) is heard again in a later phrase.
+    for (const { score, project } of samples) {
+      const bar = barTicks(project.timeSignature);
+      const shapes = new Map<string, Set<string>>();
+      const melody = score.events.filter((event) => event.voiceId === 'rh.melody')
+        .sort((a, b) => a.startTick - b.startTick);
+      for (let index = 0; index < Math.ceil(score.projectEndTick / bar); index++) {
+        const notes = melody.filter((event) => Math.floor(event.startTick / bar) === index);
+        if (notes.length < 3) continue;
+        const rhythm = notes.map((event) => event.startTick - index * bar).join(',');
+        const phrases = shapes.get(rhythm) ?? new Set<string>();
+        phrases.add(notes[0].phraseId ?? '');
+        shapes.set(rhythm, phrases);
       }
-      expect(events[position]!.harmonicContext.chordIds).toContain(source.chord.id);
+      expect([...shapes.values()].some((phrases) => phrases.size > 1),
+        'a theme rhythm recurs in more than one phrase').toBe(true);
     }
 
-    if (cell.positions.includes(2) && cell.positions.includes(3) && plan.motif!.tensionResolution.kind === 'chromatic-neighbor') {
-      const tensionIndex = cell.positions.indexOf(2);
-      const resolutionIndex = cell.positions.indexOf(3);
-      const tension = events[tensionIndex]!;
-      const resolution = events[resolutionIndex]!;
-      const tensionHarmony = plan.harmonicEvents.find((candidate) => candidate.chord.startTick <= tension.startTick
-        && tension.startTick < candidate.chord.endTick)!;
-      if (!tensionHarmony.chord.availablePitchClasses.map((pitchClass) => ((pitchClass % 12) + 12) % 12)
-        .includes(tension.pitch % 12)) {
-        expect(Math.abs(resolution.pitch - tension.pitch)).toBeLessThanOrEqual(2);
+    // Independence, checked against the real Compose All result for the full Chamber ensemble.
+    for (const { composition, scoreInput, plan, target, project } of samples) {
+      const full = composition.pianoDiagnostics!;
+      const alone = composePianoScoreWithDiagnostics(scoreInput, plan, target, projectEndTick(project)).diagnostics!;
+      // The theme the Piano writes with nobody else playing is the theme it writes inside the ensemble.
+      expect(JSON.stringify(alone.theme)).toBe(JSON.stringify(full.theme));
+      expect(alone.adaptation.evidence).toBe('none');
+      // Substantive on its own: every sounding phrase has a melody, a bass, an accompaniment
+      // figure and inner voices, written before any orchestral evidence is read.
+      for (const diagnostics of [alone, full]) {
+        for (const phrase of diagnostics.phrases.filter((entry) => entry.role !== 'breath')) {
+          const bars = diagnostics.bars.filter((bar) => bar.phraseId === phrase.phraseId);
+          const total = (pick: (bar: typeof bars[number]) => number) => bars.reduce((sum, bar) => sum + pick(bar), 0);
+          expect(total((bar) => bar.independent.melody), `${phrase.phraseId} melody`).toBeGreaterThan(0);
+          expect(total((bar) => bar.independent.bass), `${phrase.phraseId} bass`).toBeGreaterThan(0);
+          expect(total((bar) => bar.independent.accompaniment), `${phrase.phraseId} accompaniment`).toBeGreaterThan(0);
+          expect(total((bar) => bar.independent.inner), `${phrase.phraseId} inner voices`).toBeGreaterThan(0);
+        }
       }
+      // Its content is not borrowed: no other instrument's part accounts for the Piano theme. For
+      // every finalized non-Piano track, most Piano theme notes do not coincide with a note of that
+      // track at the same moment on the same pitch class.
+      const theme = full.independentDraft.notes.filter((note) => note.l === 'melody');
+      expect(theme.length).toBeGreaterThan(6);
+      for (const track of composition.pianoEngineInput.analysis.tracks) {
+        if (track.role === 'piano' || !track.notes.length) continue;
+        const copied = theme.filter((note) => track.notes.some((other) =>
+          Math.abs(other.startTick - note.t) < PPQ / 4 && other.pitch % 12 === note.p % 12)).length;
+        expect(copied * 2, `${track.role} does not supply the Piano theme`).toBeLessThan(theme.length);
+      }
+      // And it is the Piano track that Compose All actually returns.
+      const pianoTrack = composition.tracks.find((track) => 'role' in track && track.role === 'piano');
+      expect(pianoTrack && 'notes' in pianoTrack ? pianoTrack.notes.length : 0).toBe(composition.pianoScore.events.length);
     }
   });
 

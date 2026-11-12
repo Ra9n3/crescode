@@ -1,0 +1,9213 @@
+{
+ "label": "baseline",
+ "productionPath": "composeAllTracks -> buildPianoEngineInput -> analyzePianoInput -> composePianoPlan -> composePianoScore -> realizePianoPlanWithAudit -> governKeysVelocities; MIDI via src/export/midi.ts with the uvi-orchestral-suite profile",
+ "matrix": {
+  "templates": [
+   "chamber",
+   "sonata",
+   "vocalbacking",
+   "cinematic",
+   "hybridstudio",
+   "standalone-chamber",
+   "symphony-negative-control"
+  ],
+  "fixtures": [
+   "dorian-16bars",
+   "three-chorus-40bars"
+  ],
+  "seeds": [
+   0,
+   11,
+   29
+  ],
+  "densities": [
+   {
+    "id": "low",
+    "value": 0.3
+   },
+   {
+    "id": "medium",
+    "value": 0.6
+   },
+   {
+    "id": "high",
+    "value": 1
+   }
+  ]
+ },
+ "audioRendered": false,
+ "failures": [],
+ "rows": [
+  {
+   "id": "chamber__dorian-16bars__seed0__low",
+   "template": "chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 40,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 26,
+   "metrics": {
+    "notes": 40,
+    "attacks": 25,
+    "attacksPerBar": 1.56,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     2,
+     1,
+     1,
+     1,
+     2,
+     2,
+     0,
+     0,
+     2,
+     3,
+     2,
+     3,
+     2,
+     1,
+     2,
+     1
+    ],
+    "grid": {
+     "beat": 14,
+     "eighth": 11,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.75,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     72
+    ],
+    "velocityRange": [
+     31,
+     63
+    ],
+    "distinctTopPitches": 10,
+    "emptyBars": 2
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 8,
+    "voice-led-inner-tone": 7,
+    "prepared-suspension": 4,
+    "stepwise-resolution": 4,
+    "phrase-led-upper-line": 4,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "chamber__dorian-16bars__seed0__medium",
+   "template": "chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 54,
+   "playability": {
+    "warnings": 4,
+    "violations": 0
+   },
+   "cc64Points": 32,
+   "metrics": {
+    "notes": 54,
+    "attacks": 33,
+    "attacksPerBar": 2.06,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     2,
+     2,
+     2,
+     2,
+     2,
+     1,
+     0,
+     2,
+     3,
+     3,
+     3,
+     2,
+     3,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 18,
+     "eighth": 14,
+     "sixteenth": 0,
+     "other": 1
+    },
+    "longNoteShare": 0.67,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     69
+    ],
+    "velocityRange": [
+     31,
+     63
+    ],
+    "distinctTopPitches": 16,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 8,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 10,
+    "prepared-suspension": 6,
+    "stepwise-resolution": 6,
+    "phrase-led-upper-line": 4,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "chamber__dorian-16bars__seed0__high",
+   "template": "chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 52,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 30,
+   "metrics": {
+    "notes": 52,
+    "attacks": 27,
+    "attacksPerBar": 1.69,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     1,
+     0,
+     2,
+     3,
+     2,
+     3,
+     1,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 23,
+     "eighth": 4,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.77,
+    "chordOnsets": 1,
+    "pitchRange": [
+     38,
+     76
+    ],
+    "velocityRange": [
+     31,
+     63
+    ],
+    "distinctTopPitches": 14,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 9,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 10,
+    "prepared-suspension": 1,
+    "stepwise-resolution": 1,
+    "phrase-led-upper-line": 11,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "chamber__dorian-16bars__seed11__low",
+   "template": "chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 41,
+   "playability": {
+    "warnings": 8,
+    "violations": 0
+   },
+   "cc64Points": 30,
+   "metrics": {
+    "notes": 41,
+    "attacks": 27,
+    "attacksPerBar": 1.69,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     1,
+     1,
+     2,
+     3,
+     0,
+     1,
+     0,
+     0,
+     3,
+     2,
+     3,
+     2,
+     1,
+     2,
+     4,
+     2
+    ],
+    "grid": {
+     "beat": 14,
+     "eighth": 9,
+     "sixteenth": 0,
+     "other": 4
+    },
+    "longNoteShare": 0.61,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     77
+    ],
+    "velocityRange": [
+     31,
+     63
+    ],
+    "distinctTopPitches": 12,
+    "emptyBars": 3
+   },
+   "techniques": {
+    "sustained-bass-foundation": 8,
+    "chord-tone-support": 8,
+    "voice-led-inner-tone": 7,
+    "prepared-suspension": 6,
+    "stepwise-resolution": 7,
+    "phrase-led-upper-line": 2,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "chamber__dorian-16bars__seed11__medium",
+   "template": "chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 53,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 30,
+   "metrics": {
+    "notes": 53,
+    "attacks": 28,
+    "attacksPerBar": 1.75,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     1,
+     2,
+     2,
+     4,
+     1,
+     1,
+     1,
+     0,
+     2,
+     2,
+     3,
+     2,
+     1,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 20,
+     "eighth": 6,
+     "sixteenth": 0,
+     "other": 2
+    },
+    "longNoteShare": 0.72,
+    "chordOnsets": 0,
+    "pitchRange": [
+     31,
+     65
+    ],
+    "velocityRange": [
+     31,
+     63
+    ],
+    "distinctTopPitches": 13,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 8,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 11,
+    "prepared-suspension": 3,
+    "stepwise-resolution": 3,
+    "phrase-led-upper-line": 8,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "chamber__dorian-16bars__seed11__high",
+   "template": "chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 54,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 32,
+   "metrics": {
+    "notes": 54,
+    "attacks": 29,
+    "attacksPerBar": 1.81,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     2,
+     2,
+     2,
+     2,
+     2,
+     1,
+     0,
+     2,
+     2,
+     2,
+     3,
+     1,
+     2,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 20,
+     "eighth": 8,
+     "sixteenth": 0,
+     "other": 1
+    },
+    "longNoteShare": 0.7,
+    "chordOnsets": 0,
+    "pitchRange": [
+     31,
+     65
+    ],
+    "velocityRange": [
+     31,
+     63
+    ],
+    "distinctTopPitches": 13,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 8,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 11,
+    "prepared-suspension": 4,
+    "stepwise-resolution": 4,
+    "phrase-led-upper-line": 8,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "chamber__dorian-16bars__seed29__low",
+   "template": "chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 39,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 28,
+   "metrics": {
+    "notes": 39,
+    "attacks": 25,
+    "attacksPerBar": 1.56,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     2,
+     1,
+     2,
+     2,
+     2,
+     2,
+     0,
+     0,
+     2,
+     2,
+     3,
+     2,
+     1,
+     1,
+     2,
+     1
+    ],
+    "grid": {
+     "beat": 15,
+     "eighth": 9,
+     "sixteenth": 0,
+     "other": 1
+    },
+    "longNoteShare": 0.67,
+    "chordOnsets": 0,
+    "pitchRange": [
+     38,
+     76
+    ],
+    "velocityRange": [
+     31,
+     63
+    ],
+    "distinctTopPitches": 11,
+    "emptyBars": 2
+   },
+   "techniques": {
+    "sustained-bass-foundation": 9,
+    "chord-tone-support": 8,
+    "voice-led-inner-tone": 7,
+    "prepared-suspension": 4,
+    "stepwise-resolution": 5,
+    "phrase-led-upper-line": 3,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "chamber__dorian-16bars__seed29__medium",
+   "template": "chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 50,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 30,
+   "metrics": {
+    "notes": 50,
+    "attacks": 26,
+    "attacksPerBar": 1.63,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     0,
+     2,
+     2,
+     2,
+     3,
+     2,
+     2,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 18,
+     "eighth": 7,
+     "sixteenth": 0,
+     "other": 1
+    },
+    "longNoteShare": 0.74,
+    "chordOnsets": 0,
+    "pitchRange": [
+     31,
+     65
+    ],
+    "velocityRange": [
+     31,
+     63
+    ],
+    "distinctTopPitches": 14,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 8,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 11,
+    "phrase-led-upper-line": 4,
+    "prepared-suspension": 4,
+    "stepwise-resolution": 4,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "chamber__dorian-16bars__seed29__high",
+   "template": "chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 52,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 30,
+   "metrics": {
+    "notes": 52,
+    "attacks": 25,
+    "attacksPerBar": 1.56,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     0,
+     2,
+     2,
+     2,
+     2,
+     1,
+     3,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 17,
+     "eighth": 7,
+     "sixteenth": 0,
+     "other": 1
+    },
+    "longNoteShare": 0.79,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     74
+    ],
+    "velocityRange": [
+     31,
+     63
+    ],
+    "distinctTopPitches": 11,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 10,
+    "phrase-led-upper-line": 10,
+    "prepared-suspension": 1,
+    "stepwise-resolution": 1,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "sonata__dorian-16bars__seed0__low",
+   "template": "sonata",
+   "templateId": "ensemble.sonata",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 30,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 26,
+   "metrics": {
+    "notes": 30,
+    "attacks": 17,
+    "attacksPerBar": 1.06,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     0,
+     1,
+     1,
+     0,
+     1,
+     0,
+     0,
+     2,
+     2,
+     1,
+     1,
+     1,
+     2,
+     3,
+     1
+    ],
+    "grid": {
+     "beat": 13,
+     "eighth": 3,
+     "sixteenth": 0,
+     "other": 1
+    },
+    "longNoteShare": 0.77,
+    "chordOnsets": 0,
+    "pitchRange": [
+     45,
+     77
+    ],
+    "velocityRange": [
+     31,
+     48
+    ],
+    "distinctTopPitches": 7,
+    "emptyBars": 4
+   },
+   "techniques": {
+    "sustained-bass-foundation": 8,
+    "chord-tone-support": 8,
+    "voice-led-inner-tone": 7,
+    "prepared-suspension": 2,
+    "stepwise-resolution": 2,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "sonata__dorian-16bars__seed0__medium",
+   "template": "sonata",
+   "templateId": "ensemble.sonata",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 48,
+   "playability": {
+    "warnings": 2,
+    "violations": 0
+   },
+   "cc64Points": 30,
+   "metrics": {
+    "notes": 48,
+    "attacks": 23,
+    "attacksPerBar": 1.44,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     1,
+     2,
+     3,
+     1,
+     1,
+     1,
+     0,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 17,
+     "eighth": 5,
+     "sixteenth": 0,
+     "other": 1
+    },
+    "longNoteShare": 0.88,
+    "chordOnsets": 5,
+    "pitchRange": [
+     50,
+     86
+    ],
+    "velocityRange": [
+     31,
+     50
+    ],
+    "distinctTopPitches": 12,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 9,
+    "prepared-suspension": 1,
+    "stepwise-resolution": 1,
+    "phrase-led-upper-line": 7,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "sonata__dorian-16bars__seed0__high",
+   "template": "sonata",
+   "templateId": "ensemble.sonata",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 52,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 32,
+   "metrics": {
+    "notes": 52,
+    "attacks": 28,
+    "attacksPerBar": 1.75,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     2,
+     2,
+     2,
+     2,
+     2,
+     1,
+     1,
+     2,
+     2,
+     1,
+     2,
+     1,
+     2,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 20,
+     "eighth": 7,
+     "sixteenth": 0,
+     "other": 1
+    },
+    "longNoteShare": 0.75,
+    "chordOnsets": 1,
+    "pitchRange": [
+     45,
+     86
+    ],
+    "velocityRange": [
+     30,
+     50
+    ],
+    "distinctTopPitches": 13,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 9,
+    "prepared-suspension": 4,
+    "stepwise-resolution": 4,
+    "phrase-led-upper-line": 6,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "sonata__dorian-16bars__seed11__low",
+   "template": "sonata",
+   "templateId": "ensemble.sonata",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 40,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 28,
+   "metrics": {
+    "notes": 40,
+    "attacks": 26,
+    "attacksPerBar": 1.63,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     1,
+     0,
+     2,
+     2,
+     2,
+     2,
+     0,
+     0,
+     2,
+     3,
+     2,
+     1,
+     1,
+     2,
+     4,
+     2
+    ],
+    "grid": {
+     "beat": 14,
+     "eighth": 9,
+     "sixteenth": 0,
+     "other": 3
+    },
+    "longNoteShare": 0.63,
+    "chordOnsets": 3,
+    "pitchRange": [
+     50,
+     77
+    ],
+    "velocityRange": [
+     31,
+     48
+    ],
+    "distinctTopPitches": 11,
+    "emptyBars": 3
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 8,
+    "voice-led-inner-tone": 7,
+    "prepared-suspension": 6,
+    "stepwise-resolution": 6,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "sonata__dorian-16bars__seed11__medium",
+   "template": "sonata",
+   "templateId": "ensemble.sonata",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 55,
+   "playability": {
+    "warnings": 2,
+    "violations": 0
+   },
+   "cc64Points": 34,
+   "metrics": {
+    "notes": 55,
+    "attacks": 33,
+    "attacksPerBar": 2.06,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     1,
+     1,
+     2,
+     5,
+     1,
+     1,
+     2,
+     1,
+     1,
+     3,
+     2,
+     3,
+     2,
+     3,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 21,
+     "eighth": 8,
+     "sixteenth": 0,
+     "other": 4
+    },
+    "longNoteShare": 0.69,
+    "chordOnsets": 3,
+    "pitchRange": [
+     50,
+     86
+    ],
+    "velocityRange": [
+     30,
+     50
+    ],
+    "distinctTopPitches": 14,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 9,
+    "prepared-suspension": 6,
+    "stepwise-resolution": 6,
+    "phrase-led-upper-line": 4,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "sonata__dorian-16bars__seed11__high",
+   "template": "sonata",
+   "templateId": "ensemble.sonata",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 49,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 34,
+   "metrics": {
+    "notes": 49,
+    "attacks": 27,
+    "attacksPerBar": 1.69,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     1,
+     1,
+     2,
+     3,
+     2,
+     2,
+     1,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 21,
+     "eighth": 6,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.69,
+    "chordOnsets": 1,
+    "pitchRange": [
+     45,
+     81
+    ],
+    "velocityRange": [
+     30,
+     50
+    ],
+    "distinctTopPitches": 13,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 8,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 10,
+    "prepared-suspension": 3,
+    "stepwise-resolution": 3,
+    "phrase-led-upper-line": 5,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "sonata__dorian-16bars__seed29__low",
+   "template": "sonata",
+   "templateId": "ensemble.sonata",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 34,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 28,
+   "metrics": {
+    "notes": 34,
+    "attacks": 21,
+    "attacksPerBar": 1.31,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     0,
+     1,
+     3,
+     0,
+     1,
+     0,
+     0,
+     2,
+     3,
+     2,
+     1,
+     1,
+     1,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 13,
+     "eighth": 5,
+     "sixteenth": 0,
+     "other": 3
+    },
+    "longNoteShare": 0.68,
+    "chordOnsets": 0,
+    "pitchRange": [
+     45,
+     79
+    ],
+    "velocityRange": [
+     31,
+     48
+    ],
+    "distinctTopPitches": 8,
+    "emptyBars": 4
+   },
+   "techniques": {
+    "sustained-bass-foundation": 8,
+    "chord-tone-support": 8,
+    "voice-led-inner-tone": 7,
+    "prepared-suspension": 4,
+    "stepwise-resolution": 4,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "sonata__dorian-16bars__seed29__medium",
+   "template": "sonata",
+   "templateId": "ensemble.sonata",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 51,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 30,
+   "metrics": {
+    "notes": 51,
+    "attacks": 28,
+    "attacksPerBar": 1.75,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     2,
+     2,
+     2,
+     3,
+     1,
+     1,
+     1,
+     0,
+     1,
+     2,
+     1,
+     2,
+     1,
+     3,
+     4,
+     2
+    ],
+    "grid": {
+     "beat": 20,
+     "eighth": 5,
+     "sixteenth": 0,
+     "other": 3
+    },
+    "longNoteShare": 0.73,
+    "chordOnsets": 2,
+    "pitchRange": [
+     45,
+     79
+    ],
+    "velocityRange": [
+     31,
+     50
+    ],
+    "distinctTopPitches": 13,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 8,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 10,
+    "prepared-suspension": 4,
+    "stepwise-resolution": 4,
+    "phrase-led-upper-line": 6,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "sonata__dorian-16bars__seed29__high",
+   "template": "sonata",
+   "templateId": "ensemble.sonata",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 52,
+   "playability": {
+    "warnings": 2,
+    "violations": 0
+   },
+   "cc64Points": 32,
+   "metrics": {
+    "notes": 52,
+    "attacks": 28,
+    "attacksPerBar": 1.75,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     1,
+     1,
+     2,
+     5,
+     1,
+     1,
+     1,
+     0,
+     1,
+     2,
+     1,
+     2,
+     1,
+     3,
+     4,
+     2
+    ],
+    "grid": {
+     "beat": 20,
+     "eighth": 3,
+     "sixteenth": 0,
+     "other": 5
+    },
+    "longNoteShare": 0.69,
+    "chordOnsets": 1,
+    "pitchRange": [
+     45,
+     89
+    ],
+    "velocityRange": [
+     31,
+     50
+    ],
+    "distinctTopPitches": 14,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 9,
+    "prepared-suspension": 4,
+    "stepwise-resolution": 4,
+    "phrase-led-upper-line": 6,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "vocalbacking__dorian-16bars__seed0__low",
+   "template": "vocalbacking",
+   "templateId": "ensemble.vocalbacking",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 30,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 28,
+   "metrics": {
+    "notes": 30,
+    "attacks": 17,
+    "attacksPerBar": 1.06,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     0,
+     1,
+     1,
+     0,
+     1,
+     0,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 13,
+     "eighth": 3,
+     "sixteenth": 0,
+     "other": 1
+    },
+    "longNoteShare": 0.8,
+    "chordOnsets": 0,
+    "pitchRange": [
+     45,
+     65
+    ],
+    "velocityRange": [
+     30,
+     61
+    ],
+    "distinctTopPitches": 9,
+    "emptyBars": 3
+   },
+   "techniques": {
+    "sustained-bass-foundation": 8,
+    "chord-tone-support": 8,
+    "voice-led-inner-tone": 7,
+    "prepared-suspension": 2,
+    "stepwise-resolution": 2,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "vocalbacking__dorian-16bars__seed0__medium",
+   "template": "vocalbacking",
+   "templateId": "ensemble.vocalbacking",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 64,
+   "playability": {
+    "warnings": 2,
+    "violations": 0
+   },
+   "cc64Points": 30,
+   "metrics": {
+    "notes": 64,
+    "attacks": 34,
+    "attacksPerBar": 2.13,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     2,
+     3,
+     4,
+     4,
+     3,
+     2,
+     5,
+     0,
+     1,
+     2,
+     2,
+     1,
+     1,
+     1,
+     2,
+     1
+    ],
+    "grid": {
+     "beat": 28,
+     "eighth": 6,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.58,
+    "chordOnsets": 6,
+    "pitchRange": [
+     50,
+     76
+    ],
+    "velocityRange": [
+     41,
+     63
+    ],
+    "distinctTopPitches": 10,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 10,
+    "voice-led-inner-tone": 12,
+    "phrase-led-upper-line": 10,
+    "prepared-suspension": 2,
+    "arpeggiated-chord-accompaniment": 6,
+    "stepwise-resolution": 2,
+    "moving-inner-voice": 9,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "vocalbacking__dorian-16bars__seed0__high",
+   "template": "vocalbacking",
+   "templateId": "ensemble.vocalbacking",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 70,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 30,
+   "metrics": {
+    "notes": 70,
+    "attacks": 37,
+    "attacksPerBar": 2.31,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     2,
+     2,
+     5,
+     4,
+     4,
+     3,
+     4,
+     0,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 25,
+     "eighth": 11,
+     "sixteenth": 0,
+     "other": 1
+    },
+    "longNoteShare": 0.66,
+    "chordOnsets": 7,
+    "pitchRange": [
+     45,
+     76
+    ],
+    "velocityRange": [
+     41,
+     63
+    ],
+    "distinctTopPitches": 12,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 10,
+    "voice-led-inner-tone": 12,
+    "phrase-led-upper-line": 18,
+    "arpeggiated-chord-accompaniment": 6,
+    "moving-inner-voice": 8,
+    "prepared-suspension": 1,
+    "stepwise-resolution": 1,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "vocalbacking__dorian-16bars__seed11__low",
+   "template": "vocalbacking",
+   "templateId": "ensemble.vocalbacking",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 32,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 24,
+   "metrics": {
+    "notes": 32,
+    "attacks": 19,
+    "attacksPerBar": 1.19,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     1,
+     0,
+     1,
+     1,
+     0,
+     1,
+     0,
+     0,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     4,
+     2
+    ],
+    "grid": {
+     "beat": 13,
+     "eighth": 4,
+     "sixteenth": 0,
+     "other": 2
+    },
+    "longNoteShare": 0.75,
+    "chordOnsets": 0,
+    "pitchRange": [
+     45,
+     67
+    ],
+    "velocityRange": [
+     41,
+     61
+    ],
+    "distinctTopPitches": 8,
+    "emptyBars": 4
+   },
+   "techniques": {
+    "sustained-bass-foundation": 8,
+    "chord-tone-support": 8,
+    "voice-led-inner-tone": 7,
+    "prepared-suspension": 3,
+    "stepwise-resolution": 3,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "vocalbacking__dorian-16bars__seed11__medium",
+   "template": "vocalbacking",
+   "templateId": "ensemble.vocalbacking",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 66,
+   "playability": {
+    "warnings": 2,
+    "violations": 0
+   },
+   "cc64Points": 32,
+   "metrics": {
+    "notes": 66,
+    "attacks": 35,
+    "attacksPerBar": 2.19,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 6,
+    "attacksByBar": [
+     2,
+     2,
+     4,
+     6,
+     3,
+     3,
+     4,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 28,
+     "eighth": 3,
+     "sixteenth": 0,
+     "other": 4
+    },
+    "longNoteShare": 0.55,
+    "chordOnsets": 7,
+    "pitchRange": [
+     50,
+     77
+    ],
+    "velocityRange": [
+     41,
+     63
+    ],
+    "distinctTopPitches": 10,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 10,
+    "voice-led-inner-tone": 12,
+    "phrase-led-upper-line": 11,
+    "arpeggiated-chord-accompaniment": 6,
+    "moving-inner-voice": 8,
+    "prepared-suspension": 3,
+    "stepwise-resolution": 3,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "vocalbacking__dorian-16bars__seed11__high",
+   "template": "vocalbacking",
+   "templateId": "ensemble.vocalbacking",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 66,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 32,
+   "metrics": {
+    "notes": 66,
+    "attacks": 36,
+    "attacksPerBar": 2.25,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     2,
+     2,
+     4,
+     4,
+     3,
+     4,
+     4,
+     1,
+     2,
+     2,
+     2,
+     1,
+     1,
+     1,
+     2,
+     1
+    ],
+    "grid": {
+     "beat": 28,
+     "eighth": 8,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.58,
+    "chordOnsets": 5,
+    "pitchRange": [
+     45,
+     76
+    ],
+    "velocityRange": [
+     30,
+     63
+    ],
+    "distinctTopPitches": 11,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 10,
+    "voice-led-inner-tone": 12,
+    "phrase-led-upper-line": 12,
+    "arpeggiated-chord-accompaniment": 6,
+    "moving-inner-voice": 9,
+    "prepared-suspension": 2,
+    "stepwise-resolution": 2,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "vocalbacking__dorian-16bars__seed29__low",
+   "template": "vocalbacking",
+   "templateId": "ensemble.vocalbacking",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 30,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 28,
+   "metrics": {
+    "notes": 30,
+    "attacks": 17,
+    "attacksPerBar": 1.06,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     1,
+     3,
+     2,
+     0,
+     1,
+     0,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     1
+    ],
+    "grid": {
+     "beat": 13,
+     "eighth": 3,
+     "sixteenth": 0,
+     "other": 1
+    },
+    "longNoteShare": 0.77,
+    "chordOnsets": 0,
+    "pitchRange": [
+     45,
+     64
+    ],
+    "velocityRange": [
+     41,
+     59
+    ],
+    "distinctTopPitches": 7,
+    "emptyBars": 3
+   },
+   "techniques": {
+    "sustained-bass-foundation": 8,
+    "chord-tone-support": 8,
+    "voice-led-inner-tone": 7,
+    "prepared-suspension": 2,
+    "stepwise-resolution": 2,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "vocalbacking__dorian-16bars__seed29__medium",
+   "template": "vocalbacking",
+   "templateId": "ensemble.vocalbacking",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 61,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 30,
+   "metrics": {
+    "notes": 61,
+    "attacks": 32,
+    "attacksPerBar": 2,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     2,
+     2,
+     4,
+     4,
+     3,
+     3,
+     3,
+     0,
+     1,
+     1,
+     2,
+     2,
+     1,
+     1,
+     2,
+     1
+    ],
+    "grid": {
+     "beat": 26,
+     "eighth": 6,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.57,
+    "chordOnsets": 3,
+    "pitchRange": [
+     45,
+     76
+    ],
+    "velocityRange": [
+     41,
+     63
+    ],
+    "distinctTopPitches": 13,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 8,
+    "chord-tone-support": 10,
+    "voice-led-inner-tone": 12,
+    "phrase-led-upper-line": 12,
+    "arpeggiated-chord-accompaniment": 6,
+    "moving-inner-voice": 8,
+    "prepared-suspension": 1,
+    "stepwise-resolution": 1,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "vocalbacking__dorian-16bars__seed29__high",
+   "template": "vocalbacking",
+   "templateId": "ensemble.vocalbacking",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 65,
+   "playability": {
+    "warnings": 7,
+    "violations": 0
+   },
+   "cc64Points": 30,
+   "metrics": {
+    "notes": 65,
+    "attacks": 36,
+    "attacksPerBar": 2.25,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     3,
+     2,
+     3,
+     5,
+     4,
+     4,
+     4,
+     0,
+     2,
+     2,
+     1,
+     1,
+     1,
+     1,
+     2,
+     1
+    ],
+    "grid": {
+     "beat": 29,
+     "eighth": 7,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.55,
+    "chordOnsets": 7,
+    "pitchRange": [
+     50,
+     76
+    ],
+    "velocityRange": [
+     41,
+     63
+    ],
+    "distinctTopPitches": 11,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 10,
+    "voice-led-inner-tone": 12,
+    "phrase-led-upper-line": 11,
+    "prepared-suspension": 2,
+    "stepwise-resolution": 2,
+    "arpeggiated-chord-accompaniment": 6,
+    "moving-inner-voice": 9,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "cinematic__dorian-16bars__seed0__low",
+   "template": "cinematic",
+   "templateId": "ensemble.cinematic",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 38,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 30,
+   "metrics": {
+    "notes": 38,
+    "attacks": 25,
+    "attacksPerBar": 1.56,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     1,
+     0,
+     2,
+     4,
+     0,
+     1,
+     0,
+     1,
+     2,
+     1,
+     2,
+     3,
+     2,
+     1,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 13,
+     "eighth": 8,
+     "sixteenth": 0,
+     "other": 4
+    },
+    "longNoteShare": 0.63,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     84
+    ],
+    "velocityRange": [
+     30,
+     75
+    ],
+    "distinctTopPitches": 9,
+    "emptyBars": 3
+   },
+   "techniques": {
+    "sustained-bass-foundation": 8,
+    "chord-tone-support": 8,
+    "voice-led-inner-tone": 7,
+    "prepared-suspension": 6,
+    "stepwise-resolution": 6,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "cinematic__dorian-16bars__seed0__medium",
+   "template": "cinematic",
+   "templateId": "ensemble.cinematic",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 53,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 36,
+   "metrics": {
+    "notes": 53,
+    "attacks": 28,
+    "attacksPerBar": 1.75,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     1,
+     1,
+     1,
+     4,
+     1,
+     1,
+     2,
+     2,
+     3,
+     2,
+     1,
+     2,
+     1,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 20,
+     "eighth": 6,
+     "sixteenth": 0,
+     "other": 2
+    },
+    "longNoteShare": 0.74,
+    "chordOnsets": 0,
+    "pitchRange": [
+     31,
+     86
+    ],
+    "velocityRange": [
+     30,
+     77
+    ],
+    "distinctTopPitches": 11,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 8,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 11,
+    "prepared-suspension": 4,
+    "stepwise-resolution": 4,
+    "phrase-led-upper-line": 5,
+    "octave-doubling": 1,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "cinematic__dorian-16bars__seed0__high",
+   "template": "cinematic",
+   "templateId": "ensemble.cinematic",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 57,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 34,
+   "metrics": {
+    "notes": 57,
+    "attacks": 34,
+    "attacksPerBar": 2.13,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     2,
+     3,
+     2,
+     4,
+     1,
+     1,
+     2,
+     1,
+     1,
+     3,
+     3,
+     2,
+     1,
+     3,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 20,
+     "eighth": 11,
+     "sixteenth": 0,
+     "other": 3
+    },
+    "longNoteShare": 0.56,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     93
+    ],
+    "velocityRange": [
+     30,
+     77
+    ],
+    "distinctTopPitches": 14,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 8,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 10,
+    "prepared-suspension": 7,
+    "stepwise-resolution": 7,
+    "phrase-led-upper-line": 4,
+    "octave-doubling": 1,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "cinematic__dorian-16bars__seed11__low",
+   "template": "cinematic",
+   "templateId": "ensemble.cinematic",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 33,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 26,
+   "metrics": {
+    "notes": 33,
+    "attacks": 20,
+    "attacksPerBar": 1.25,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     0,
+     0,
+     1,
+     1,
+     2,
+     3,
+     2,
+     1,
+     2,
+     1
+    ],
+    "grid": {
+     "beat": 14,
+     "eighth": 6,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.76,
+    "chordOnsets": 0,
+    "pitchRange": [
+     38,
+     84
+    ],
+    "velocityRange": [
+     31,
+     75
+    ],
+    "distinctTopPitches": 10,
+    "emptyBars": 2
+   },
+   "techniques": {
+    "sustained-bass-foundation": 9,
+    "chord-tone-support": 8,
+    "voice-led-inner-tone": 7,
+    "prepared-suspension": 3,
+    "stepwise-resolution": 3,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "cinematic__dorian-16bars__seed11__medium",
+   "template": "cinematic",
+   "templateId": "ensemble.cinematic",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 62,
+   "playability": {
+    "warnings": 6,
+    "violations": 0
+   },
+   "cc64Points": 34,
+   "metrics": {
+    "notes": 62,
+    "attacks": 36,
+    "attacksPerBar": 2.25,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     2,
+     3,
+     3,
+     5,
+     2,
+     2,
+     2,
+     1,
+     2,
+     2,
+     1,
+     3,
+     2,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 20,
+     "eighth": 13,
+     "sixteenth": 0,
+     "other": 3
+    },
+    "longNoteShare": 0.66,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     98
+    ],
+    "velocityRange": [
+     30,
+     77
+    ],
+    "distinctTopPitches": 14,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 10,
+    "prepared-suspension": 8,
+    "stepwise-resolution": 8,
+    "phrase-led-upper-line": 5,
+    "octave-doubling": 1,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "cinematic__dorian-16bars__seed11__high",
+   "template": "cinematic",
+   "templateId": "ensemble.cinematic",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 54,
+   "playability": {
+    "warnings": 2,
+    "violations": 0
+   },
+   "cc64Points": 30,
+   "metrics": {
+    "notes": 54,
+    "attacks": 28,
+    "attacksPerBar": 1.75,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     2,
+     3,
+     3,
+     1,
+     1,
+     1,
+     0,
+     2,
+     2,
+     1,
+     3,
+     2,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 20,
+     "eighth": 7,
+     "sixteenth": 0,
+     "other": 1
+    },
+    "longNoteShare": 0.72,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     98
+    ],
+    "velocityRange": [
+     31,
+     77
+    ],
+    "distinctTopPitches": 14,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 10,
+    "prepared-suspension": 4,
+    "stepwise-resolution": 4,
+    "phrase-led-upper-line": 5,
+    "octave-doubling": 1,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "cinematic__dorian-16bars__seed29__low",
+   "template": "cinematic",
+   "templateId": "ensemble.cinematic",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 36,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 30,
+   "metrics": {
+    "notes": 36,
+    "attacks": 22,
+    "attacksPerBar": 1.38,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     2,
+     1,
+     2,
+     2,
+     1,
+     1,
+     0,
+     0,
+     2,
+     2,
+     1,
+     1,
+     1,
+     2,
+     3,
+     1
+    ],
+    "grid": {
+     "beat": 14,
+     "eighth": 6,
+     "sixteenth": 0,
+     "other": 2
+    },
+    "longNoteShare": 0.72,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     86
+    ],
+    "velocityRange": [
+     31,
+     75
+    ],
+    "distinctTopPitches": 10,
+    "emptyBars": 2
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 8,
+    "voice-led-inner-tone": 7,
+    "prepared-suspension": 4,
+    "stepwise-resolution": 4,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "cinematic__dorian-16bars__seed29__medium",
+   "template": "cinematic",
+   "templateId": "ensemble.cinematic",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 52,
+   "playability": {
+    "warnings": 2,
+    "violations": 0
+   },
+   "cc64Points": 32,
+   "metrics": {
+    "notes": 52,
+    "attacks": 28,
+    "attacksPerBar": 1.75,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     1,
+     2,
+     3,
+     1,
+     1,
+     1,
+     1,
+     2,
+     3,
+     2,
+     2,
+     1,
+     2,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 17,
+     "eighth": 9,
+     "sixteenth": 0,
+     "other": 2
+    },
+    "longNoteShare": 0.73,
+    "chordOnsets": 0,
+    "pitchRange": [
+     31,
+     89
+    ],
+    "velocityRange": [
+     30,
+     77
+    ],
+    "distinctTopPitches": 14,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 8,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 11,
+    "prepared-suspension": 4,
+    "stepwise-resolution": 4,
+    "phrase-led-upper-line": 5,
+    "octave-doubling": 1,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "cinematic__dorian-16bars__seed29__high",
+   "template": "cinematic",
+   "templateId": "ensemble.cinematic",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 58,
+   "playability": {
+    "warnings": 10,
+    "violations": 0
+   },
+   "cc64Points": 32,
+   "metrics": {
+    "notes": 58,
+    "attacks": 33,
+    "attacksPerBar": 2.06,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     2,
+     3,
+     3,
+     5,
+     1,
+     1,
+     1,
+     0,
+     1,
+     3,
+     2,
+     2,
+     1,
+     3,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 17,
+     "eighth": 12,
+     "sixteenth": 0,
+     "other": 4
+    },
+    "longNoteShare": 0.71,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     101
+    ],
+    "velocityRange": [
+     31,
+     77
+    ],
+    "distinctTopPitches": 17,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 10,
+    "prepared-suspension": 6,
+    "stepwise-resolution": 6,
+    "phrase-led-upper-line": 5,
+    "octave-doubling": 1,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "hybridstudio__dorian-16bars__seed0__low",
+   "template": "hybridstudio",
+   "templateId": "ensemble.hybridstudio",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 30,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 26,
+   "metrics": {
+    "notes": 30,
+    "attacks": 17,
+    "attacksPerBar": 1.06,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     0,
+     1,
+     1,
+     1,
+     2,
+     0,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 13,
+     "eighth": 3,
+     "sixteenth": 0,
+     "other": 1
+    },
+    "longNoteShare": 0.8,
+    "chordOnsets": 0,
+    "pitchRange": [
+     45,
+     77
+    ],
+    "velocityRange": [
+     31,
+     73
+    ],
+    "distinctTopPitches": 7,
+    "emptyBars": 3
+   },
+   "techniques": {
+    "sustained-bass-foundation": 8,
+    "chord-tone-support": 8,
+    "voice-led-inner-tone": 7,
+    "prepared-suspension": 2,
+    "stepwise-resolution": 2,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "hybridstudio__dorian-16bars__seed0__medium",
+   "template": "hybridstudio",
+   "templateId": "ensemble.hybridstudio",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 58,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 14,
+   "metrics": {
+    "notes": 58,
+    "attacks": 32,
+    "attacksPerBar": 2,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     2,
+     1,
+     2,
+     4,
+     2,
+     1,
+     3,
+     2,
+     2,
+     2,
+     2,
+     1,
+     1,
+     2,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 17,
+     "eighth": 8,
+     "sixteenth": 4,
+     "other": 3
+    },
+    "longNoteShare": 0.64,
+    "chordOnsets": 3,
+    "pitchRange": [
+     45,
+     84
+    ],
+    "velocityRange": [
+     30,
+     77
+    ],
+    "distinctTopPitches": 14,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 8,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 10,
+    "phrase-led-upper-line": 7,
+    "phrase-anticipation": 4,
+    "prepared-suspension": 5,
+    "stepwise-resolution": 5,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "hybridstudio__dorian-16bars__seed0__high",
+   "template": "hybridstudio",
+   "templateId": "ensemble.hybridstudio",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 55,
+   "playability": {
+    "warnings": 2,
+    "violations": 0
+   },
+   "cc64Points": 10,
+   "metrics": {
+    "notes": 55,
+    "attacks": 28,
+    "attacksPerBar": 1.75,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     2,
+     1,
+     2,
+     2,
+     3,
+     2,
+     2,
+     0,
+     2,
+     2,
+     2,
+     1,
+     1,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 20,
+     "eighth": 4,
+     "sixteenth": 4,
+     "other": 0
+    },
+    "longNoteShare": 0.73,
+    "chordOnsets": 3,
+    "pitchRange": [
+     43,
+     84
+    ],
+    "velocityRange": [
+     31,
+     77
+    ],
+    "distinctTopPitches": 14,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 7,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 11,
+    "phrase-led-upper-line": 8,
+    "phrase-anticipation": 5,
+    "prepared-suspension": 2,
+    "stepwise-resolution": 2,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "hybridstudio__dorian-16bars__seed11__low",
+   "template": "hybridstudio",
+   "templateId": "ensemble.hybridstudio",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 36,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 32,
+   "metrics": {
+    "notes": 36,
+    "attacks": 23,
+    "attacksPerBar": 1.44,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     1,
+     2,
+     3,
+     1,
+     2,
+     0,
+     0,
+     2,
+     2,
+     2,
+     2,
+     1,
+     1,
+     2,
+     1
+    ],
+    "grid": {
+     "beat": 13,
+     "eighth": 8,
+     "sixteenth": 0,
+     "other": 2
+    },
+    "longNoteShare": 0.58,
+    "chordOnsets": 0,
+    "pitchRange": [
+     45,
+     77
+    ],
+    "velocityRange": [
+     31,
+     73
+    ],
+    "distinctTopPitches": 8,
+    "emptyBars": 2
+   },
+   "techniques": {
+    "sustained-bass-foundation": 8,
+    "chord-tone-support": 8,
+    "voice-led-inner-tone": 7,
+    "prepared-suspension": 5,
+    "stepwise-resolution": 5,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "hybridstudio__dorian-16bars__seed11__medium",
+   "template": "hybridstudio",
+   "templateId": "ensemble.hybridstudio",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 64,
+   "playability": {
+    "warnings": 4,
+    "violations": 0
+   },
+   "cc64Points": 12,
+   "metrics": {
+    "notes": 64,
+    "attacks": 35,
+    "attacksPerBar": 2.19,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     3,
+     2,
+     3,
+     3,
+     2,
+     1,
+     3,
+     1,
+     3,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 17,
+     "eighth": 13,
+     "sixteenth": 4,
+     "other": 1
+    },
+    "longNoteShare": 0.66,
+    "chordOnsets": 4,
+    "pitchRange": [
+     45,
+     86
+    ],
+    "velocityRange": [
+     30,
+     77
+    ],
+    "distinctTopPitches": 13,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 10,
+    "phrase-led-upper-line": 8,
+    "phrase-anticipation": 6,
+    "prepared-suspension": 5,
+    "stepwise-resolution": 5,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "hybridstudio__dorian-16bars__seed11__high",
+   "template": "hybridstudio",
+   "templateId": "ensemble.hybridstudio",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 63,
+   "playability": {
+    "warnings": 2,
+    "violations": 0
+   },
+   "cc64Points": 12,
+   "metrics": {
+    "notes": 63,
+    "attacks": 33,
+    "attacksPerBar": 2.06,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     2,
+     1,
+     3,
+     3,
+     3,
+     2,
+     3,
+     1,
+     2,
+     1,
+     3,
+     2,
+     1,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 22,
+     "eighth": 9,
+     "sixteenth": 1,
+     "other": 1
+    },
+    "longNoteShare": 0.7,
+    "chordOnsets": 4,
+    "pitchRange": [
+     45,
+     86
+    ],
+    "velocityRange": [
+     30,
+     77
+    ],
+    "distinctTopPitches": 13,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 10,
+    "phrase-led-upper-line": 9,
+    "phrase-anticipation": 6,
+    "prepared-suspension": 4,
+    "stepwise-resolution": 4,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "hybridstudio__dorian-16bars__seed29__low",
+   "template": "hybridstudio",
+   "templateId": "ensemble.hybridstudio",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 39,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 32,
+   "metrics": {
+    "notes": 39,
+    "attacks": 26,
+    "attacksPerBar": 1.63,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     1,
+     0,
+     2,
+     4,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     3,
+     2,
+     1,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 14,
+     "eighth": 8,
+     "sixteenth": 0,
+     "other": 4
+    },
+    "longNoteShare": 0.62,
+    "chordOnsets": 2,
+    "pitchRange": [
+     50,
+     79
+    ],
+    "velocityRange": [
+     30,
+     73
+    ],
+    "distinctTopPitches": 11,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 9,
+    "chord-tone-support": 8,
+    "voice-led-inner-tone": 7,
+    "prepared-suspension": 6,
+    "stepwise-resolution": 6,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "hybridstudio__dorian-16bars__seed29__medium",
+   "template": "hybridstudio",
+   "templateId": "ensemble.hybridstudio",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 54,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 10,
+   "metrics": {
+    "notes": 54,
+    "attacks": 26,
+    "attacksPerBar": 1.63,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     2,
+     1,
+     2,
+     2,
+     2,
+     1,
+     2,
+     0,
+     2,
+     1,
+     2,
+     1,
+     1,
+     2,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 18,
+     "eighth": 2,
+     "sixteenth": 5,
+     "other": 1
+    },
+    "longNoteShare": 0.76,
+    "chordOnsets": 3,
+    "pitchRange": [
+     43,
+     84
+    ],
+    "velocityRange": [
+     31,
+     77
+    ],
+    "distinctTopPitches": 14,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 7,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 11,
+    "phrase-led-upper-line": 9,
+    "phrase-anticipation": 6,
+    "final-harmony": 3,
+    "prepared-suspension": 1,
+    "stepwise-resolution": 1
+   }
+  },
+  {
+   "id": "hybridstudio__dorian-16bars__seed29__high",
+   "template": "hybridstudio",
+   "templateId": "ensemble.hybridstudio",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 57,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 12,
+   "metrics": {
+    "notes": 57,
+    "attacks": 29,
+    "attacksPerBar": 1.81,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     2,
+     1,
+     3,
+     3,
+     2,
+     1,
+     3,
+     1,
+     2,
+     1,
+     2,
+     1,
+     1,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 19,
+     "eighth": 3,
+     "sixteenth": 6,
+     "other": 1
+    },
+    "longNoteShare": 0.7,
+    "chordOnsets": 3,
+    "pitchRange": [
+     43,
+     84
+    ],
+    "velocityRange": [
+     30,
+     77
+    ],
+    "distinctTopPitches": 13,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 7,
+    "chord-tone-support": 16,
+    "voice-led-inner-tone": 11,
+    "phrase-led-upper-line": 9,
+    "phrase-anticipation": 6,
+    "prepared-suspension": 2,
+    "stepwise-resolution": 2,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "standalone-chamber__dorian-16bars__seed0__low",
+   "template": "standalone-chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 0.3,
+   "standalone": true,
+   "pianoEligible": true,
+   "scoreEvents": 40,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 30,
+   "metrics": {
+    "notes": 40,
+    "attacks": 23,
+    "attacksPerBar": 1.44,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 2,
+    "attacksByBar": [
+     2,
+     1,
+     1,
+     1,
+     2,
+     2,
+     0,
+     1,
+     1,
+     2,
+     2,
+     2,
+     2,
+     1,
+     2,
+     1
+    ],
+    "grid": {
+     "beat": 15,
+     "eighth": 8,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.75,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     67
+    ],
+    "velocityRange": [
+     41,
+     73
+    ],
+    "distinctTopPitches": 11,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 12,
+    "chord-tone-support": 9,
+    "voice-led-inner-tone": 8,
+    "prepared-suspension": 4,
+    "stepwise-resolution": 4,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "standalone-chamber__dorian-16bars__seed0__medium",
+   "template": "standalone-chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 0.6,
+   "standalone": true,
+   "pianoEligible": true,
+   "scoreEvents": 62,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 34,
+   "metrics": {
+    "notes": 62,
+    "attacks": 36,
+    "attacksPerBar": 2.25,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     3,
+     2,
+     3,
+     2,
+     2,
+     1,
+     2,
+     1,
+     3,
+     3,
+     3,
+     2,
+     3,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 18,
+     "eighth": 17,
+     "sixteenth": 0,
+     "other": 1
+    },
+    "longNoteShare": 0.69,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     69
+    ],
+    "velocityRange": [
+     41,
+     75
+    ],
+    "distinctTopPitches": 15,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 17,
+    "voice-led-inner-tone": 10,
+    "phrase-led-upper-line": 9,
+    "prepared-suspension": 6,
+    "stepwise-resolution": 6,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "standalone-chamber__dorian-16bars__seed0__high",
+   "template": "standalone-chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 1,
+   "standalone": true,
+   "pianoEligible": true,
+   "scoreEvents": 60,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 32,
+   "metrics": {
+    "notes": 60,
+    "attacks": 27,
+    "attacksPerBar": 1.69,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 2,
+    "attacksByBar": [
+     1,
+     2,
+     1,
+     2,
+     2,
+     2,
+     2,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 23,
+     "eighth": 4,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.77,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     67
+    ],
+    "velocityRange": [
+     41,
+     77
+    ],
+    "distinctTopPitches": 13,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 12,
+    "chord-tone-support": 17,
+    "voice-led-inner-tone": 10,
+    "phrase-led-upper-line": 13,
+    "prepared-suspension": 2,
+    "stepwise-resolution": 2,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "standalone-chamber__dorian-16bars__seed11__low",
+   "template": "standalone-chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 0.3,
+   "standalone": true,
+   "pianoEligible": true,
+   "scoreEvents": 42,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 32,
+   "metrics": {
+    "notes": 42,
+    "attacks": 26,
+    "attacksPerBar": 1.63,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     1,
+     1,
+     2,
+     3,
+     0,
+     1,
+     0,
+     2,
+     2,
+     1,
+     2,
+     2,
+     1,
+     2,
+     4,
+     2
+    ],
+    "grid": {
+     "beat": 14,
+     "eighth": 8,
+     "sixteenth": 0,
+     "other": 4
+    },
+    "longNoteShare": 0.62,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     67
+    ],
+    "velocityRange": [
+     41,
+     75
+    ],
+    "distinctTopPitches": 10,
+    "emptyBars": 2
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 9,
+    "voice-led-inner-tone": 8,
+    "prepared-suspension": 6,
+    "stepwise-resolution": 6,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "standalone-chamber__dorian-16bars__seed11__medium",
+   "template": "standalone-chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 0.6,
+   "standalone": true,
+   "pianoEligible": true,
+   "scoreEvents": 59,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 34,
+   "metrics": {
+    "notes": 59,
+    "attacks": 30,
+    "attacksPerBar": 1.88,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     1,
+     3,
+     2,
+     4,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     2,
+     2,
+     1,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 24,
+     "eighth": 4,
+     "sixteenth": 0,
+     "other": 2
+    },
+    "longNoteShare": 0.73,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     67
+    ],
+    "velocityRange": [
+     41,
+     77
+    ],
+    "distinctTopPitches": 14,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 17,
+    "voice-led-inner-tone": 10,
+    "phrase-led-upper-line": 12,
+    "prepared-suspension": 3,
+    "stepwise-resolution": 3,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "standalone-chamber__dorian-16bars__seed11__high",
+   "template": "standalone-chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 1,
+   "standalone": true,
+   "pianoEligible": true,
+   "scoreEvents": 60,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 34,
+   "metrics": {
+    "notes": 60,
+    "attacks": 29,
+    "attacksPerBar": 1.81,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     3,
+     2,
+     2,
+     2,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 23,
+     "eighth": 5,
+     "sixteenth": 0,
+     "other": 1
+    },
+    "longNoteShare": 0.72,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     72
+    ],
+    "velocityRange": [
+     41,
+     77
+    ],
+    "distinctTopPitches": 15,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 17,
+    "voice-led-inner-tone": 10,
+    "phrase-led-upper-line": 13,
+    "prepared-suspension": 3,
+    "stepwise-resolution": 3,
+    "octave-doubling": 1,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "standalone-chamber__dorian-16bars__seed29__low",
+   "template": "standalone-chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 0.3,
+   "standalone": true,
+   "pianoEligible": true,
+   "scoreEvents": 42,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 32,
+   "metrics": {
+    "notes": 42,
+    "attacks": 25,
+    "attacksPerBar": 1.56,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 2,
+    "attacksByBar": [
+     2,
+     1,
+     2,
+     2,
+     2,
+     2,
+     0,
+     2,
+     2,
+     1,
+     2,
+     2,
+     1,
+     1,
+     2,
+     1
+    ],
+    "grid": {
+     "beat": 15,
+     "eighth": 9,
+     "sixteenth": 0,
+     "other": 1
+    },
+    "longNoteShare": 0.71,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     67
+    ],
+    "velocityRange": [
+     41,
+     73
+    ],
+    "distinctTopPitches": 11,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 12,
+    "chord-tone-support": 9,
+    "voice-led-inner-tone": 8,
+    "prepared-suspension": 5,
+    "stepwise-resolution": 5,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "standalone-chamber__dorian-16bars__seed29__medium",
+   "template": "standalone-chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 0.6,
+   "standalone": true,
+   "pianoEligible": true,
+   "scoreEvents": 59,
+   "playability": {
+    "warnings": 5,
+    "violations": 0
+   },
+   "cc64Points": 32,
+   "metrics": {
+    "notes": 59,
+    "attacks": 29,
+    "attacksPerBar": 1.81,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     2,
+     3,
+     2,
+     2,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 23,
+     "eighth": 5,
+     "sixteenth": 0,
+     "other": 1
+    },
+    "longNoteShare": 0.75,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     72
+    ],
+    "velocityRange": [
+     41,
+     77
+    ],
+    "distinctTopPitches": 16,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 10,
+    "chord-tone-support": 17,
+    "voice-led-inner-tone": 10,
+    "phrase-led-upper-line": 13,
+    "prepared-suspension": 3,
+    "stepwise-resolution": 3,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "standalone-chamber__dorian-16bars__seed29__high",
+   "template": "standalone-chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 1,
+   "standalone": true,
+   "pianoEligible": true,
+   "scoreEvents": 59,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 32,
+   "metrics": {
+    "notes": 59,
+    "attacks": 28,
+    "attacksPerBar": 1.75,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     2,
+     1,
+     3,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     3,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 18,
+     "eighth": 9,
+     "sixteenth": 0,
+     "other": 1
+    },
+    "longNoteShare": 0.88,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     72
+    ],
+    "velocityRange": [
+     41,
+     75
+    ],
+    "distinctTopPitches": 15,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 12,
+    "chord-tone-support": 17,
+    "voice-led-inner-tone": 10,
+    "phrase-led-upper-line": 14,
+    "prepared-suspension": 1,
+    "stepwise-resolution": 1,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "symphony-negative-control__dorian-16bars__seed0__low",
+   "template": "symphony-negative-control",
+   "templateId": "ensemble.symphony",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": false,
+   "scoreEvents": 0,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 0,
+   "metrics": {
+    "notes": 0
+   },
+   "techniques": {}
+  },
+  {
+   "id": "symphony-negative-control__dorian-16bars__seed0__medium",
+   "template": "symphony-negative-control",
+   "templateId": "ensemble.symphony",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": false,
+   "scoreEvents": 0,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 0,
+   "metrics": {
+    "notes": 0
+   },
+   "techniques": {}
+  },
+  {
+   "id": "symphony-negative-control__dorian-16bars__seed0__high",
+   "template": "symphony-negative-control",
+   "templateId": "ensemble.symphony",
+   "fixture": "dorian-16bars",
+   "seed": 0,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": false,
+   "scoreEvents": 0,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 0,
+   "metrics": {
+    "notes": 0
+   },
+   "techniques": {}
+  },
+  {
+   "id": "symphony-negative-control__dorian-16bars__seed11__low",
+   "template": "symphony-negative-control",
+   "templateId": "ensemble.symphony",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": false,
+   "scoreEvents": 0,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 0,
+   "metrics": {
+    "notes": 0
+   },
+   "techniques": {}
+  },
+  {
+   "id": "symphony-negative-control__dorian-16bars__seed11__medium",
+   "template": "symphony-negative-control",
+   "templateId": "ensemble.symphony",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": false,
+   "scoreEvents": 0,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 0,
+   "metrics": {
+    "notes": 0
+   },
+   "techniques": {}
+  },
+  {
+   "id": "symphony-negative-control__dorian-16bars__seed11__high",
+   "template": "symphony-negative-control",
+   "templateId": "ensemble.symphony",
+   "fixture": "dorian-16bars",
+   "seed": 11,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": false,
+   "scoreEvents": 0,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 0,
+   "metrics": {
+    "notes": 0
+   },
+   "techniques": {}
+  },
+  {
+   "id": "symphony-negative-control__dorian-16bars__seed29__low",
+   "template": "symphony-negative-control",
+   "templateId": "ensemble.symphony",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": false,
+   "scoreEvents": 0,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 0,
+   "metrics": {
+    "notes": 0
+   },
+   "techniques": {}
+  },
+  {
+   "id": "symphony-negative-control__dorian-16bars__seed29__medium",
+   "template": "symphony-negative-control",
+   "templateId": "ensemble.symphony",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": false,
+   "scoreEvents": 0,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 0,
+   "metrics": {
+    "notes": 0
+   },
+   "techniques": {}
+  },
+  {
+   "id": "symphony-negative-control__dorian-16bars__seed29__high",
+   "template": "symphony-negative-control",
+   "templateId": "ensemble.symphony",
+   "fixture": "dorian-16bars",
+   "seed": 29,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": false,
+   "scoreEvents": 0,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 0,
+   "metrics": {
+    "notes": 0
+   },
+   "techniques": {}
+  },
+  {
+   "id": "chamber__three-chorus-40bars__seed0__low",
+   "template": "chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 89,
+   "playability": {
+    "warnings": 4,
+    "violations": 0
+   },
+   "cc64Points": 64,
+   "metrics": {
+    "notes": 89,
+    "attacks": 46,
+    "attacksPerBar": 1.15,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     0,
+     1,
+     1,
+     2,
+     1,
+     2,
+     2,
+     1,
+     1,
+     2,
+     0,
+     2,
+     0,
+     2,
+     0,
+     2,
+     2,
+     2,
+     0,
+     1,
+     1,
+     1,
+     0,
+     1,
+     1,
+     1,
+     0,
+     2,
+     1,
+     3,
+     1,
+     1,
+     1,
+     1,
+     0,
+     2,
+     2,
+     1,
+     1
+    ],
+    "grid": {
+     "beat": 29,
+     "eighth": 17,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.8,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     74
+    ],
+    "velocityRange": [
+     30,
+     63
+    ],
+    "distinctTopPitches": 14,
+    "emptyBars": 8
+   },
+   "techniques": {
+    "sustained-bass-foundation": 26,
+    "chord-tone-support": 20,
+    "voice-led-inner-tone": 20,
+    "prepared-suspension": 6,
+    "stepwise-resolution": 8,
+    "phrase-led-upper-line": 6,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "chamber__three-chorus-40bars__seed0__medium",
+   "template": "chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 122,
+   "playability": {
+    "warnings": 5,
+    "violations": 0
+   },
+   "cc64Points": 72,
+   "metrics": {
+    "notes": 122,
+    "attacks": 59,
+    "attacksPerBar": 1.48,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     1,
+     1,
+     1,
+     0,
+     1,
+     1,
+     2,
+     3,
+     2,
+     1,
+     1,
+     4,
+     2,
+     1,
+     3,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     0,
+     1,
+     1,
+     1,
+     0,
+     3,
+     2,
+     2,
+     1,
+     2,
+     3,
+     2,
+     0,
+     1,
+     2,
+     1,
+     2
+    ],
+    "grid": {
+     "beat": 40,
+     "eighth": 19,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.82,
+    "chordOnsets": 1,
+    "pitchRange": [
+     38,
+     76
+    ],
+    "velocityRange": [
+     30,
+     63
+    ],
+    "distinctTopPitches": 14,
+    "emptyBars": 4
+   },
+   "techniques": {
+    "sustained-bass-foundation": 27,
+    "chord-tone-support": 34,
+    "voice-led-inner-tone": 28,
+    "prepared-suspension": 7,
+    "stepwise-resolution": 7,
+    "broken-chord-accompaniment": 1,
+    "staccato-fill-gesture": 3,
+    "phrase-led-upper-line": 11,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "chamber__three-chorus-40bars__seed0__high",
+   "template": "chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 116,
+   "playability": {
+    "warnings": 4,
+    "violations": 0
+   },
+   "cc64Points": 66,
+   "metrics": {
+    "notes": 116,
+    "attacks": 58,
+    "attacksPerBar": 1.45,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     1,
+     1,
+     0,
+     1,
+     1,
+     2,
+     3,
+     2,
+     1,
+     1,
+     0,
+     2,
+     1,
+     2,
+     0,
+     2,
+     2,
+     2,
+     2,
+     1,
+     2,
+     2,
+     0,
+     2,
+     1,
+     1,
+     0,
+     3,
+     2,
+     2,
+     1,
+     2,
+     2,
+     1,
+     0,
+     1,
+     3,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 37,
+     "eighth": 21,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.8,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     72
+    ],
+    "velocityRange": [
+     30,
+     63
+    ],
+    "distinctTopPitches": 16,
+    "emptyBars": 6
+   },
+   "techniques": {
+    "sustained-bass-foundation": 26,
+    "chord-tone-support": 33,
+    "voice-led-inner-tone": 26,
+    "prepared-suspension": 9,
+    "stepwise-resolution": 11,
+    "phrase-led-upper-line": 8,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "chamber__three-chorus-40bars__seed11__low",
+   "template": "chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 90,
+   "playability": {
+    "warnings": 4,
+    "violations": 0
+   },
+   "cc64Points": 64,
+   "metrics": {
+    "notes": 90,
+    "attacks": 49,
+    "attacksPerBar": 1.23,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     1,
+     2,
+     1,
+     3,
+     2,
+     1,
+     0,
+     1,
+     0,
+     1,
+     0,
+     2,
+     1,
+     2,
+     1,
+     2,
+     2,
+     1,
+     0,
+     1,
+     1,
+     1,
+     0,
+     2,
+     2,
+     2,
+     0,
+     3,
+     3,
+     2,
+     1,
+     1,
+     1,
+     1,
+     0,
+     1,
+     1,
+     1,
+     1
+    ],
+    "grid": {
+     "beat": 33,
+     "eighth": 16,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.78,
+    "chordOnsets": 1,
+    "pitchRange": [
+     38,
+     76
+    ],
+    "velocityRange": [
+     30,
+     63
+    ],
+    "distinctTopPitches": 17,
+    "emptyBars": 7
+   },
+   "techniques": {
+    "sustained-bass-foundation": 27,
+    "chord-tone-support": 20,
+    "voice-led-inner-tone": 20,
+    "prepared-suspension": 7,
+    "stepwise-resolution": 9,
+    "phrase-led-upper-line": 4,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "chamber__three-chorus-40bars__seed11__medium",
+   "template": "chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 112,
+   "playability": {
+    "warnings": 2,
+    "violations": 0
+   },
+   "cc64Points": 68,
+   "metrics": {
+    "notes": 112,
+    "attacks": 54,
+    "attacksPerBar": 1.35,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     2,
+     2,
+     1,
+     0,
+     1,
+     2,
+     2,
+     1,
+     2,
+     2,
+     1,
+     0,
+     2,
+     1,
+     3,
+     3,
+     2,
+     2,
+     2,
+     1,
+     1,
+     1,
+     1,
+     0,
+     1,
+     1,
+     1,
+     0,
+     2,
+     1,
+     2,
+     2,
+     1,
+     1,
+     1,
+     0,
+     2,
+     1,
+     1,
+     2
+    ],
+    "grid": {
+     "beat": 39,
+     "eighth": 15,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.83,
+    "chordOnsets": 2,
+    "pitchRange": [
+     38,
+     76
+    ],
+    "velocityRange": [
+     30,
+     63
+    ],
+    "distinctTopPitches": 15,
+    "emptyBars": 5
+   },
+   "techniques": {
+    "sustained-bass-foundation": 27,
+    "chord-tone-support": 34,
+    "voice-led-inner-tone": 26,
+    "prepared-suspension": 7,
+    "stepwise-resolution": 8,
+    "phrase-led-upper-line": 6,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "chamber__three-chorus-40bars__seed11__high",
+   "template": "chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 114,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 70,
+   "metrics": {
+    "notes": 114,
+    "attacks": 51,
+    "attacksPerBar": 1.27,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     1,
+     1,
+     0,
+     2,
+     3,
+     2,
+     1,
+     1,
+     1,
+     1,
+     0,
+     2,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     0,
+     2,
+     2,
+     1,
+     0,
+     2,
+     1,
+     2,
+     1,
+     2,
+     2,
+     1,
+     0,
+     2,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 38,
+     "eighth": 13,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.85,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     72
+    ],
+    "velocityRange": [
+     30,
+     63
+    ],
+    "distinctTopPitches": 17,
+    "emptyBars": 5
+   },
+   "techniques": {
+    "sustained-bass-foundation": 27,
+    "chord-tone-support": 34,
+    "voice-led-inner-tone": 28,
+    "prepared-suspension": 6,
+    "stepwise-resolution": 6,
+    "phrase-led-upper-line": 10,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "chamber__three-chorus-40bars__seed29__low",
+   "template": "chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 94,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 64,
+   "metrics": {
+    "notes": 94,
+    "attacks": 53,
+    "attacksPerBar": 1.33,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 2,
+    "attacksByBar": [
+     2,
+     2,
+     2,
+     0,
+     1,
+     2,
+     2,
+     1,
+     2,
+     2,
+     2,
+     0,
+     2,
+     0,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     0,
+     1,
+     2,
+     2,
+     0,
+     2,
+     2,
+     2,
+     0,
+     1,
+     1,
+     1,
+     0,
+     1,
+     1,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 30,
+     "eighth": 23,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.72,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     77
+    ],
+    "velocityRange": [
+     30,
+     63
+    ],
+    "distinctTopPitches": 17,
+    "emptyBars": 7
+   },
+   "techniques": {
+    "sustained-bass-foundation": 27,
+    "chord-tone-support": 20,
+    "voice-led-inner-tone": 20,
+    "prepared-suspension": 10,
+    "stepwise-resolution": 12,
+    "phrase-led-upper-line": 2,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "chamber__three-chorus-40bars__seed29__medium",
+   "template": "chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 134,
+   "playability": {
+    "warnings": 3,
+    "violations": 0
+   },
+   "cc64Points": 74,
+   "metrics": {
+    "notes": 134,
+    "attacks": 71,
+    "attacksPerBar": 1.78,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     1,
+     1,
+     1,
+     0,
+     2,
+     2,
+     2,
+     2,
+     1,
+     2,
+     2,
+     0,
+     2,
+     1,
+     2,
+     1,
+     1,
+     1,
+     2,
+     3,
+     2,
+     1,
+     1,
+     0,
+     2,
+     2,
+     2,
+     4,
+     3,
+     2,
+     2,
+     2,
+     2,
+     1,
+     1,
+     5,
+     2,
+     3,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 40,
+     "eighth": 31,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.69,
+    "chordOnsets": 0,
+    "pitchRange": [
+     38,
+     74
+    ],
+    "velocityRange": [
+     30,
+     63
+    ],
+    "distinctTopPitches": 13,
+    "emptyBars": 3
+   },
+   "techniques": {
+    "sustained-bass-foundation": 29,
+    "chord-tone-support": 34,
+    "voice-led-inner-tone": 29,
+    "prepared-suspension": 13,
+    "stepwise-resolution": 14,
+    "phrase-led-upper-line": 5,
+    "broken-chord-accompaniment": 2,
+    "staccato-fill-gesture": 5,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "chamber__three-chorus-40bars__seed29__high",
+   "template": "chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 108,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 68,
+   "metrics": {
+    "notes": 108,
+    "attacks": 48,
+    "attacksPerBar": 1.2,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     1,
+     1,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     0,
+     2,
+     2,
+     3,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     0,
+     1,
+     1,
+     1,
+     0,
+     2,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     0,
+     2,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 36,
+     "eighth": 12,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.88,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     65
+    ],
+    "velocityRange": [
+     30,
+     63
+    ],
+    "distinctTopPitches": 15,
+    "emptyBars": 5
+   },
+   "techniques": {
+    "sustained-bass-foundation": 27,
+    "chord-tone-support": 34,
+    "voice-led-inner-tone": 28,
+    "stepwise-resolution": 6,
+    "prepared-suspension": 4,
+    "phrase-led-upper-line": 6,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "sonata__three-chorus-40bars__seed0__low",
+   "template": "sonata",
+   "templateId": "ensemble.sonata",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 97,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 72,
+   "metrics": {
+    "notes": 97,
+    "attacks": 57,
+    "attacksPerBar": 1.43,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     2,
+     1,
+     1,
+     1,
+     2,
+     1,
+     1,
+     0,
+     1,
+     0,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     1,
+     2,
+     3,
+     2,
+     0,
+     1,
+     1,
+     1,
+     1,
+     3,
+     2,
+     1,
+     2,
+     3,
+     3,
+     2,
+     1
+    ],
+    "grid": {
+     "beat": 33,
+     "eighth": 24,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.7,
+    "chordOnsets": 13,
+    "pitchRange": [
+     45,
+     81
+    ],
+    "velocityRange": [
+     30,
+     59
+    ],
+    "distinctTopPitches": 15,
+    "emptyBars": 3
+   },
+   "techniques": {
+    "sustained-bass-foundation": 30,
+    "chord-tone-support": 20,
+    "voice-led-inner-tone": 20,
+    "prepared-suspension": 12,
+    "stepwise-resolution": 12,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "sonata__three-chorus-40bars__seed0__medium",
+   "template": "sonata",
+   "templateId": "ensemble.sonata",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 145,
+   "playability": {
+    "warnings": 6,
+    "violations": 0
+   },
+   "cc64Points": 76,
+   "metrics": {
+    "notes": 145,
+    "attacks": 81,
+    "attacksPerBar": 2.03,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     1,
+     1,
+     2,
+     1,
+     2,
+     3,
+     2,
+     2,
+     3,
+     2,
+     1,
+     5,
+     3,
+     2,
+     1,
+     4,
+     2,
+     2,
+     2,
+     2,
+     1,
+     2,
+     2,
+     5,
+     2,
+     2,
+     2,
+     0,
+     3,
+     2,
+     2,
+     2,
+     1,
+     1,
+     1,
+     4,
+     1,
+     2,
+     1,
+     2
+    ],
+    "grid": {
+     "beat": 44,
+     "eighth": 37,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.69,
+    "chordOnsets": 12,
+    "pitchRange": [
+     45,
+     88
+    ],
+    "velocityRange": [
+     30,
+     61
+    ],
+    "distinctTopPitches": 16,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 30,
+    "chord-tone-support": 33,
+    "voice-led-inner-tone": 30,
+    "prepared-suspension": 14,
+    "stepwise-resolution": 15,
+    "broken-chord-accompaniment": 4,
+    "staccato-fill-gesture": 12,
+    "phrase-led-upper-line": 3,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "sonata__three-chorus-40bars__seed0__high",
+   "template": "sonata",
+   "templateId": "ensemble.sonata",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 141,
+   "playability": {
+    "warnings": 13,
+    "violations": 0
+   },
+   "cc64Points": 80,
+   "metrics": {
+    "notes": 141,
+    "attacks": 76,
+    "attacksPerBar": 1.9,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     2,
+     2,
+     2,
+     2,
+     3,
+     2,
+     2,
+     3,
+     3,
+     2,
+     1,
+     5,
+     2,
+     1,
+     2,
+     3,
+     1,
+     1,
+     2,
+     2,
+     1,
+     1,
+     1,
+     4,
+     1,
+     2,
+     2,
+     0,
+     1,
+     2,
+     2,
+     1,
+     1,
+     1,
+     1,
+     5,
+     2,
+     2,
+     1,
+     2
+    ],
+    "grid": {
+     "beat": 43,
+     "eighth": 33,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.71,
+    "chordOnsets": 18,
+    "pitchRange": [
+     45,
+     88
+    ],
+    "velocityRange": [
+     30,
+     59
+    ],
+    "distinctTopPitches": 16,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 31,
+    "chord-tone-support": 33,
+    "voice-led-inner-tone": 30,
+    "prepared-suspension": 13,
+    "stepwise-resolution": 13,
+    "broken-chord-accompaniment": 4,
+    "staccato-fill-gesture": 11,
+    "phrase-led-upper-line": 2,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "sonata__three-chorus-40bars__seed11__low",
+   "template": "sonata",
+   "templateId": "ensemble.sonata",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 89,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 72,
+   "metrics": {
+    "notes": 89,
+    "attacks": 49,
+    "attacksPerBar": 1.23,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     2,
+     1,
+     2,
+     2,
+     2,
+     1,
+     1,
+     0,
+     1,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     1,
+     1,
+     1,
+     1,
+     2,
+     3,
+     2,
+     1,
+     0,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "grid": {
+     "beat": 33,
+     "eighth": 16,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.81,
+    "chordOnsets": 13,
+    "pitchRange": [
+     45,
+     81
+    ],
+    "velocityRange": [
+     30,
+     61
+    ],
+    "distinctTopPitches": 15,
+    "emptyBars": 3
+   },
+   "techniques": {
+    "sustained-bass-foundation": 30,
+    "chord-tone-support": 20,
+    "voice-led-inner-tone": 20,
+    "prepared-suspension": 8,
+    "stepwise-resolution": 8,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "sonata__three-chorus-40bars__seed11__medium",
+   "template": "sonata",
+   "templateId": "ensemble.sonata",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 132,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 78,
+   "metrics": {
+    "notes": 132,
+    "attacks": 68,
+    "attacksPerBar": 1.7,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     1,
+     1,
+     1,
+     1,
+     2,
+     1,
+     2,
+     2,
+     2,
+     3,
+     2,
+     4,
+     1,
+     1,
+     1,
+     4,
+     2,
+     2,
+     2,
+     3,
+     2,
+     1,
+     1,
+     4,
+     1,
+     1,
+     1,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     4,
+     2,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 42,
+     "eighth": 26,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.73,
+    "chordOnsets": 19,
+    "pitchRange": [
+     45,
+     86
+    ],
+    "velocityRange": [
+     30,
+     59
+    ],
+    "distinctTopPitches": 13,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 30,
+    "chord-tone-support": 33,
+    "voice-led-inner-tone": 30,
+    "prepared-suspension": 9,
+    "stepwise-resolution": 9,
+    "broken-chord-accompaniment": 4,
+    "staccato-fill-gesture": 12,
+    "phrase-led-upper-line": 2,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "sonata__three-chorus-40bars__seed11__high",
+   "template": "sonata",
+   "templateId": "ensemble.sonata",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 132,
+   "playability": {
+    "warnings": 2,
+    "violations": 0
+   },
+   "cc64Points": 76,
+   "metrics": {
+    "notes": 132,
+    "attacks": 66,
+    "attacksPerBar": 1.65,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     1,
+     2,
+     2,
+     0,
+     1,
+     1,
+     1,
+     1,
+     2,
+     3,
+     2,
+     4,
+     1,
+     1,
+     1,
+     4,
+     1,
+     2,
+     2,
+     1,
+     1,
+     1,
+     1,
+     5,
+     3,
+     2,
+     1,
+     0,
+     1,
+     2,
+     2,
+     1,
+     1,
+     1,
+     1,
+     4,
+     1,
+     2,
+     1,
+     2
+    ],
+    "grid": {
+     "beat": 44,
+     "eighth": 22,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.79,
+    "chordOnsets": 18,
+    "pitchRange": [
+     45,
+     88
+    ],
+    "velocityRange": [
+     30,
+     61
+    ],
+    "distinctTopPitches": 16,
+    "emptyBars": 2
+   },
+   "techniques": {
+    "sustained-bass-foundation": 32,
+    "chord-tone-support": 33,
+    "voice-led-inner-tone": 30,
+    "prepared-suspension": 7,
+    "stepwise-resolution": 7,
+    "broken-chord-accompaniment": 4,
+    "staccato-fill-gesture": 12,
+    "phrase-led-upper-line": 3,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "sonata__three-chorus-40bars__seed29__low",
+   "template": "sonata",
+   "templateId": "ensemble.sonata",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 88,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 68,
+   "metrics": {
+    "notes": 88,
+    "attacks": 48,
+    "attacksPerBar": 1.2,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     2,
+     1,
+     1,
+     0,
+     1,
+     1,
+     1,
+     2,
+     2,
+     0,
+     1,
+     1,
+     1,
+     0,
+     1,
+     2,
+     2,
+     1,
+     1,
+     0,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     1,
+     0,
+     3,
+     2,
+     1,
+     0,
+     2,
+     2,
+     1,
+     1,
+     2,
+     2,
+     1,
+     1
+    ],
+    "grid": {
+     "beat": 33,
+     "eighth": 15,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.81,
+    "chordOnsets": 0,
+    "pitchRange": [
+     43,
+     81
+    ],
+    "velocityRange": [
+     30,
+     59
+    ],
+    "distinctTopPitches": 15,
+    "emptyBars": 6
+   },
+   "techniques": {
+    "sustained-bass-foundation": 30,
+    "chord-tone-support": 20,
+    "voice-led-inner-tone": 20,
+    "prepared-suspension": 7,
+    "stepwise-resolution": 8,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "sonata__three-chorus-40bars__seed29__medium",
+   "template": "sonata",
+   "templateId": "ensemble.sonata",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 141,
+   "playability": {
+    "warnings": 6,
+    "violations": 0
+   },
+   "cc64Points": 76,
+   "metrics": {
+    "notes": 141,
+    "attacks": 76,
+    "attacksPerBar": 1.9,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     1,
+     2,
+     2,
+     0,
+     2,
+     2,
+     1,
+     2,
+     3,
+     2,
+     1,
+     5,
+     3,
+     2,
+     1,
+     4,
+     1,
+     1,
+     1,
+     2,
+     2,
+     1,
+     1,
+     4,
+     2,
+     2,
+     1,
+     0,
+     2,
+     2,
+     1,
+     1,
+     2,
+     3,
+     2,
+     5,
+     2,
+     2,
+     1,
+     2
+    ],
+    "grid": {
+     "beat": 44,
+     "eighth": 32,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.72,
+    "chordOnsets": 18,
+    "pitchRange": [
+     45,
+     89
+    ],
+    "velocityRange": [
+     30,
+     59
+    ],
+    "distinctTopPitches": 17,
+    "emptyBars": 2
+   },
+   "techniques": {
+    "sustained-bass-foundation": 32,
+    "chord-tone-support": 33,
+    "voice-led-inner-tone": 30,
+    "prepared-suspension": 12,
+    "stepwise-resolution": 12,
+    "broken-chord-accompaniment": 4,
+    "staccato-fill-gesture": 12,
+    "phrase-led-upper-line": 2,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "sonata__three-chorus-40bars__seed29__high",
+   "template": "sonata",
+   "templateId": "ensemble.sonata",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 141,
+   "playability": {
+    "warnings": 4,
+    "violations": 0
+   },
+   "cc64Points": 78,
+   "metrics": {
+    "notes": 141,
+    "attacks": 74,
+    "attacksPerBar": 1.85,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     2,
+     2,
+     2,
+     2,
+     2,
+     1,
+     2,
+     2,
+     2,
+     2,
+     2,
+     3,
+     1,
+     1,
+     1,
+     4,
+     2,
+     2,
+     2,
+     2,
+     1,
+     1,
+     1,
+     4,
+     1,
+     2,
+     2,
+     0,
+     1,
+     1,
+     2,
+     3,
+     3,
+     2,
+     1,
+     4,
+     1,
+     2,
+     1,
+     2
+    ],
+    "grid": {
+     "beat": 44,
+     "eighth": 30,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.72,
+    "chordOnsets": 2,
+    "pitchRange": [
+     45,
+     79
+    ],
+    "velocityRange": [
+     30,
+     59
+    ],
+    "distinctTopPitches": 14,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 30,
+    "chord-tone-support": 33,
+    "voice-led-inner-tone": 33,
+    "prepared-suspension": 12,
+    "stepwise-resolution": 12,
+    "broken-chord-accompaniment": 4,
+    "staccato-fill-gesture": 10,
+    "phrase-led-upper-line": 3,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "vocalbacking__three-chorus-40bars__seed0__low",
+   "template": "vocalbacking",
+   "templateId": "ensemble.vocalbacking",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 76,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 66,
+   "metrics": {
+    "notes": 76,
+    "attacks": 36,
+    "attacksPerBar": 0.9,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 2,
+    "attacksByBar": [
+     1,
+     0,
+     1,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1,
+     0,
+     1,
+     0,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     0,
+     1,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "grid": {
+     "beat": 32,
+     "eighth": 4,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.95,
+    "chordOnsets": 7,
+    "pitchRange": [
+     45,
+     77
+    ],
+    "velocityRange": [
+     38,
+     73
+    ],
+    "distinctTopPitches": 14,
+    "emptyBars": 6
+   },
+   "techniques": {
+    "sustained-bass-foundation": 29,
+    "chord-tone-support": 20,
+    "voice-led-inner-tone": 20,
+    "prepared-suspension": 2,
+    "stepwise-resolution": 2,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "vocalbacking__three-chorus-40bars__seed0__medium",
+   "template": "vocalbacking",
+   "templateId": "ensemble.vocalbacking",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 140,
+   "playability": {
+    "warnings": 2,
+    "violations": 0
+   },
+   "cc64Points": 76,
+   "metrics": {
+    "notes": 140,
+    "attacks": 76,
+    "attacksPerBar": 1.9,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     3,
+     4,
+     5,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     4,
+     4,
+     4,
+     5,
+     2,
+     2,
+     2,
+     1,
+     2,
+     2,
+     2,
+     1,
+     2,
+     2,
+     2,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "grid": {
+     "beat": 60,
+     "eighth": 16,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.64,
+    "chordOnsets": 20,
+    "pitchRange": [
+     50,
+     76
+    ],
+    "velocityRange": [
+     30,
+     72
+    ],
+    "distinctTopPitches": 13,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 26,
+    "arpeggiated-chord-accompaniment": 3,
+    "voice-led-inner-tone": 28,
+    "phrase-led-upper-line": 14,
+    "moving-inner-voice": 10,
+    "prepared-suspension": 7,
+    "stepwise-resolution": 7,
+    "chord-tone-support": 31,
+    "broken-chord-accompaniment": 11,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "vocalbacking__three-chorus-40bars__seed0__high",
+   "template": "vocalbacking",
+   "templateId": "ensemble.vocalbacking",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 154,
+   "playability": {
+    "warnings": 2,
+    "violations": 0
+   },
+   "cc64Points": 80,
+   "metrics": {
+    "notes": 154,
+    "attacks": 87,
+    "attacksPerBar": 2.17,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     4,
+     5,
+     5,
+     2,
+     2,
+     2,
+     1,
+     3,
+     3,
+     3,
+     2,
+     2,
+     4,
+     5,
+     5,
+     4,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     1,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     1,
+     1,
+     2,
+     1,
+     2
+    ],
+    "grid": {
+     "beat": 61,
+     "eighth": 26,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.65,
+    "chordOnsets": 14,
+    "pitchRange": [
+     45,
+     76
+    ],
+    "velocityRange": [
+     30,
+     75
+    ],
+    "distinctTopPitches": 15,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 28,
+    "arpeggiated-chord-accompaniment": 3,
+    "voice-led-inner-tone": 30,
+    "phrase-led-upper-line": 16,
+    "moving-inner-voice": 10,
+    "prepared-suspension": 10,
+    "stepwise-resolution": 10,
+    "chord-tone-support": 31,
+    "broken-chord-accompaniment": 12,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "vocalbacking__three-chorus-40bars__seed11__low",
+   "template": "vocalbacking",
+   "templateId": "ensemble.vocalbacking",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 82,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 66,
+   "metrics": {
+    "notes": 82,
+    "attacks": 45,
+    "attacksPerBar": 1.13,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     0,
+     2,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     1,
+     3,
+     1,
+     1,
+     0,
+     2,
+     2,
+     1,
+     2,
+     2,
+     1,
+     1,
+     0,
+     1,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     0,
+     1,
+     1,
+     1,
+     0,
+     2,
+     2,
+     1,
+     1
+    ],
+    "grid": {
+     "beat": 31,
+     "eighth": 14,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.79,
+    "chordOnsets": 4,
+    "pitchRange": [
+     50,
+     76
+    ],
+    "velocityRange": [
+     30,
+     73
+    ],
+    "distinctTopPitches": 10,
+    "emptyBars": 6
+   },
+   "techniques": {
+    "sustained-bass-foundation": 25,
+    "chord-tone-support": 20,
+    "voice-led-inner-tone": 20,
+    "prepared-suspension": 7,
+    "stepwise-resolution": 7,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "vocalbacking__three-chorus-40bars__seed11__medium",
+   "template": "vocalbacking",
+   "templateId": "ensemble.vocalbacking",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 152,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 78,
+   "metrics": {
+    "notes": 152,
+    "attacks": 84,
+    "attacksPerBar": 2.1,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     4,
+     4,
+     4,
+     0,
+     2,
+     2,
+     1,
+     3,
+     2,
+     1,
+     1,
+     1,
+     5,
+     4,
+     4,
+     4,
+     1,
+     1,
+     1,
+     1,
+     2,
+     1,
+     3,
+     2,
+     1,
+     2,
+     3,
+     3,
+     2,
+     1,
+     1,
+     2,
+     2,
+     2,
+     2,
+     1,
+     2,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 56,
+     "eighth": 28,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.63,
+    "chordOnsets": 16,
+    "pitchRange": [
+     45,
+     76
+    ],
+    "velocityRange": [
+     38,
+     77
+    ],
+    "distinctTopPitches": 16,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 31,
+    "arpeggiated-chord-accompaniment": 3,
+    "voice-led-inner-tone": 28,
+    "phrase-led-upper-line": 15,
+    "moving-inner-voice": 9,
+    "chord-tone-support": 31,
+    "prepared-suspension": 10,
+    "stepwise-resolution": 10,
+    "broken-chord-accompaniment": 12,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "vocalbacking__three-chorus-40bars__seed11__high",
+   "template": "vocalbacking",
+   "templateId": "ensemble.vocalbacking",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 141,
+   "playability": {
+    "warnings": 6,
+    "violations": 0
+   },
+   "cc64Points": 74,
+   "metrics": {
+    "notes": 141,
+    "attacks": 72,
+    "attacksPerBar": 1.8,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     4,
+     4,
+     4,
+     0,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     4,
+     4,
+     4,
+     4,
+     2,
+     2,
+     1,
+     1,
+     2,
+     2,
+     2,
+     1,
+     1,
+     1,
+     2,
+     1,
+     3,
+     3,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "grid": {
+     "beat": 58,
+     "eighth": 14,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.7,
+    "chordOnsets": 15,
+    "pitchRange": [
+     45,
+     76
+    ],
+    "velocityRange": [
+     38,
+     77
+    ],
+    "distinctTopPitches": 15,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 32,
+    "arpeggiated-chord-accompaniment": 3,
+    "voice-led-inner-tone": 28,
+    "phrase-led-upper-line": 14,
+    "moving-inner-voice": 10,
+    "chord-tone-support": 31,
+    "broken-chord-accompaniment": 12,
+    "prepared-suspension": 4,
+    "stepwise-resolution": 4,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "vocalbacking__three-chorus-40bars__seed29__low",
+   "template": "vocalbacking",
+   "templateId": "ensemble.vocalbacking",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 87,
+   "playability": {
+    "warnings": 1,
+    "violations": 0
+   },
+   "cc64Points": 72,
+   "metrics": {
+    "notes": 87,
+    "attacks": 47,
+    "attacksPerBar": 1.18,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 2,
+    "attacksByBar": [
+     1,
+     0,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     0,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     0,
+     2,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "grid": {
+     "beat": 33,
+     "eighth": 14,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.83,
+    "chordOnsets": 6,
+    "pitchRange": [
+     45,
+     76
+    ],
+    "velocityRange": [
+     30,
+     75
+    ],
+    "distinctTopPitches": 16,
+    "emptyBars": 3
+   },
+   "techniques": {
+    "sustained-bass-foundation": 30,
+    "chord-tone-support": 20,
+    "voice-led-inner-tone": 20,
+    "prepared-suspension": 7,
+    "stepwise-resolution": 7,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "vocalbacking__three-chorus-40bars__seed29__medium",
+   "template": "vocalbacking",
+   "templateId": "ensemble.vocalbacking",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 145,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 76,
+   "metrics": {
+    "notes": 145,
+    "attacks": 76,
+    "attacksPerBar": 1.9,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     4,
+     4,
+     4,
+     0,
+     2,
+     2,
+     1,
+     2,
+     2,
+     3,
+     2,
+     1,
+     4,
+     4,
+     4,
+     4,
+     1,
+     1,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     2,
+     3,
+     2,
+     1,
+     1,
+     1,
+     1,
+     2,
+     1,
+     2,
+     1,
+     1,
+     2,
+     1,
+     2
+    ],
+    "grid": {
+     "beat": 56,
+     "eighth": 20,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.71,
+    "chordOnsets": 21,
+    "pitchRange": [
+     45,
+     76
+    ],
+    "velocityRange": [
+     38,
+     77
+    ],
+    "distinctTopPitches": 14,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 31,
+    "arpeggiated-chord-accompaniment": 3,
+    "voice-led-inner-tone": 28,
+    "phrase-led-upper-line": 19,
+    "moving-inner-voice": 9,
+    "chord-tone-support": 31,
+    "prepared-suspension": 4,
+    "stepwise-resolution": 4,
+    "broken-chord-accompaniment": 12,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "vocalbacking__three-chorus-40bars__seed29__high",
+   "template": "vocalbacking",
+   "templateId": "ensemble.vocalbacking",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 156,
+   "playability": {
+    "warnings": 6,
+    "violations": 0
+   },
+   "cc64Points": 76,
+   "metrics": {
+    "notes": 156,
+    "attacks": 85,
+    "attacksPerBar": 2.13,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     4,
+     4,
+     4,
+     0,
+     3,
+     2,
+     2,
+     2,
+     1,
+     1,
+     3,
+     2,
+     5,
+     4,
+     5,
+     5,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     3,
+     2,
+     2,
+     2,
+     1,
+     2,
+     3,
+     2,
+     1,
+     2,
+     1,
+     1,
+     2,
+     1,
+     2
+    ],
+    "grid": {
+     "beat": 57,
+     "eighth": 28,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.64,
+    "chordOnsets": 16,
+    "pitchRange": [
+     45,
+     77
+    ],
+    "velocityRange": [
+     38,
+     77
+    ],
+    "distinctTopPitches": 17,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 29,
+    "arpeggiated-chord-accompaniment": 3,
+    "voice-led-inner-tone": 30,
+    "phrase-led-upper-line": 19,
+    "moving-inner-voice": 10,
+    "chord-tone-support": 31,
+    "prepared-suspension": 9,
+    "stepwise-resolution": 9,
+    "broken-chord-accompaniment": 12,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "cinematic__three-chorus-40bars__seed0__low",
+   "template": "cinematic",
+   "templateId": "ensemble.cinematic",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 104,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 78,
+   "metrics": {
+    "notes": 104,
+    "attacks": 63,
+    "attacksPerBar": 1.58,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     1,
+     3,
+     1,
+     2,
+     2,
+     2,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     1,
+     1,
+     2,
+     2,
+     2,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     3,
+     3,
+     3,
+     1,
+     1,
+     1,
+     1,
+     1,
+     3,
+     2,
+     1,
+     1
+    ],
+    "grid": {
+     "beat": 37,
+     "eighth": 26,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.73,
+    "chordOnsets": 0,
+    "pitchRange": [
+     38,
+     98
+    ],
+    "velocityRange": [
+     30,
+     73
+    ],
+    "distinctTopPitches": 14,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 31,
+    "chord-tone-support": 20,
+    "voice-led-inner-tone": 20,
+    "prepared-suspension": 12,
+    "stepwise-resolution": 12,
+    "phrase-led-upper-line": 6,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "cinematic__three-chorus-40bars__seed0__medium",
+   "template": "cinematic",
+   "templateId": "ensemble.cinematic",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 144,
+   "playability": {
+    "warnings": 8,
+    "violations": 0
+   },
+   "cc64Points": 82,
+   "metrics": {
+    "notes": 144,
+    "attacks": 78,
+    "attacksPerBar": 1.95,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     2,
+     3,
+     3,
+     2,
+     2,
+     2,
+     2,
+     3,
+     3,
+     2,
+     2,
+     2,
+     1,
+     1,
+     1,
+     2,
+     2,
+     1,
+     3,
+     3,
+     2,
+     2,
+     3,
+     2,
+     1,
+     1,
+     1,
+     1,
+     2,
+     1,
+     2,
+     3,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     1,
+     2
+    ],
+    "grid": {
+     "beat": 40,
+     "eighth": 38,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.7,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     96
+    ],
+    "velocityRange": [
+     30,
+     75
+    ],
+    "distinctTopPitches": 19,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 29,
+    "chord-tone-support": 38,
+    "voice-led-inner-tone": 29,
+    "prepared-suspension": 16,
+    "stepwise-resolution": 16,
+    "phrase-led-upper-line": 10,
+    "octave-doubling": 2,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "cinematic__three-chorus-40bars__seed0__high",
+   "template": "cinematic",
+   "templateId": "ensemble.cinematic",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 136,
+   "playability": {
+    "warnings": 10,
+    "violations": 0
+   },
+   "cc64Points": 78,
+   "metrics": {
+    "notes": 136,
+    "attacks": 72,
+    "attacksPerBar": 1.8,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     2,
+     2,
+     2,
+     1,
+     3,
+     3,
+     2,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     3,
+     2,
+     1,
+     3,
+     2,
+     1,
+     2,
+     2,
+     1,
+     1,
+     2,
+     3,
+     2,
+     3,
+     2,
+     1,
+     1,
+     2,
+     2,
+     1,
+     2,
+     2,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 42,
+     "eighth": 30,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.74,
+    "chordOnsets": 3,
+    "pitchRange": [
+     38,
+     96
+    ],
+    "velocityRange": [
+     30,
+     75
+    ],
+    "distinctTopPitches": 17,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 30,
+    "chord-tone-support": 38,
+    "voice-led-inner-tone": 27,
+    "prepared-suspension": 14,
+    "stepwise-resolution": 14,
+    "phrase-led-upper-line": 9,
+    "octave-doubling": 1,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "cinematic__three-chorus-40bars__seed11__low",
+   "template": "cinematic",
+   "templateId": "ensemble.cinematic",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 106,
+   "playability": {
+    "warnings": 2,
+    "violations": 0
+   },
+   "cc64Points": 76,
+   "metrics": {
+    "notes": 106,
+    "attacks": 65,
+    "attacksPerBar": 1.63,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     2,
+     1,
+     1,
+     0,
+     2,
+     2,
+     3,
+     3,
+     2,
+     0,
+     2,
+     1,
+     2,
+     2,
+     1,
+     1,
+     2,
+     3,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     3,
+     2,
+     1,
+     1,
+     3,
+     2,
+     1,
+     1,
+     3,
+     2,
+     1,
+     1
+    ],
+    "grid": {
+     "beat": 36,
+     "eighth": 29,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.68,
+    "chordOnsets": 0,
+    "pitchRange": [
+     38,
+     101
+    ],
+    "velocityRange": [
+     30,
+     75
+    ],
+    "distinctTopPitches": 17,
+    "emptyBars": 2
+   },
+   "techniques": {
+    "sustained-bass-foundation": 30,
+    "chord-tone-support": 20,
+    "voice-led-inner-tone": 20,
+    "prepared-suspension": 14,
+    "stepwise-resolution": 14,
+    "phrase-led-upper-line": 5,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "cinematic__three-chorus-40bars__seed11__medium",
+   "template": "cinematic",
+   "templateId": "ensemble.cinematic",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 139,
+   "playability": {
+    "warnings": 14,
+    "violations": 3
+   },
+   "cc64Points": 80,
+   "metrics": {
+    "notes": 139,
+    "attacks": 69,
+    "attacksPerBar": 1.73,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     2,
+     3,
+     1,
+     3,
+     2,
+     2,
+     3,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     2,
+     3,
+     3,
+     2,
+     1,
+     3,
+     3,
+     2,
+     1,
+     1,
+     2,
+     2,
+     1,
+     2,
+     2,
+     1,
+     2
+    ],
+    "grid": {
+     "beat": 43,
+     "eighth": 26,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.79,
+    "chordOnsets": 3,
+    "pitchRange": [
+     38,
+     101
+    ],
+    "velocityRange": [
+     30,
+     75
+    ],
+    "distinctTopPitches": 19,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 34,
+    "chord-tone-support": 38,
+    "voice-led-inner-tone": 27,
+    "prepared-suspension": 12,
+    "stepwise-resolution": 12,
+    "phrase-led-upper-line": 11,
+    "octave-doubling": 1,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "cinematic__three-chorus-40bars__seed11__high",
+   "template": "cinematic",
+   "templateId": "ensemble.cinematic",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 145,
+   "playability": {
+    "warnings": 22,
+    "violations": 0
+   },
+   "cc64Points": 80,
+   "metrics": {
+    "notes": 145,
+    "attacks": 78,
+    "attacksPerBar": 1.95,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     1,
+     2,
+     3,
+     1,
+     4,
+     2,
+     4,
+     2,
+     2,
+     3,
+     2,
+     1,
+     1,
+     1,
+     2,
+     3,
+     3,
+     3,
+     2,
+     2,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     3,
+     3,
+     3,
+     3,
+     2,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 44,
+     "eighth": 34,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.71,
+    "chordOnsets": 3,
+    "pitchRange": [
+     38,
+     101
+    ],
+    "velocityRange": [
+     30,
+     75
+    ],
+    "distinctTopPitches": 19,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 32,
+    "chord-tone-support": 38,
+    "voice-led-inner-tone": 27,
+    "prepared-suspension": 17,
+    "stepwise-resolution": 17,
+    "phrase-led-upper-line": 10,
+    "octave-doubling": 1,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "cinematic__three-chorus-40bars__seed29__low",
+   "template": "cinematic",
+   "templateId": "ensemble.cinematic",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 103,
+   "playability": {
+    "warnings": 2,
+    "violations": 0
+   },
+   "cc64Points": 72,
+   "metrics": {
+    "notes": 103,
+    "attacks": 62,
+    "attacksPerBar": 1.55,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     1,
+     3,
+     1,
+     3,
+     2,
+     2,
+     3,
+     2,
+     0,
+     1,
+     0,
+     1,
+     1,
+     2,
+     2,
+     3,
+     3,
+     2,
+     1,
+     1,
+     0,
+     1,
+     0,
+     1,
+     1,
+     2,
+     2,
+     2,
+     2,
+     1,
+     2,
+     2,
+     1,
+     1,
+     2,
+     2,
+     1,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 36,
+     "eighth": 26,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.73,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     101
+    ],
+    "velocityRange": [
+     30,
+     75
+    ],
+    "distinctTopPitches": 17,
+    "emptyBars": 4
+   },
+   "techniques": {
+    "sustained-bass-foundation": 29,
+    "chord-tone-support": 20,
+    "voice-led-inner-tone": 20,
+    "prepared-suspension": 13,
+    "stepwise-resolution": 13,
+    "phrase-led-upper-line": 5,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "cinematic__three-chorus-40bars__seed29__medium",
+   "template": "cinematic",
+   "templateId": "ensemble.cinematic",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 131,
+   "playability": {
+    "warnings": 4,
+    "violations": 0
+   },
+   "cc64Points": 76,
+   "metrics": {
+    "notes": 131,
+    "attacks": 67,
+    "attacksPerBar": 1.68,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     2,
+     2,
+     0,
+     2,
+     2,
+     2,
+     2,
+     1,
+     1,
+     1,
+     2,
+     2,
+     1,
+     2,
+     2,
+     3,
+     2,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     3,
+     3,
+     3,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 41,
+     "eighth": 26,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.79,
+    "chordOnsets": 2,
+    "pitchRange": [
+     38,
+     98
+    ],
+    "velocityRange": [
+     30,
+     73
+    ],
+    "distinctTopPitches": 18,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 29,
+    "chord-tone-support": 38,
+    "voice-led-inner-tone": 27,
+    "prepared-suspension": 11,
+    "stepwise-resolution": 11,
+    "phrase-led-upper-line": 12,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "cinematic__three-chorus-40bars__seed29__high",
+   "template": "cinematic",
+   "templateId": "ensemble.cinematic",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 136,
+   "playability": {
+    "warnings": 18,
+    "violations": 0
+   },
+   "cc64Points": 78,
+   "metrics": {
+    "notes": 136,
+    "attacks": 77,
+    "attacksPerBar": 1.93,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     1,
+     1,
+     0,
+     3,
+     3,
+     3,
+     2,
+     1,
+     2,
+     3,
+     2,
+     1,
+     1,
+     2,
+     2,
+     3,
+     3,
+     3,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     3,
+     3,
+     2,
+     1,
+     2,
+     2,
+     2,
+     3,
+     2,
+     2,
+     2,
+     3,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 42,
+     "eighth": 35,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.7,
+    "chordOnsets": 0,
+    "pitchRange": [
+     38,
+     96
+    ],
+    "velocityRange": [
+     30,
+     75
+    ],
+    "distinctTopPitches": 20,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 30,
+    "chord-tone-support": 38,
+    "voice-led-inner-tone": 25,
+    "phrase-led-upper-line": 7,
+    "prepared-suspension": 16,
+    "stepwise-resolution": 16,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "hybridstudio__three-chorus-40bars__seed0__low",
+   "template": "hybridstudio",
+   "templateId": "ensemble.hybridstudio",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 91,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 72,
+   "metrics": {
+    "notes": 91,
+    "attacks": 51,
+    "attacksPerBar": 1.27,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 2,
+    "attacksByBar": [
+     2,
+     2,
+     2,
+     0,
+     1,
+     1,
+     1,
+     0,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     2,
+     2,
+     1,
+     1,
+     1,
+     0,
+     1,
+     2,
+     2,
+     1,
+     1,
+     2,
+     2,
+     1,
+     1,
+     2,
+     2,
+     2,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "grid": {
+     "beat": 35,
+     "eighth": 16,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.78,
+    "chordOnsets": 13,
+    "pitchRange": [
+     45,
+     81
+    ],
+    "velocityRange": [
+     30,
+     73
+    ],
+    "distinctTopPitches": 14,
+    "emptyBars": 3
+   },
+   "techniques": {
+    "sustained-bass-foundation": 32,
+    "chord-tone-support": 20,
+    "voice-led-inner-tone": 20,
+    "prepared-suspension": 8,
+    "stepwise-resolution": 8,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "hybridstudio__three-chorus-40bars__seed0__medium",
+   "template": "hybridstudio",
+   "templateId": "ensemble.hybridstudio",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 154,
+   "playability": {
+    "warnings": 4,
+    "violations": 0
+   },
+   "cc64Points": 10,
+   "metrics": {
+    "notes": 154,
+    "attacks": 74,
+    "attacksPerBar": 1.85,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     3,
+     3,
+     2,
+     1,
+     2,
+     1,
+     2,
+     2,
+     3,
+     2,
+     2,
+     1,
+     3,
+     2,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     3,
+     2,
+     1,
+     2,
+     3,
+     2,
+     2,
+     1,
+     2,
+     2,
+     2,
+     1,
+     2
+    ],
+    "grid": {
+     "beat": 41,
+     "eighth": 18,
+     "sixteenth": 15,
+     "other": 0
+    },
+    "longNoteShare": 0.77,
+    "chordOnsets": 22,
+    "pitchRange": [
+     45,
+     89
+    ],
+    "velocityRange": [
+     30,
+     73
+    ],
+    "distinctTopPitches": 17,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 32,
+    "chord-tone-support": 38,
+    "voice-led-inner-tone": 27,
+    "phrase-led-upper-line": 20,
+    "phrase-anticipation": 17,
+    "prepared-suspension": 8,
+    "stepwise-resolution": 8,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "hybridstudio__three-chorus-40bars__seed0__high",
+   "template": "hybridstudio",
+   "templateId": "ensemble.hybridstudio",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 154,
+   "playability": {
+    "warnings": 9,
+    "violations": 0
+   },
+   "cc64Points": 10,
+   "metrics": {
+    "notes": 154,
+    "attacks": 75,
+    "attacksPerBar": 1.88,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     2,
+     1,
+     2,
+     1,
+     3,
+     2,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     3,
+     3,
+     2,
+     1,
+     3,
+     2,
+     3,
+     2,
+     2,
+     2,
+     2,
+     1,
+     2,
+     3,
+     2,
+     1,
+     2,
+     2,
+     1,
+     2,
+     1,
+     3,
+     2,
+     2,
+     1,
+     2
+    ],
+    "grid": {
+     "beat": 42,
+     "eighth": 25,
+     "sixteenth": 8,
+     "other": 0
+    },
+    "longNoteShare": 0.75,
+    "chordOnsets": 23,
+    "pitchRange": [
+     45,
+     88
+    ],
+    "velocityRange": [
+     30,
+     73
+    ],
+    "distinctTopPitches": 18,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 28,
+    "chord-tone-support": 38,
+    "voice-led-inner-tone": 31,
+    "phrase-led-upper-line": 20,
+    "phrase-anticipation": 17,
+    "prepared-suspension": 8,
+    "stepwise-resolution": 8,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "hybridstudio__three-chorus-40bars__seed11__low",
+   "template": "hybridstudio",
+   "templateId": "ensemble.hybridstudio",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 90,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 70,
+   "metrics": {
+    "notes": 90,
+    "attacks": 51,
+    "attacksPerBar": 1.27,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     0,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     0,
+     1,
+     0,
+     1,
+     1,
+     2,
+     2,
+     2,
+     1,
+     1,
+     0,
+     2,
+     2,
+     2,
+     1,
+     2,
+     2,
+     1,
+     2,
+     3,
+     2,
+     2,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "grid": {
+     "beat": 33,
+     "eighth": 18,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.79,
+    "chordOnsets": 8,
+    "pitchRange": [
+     45,
+     79
+    ],
+    "velocityRange": [
+     30,
+     73
+    ],
+    "distinctTopPitches": 14,
+    "emptyBars": 4
+   },
+   "techniques": {
+    "sustained-bass-foundation": 29,
+    "chord-tone-support": 20,
+    "voice-led-inner-tone": 20,
+    "prepared-suspension": 9,
+    "stepwise-resolution": 9,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "hybridstudio__three-chorus-40bars__seed11__medium",
+   "template": "hybridstudio",
+   "templateId": "ensemble.hybridstudio",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 150,
+   "playability": {
+    "warnings": 2,
+    "violations": 0
+   },
+   "cc64Points": 6,
+   "metrics": {
+    "notes": 150,
+    "attacks": 72,
+    "attacksPerBar": 1.8,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 4,
+    "attacksByBar": [
+     2,
+     2,
+     2,
+     0,
+     2,
+     2,
+     2,
+     1,
+     2,
+     2,
+     2,
+     1,
+     2,
+     1,
+     2,
+     2,
+     2,
+     1,
+     2,
+     2,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     4,
+     2,
+     2,
+     2,
+     3,
+     2,
+     2,
+     1,
+     2,
+     1,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 40,
+     "eighth": 23,
+     "sixteenth": 9,
+     "other": 0
+    },
+    "longNoteShare": 0.77,
+    "chordOnsets": 19,
+    "pitchRange": [
+     45,
+     88
+    ],
+    "velocityRange": [
+     30,
+     73
+    ],
+    "distinctTopPitches": 19,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 30,
+    "chord-tone-support": 38,
+    "voice-led-inner-tone": 31,
+    "phrase-led-upper-line": 17,
+    "phrase-anticipation": 13,
+    "prepared-suspension": 9,
+    "stepwise-resolution": 9,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "hybridstudio__three-chorus-40bars__seed11__high",
+   "template": "hybridstudio",
+   "templateId": "ensemble.hybridstudio",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 153,
+   "playability": {
+    "warnings": 12,
+    "violations": 0
+   },
+   "cc64Points": 8,
+   "metrics": {
+    "notes": 153,
+    "attacks": 72,
+    "attacksPerBar": 1.8,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     3,
+     2,
+     3,
+     3,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     3,
+     3,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     3,
+     2,
+     1,
+     2,
+     2,
+     2,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2
+    ],
+    "grid": {
+     "beat": 42,
+     "eighth": 21,
+     "sixteenth": 9,
+     "other": 0
+    },
+    "longNoteShare": 0.79,
+    "chordOnsets": 21,
+    "pitchRange": [
+     45,
+     88
+    ],
+    "velocityRange": [
+     30,
+     73
+    ],
+    "distinctTopPitches": 18,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 30,
+    "chord-tone-support": 38,
+    "voice-led-inner-tone": 31,
+    "phrase-led-upper-line": 20,
+    "phrase-anticipation": 16,
+    "prepared-suspension": 7,
+    "stepwise-resolution": 7,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "hybridstudio__three-chorus-40bars__seed29__low",
+   "template": "hybridstudio",
+   "templateId": "ensemble.hybridstudio",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 96,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 74,
+   "metrics": {
+    "notes": 96,
+    "attacks": 57,
+    "attacksPerBar": 1.43,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 1,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     0,
+     1,
+     0,
+     2,
+     2,
+     2,
+     2,
+     3,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     3,
+     2,
+     1,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     1,
+     2,
+     3,
+     3,
+     2,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     1,
+     1
+    ],
+    "grid": {
+     "beat": 35,
+     "eighth": 22,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.75,
+    "chordOnsets": 13,
+    "pitchRange": [
+     45,
+     81
+    ],
+    "velocityRange": [
+     30,
+     73
+    ],
+    "distinctTopPitches": 13,
+    "emptyBars": 3
+   },
+   "techniques": {
+    "sustained-bass-foundation": 31,
+    "chord-tone-support": 20,
+    "voice-led-inner-tone": 20,
+    "prepared-suspension": 11,
+    "stepwise-resolution": 11,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "hybridstudio__three-chorus-40bars__seed29__medium",
+   "template": "hybridstudio",
+   "templateId": "ensemble.hybridstudio",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 154,
+   "playability": {
+    "warnings": 10,
+    "violations": 0
+   },
+   "cc64Points": 10,
+   "metrics": {
+    "notes": 154,
+    "attacks": 75,
+    "attacksPerBar": 1.88,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     2,
+     2,
+     3,
+     2,
+     2,
+     1,
+     3,
+     2,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     3,
+     2,
+     3,
+     3,
+     2,
+     1,
+     2,
+     1,
+     3,
+     2,
+     2,
+     3,
+     2,
+     1,
+     2,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2
+    ],
+    "grid": {
+     "beat": 46,
+     "eighth": 17,
+     "sixteenth": 12,
+     "other": 0
+    },
+    "longNoteShare": 0.76,
+    "chordOnsets": 21,
+    "pitchRange": [
+     45,
+     88
+    ],
+    "velocityRange": [
+     30,
+     73
+    ],
+    "distinctTopPitches": 17,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 30,
+    "chord-tone-support": 38,
+    "voice-led-inner-tone": 28,
+    "phrase-led-upper-line": 21,
+    "phrase-anticipation": 17,
+    "prepared-suspension": 8,
+    "stepwise-resolution": 8,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "hybridstudio__three-chorus-40bars__seed29__high",
+   "template": "hybridstudio",
+   "templateId": "ensemble.hybridstudio",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": true,
+   "scoreEvents": 144,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 8,
+   "metrics": {
+    "notes": 144,
+    "attacks": 68,
+    "attacksPerBar": 1.7,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     2,
+     1,
+     2,
+     0,
+     2,
+     2,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     1,
+     3,
+     2,
+     3,
+     3,
+     2,
+     1,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     3,
+     3,
+     2,
+     1
+    ],
+    "grid": {
+     "beat": 39,
+     "eighth": 25,
+     "sixteenth": 4,
+     "other": 0
+    },
+    "longNoteShare": 0.8,
+    "chordOnsets": 19,
+    "pitchRange": [
+     45,
+     88
+    ],
+    "velocityRange": [
+     30,
+     73
+    ],
+    "distinctTopPitches": 18,
+    "emptyBars": 1
+   },
+   "techniques": {
+    "sustained-bass-foundation": 31,
+    "chord-tone-support": 38,
+    "voice-led-inner-tone": 28,
+    "phrase-led-upper-line": 15,
+    "phrase-anticipation": 15,
+    "prepared-suspension": 7,
+    "stepwise-resolution": 7,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "standalone-chamber__three-chorus-40bars__seed0__low",
+   "template": "standalone-chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 0.3,
+   "standalone": true,
+   "pianoEligible": true,
+   "scoreEvents": 115,
+   "playability": {
+    "warnings": 2,
+    "violations": 0
+   },
+   "cc64Points": 74,
+   "metrics": {
+    "notes": 115,
+    "attacks": 66,
+    "attacksPerBar": 1.65,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     0,
+     1,
+     1,
+     2,
+     2,
+     3,
+     2,
+     2,
+     2,
+     2,
+     1,
+     2,
+     0,
+     3,
+     3,
+     2,
+     2,
+     2,
+     1,
+     2,
+     0,
+     3,
+     1,
+     1,
+     1,
+     2,
+     3,
+     2,
+     1,
+     3,
+     1,
+     2,
+     1,
+     2,
+     1,
+     2,
+     2,
+     1,
+     1
+    ],
+    "grid": {
+     "beat": 35,
+     "eighth": 31,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.73,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     74
+    ],
+    "velocityRange": [
+     38,
+     77
+    ],
+    "distinctTopPitches": 18,
+    "emptyBars": 3
+   },
+   "techniques": {
+    "sustained-bass-foundation": 29,
+    "chord-tone-support": 20,
+    "voice-led-inner-tone": 20,
+    "prepared-suspension": 11,
+    "stepwise-resolution": 11,
+    "phrase-led-upper-line": 21,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "standalone-chamber__three-chorus-40bars__seed0__medium",
+   "template": "standalone-chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 0.6,
+   "standalone": true,
+   "pianoEligible": true,
+   "scoreEvents": 205,
+   "playability": {
+    "warnings": 3,
+    "violations": 0
+   },
+   "cc64Points": 78,
+   "metrics": {
+    "notes": 205,
+    "attacks": 126,
+    "attacksPerBar": 3.15,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 3,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     1,
+     2,
+     1,
+     2,
+     4,
+     3,
+     5,
+     5,
+     4,
+     3,
+     4,
+     3,
+     4,
+     3,
+     5,
+     4,
+     4,
+     3,
+     4,
+     3,
+     5,
+     5,
+     4,
+     3,
+     1,
+     2,
+     2,
+     2,
+     5,
+     4,
+     3,
+     3,
+     4,
+     5,
+     4,
+     3,
+     1,
+     1,
+     1,
+     1
+    ],
+    "grid": {
+     "beat": 99,
+     "eighth": 27,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.59,
+    "chordOnsets": 5,
+    "pitchRange": [
+     38,
+     76
+    ],
+    "velocityRange": [
+     38,
+     75
+    ],
+    "distinctTopPitches": 20,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 28,
+    "chord-tone-support": 11,
+    "voice-led-inner-tone": 36,
+    "phrase-led-upper-line": 25,
+    "broken-chord-accompaniment": 16,
+    "moving-inner-voice": 28,
+    "prepared-suspension": 9,
+    "stepwise-resolution": 9,
+    "independent-counterline": 40,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "standalone-chamber__three-chorus-40bars__seed0__high",
+   "template": "standalone-chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 1,
+   "standalone": true,
+   "pianoEligible": true,
+   "scoreEvents": 215,
+   "playability": {
+    "warnings": 10,
+    "violations": 0
+   },
+   "cc64Points": 22,
+   "metrics": {
+    "notes": 215,
+    "attacks": 125,
+    "attacksPerBar": 3.13,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 3,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     1,
+     2,
+     1,
+     2,
+     3,
+     3,
+     4,
+     5,
+     4,
+     3,
+     4,
+     4,
+     3,
+     3,
+     3,
+     3,
+     4,
+     4,
+     4,
+     4,
+     2,
+     4,
+     5,
+     5,
+     2,
+     1,
+     2,
+     2,
+     5,
+     4,
+     3,
+     3,
+     4,
+     4,
+     3,
+     3,
+     1,
+     3,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 96,
+     "eighth": 29,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.53,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     77
+    ],
+    "velocityRange": [
+     38,
+     77
+    ],
+    "distinctTopPitches": 24,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 29,
+    "chord-tone-support": 11,
+    "voice-led-inner-tone": 36,
+    "phrase-led-upper-line": 27,
+    "broken-chord-accompaniment": 16,
+    "moving-inner-voice": 27,
+    "prepared-suspension": 13,
+    "stepwise-resolution": 13,
+    "independent-counterline": 40,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "standalone-chamber__three-chorus-40bars__seed11__low",
+   "template": "standalone-chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 0.3,
+   "standalone": true,
+   "pianoEligible": true,
+   "scoreEvents": 114,
+   "playability": {
+    "warnings": 6,
+    "violations": 0
+   },
+   "cc64Points": 72,
+   "metrics": {
+    "notes": 114,
+    "attacks": 65,
+    "attacksPerBar": 1.63,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     1,
+     1,
+     2,
+     1,
+     3,
+     2,
+     2,
+     1,
+     2,
+     1,
+     2,
+     3,
+     2,
+     1,
+     2,
+     1,
+     3,
+     2,
+     2,
+     0,
+     2,
+     0,
+     2,
+     2,
+     2,
+     2,
+     2,
+     1,
+     3,
+     3,
+     2,
+     0,
+     2,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "grid": {
+     "beat": 47,
+     "eighth": 18,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.73,
+    "chordOnsets": 4,
+    "pitchRange": [
+     38,
+     77
+    ],
+    "velocityRange": [
+     38,
+     77
+    ],
+    "distinctTopPitches": 16,
+    "emptyBars": 3
+   },
+   "techniques": {
+    "sustained-bass-foundation": 28,
+    "chord-tone-support": 20,
+    "voice-led-inner-tone": 20,
+    "prepared-suspension": 9,
+    "stepwise-resolution": 9,
+    "phrase-led-upper-line": 25,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "standalone-chamber__three-chorus-40bars__seed11__medium",
+   "template": "standalone-chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 0.6,
+   "standalone": true,
+   "pianoEligible": true,
+   "scoreEvents": 211,
+   "playability": {
+    "warnings": 2,
+    "violations": 0
+   },
+   "cc64Points": 80,
+   "metrics": {
+    "notes": 211,
+    "attacks": 118,
+    "attacksPerBar": 2.95,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 3,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     2,
+     2,
+     1,
+     2,
+     3,
+     4,
+     4,
+     3,
+     4,
+     4,
+     3,
+     3,
+     3,
+     3,
+     4,
+     5,
+     4,
+     4,
+     4,
+     3,
+     3,
+     3,
+     4,
+     4,
+     1,
+     1,
+     2,
+     1,
+     3,
+     3,
+     4,
+     4,
+     3,
+     3,
+     3,
+     4,
+     2,
+     2,
+     1,
+     2
+    ],
+    "grid": {
+     "beat": 100,
+     "eighth": 18,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.56,
+    "chordOnsets": 9,
+    "pitchRange": [
+     38,
+     77
+    ],
+    "velocityRange": [
+     38,
+     77
+    ],
+    "distinctTopPitches": 19,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 30,
+    "chord-tone-support": 11,
+    "voice-led-inner-tone": 37,
+    "phrase-led-upper-line": 27,
+    "prepared-suspension": 9,
+    "stepwise-resolution": 9,
+    "broken-chord-accompaniment": 16,
+    "moving-inner-voice": 28,
+    "independent-counterline": 40,
+    "final-harmony": 4
+   }
+  },
+  {
+   "id": "standalone-chamber__three-chorus-40bars__seed11__high",
+   "template": "standalone-chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 1,
+   "standalone": true,
+   "pianoEligible": true,
+   "scoreEvents": 215,
+   "playability": {
+    "warnings": 10,
+    "violations": 2
+   },
+   "cc64Points": 24,
+   "metrics": {
+    "notes": 215,
+    "attacks": 116,
+    "attacksPerBar": 2.9,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 3,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     1,
+     2,
+     1,
+     2,
+     4,
+     5,
+     4,
+     5,
+     3,
+     5,
+     3,
+     5,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     3,
+     2,
+     2,
+     1,
+     2,
+     3,
+     3,
+     3,
+     3,
+     4,
+     3,
+     3,
+     3,
+     2,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 95,
+     "eighth": 21,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.62,
+    "chordOnsets": 3,
+    "pitchRange": [
+     38,
+     77
+    ],
+    "velocityRange": [
+     38,
+     77
+    ],
+    "distinctTopPitches": 25,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 28,
+    "chord-tone-support": 11,
+    "voice-led-inner-tone": 38,
+    "phrase-led-upper-line": 40,
+    "broken-chord-accompaniment": 16,
+    "moving-inner-voice": 28,
+    "prepared-suspension": 6,
+    "stepwise-resolution": 6,
+    "independent-counterline": 39,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "standalone-chamber__three-chorus-40bars__seed29__low",
+   "template": "standalone-chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 0.3,
+   "standalone": true,
+   "pianoEligible": true,
+   "scoreEvents": 112,
+   "playability": {
+    "warnings": 4,
+    "violations": 0
+   },
+   "cc64Points": 72,
+   "metrics": {
+    "notes": 112,
+    "attacks": 65,
+    "attacksPerBar": 1.63,
+    "attacksPerBarMin": 0,
+    "attacksPerBarMedian": 2,
+    "attacksPerBarMax": 3,
+    "attacksByBar": [
+     2,
+     2,
+     3,
+     1,
+     1,
+     3,
+     2,
+     1,
+     2,
+     2,
+     3,
+     2,
+     2,
+     0,
+     2,
+     1,
+     2,
+     1,
+     2,
+     2,
+     2,
+     1,
+     2,
+     0,
+     1,
+     2,
+     2,
+     2,
+     2,
+     2,
+     2,
+     0,
+     2,
+     1,
+     2,
+     1,
+     1,
+     0,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 31,
+     "eighth": 34,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.7,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     74
+    ],
+    "velocityRange": [
+     38,
+     77
+    ],
+    "distinctTopPitches": 18,
+    "emptyBars": 4
+   },
+   "techniques": {
+    "sustained-bass-foundation": 28,
+    "chord-tone-support": 20,
+    "voice-led-inner-tone": 20,
+    "prepared-suspension": 14,
+    "stepwise-resolution": 14,
+    "phrase-led-upper-line": 13,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "standalone-chamber__three-chorus-40bars__seed29__medium",
+   "template": "standalone-chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 0.6,
+   "standalone": true,
+   "pianoEligible": true,
+   "scoreEvents": 214,
+   "playability": {
+    "warnings": 2,
+    "violations": 0
+   },
+   "cc64Points": 80,
+   "metrics": {
+    "notes": 214,
+    "attacks": 127,
+    "attacksPerBar": 3.18,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 3,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     1,
+     2,
+     1,
+     2,
+     4,
+     4,
+     4,
+     4,
+     3,
+     4,
+     4,
+     4,
+     4,
+     3,
+     3,
+     3,
+     3,
+     3,
+     4,
+     5,
+     4,
+     3,
+     3,
+     3,
+     2,
+     2,
+     2,
+     3,
+     5,
+     4,
+     3,
+     4,
+     4,
+     3,
+     3,
+     4,
+     2,
+     3,
+     3,
+     2
+    ],
+    "grid": {
+     "beat": 99,
+     "eighth": 28,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.53,
+    "chordOnsets": 5,
+    "pitchRange": [
+     38,
+     76
+    ],
+    "velocityRange": [
+     38,
+     77
+    ],
+    "distinctTopPitches": 18,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 28,
+    "chord-tone-support": 11,
+    "voice-led-inner-tone": 36,
+    "phrase-led-upper-line": 24,
+    "broken-chord-accompaniment": 16,
+    "moving-inner-voice": 28,
+    "prepared-suspension": 14,
+    "stepwise-resolution": 14,
+    "independent-counterline": 40,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "standalone-chamber__three-chorus-40bars__seed29__high",
+   "template": "standalone-chamber",
+   "templateId": "ensemble.chamber",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 1,
+   "standalone": true,
+   "pianoEligible": true,
+   "scoreEvents": 209,
+   "playability": {
+    "warnings": 10,
+    "violations": 0
+   },
+   "cc64Points": 24,
+   "metrics": {
+    "notes": 209,
+    "attacks": 123,
+    "attacksPerBar": 3.08,
+    "attacksPerBarMin": 1,
+    "attacksPerBarMedian": 3,
+    "attacksPerBarMax": 5,
+    "attacksByBar": [
+     1,
+     2,
+     1,
+     2,
+     3,
+     4,
+     4,
+     3,
+     3,
+     4,
+     4,
+     4,
+     4,
+     4,
+     5,
+     4,
+     4,
+     3,
+     4,
+     3,
+     4,
+     4,
+     4,
+     2,
+     1,
+     2,
+     1,
+     2,
+     4,
+     3,
+     4,
+     3,
+     4,
+     3,
+     4,
+     4,
+     2,
+     2,
+     2,
+     2
+    ],
+    "grid": {
+     "beat": 100,
+     "eighth": 23,
+     "sixteenth": 0,
+     "other": 0
+    },
+    "longNoteShare": 0.64,
+    "chordOnsets": 0,
+    "pitchRange": [
+     33,
+     74
+    ],
+    "velocityRange": [
+     38,
+     77
+    ],
+    "distinctTopPitches": 18,
+    "emptyBars": 0
+   },
+   "techniques": {
+    "sustained-bass-foundation": 31,
+    "chord-tone-support": 11,
+    "voice-led-inner-tone": 37,
+    "phrase-led-upper-line": 32,
+    "broken-chord-accompaniment": 16,
+    "moving-inner-voice": 28,
+    "prepared-suspension": 6,
+    "independent-counterline": 39,
+    "stepwise-resolution": 6,
+    "final-harmony": 3
+   }
+  },
+  {
+   "id": "symphony-negative-control__three-chorus-40bars__seed0__low",
+   "template": "symphony-negative-control",
+   "templateId": "ensemble.symphony",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": false,
+   "scoreEvents": 0,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 0,
+   "metrics": {
+    "notes": 0
+   },
+   "techniques": {}
+  },
+  {
+   "id": "symphony-negative-control__three-chorus-40bars__seed0__medium",
+   "template": "symphony-negative-control",
+   "templateId": "ensemble.symphony",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": false,
+   "scoreEvents": 0,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 0,
+   "metrics": {
+    "notes": 0
+   },
+   "techniques": {}
+  },
+  {
+   "id": "symphony-negative-control__three-chorus-40bars__seed0__high",
+   "template": "symphony-negative-control",
+   "templateId": "ensemble.symphony",
+   "fixture": "three-chorus-40bars",
+   "seed": 0,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": false,
+   "scoreEvents": 0,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 0,
+   "metrics": {
+    "notes": 0
+   },
+   "techniques": {}
+  },
+  {
+   "id": "symphony-negative-control__three-chorus-40bars__seed11__low",
+   "template": "symphony-negative-control",
+   "templateId": "ensemble.symphony",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": false,
+   "scoreEvents": 0,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 0,
+   "metrics": {
+    "notes": 0
+   },
+   "techniques": {}
+  },
+  {
+   "id": "symphony-negative-control__three-chorus-40bars__seed11__medium",
+   "template": "symphony-negative-control",
+   "templateId": "ensemble.symphony",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": false,
+   "scoreEvents": 0,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 0,
+   "metrics": {
+    "notes": 0
+   },
+   "techniques": {}
+  },
+  {
+   "id": "symphony-negative-control__three-chorus-40bars__seed11__high",
+   "template": "symphony-negative-control",
+   "templateId": "ensemble.symphony",
+   "fixture": "three-chorus-40bars",
+   "seed": 11,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": false,
+   "scoreEvents": 0,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 0,
+   "metrics": {
+    "notes": 0
+   },
+   "techniques": {}
+  },
+  {
+   "id": "symphony-negative-control__three-chorus-40bars__seed29__low",
+   "template": "symphony-negative-control",
+   "templateId": "ensemble.symphony",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 0.3,
+   "standalone": false,
+   "pianoEligible": false,
+   "scoreEvents": 0,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 0,
+   "metrics": {
+    "notes": 0
+   },
+   "techniques": {}
+  },
+  {
+   "id": "symphony-negative-control__three-chorus-40bars__seed29__medium",
+   "template": "symphony-negative-control",
+   "templateId": "ensemble.symphony",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 0.6,
+   "standalone": false,
+   "pianoEligible": false,
+   "scoreEvents": 0,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 0,
+   "metrics": {
+    "notes": 0
+   },
+   "techniques": {}
+  },
+  {
+   "id": "symphony-negative-control__three-chorus-40bars__seed29__high",
+   "template": "symphony-negative-control",
+   "templateId": "ensemble.symphony",
+   "fixture": "three-chorus-40bars",
+   "seed": 29,
+   "density": 1,
+   "standalone": false,
+   "pianoEligible": false,
+   "scoreEvents": 0,
+   "playability": {
+    "warnings": 0,
+    "violations": 0
+   },
+   "cc64Points": 0,
+   "metrics": {
+    "notes": 0
+   },
+   "techniques": {}
+  }
+ ]
+}

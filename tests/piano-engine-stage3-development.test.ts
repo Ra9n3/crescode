@@ -5,7 +5,9 @@ import { composeAllTracks } from '../src/orchestrator/compose';
 import { analyzePianoInput } from '../src/orchestrator/keys/piano-analyzer';
 import {
   composePianoPlan,
+  composePianoFoundationScore,
   composePianoScore,
+  composePianoScoreWithDiagnostics,
   type PianoComposerPlan,
   type PianoPhraseIntention,
   type PianoTemplateIdentity,
@@ -78,34 +80,6 @@ function scoreSignature(score: PianoScore): string {
   ]));
 }
 
-function plannedMotifTicks(phrase: PianoPhraseIntention, onlyPosition?: 0 | 1 | 2 | 3): number[] {
-  const cells = phrase.rhythmicPlan.motifCells ?? [];
-  const grid = Math.max(1, phrase.rhythmicPlan.gridTicks ?? PPQ / 2);
-  const cellTicks = Math.max(1, phrase.rhythmicPlan.cellTicks ?? 2 * PPQ);
-  const weights = phrase.rhythmicPlan.weights.length === 4
-    ? phrase.rhythmicPlan.weights : [0.25, 0.25, 0.25, 0.25];
-  const safeWeights = weights.map((weight) => Number.isFinite(weight) && weight > 0 ? weight : 0);
-  const total = safeWeights.reduce((sum, weight) => sum + weight, 0) || 1;
-  const normalized = safeWeights.map((weight) => weight / total);
-  const offsets = [0, normalized[0], normalized[0] + normalized[1], normalized[0] + normalized[1] + normalized[2]];
-  const ticks: number[] = [];
-  for (const cell of cells) {
-    const start = phrase.startTick + cell.startOffsetTicks;
-    const end = Math.min(phrase.endTick, start + cellTicks);
-    const span = end - start;
-    if (span <= 0) continue;
-    const firstGrid = Math.ceil(start / grid) * grid;
-    const lastGrid = Math.floor((end - 1) / grid) * grid;
-    for (const position of cell.positions) {
-      if (onlyPosition !== undefined && position !== onlyPosition) continue;
-      const displacement = phrase.rhythmicPlan.syncopation?.displacedPosition === position
-        ? phrase.rhythmicPlan.syncopation.offsetTicks : 0;
-      const quantized = Math.round((start + offsets[position] * span + displacement) / grid) * grid;
-      ticks.push(Math.max(firstGrid, Math.min(lastGrid, quantized)));
-    }
-  }
-  return [...new Set(ticks)];
-}
 
 function forcedTexturePlan(
   plan: PianoComposerPlan,
@@ -215,7 +189,7 @@ describe('Piano Engine Stage 3 musical development and coordinated writing', () 
     }
   });
 
-  it('develops the shared motif in Composer score events with rhythmic/contour variety and coordinated hands', () => {
+  it('production contract — musical development and texture: phrase roles, theme operations and texture levels make audible structural differences', () => {
     const { plan, score, piano } = composerSample('ensemble.chamber', 17, dorian);
     expect(plan.motif).not.toBeNull();
     const melody = score.events.filter((event) => event.voiceId === 'rh.melody')
@@ -228,14 +202,17 @@ describe('Piano Engine Stage 3 musical development and coordinated writing', () 
     expect(new Set(melody.slice(1).map((event, index) => event.startTick - melody[index].startTick)).size)
       .toBeGreaterThan(1);
 
-    const operations = new Set(plan.phrases.map((phrase) => phrase.motif.operation)
-      .filter((operation) => operation !== 'unavailable' && operation !== 'withhold-under-lead'));
+    // Development is role-driven: the arc plan assigns more than one theme operation, and the
+    // theme is both stated and developed in the written score.
+    const { diagnostics } = composePianoScoreWithDiagnostics(
+      composerSample('ensemble.chamber', 17, dorian).input, plan, piano, score.projectEndTick);
+    expect(diagnostics).not.toBeNull();
+    const operations = new Set(diagnostics!.phrases.map((phrase) => phrase.themeOperation)
+      .filter((operation) => operation !== 'rest'));
     expect(operations.size).toBeGreaterThan(1);
-    const plannedStarts = new Set(plan.phrases.flatMap((phrase) => plannedMotifTicks(phrase)));
-    const endingChordId = plan.ending.chordId;
-    expect(melody.every((event) => plannedStarts.has(event.startTick)
-      || (event.musicalRole === 'cadence' && endingChordId !== null
-        && event.harmonicContext.chordIds.includes(endingChordId)))).toBe(true);
+    expect(melody.every((event) => event.startTick % (PPQ / 4) === 0)).toBe(true);
+    expect(melody.some((event) => event.techniqueIntent === 'theme-statement')).toBe(true);
+    expect(melody.some((event) => event.techniqueIntent === 'theme-development')).toBe(true);
 
     const left = score.events.filter((event) => event.hand === 'left');
     const right = score.events.filter((event) => event.hand === 'right');
@@ -247,7 +224,6 @@ describe('Piano Engine Stage 3 musical development and coordinated writing', () 
     const innerEvents = score.events.filter((event) => event.voiceId === 'rh.inner');
     expect(new Set(innerEvents.map((event) => event.pitch)).size).toBeGreaterThan(1);
 
-    const plannedNeighborTicks = new Set(plan.phrases.flatMap((phrase) => plannedMotifTicks(phrase, 2)));
     for (const event of score.events) {
       expect(event.pitch).toBeGreaterThanOrEqual(piano.lowestNote);
       expect(event.pitch).toBeLessThanOrEqual(piano.highestNote);
@@ -255,16 +231,15 @@ describe('Piano Engine Stage 3 musical development and coordinated writing', () 
       expect(event.harmonicContext.chordIds.length).toBeGreaterThan(0);
       if (event.musicalRole === 'suspension'
         || event.harmonicContext.pitchClasses.includes(event.pitch % 12)) continue;
-      const plannedChromaticNeighbor = event.voiceId === 'rh.melody'
-        && plannedNeighborTicks.has(event.startTick)
-        && plan.motif?.tensionResolution.kind === 'chromatic-neighbor'
-        && plan.motif.tones.some((tone) => tone.position === 2 && tone.function === 'chromatic-neighbor')
+      // Only the theme may leave the chord, and only as a passing or neighbour tone that the
+      // next theme note resolves by step onto a chord tone.
+      const resolvedThemeTone = event.voiceId === 'rh.melody'
         && melody.some((candidate) => candidate.phraseId === event.phraseId
           && candidate.startTick > event.startTick
           && Math.abs(candidate.pitch - event.pitch) <= 2
           && candidate.harmonicContext.pitchClasses.includes(candidate.pitch % 12));
-      expect(plannedChromaticNeighbor,
-        `${event.voiceId} off-chord pitch ${event.pitch} has an explicit motif plan and chord-tone resolution`).toBe(true);
+      expect(resolvedThemeTone,
+        `${event.voiceId} off-chord pitch ${event.pitch} at ${event.startTick} resolves by step onto a chord tone`).toBe(true);
     }
     for (const tension of score.events.filter((event) => event.gestureIntent === 'prepared-tension')) {
       const resolution = score.events.find((event) => event.voiceId === tension.voiceId
@@ -275,9 +250,104 @@ describe('Piano Engine Stage 3 musical development and coordinated writing', () 
       expect(Math.abs(resolution!.pitch - tension.pitch)).toBeLessThanOrEqual(2);
     }
 
-    const phraseTextures = new Set(plan.phrases.map((phrase) => phrase.texture.kind));
-    expect(phraseTextures.size).toBeGreaterThan(1);
+    expect(new Set(diagnostics!.bars.map((bar) => bar.adaptedLevel)).size).toBeGreaterThan(1);
     expect(noUnisonOverlap(score)).toBe(true);
+
+    // ---- The same contract on the longer form, through the real Compose All path. ----
+    const project = projectFromFixture(JSON.parse(JSON.stringify(threeChorus)) as Project);
+    project.ensemble = { templateId: 'ensemble.chamber', overrides: {}, pins: {} };
+    project.orchestration = { take: 0 };
+    const composed = composeAllTracks(project, { seed: 17 });
+    const form = composed.pianoDiagnostics!;
+    const formScore = composed.pianoScore;
+    const barTicksOf = 4 * PPQ;
+    const barOf = (tick: number) => Math.floor(tick / barTicksOf) + 1;
+    const draft = form.independentDraft.notes;
+    const phraseOf = new Map(form.bars.map((bar) => [bar.bar, bar.phraseId]));
+    const roleOf = new Map(form.phrases.map((phrase) => [phrase.phraseId, phrase.role]));
+
+    // Phrase roles: the form is planned as more than statement-and-repeat ...
+    const roles = new Set(form.phrases.map((phrase) => phrase.role));
+    for (const role of ['statement', 'climax', 'arrival'] as const) expect(roles.has(role), role).toBe(true);
+    expect(roles.size).toBeGreaterThanOrEqual(5);
+    // ... and the roles are audible in the written notes: the climax phrase is planned at a higher
+    // texture level than the statement, carries more attacks per bar, and is louder; the bar before
+    // the final landing is quieter than the climax.
+    const barsOfRole = (role: string) => form.bars.filter((bar) => roleOf.get(bar.phraseId) === role);
+    const meanOf = (values: readonly number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
+    const peakVelocity = (bars: typeof form.bars) => {
+      const set = new Set(bars.map((bar) => bar.bar));
+      return Math.max(...draft.filter((note) => set.has(barOf(note.t))).map((note) => note.v));
+    };
+    const statementBars = barsOfRole('statement');
+    const climaxBars = barsOfRole('climax');
+    const arrivalBars = barsOfRole('arrival');
+    expect(meanOf(climaxBars.map((bar) => bar.independentLevel))).toBeGreaterThan(meanOf(statementBars.map((bar) => bar.independentLevel)));
+    expect(meanOf(climaxBars.map((bar) => bar.independent.attacks))).toBeGreaterThan(meanOf(statementBars.map((bar) => bar.independent.attacks)));
+    expect(peakVelocity(climaxBars)).toBeGreaterThan(peakVelocity(statementBars));
+    expect(peakVelocity(climaxBars)).toBeGreaterThan(peakVelocity(arrivalBars));
+    // The climax is the dynamic peak of the whole independent composition.
+    expect(peakVelocity(climaxBars)).toBe(Math.max(...draft.map((note) => note.v)));
+
+    // Texture levels: each level is a different way of playing, not a different note count.
+    // Up to level 1 the left hand stays on the beat; from level 2 it moves in eighth notes.
+    const leftDraft = (bar: number) => draft.filter((note) => barOf(note.t) === bar && (note.l === 'bass' || note.l === 'accompaniment'));
+    const levelsPresent = [...new Set(form.bars.map((bar) => bar.independentLevel))].sort();
+    expect(levelsPresent.length).toBeGreaterThanOrEqual(3);
+    for (const bar of form.bars.filter((entry) => entry.independent.attacks > 0 && entry.independent.bass + entry.independent.accompaniment > 0)) {
+      const offBeat = leftDraft(bar.bar).filter((note) => note.t % PPQ !== 0).length;
+      // (A bar in which the left hand carries the theme is not an accompaniment bar.)
+      const leftTheme = draft.some((note) => barOf(note.t) === bar.bar && note.k === 'independent-counterline');
+      if (leftTheme) continue;
+      if (bar.independentLevel <= 1) expect(offBeat, `level ${bar.independentLevel} bar ${bar.bar} keeps to the beat`).toBe(0);
+      else expect(offBeat, `level ${bar.independentLevel} bar ${bar.bar} flows in eighths`).toBeGreaterThan(0);
+    }
+    const meanLeftAttacks = (level: number) => meanOf(form.bars
+      .filter((bar) => bar.independentLevel === level && bar.independent.attacks > 0)
+      .map((bar) => new Set(leftDraft(bar.bar).map((note) => note.t)).size));
+    expect(meanLeftAttacks(2)).toBeGreaterThan(meanLeftAttacks(1));
+    expect(meanLeftAttacks(1)).toBeGreaterThan(meanLeftAttacks(0));
+
+    // Theme development: the theme's opening bar is restated in several phrases with the same
+    // rhythm but at different pitch levels, under more than two role-driven operations.
+    const themeBarShape = (bar: number) => {
+      const notes = draft.filter((note) => note.l === 'melody' && note.k !== 'octave-doubling' && note.k !== 'cascading-gesture'
+        && barOf(note.t) === bar).sort((a, b) => a.t - b.t);
+      return {
+        rhythm: notes.map((note) => note.t - (bar - 1) * barTicksOf).join(','),
+        pitches: notes.map((note) => note.p).join(','),
+        count: notes.length,
+      };
+    };
+    const openings = form.bars.filter((bar) => bar.themeBar === 0).map((bar) => ({ bar, shape: themeBarShape(bar.bar) }))
+      .filter(({ shape }) => shape.count >= 3);
+    const statementOpening = openings.find(({ bar }) => roleOf.get(bar.phraseId) === 'statement')!;
+    expect(statementOpening).toBeDefined();
+    const sameRhythm = openings.filter(({ shape }) => shape.rhythm === statementOpening.shape.rhythm);
+    expect(new Set(sameRhythm.map(({ bar }) => bar.phraseId)).size, 'the theme head recurs across phrases').toBeGreaterThanOrEqual(3);
+    expect(new Set(sameRhythm.map(({ shape }) => shape.pitches)).size, 'and is heard at several pitch levels').toBeGreaterThanOrEqual(3);
+    const formOperations = new Set(form.phrases.map((phrase) => phrase.themeOperation));
+    formOperations.delete('rest');
+    expect(formOperations.size).toBeGreaterThanOrEqual(4);
+    // Each operation is tied to a role, never drawn at random: the same role always maps to one operation.
+    const operationByRole = new Map<string, Set<string>>();
+    for (const phrase of form.phrases) {
+      operationByRole.set(phrase.role, (operationByRole.get(phrase.role) ?? new Set()).add(phrase.themeOperation));
+    }
+    for (const [role, set] of operationByRole) {
+      if (role !== 'development') expect(set.size, `${role} uses one operation`).toBe(1);
+    }
+    // Hand exchange is part of the development: somewhere the left hand carries the theme while the
+    // right hand takes over the broken figuration in the same bar.
+    const exchangeBars = [...new Set(formScore.events.filter((event) => event.techniqueIntent === 'independent-counterline')
+      .map((event) => barOf(event.startTick)))];
+    expect(exchangeBars.length).toBeGreaterThan(0);
+    for (const bar of exchangeBars) {
+      expect(formScore.events.some((event) => barOf(event.startTick) === bar && event.hand === 'right'
+        && event.techniqueIntent === 'broken-chord-accompaniment'), `bar ${bar} right hand accompanies the left-hand theme`).toBe(true);
+    }
+    expect(phraseOf.size).toBe(form.bars.length);
+    expect(composed.pianoPlayability.violations).toEqual([]);
     const playability = validatePianoScorePlayability(score, {
       lowestNote: piano.lowestNote,
       highestNote: piano.highestNote,
@@ -285,7 +355,7 @@ describe('Piano Engine Stage 3 musical development and coordinated writing', () 
     expect(playability.violations).toEqual([]);
   });
 
-  it('writes broken chords, arpeggiation, dialogue, hybrid pulse, and reserved flourishes into the score', () => {
+  it('legacy foundation writer (not the production score): writes broken chords, arpeggiation, dialogue, hybrid pulse, and reserved flourishes', () => {
     const sample = composerSample('ensemble.chamber', 17, dorian);
     const basePhrase = sample.plan.phrases.find((phrase) => phrase.endTick - phrase.startTick >= 8 * PPQ)!;
     const fillDecision: PianoComposerPlan['fillDecisions'][number] = {
@@ -314,7 +384,7 @@ describe('Piano Engine Stage 3 musical development and coordinated writing', () 
     for (const pattern of patternCases) {
       const forced = forcedTexturePlan(sample.plan, pattern.kind, pattern.identity,
         pattern.fill ? { fillDecision } : {});
-      const score = composePianoScore(sample.input, forced.plan, sample.piano, projectEndTick(sample.project));
+      const score = composePianoFoundationScore(sample.input, forced.plan, sample.piano, projectEndTick(sample.project));
       const plannedPatternEvents = score.events.filter((event) => event.phraseId === forced.phrase.id
         && event.techniqueIntent === pattern.technique);
       expect(plannedPatternEvents.length, `${pattern.identity} ${pattern.kind} must reach score notes`).toBeGreaterThan(0);
@@ -351,7 +421,7 @@ describe('Piano Engine Stage 3 musical development and coordinated writing', () 
         rationale: 'Explicit leave-space regression gate.', mandatory: false,
       },
     });
-    const gatedScore = composePianoScore(
+    const gatedScore = composePianoFoundationScore(
       sample.input, forcedPulse.plan, sample.piano, projectEndTick(sample.project),
     );
     expect(gatedScore.events.some((event) => event.startTick >= restrictedStart && event.startTick < restrictedEnd

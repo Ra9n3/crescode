@@ -1,0 +1,1628 @@
+{
+ "version": 1,
+ "algorithm": "piano-texture-theme-v1",
+ "templateIdentity": "chamber-counterpoint",
+ "density": 0.3,
+ "randomStreams": {
+  "independent": "independent:*",
+  "adaptation": "none drawn; adaptation is evidence-driven and deterministic"
+ },
+ "theme": {
+  "id": "piano-theme-main",
+  "scalePitchClasses": [
+   0,
+   2,
+   4,
+   5,
+   7,
+   9,
+   11
+  ],
+  "anchorPitchClass": 9,
+  "contour": "wave",
+  "rhythm": [
+   "r3",
+   "l3",
+   "r3",
+   "c1"
+  ],
+  "bars": [
+   [
+    {
+     "pos": 0,
+     "dur": 2,
+     "step": 0,
+     "structural": true
+    },
+    {
+     "pos": 2,
+     "dur": 1,
+     "step": 2,
+     "structural": false
+    },
+    {
+     "pos": 3,
+     "dur": 1,
+     "step": 1,
+     "structural": false
+    },
+    {
+     "pos": 4,
+     "dur": 4,
+     "step": 3,
+     "structural": true
+    }
+   ],
+   [
+    {
+     "pos": 0,
+     "dur": 2,
+     "step": 4,
+     "structural": true
+    },
+    {
+     "pos": 2,
+     "dur": 2,
+     "step": 3,
+     "structural": false
+    },
+    {
+     "pos": 4,
+     "dur": 4,
+     "step": 2,
+     "structural": true
+    }
+   ],
+   [
+    {
+     "pos": 0,
+     "dur": 2,
+     "step": -1,
+     "structural": true
+    },
+    {
+     "pos": 2,
+     "dur": 1,
+     "step": 1,
+     "structural": false
+    },
+    {
+     "pos": 3,
+     "dur": 1,
+     "step": 0,
+     "structural": false
+    },
+    {
+     "pos": 4,
+     "dur": 4,
+     "step": 2,
+     "structural": true
+    }
+   ],
+   [
+    {
+     "pos": 0,
+     "dur": 4,
+     "step": 1,
+     "structural": true
+    },
+    {
+     "pos": 4,
+     "dur": 4,
+     "step": 0,
+     "structural": true
+    }
+   ]
+  ],
+  "eventCount": 13
+ },
+ "phrases": [
+  {
+   "phraseId": "sec_verse:phrase-1",
+   "sectionId": "sec_verse",
+   "sectionName": "Verse",
+   "startBar": 1,
+   "endBar": 7,
+   "role": "statement",
+   "themeOperation": "statement",
+   "meanEnergy": 0.491,
+   "levels": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1
+   ],
+   "rationale": "First sounding phrase; states the theme plainly.",
+   "adaptedLevels": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1
+   ],
+   "melodyEvents": {
+    "independent": 14,
+    "adapted": 14
+   },
+   "attacksPerBar": {
+    "independent": 2.29,
+    "adapted": 2.29
+   }
+  },
+  {
+   "phraseId": "sec_verse:phrase-2",
+   "sectionId": "sec_verse",
+   "sectionName": "Verse",
+   "startBar": 8,
+   "endBar": 8,
+   "role": "breath",
+   "themeOperation": "rest",
+   "meanEnergy": 0,
+   "levels": [
+    0
+   ],
+   "rationale": "Every bar of the phrase is a supplied near-silence or explicit rest window.",
+   "adaptedLevels": [
+    0
+   ],
+   "melodyEvents": {
+    "independent": 0,
+    "adapted": 0
+   },
+   "attacksPerBar": {
+    "independent": 0,
+    "adapted": 0
+   }
+  },
+  {
+   "phraseId": "sec_chorus:phrase-1",
+   "sectionId": "sec_chorus",
+   "sectionName": "Chorus",
+   "startBar": 9,
+   "endBar": 12,
+   "role": "climax",
+   "themeOperation": "register-lift",
+   "meanEnergy": 0.621,
+   "levels": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "rationale": "Highest sustained energy of the form (mean 0.62).",
+   "adaptedLevels": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "melodyEvents": {
+    "independent": 12,
+    "adapted": 8
+   },
+   "attacksPerBar": {
+    "independent": 3,
+    "adapted": 2
+   }
+  },
+  {
+   "phraseId": "sec_chorus:phrase-2",
+   "sectionId": "sec_chorus",
+   "sectionName": "Chorus",
+   "startBar": 13,
+   "endBar": 16,
+   "role": "arrival",
+   "themeOperation": "cadential-return",
+   "meanEnergy": 0.608,
+   "levels": [
+    1,
+    1,
+    1,
+    0
+   ],
+   "rationale": "Final phrase of the form; returns to the theme and settles on the supplied final harmony.",
+   "adaptedLevels": [
+    1,
+    1,
+    1,
+    0
+   ],
+   "melodyEvents": {
+    "independent": 11,
+    "adapted": 7
+   },
+   "attacksPerBar": {
+    "independent": 2.75,
+    "adapted": 1.75
+   }
+  }
+ ],
+ "bars": [
+  {
+   "bar": 1,
+   "phraseId": "sec_verse:phrase-1",
+   "role": "statement",
+   "energy": 0.438,
+   "independentLevel": 0,
+   "adaptedLevel": 0,
+   "leftPattern": "sustain",
+   "rightStyle": "held",
+   "themeBar": 0,
+   "independent": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 1,
+    "inner": 1,
+    "attacks": 2
+   },
+   "adapted": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 1,
+    "inner": 1,
+    "attacks": 2
+   }
+  },
+  {
+   "bar": 2,
+   "phraseId": "sec_verse:phrase-1",
+   "role": "statement",
+   "energy": 0.456,
+   "independentLevel": 0,
+   "adaptedLevel": 0,
+   "leftPattern": "sustain",
+   "rightStyle": "held",
+   "themeBar": 1,
+   "independent": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 1,
+    "inner": 1,
+    "attacks": 2
+   },
+   "adapted": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 1,
+    "inner": 1,
+    "attacks": 2
+   }
+  },
+  {
+   "bar": 3,
+   "phraseId": "sec_verse:phrase-1",
+   "role": "statement",
+   "energy": 0.474,
+   "independentLevel": 0,
+   "adaptedLevel": 0,
+   "leftPattern": "sustain",
+   "rightStyle": "held",
+   "themeBar": 2,
+   "independent": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 1,
+    "inner": 1,
+    "attacks": 2
+   },
+   "adapted": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 1,
+    "inner": 1,
+    "attacks": 2
+   }
+  },
+  {
+   "bar": 4,
+   "phraseId": "sec_verse:phrase-1",
+   "role": "statement",
+   "energy": 0.491,
+   "independentLevel": 0,
+   "adaptedLevel": 0,
+   "leftPattern": "sustain",
+   "rightStyle": "held",
+   "themeBar": 3,
+   "independent": {
+    "melody": 2,
+    "bass": 2,
+    "accompaniment": 2,
+    "inner": 2,
+    "attacks": 2
+   },
+   "adapted": {
+    "melody": 2,
+    "bass": 2,
+    "accompaniment": 2,
+    "inner": 2,
+    "attacks": 2
+   }
+  },
+  {
+   "bar": 5,
+   "phraseId": "sec_verse:phrase-1",
+   "role": "statement",
+   "energy": 0.509,
+   "independentLevel": 0,
+   "adaptedLevel": 0,
+   "leftPattern": "sustain",
+   "rightStyle": "held",
+   "themeBar": 0,
+   "independent": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 1,
+    "inner": 1,
+    "attacks": 2
+   },
+   "adapted": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 1,
+    "inner": 1,
+    "attacks": 2
+   }
+  },
+  {
+   "bar": 6,
+   "phraseId": "sec_verse:phrase-1",
+   "role": "statement",
+   "energy": 0.526,
+   "independentLevel": 0,
+   "adaptedLevel": 0,
+   "leftPattern": "sustain",
+   "rightStyle": "held",
+   "themeBar": 2,
+   "independent": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 1,
+    "inner": 1,
+    "attacks": 2
+   },
+   "adapted": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 1,
+    "inner": 1,
+    "attacks": 2
+   }
+  },
+  {
+   "bar": 7,
+   "phraseId": "sec_verse:phrase-1",
+   "role": "statement",
+   "energy": 0.544,
+   "independentLevel": 1,
+   "adaptedLevel": 1,
+   "leftPattern": "broken-quarters",
+   "rightStyle": "held",
+   "themeBar": 3,
+   "independent": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 3,
+    "inner": 2,
+    "attacks": 4
+   },
+   "adapted": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 3,
+    "inner": 2,
+    "attacks": 4
+   }
+  },
+  {
+   "bar": 8,
+   "phraseId": "sec_verse:phrase-2",
+   "role": "breath",
+   "energy": 0,
+   "independentLevel": 0,
+   "adaptedLevel": 0,
+   "leftPattern": "sustain",
+   "rightStyle": "held",
+   "themeBar": null,
+   "independent": {
+    "melody": 0,
+    "bass": 0,
+    "accompaniment": 0,
+    "inner": 0,
+    "attacks": 0
+   },
+   "adapted": {
+    "melody": 0,
+    "bass": 0,
+    "accompaniment": 0,
+    "inner": 0,
+    "attacks": 0
+   }
+  },
+  {
+   "bar": 9,
+   "phraseId": "sec_chorus:phrase-1",
+   "role": "climax",
+   "energy": 0.595,
+   "independentLevel": 1,
+   "adaptedLevel": 1,
+   "leftPattern": "bass-and-chord",
+   "rightStyle": "held",
+   "themeBar": 0,
+   "independent": {
+    "melody": 4,
+    "bass": 1,
+    "accompaniment": 2,
+    "inner": 2,
+    "attacks": 4
+   },
+   "adapted": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 2,
+    "inner": 2,
+    "attacks": 2
+   }
+  },
+  {
+   "bar": 10,
+   "phraseId": "sec_chorus:phrase-1",
+   "role": "climax",
+   "energy": 0.612,
+   "independentLevel": 1,
+   "adaptedLevel": 1,
+   "leftPattern": "bass-and-chord",
+   "rightStyle": "held",
+   "themeBar": 1,
+   "independent": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 2,
+    "inner": 2,
+    "attacks": 2
+   },
+   "adapted": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 2,
+    "inner": 2,
+    "attacks": 2
+   }
+  },
+  {
+   "bar": 11,
+   "phraseId": "sec_chorus:phrase-1",
+   "role": "climax",
+   "energy": 0.63,
+   "independentLevel": 1,
+   "adaptedLevel": 1,
+   "leftPattern": "bass-and-chord",
+   "rightStyle": "held",
+   "themeBar": 2,
+   "independent": {
+    "melody": 4,
+    "bass": 1,
+    "accompaniment": 2,
+    "inner": 2,
+    "attacks": 4
+   },
+   "adapted": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 2,
+    "inner": 2,
+    "attacks": 2
+   }
+  },
+  {
+   "bar": 12,
+   "phraseId": "sec_chorus:phrase-1",
+   "role": "climax",
+   "energy": 0.648,
+   "independentLevel": 1,
+   "adaptedLevel": 1,
+   "leftPattern": "bass-and-chord",
+   "rightStyle": "held",
+   "themeBar": 3,
+   "independent": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 2,
+    "inner": 1,
+    "attacks": 2
+   },
+   "adapted": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 2,
+    "inner": 1,
+    "attacks": 2
+   }
+  },
+  {
+   "bar": 13,
+   "phraseId": "sec_chorus:phrase-2",
+   "role": "arrival",
+   "energy": 0.665,
+   "independentLevel": 1,
+   "adaptedLevel": 1,
+   "leftPattern": "bass-and-chord",
+   "rightStyle": "held",
+   "themeBar": 0,
+   "independent": {
+    "melody": 4,
+    "bass": 1,
+    "accompaniment": 2,
+    "inner": 2,
+    "attacks": 4
+   },
+   "adapted": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 2,
+    "inner": 2,
+    "attacks": 2
+   }
+  },
+  {
+   "bar": 14,
+   "phraseId": "sec_chorus:phrase-2",
+   "role": "arrival",
+   "energy": 0.683,
+   "independentLevel": 1,
+   "adaptedLevel": 1,
+   "leftPattern": "bass-and-chord",
+   "rightStyle": "held",
+   "themeBar": 1,
+   "independent": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 2,
+    "inner": 0,
+    "attacks": 2
+   },
+   "adapted": {
+    "melody": 2,
+    "bass": 1,
+    "accompaniment": 2,
+    "inner": 0,
+    "attacks": 2
+   }
+  },
+  {
+   "bar": 15,
+   "phraseId": "sec_chorus:phrase-2",
+   "role": "arrival",
+   "energy": 0.7,
+   "independentLevel": 1,
+   "adaptedLevel": 1,
+   "leftPattern": "bass-and-chord",
+   "rightStyle": "held",
+   "themeBar": 2,
+   "independent": {
+    "melody": 4,
+    "bass": 2,
+    "accompaniment": 0,
+    "inner": 4,
+    "attacks": 4
+   },
+   "adapted": {
+    "melody": 2,
+    "bass": 2,
+    "accompaniment": 0,
+    "inner": 4,
+    "attacks": 2
+   }
+  },
+  {
+   "bar": 16,
+   "phraseId": "sec_chorus:phrase-2",
+   "role": "arrival",
+   "energy": 0.385,
+   "independentLevel": 0,
+   "adaptedLevel": 0,
+   "leftPattern": "sustain",
+   "rightStyle": "held",
+   "themeBar": 3,
+   "independent": {
+    "melody": 1,
+    "bass": 1,
+    "accompaniment": 1,
+    "inner": 1,
+    "attacks": 1
+   },
+   "adapted": {
+    "melody": 1,
+    "bass": 1,
+    "accompaniment": 1,
+    "inner": 1,
+    "attacks": 1
+   }
+  }
+ ],
+ "independentDraft": {
+  "events": 100,
+  "notes": [
+   {
+    "t": 0,
+    "d": 3840,
+    "p": 38,
+    "v": 47,
+    "l": "bass",
+    "k": "sustained-bass-foundation"
+   },
+   {
+    "t": 0,
+    "d": 3456,
+    "p": 45,
+    "v": 37,
+    "l": "accompaniment",
+    "k": "chord-tone-support"
+   },
+   {
+    "t": 0,
+    "d": 3840,
+    "p": 65,
+    "v": 38,
+    "l": "inner",
+    "k": "voice-led-inner-tone"
+   },
+   {
+    "t": 0,
+    "d": 1862,
+    "p": 69,
+    "v": 54,
+    "l": "melody",
+    "k": "theme-statement"
+   },
+   {
+    "t": 1920,
+    "d": 1862,
+    "p": 74,
+    "v": 54,
+    "l": "melody",
+    "k": "theme-statement"
+   },
+   {
+    "t": 3840,
+    "d": 3840,
+    "p": 43,
+    "v": 50,
+    "l": "bass",
+    "k": "sustained-bass-foundation"
+   },
+   {
+    "t": 3840,
+    "d": 3456,
+    "p": 50,
+    "v": 40,
+    "l": "accompaniment",
+    "k": "chord-tone-support"
+   },
+   {
+    "t": 3840,
+    "d": 3840,
+    "p": 67,
+    "v": 41,
+    "l": "inner",
+    "k": "voice-led-inner-tone"
+   },
+   {
+    "t": 3840,
+    "d": 1862,
+    "p": 77,
+    "v": 57,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 5760,
+    "d": 1862,
+    "p": 71,
+    "v": 57,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 7680,
+    "d": 3840,
+    "p": 38,
+    "v": 53,
+    "l": "bass",
+    "k": "sustained-bass-foundation"
+   },
+   {
+    "t": 7680,
+    "d": 3456,
+    "p": 45,
+    "v": 43,
+    "l": "accompaniment",
+    "k": "chord-tone-support"
+   },
+   {
+    "t": 7680,
+    "d": 3840,
+    "p": 62,
+    "v": 44,
+    "l": "inner",
+    "k": "voice-led-inner-tone"
+   },
+   {
+    "t": 7680,
+    "d": 1862,
+    "p": 65,
+    "v": 60,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 9600,
+    "d": 1862,
+    "p": 72,
+    "v": 60,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 11520,
+    "d": 1920,
+    "p": 40,
+    "v": 56,
+    "l": "bass",
+    "k": "sustained-bass-foundation"
+   },
+   {
+    "t": 11520,
+    "d": 1728,
+    "p": 47,
+    "v": 46,
+    "l": "accompaniment",
+    "k": "chord-tone-support"
+   },
+   {
+    "t": 11520,
+    "d": 1920,
+    "p": 62,
+    "v": 47,
+    "l": "inner",
+    "k": "voice-led-inner-tone"
+   },
+   {
+    "t": 11520,
+    "d": 1862,
+    "p": 71,
+    "v": 63,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 13440,
+    "d": 1920,
+    "p": 41,
+    "v": 53,
+    "l": "bass",
+    "k": "sustained-bass-foundation"
+   },
+   {
+    "t": 13440,
+    "d": 1728,
+    "p": 48,
+    "v": 46,
+    "l": "accompaniment",
+    "k": "chord-tone-support"
+   },
+   {
+    "t": 13440,
+    "d": 1920,
+    "p": 64,
+    "v": 47,
+    "l": "inner",
+    "k": "voice-led-inner-tone"
+   },
+   {
+    "t": 13440,
+    "d": 1862,
+    "p": 69,
+    "v": 63,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 15360,
+    "d": 3840,
+    "p": 38,
+    "v": 58,
+    "l": "bass",
+    "k": "sustained-bass-foundation"
+   },
+   {
+    "t": 15360,
+    "d": 3456,
+    "p": 48,
+    "v": 48,
+    "l": "accompaniment",
+    "k": "chord-tone-support"
+   },
+   {
+    "t": 15360,
+    "d": 3840,
+    "p": 65,
+    "v": 49,
+    "l": "inner",
+    "k": "voice-led-inner-tone"
+   },
+   {
+    "t": 15360,
+    "d": 1862,
+    "p": 72,
+    "v": 65,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 17280,
+    "d": 1862,
+    "p": 76,
+    "v": 65,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 19200,
+    "d": 3840,
+    "p": 40,
+    "v": 60,
+    "l": "bass",
+    "k": "sustained-bass-foundation"
+   },
+   {
+    "t": 19200,
+    "d": 3456,
+    "p": 48,
+    "v": 50,
+    "l": "accompaniment",
+    "k": "chord-tone-support"
+   },
+   {
+    "t": 19200,
+    "d": 3840,
+    "p": 64,
+    "v": 51,
+    "l": "inner",
+    "k": "voice-led-inner-tone"
+   },
+   {
+    "t": 19200,
+    "d": 1862,
+    "p": 67,
+    "v": 67,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 21120,
+    "d": 1862,
+    "p": 72,
+    "v": 67,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 23040,
+    "d": 912,
+    "p": 45,
+    "v": 61,
+    "l": "bass",
+    "k": "sustained-bass-foundation"
+   },
+   {
+    "t": 23040,
+    "d": 3686,
+    "p": 64,
+    "v": 52,
+    "l": "inner",
+    "k": "held-chord-support"
+   },
+   {
+    "t": 23040,
+    "d": 3686,
+    "p": 67,
+    "v": 52,
+    "l": "inner",
+    "k": "held-chord-support"
+   },
+   {
+    "t": 23040,
+    "d": 1862,
+    "p": 72,
+    "v": 68,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 24000,
+    "d": 912,
+    "p": 48,
+    "v": 49,
+    "l": "accompaniment",
+    "k": "broken-chord-accompaniment"
+   },
+   {
+    "t": 24960,
+    "d": 912,
+    "p": 52,
+    "v": 52,
+    "l": "accompaniment",
+    "k": "broken-chord-accompaniment"
+   },
+   {
+    "t": 24960,
+    "d": 1862,
+    "p": 69,
+    "v": 68,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 25920,
+    "d": 912,
+    "p": 48,
+    "v": 49,
+    "l": "accompaniment",
+    "k": "broken-chord-accompaniment"
+   },
+   {
+    "t": 30720,
+    "d": 1824,
+    "p": 38,
+    "v": 76,
+    "l": "bass",
+    "k": "sustained-bass-foundation"
+   },
+   {
+    "t": 30720,
+    "d": 3686,
+    "p": 74,
+    "v": 67,
+    "l": "inner",
+    "k": "held-chord-support"
+   },
+   {
+    "t": 30720,
+    "d": 3686,
+    "p": 77,
+    "v": 67,
+    "l": "inner",
+    "k": "held-chord-support"
+   },
+   {
+    "t": 30720,
+    "d": 931,
+    "p": 81,
+    "v": 83,
+    "l": "melody",
+    "k": "theme-statement"
+   },
+   {
+    "t": 31680,
+    "d": 466,
+    "p": 86,
+    "v": 81,
+    "l": "melody",
+    "k": "theme-statement"
+   },
+   {
+    "t": 32160,
+    "d": 466,
+    "p": 81,
+    "v": 81,
+    "l": "melody",
+    "k": "theme-statement"
+   },
+   {
+    "t": 32640,
+    "d": 1824,
+    "p": 45,
+    "v": 67,
+    "l": "accompaniment",
+    "k": "stride-accompaniment"
+   },
+   {
+    "t": 32640,
+    "d": 1824,
+    "p": 50,
+    "v": 67,
+    "l": "accompaniment",
+    "k": "stride-accompaniment"
+   },
+   {
+    "t": 32640,
+    "d": 1862,
+    "p": 86,
+    "v": 83,
+    "l": "melody",
+    "k": "theme-statement"
+   },
+   {
+    "t": 34560,
+    "d": 1824,
+    "p": 41,
+    "v": 80,
+    "l": "bass",
+    "k": "sustained-bass-foundation"
+   },
+   {
+    "t": 34560,
+    "d": 3686,
+    "p": 77,
+    "v": 71,
+    "l": "inner",
+    "k": "held-chord-support"
+   },
+   {
+    "t": 34560,
+    "d": 3686,
+    "p": 81,
+    "v": 71,
+    "l": "inner",
+    "k": "held-chord-support"
+   },
+   {
+    "t": 34560,
+    "d": 1862,
+    "p": 88,
+    "v": 87,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 36480,
+    "d": 1824,
+    "p": 48,
+    "v": 71,
+    "l": "accompaniment",
+    "k": "stride-accompaniment"
+   },
+   {
+    "t": 36480,
+    "d": 1824,
+    "p": 52,
+    "v": 71,
+    "l": "accompaniment",
+    "k": "stride-accompaniment"
+   },
+   {
+    "t": 36480,
+    "d": 1862,
+    "p": 84,
+    "v": 87,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 38400,
+    "d": 1824,
+    "p": 36,
+    "v": 85,
+    "l": "bass",
+    "k": "sustained-bass-foundation"
+   },
+   {
+    "t": 38400,
+    "d": 3686,
+    "p": 72,
+    "v": 76,
+    "l": "inner",
+    "k": "held-chord-support"
+   },
+   {
+    "t": 38400,
+    "d": 3686,
+    "p": 76,
+    "v": 76,
+    "l": "inner",
+    "k": "held-chord-support"
+   },
+   {
+    "t": 38400,
+    "d": 931,
+    "p": 79,
+    "v": 92,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 39360,
+    "d": 466,
+    "p": 84,
+    "v": 90,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 39840,
+    "d": 466,
+    "p": 79,
+    "v": 90,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 40320,
+    "d": 1824,
+    "p": 43,
+    "v": 76,
+    "l": "accompaniment",
+    "k": "stride-accompaniment"
+   },
+   {
+    "t": 40320,
+    "d": 1824,
+    "p": 48,
+    "v": 76,
+    "l": "accompaniment",
+    "k": "stride-accompaniment"
+   },
+   {
+    "t": 40320,
+    "d": 1862,
+    "p": 84,
+    "v": 92,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 42240,
+    "d": 1824,
+    "p": 35,
+    "v": 85,
+    "l": "bass",
+    "k": "sustained-bass-foundation"
+   },
+   {
+    "t": 42240,
+    "d": 3686,
+    "p": 74,
+    "v": 76,
+    "l": "inner",
+    "k": "voice-led-inner-tone"
+   },
+   {
+    "t": 42240,
+    "d": 1862,
+    "p": 83,
+    "v": 92,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 44160,
+    "d": 1824,
+    "p": 43,
+    "v": 76,
+    "l": "accompaniment",
+    "k": "stride-accompaniment"
+   },
+   {
+    "t": 44160,
+    "d": 1824,
+    "p": 47,
+    "v": 76,
+    "l": "accompaniment",
+    "k": "stride-accompaniment"
+   },
+   {
+    "t": 44160,
+    "d": 1862,
+    "p": 79,
+    "v": 92,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 46080,
+    "d": 1824,
+    "p": 38,
+    "v": 78,
+    "l": "bass",
+    "k": "sustained-bass-foundation"
+   },
+   {
+    "t": 46080,
+    "d": 3686,
+    "p": 62,
+    "v": 69,
+    "l": "inner",
+    "k": "held-chord-support"
+   },
+   {
+    "t": 46080,
+    "d": 3686,
+    "p": 65,
+    "v": 69,
+    "l": "inner",
+    "k": "held-chord-support"
+   },
+   {
+    "t": 46080,
+    "d": 931,
+    "p": 69,
+    "v": 85,
+    "l": "melody",
+    "k": "theme-statement"
+   },
+   {
+    "t": 47040,
+    "d": 466,
+    "p": 72,
+    "v": 83,
+    "l": "melody",
+    "k": "theme-statement"
+   },
+   {
+    "t": 47520,
+    "d": 466,
+    "p": 69,
+    "v": 83,
+    "l": "melody",
+    "k": "theme-statement"
+   },
+   {
+    "t": 48000,
+    "d": 1824,
+    "p": 45,
+    "v": 69,
+    "l": "accompaniment",
+    "k": "stride-accompaniment"
+   },
+   {
+    "t": 48000,
+    "d": 1824,
+    "p": 48,
+    "v": 69,
+    "l": "accompaniment",
+    "k": "stride-accompaniment"
+   },
+   {
+    "t": 48000,
+    "d": 1862,
+    "p": 74,
+    "v": 85,
+    "l": "melody",
+    "k": "theme-statement"
+   },
+   {
+    "t": 49920,
+    "d": 1824,
+    "p": 34,
+    "v": 83,
+    "l": "bass",
+    "k": "sustained-bass-foundation"
+   },
+   {
+    "t": 49920,
+    "d": 1862,
+    "p": 77,
+    "v": 90,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 51840,
+    "d": 1824,
+    "p": 41,
+    "v": 74,
+    "l": "accompaniment",
+    "k": "stride-accompaniment"
+   },
+   {
+    "t": 51840,
+    "d": 1824,
+    "p": 45,
+    "v": 74,
+    "l": "accompaniment",
+    "k": "stride-accompaniment"
+   },
+   {
+    "t": 51840,
+    "d": 1862,
+    "p": 70,
+    "v": 90,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 53760,
+    "d": 1824,
+    "p": 36,
+    "v": 88,
+    "l": "bass",
+    "k": "sustained-bass-foundation"
+   },
+   {
+    "t": 53760,
+    "d": 1843,
+    "p": 60,
+    "v": 79,
+    "l": "inner",
+    "k": "held-chord-support"
+   },
+   {
+    "t": 53760,
+    "d": 1843,
+    "p": 64,
+    "v": 79,
+    "l": "inner",
+    "k": "held-chord-support"
+   },
+   {
+    "t": 53760,
+    "d": 931,
+    "p": 67,
+    "v": 95,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 54720,
+    "d": 466,
+    "p": 72,
+    "v": 93,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 55200,
+    "d": 466,
+    "p": 67,
+    "v": 93,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 55680,
+    "d": 1824,
+    "p": 33,
+    "v": 85,
+    "l": "bass",
+    "k": "sustained-bass-foundation"
+   },
+   {
+    "t": 55680,
+    "d": 1843,
+    "p": 64,
+    "v": 79,
+    "l": "inner",
+    "k": "held-chord-support"
+   },
+   {
+    "t": 55680,
+    "d": 1843,
+    "p": 67,
+    "v": 79,
+    "l": "inner",
+    "k": "held-chord-support"
+   },
+   {
+    "t": 55680,
+    "d": 1862,
+    "p": 74,
+    "v": 95,
+    "l": "melody",
+    "k": "theme-development"
+   },
+   {
+    "t": 57600,
+    "d": 3840,
+    "p": 38,
+    "v": 37,
+    "l": "bass",
+    "k": "final-harmony"
+   },
+   {
+    "t": 57600,
+    "d": 3840,
+    "p": 45,
+    "v": 30,
+    "l": "accompaniment",
+    "k": "final-harmony"
+   },
+   {
+    "t": 57600,
+    "d": 3840,
+    "p": 72,
+    "v": 32,
+    "l": "inner",
+    "k": "final-harmony"
+   },
+   {
+    "t": 57600,
+    "d": 3840,
+    "p": 74,
+    "v": 43,
+    "l": "melody",
+    "k": "final-harmony"
+   }
+  ]
+ },
+ "adaptedDraft": {
+  "events": 92
+ },
+ "adaptation": {
+  "evidence": "available",
+  "records": [
+   {
+    "bar": 1,
+    "kind": "accompany-lead",
+    "reason": "An annotated lead is sounding: the Piano keeps its accompaniment and moves its theme into an answering role.",
+    "evidence": "3 lead note(s) from trk_04_violins2."
+   },
+   {
+    "bar": 2,
+    "kind": "accompany-lead",
+    "reason": "An annotated lead is sounding: the Piano keeps its accompaniment and moves its theme into an answering role.",
+    "evidence": "2 lead note(s) from trk_04_violins2."
+   },
+   {
+    "bar": 3,
+    "kind": "accompany-lead",
+    "reason": "An annotated lead is sounding: the Piano keeps its accompaniment and moves its theme into an answering role.",
+    "evidence": "3 lead note(s) from trk_04_violins2."
+   },
+   {
+    "bar": 4,
+    "kind": "accompany-lead",
+    "reason": "An annotated lead is sounding: the Piano keeps its accompaniment and moves its theme into an answering role.",
+    "evidence": "5 lead note(s) from trk_04_violins2."
+   },
+   {
+    "bar": 5,
+    "kind": "accompany-lead",
+    "reason": "An annotated lead is sounding: the Piano keeps its accompaniment and moves its theme into an answering role.",
+    "evidence": "3 lead note(s) from trk_04_violins2."
+   },
+   {
+    "bar": 6,
+    "kind": "accompany-lead",
+    "reason": "An annotated lead is sounding: the Piano keeps its accompaniment and moves its theme into an answering role.",
+    "evidence": "4 lead note(s) from trk_04_violins2."
+   },
+   {
+    "bar": 7,
+    "kind": "accompany-lead",
+    "reason": "An annotated lead is sounding: the Piano keeps its accompaniment and moves its theme into an answering role.",
+    "evidence": "2 lead note(s) from trk_04_violins2."
+   },
+   {
+    "bar": 9,
+    "kind": "moment-yield",
+    "reason": "Explicit soli moment without the Piano: texture held to level 1 and the theme reduced to its skeleton for this bar only.",
+    "evidence": "Conductor soli moment overlaps bar 9."
+   },
+   {
+    "bar": 10,
+    "kind": "moment-yield",
+    "reason": "Explicit soli moment without the Piano: texture held to level 1 and the theme reduced to its skeleton for this bar only.",
+    "evidence": "Conductor soli moment overlaps bar 10."
+   },
+   {
+    "bar": 11,
+    "kind": "moment-yield",
+    "reason": "Explicit soli moment without the Piano: texture held to level 1 and the theme reduced to its skeleton for this bar only.",
+    "evidence": "Conductor soli moment overlaps bar 11."
+   },
+   {
+    "bar": 12,
+    "kind": "moment-yield",
+    "reason": "Explicit soli moment without the Piano: texture held to level 1 and the theme reduced to its skeleton for this bar only.",
+    "evidence": "Conductor soli moment overlaps bar 12."
+   },
+   {
+    "bar": 13,
+    "kind": "accompany-lead",
+    "reason": "An annotated lead is sounding: the Piano keeps its accompaniment and moves its theme into an answering role.",
+    "evidence": "3 lead note(s) from trk_04_violins2."
+   },
+   {
+    "bar": 13,
+    "kind": "register-shift",
+    "reason": "Piano theme moved up an octave for this phrase to clear the lead's register.",
+    "evidence": "Lead mean pitch 66.6 against Piano theme centre 72."
+   },
+   {
+    "bar": 14,
+    "kind": "accompany-lead",
+    "reason": "An annotated lead is sounding: the Piano keeps its accompaniment and moves its theme into an answering role.",
+    "evidence": "3 lead note(s) from trk_04_violins2."
+   },
+   {
+    "bar": 14,
+    "kind": "register-shift",
+    "reason": "Piano theme moved up an octave for this phrase to clear the lead's register.",
+    "evidence": "Lead mean pitch 66.6 against Piano theme centre 72."
+   },
+   {
+    "bar": 15,
+    "kind": "accompany-lead",
+    "reason": "An annotated lead is sounding: the Piano keeps its accompaniment and moves its theme into an answering role.",
+    "evidence": "4 lead note(s) from trk_04_violins2."
+   },
+   {
+    "bar": 15,
+    "kind": "register-shift",
+    "reason": "Piano theme moved up an octave for this phrase to clear the lead's register.",
+    "evidence": "Lead mean pitch 66.6 against Piano theme centre 72."
+   },
+   {
+    "bar": 16,
+    "kind": "accompany-lead",
+    "reason": "An annotated lead is sounding: the Piano keeps its accompaniment and moves its theme into an answering role.",
+    "evidence": "3 lead note(s) from trk_04_violins2."
+   },
+   {
+    "bar": 16,
+    "kind": "register-shift",
+    "reason": "Piano theme moved up an octave for this phrase to clear the lead's register.",
+    "evidence": "Lead mean pitch 66.6 against Piano theme centre 72."
+   },
+   {
+    "bar": 13,
+    "kind": "answer-in-lead-rests",
+    "reason": "Kept 2 of 4 theme notes: the phrase opening and the notes that fall between the lead's attacks.",
+    "evidence": "3 lead note(s) from trk_04_violins2 in bar 13."
+   },
+   {
+    "bar": 15,
+    "kind": "answer-in-lead-rests",
+    "reason": "Kept 2 of 4 theme notes: the phrase opening and the notes that fall between the lead's attacks.",
+    "evidence": "4 lead note(s) from trk_04_violins2 in bar 15."
+   }
+  ],
+  "changes": {
+   "unchanged": 37,
+   "removed": 8,
+   "added": 0,
+   "registerMoved": 14,
+   "revoiced": 0,
+   "shortened": 0,
+   "softened": 41
+  }
+ },
+ "metrics": {
+  "attacksPerBar": 1.94,
+  "melodyEventsPerPhrase": 7.25,
+  "subdivisions": {
+   "beat": 31,
+   "eighth": 0,
+   "sixteenth": 0
+  },
+  "longNoteShare": 0.37,
+  "chordalEvents": 7,
+  "patternUsage": {
+   "sustained-bass-foundation": 16,
+   "chord-tone-support": 7,
+   "voice-led-inner-tone": 8,
+   "theme-statement": 6,
+   "theme-development": 22,
+   "held-chord-support": 14,
+   "broken-chord-accompaniment": 3,
+   "stride-accompaniment": 12,
+   "final-harmony": 4
+  },
+  "velocityRange": [
+   30,
+   92
+  ],
+  "textureLevelBars": [
+   8,
+   8,
+   0,
+   0
+  ]
+ },
+ "flags": []
+}

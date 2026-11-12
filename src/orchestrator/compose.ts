@@ -47,7 +47,8 @@ import { KEYS_PARTS } from './keys/profile';
 import { EMPTY_KEYS_PLAN } from './keys/plan';
 import { buildPianoEngineInput, type PianoEngineInput } from './keys/piano-engine';
 import { analyzePianoInput } from './keys/piano-analyzer';
-import { composePianoPlan, composePianoScore } from './keys/piano-composer';
+import { composePianoPlan, composePianoScoreWithDiagnostics } from './keys/piano-composer';
+import type { PianoCompositionDiagnostics } from './keys/piano-texture-theme';
 import { validatePianoScorePlayability } from './keys/piano-playability';
 import type { PianoScore } from './keys/piano-score';
 import type { PianoPlayabilityReport } from './keys/piano-playability';
@@ -85,6 +86,8 @@ export interface ComposeResult {
   readonly pianoRealizedScoreEvents: readonly PianoRealizedScoreEvent[];
   /** Report-only diagnostics over the immutable score, before realization. */
   readonly pianoPlayability: PianoPlayabilityReport;
+  /** Ephemeral Piano composition diagnostics. Non-enumerable; never persisted. */
+  readonly pianoDiagnostics: PianoCompositionDiagnostics | null;
 }
 
 /** Merge V5-generated pedal automation with authored CC64 when supplied. */
@@ -778,7 +781,8 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   const pianoTrack = project.tracks.find((track) => isInstrumentTrack(track)
     && track.family === 'Keys' && track.role === 'piano' && !track.locked
     && isInBand(track.role, ensemble, template));
-  const pianoScore = composePianoScore(pianoEngineInput, pianoPlanV5, pianoTrack ?? null, projectEndTick(project));
+  const pianoComposition = composePianoScoreWithDiagnostics(pianoEngineInput, pianoPlanV5, pianoTrack ?? null, projectEndTick(project));
+  const pianoScore = pianoComposition.score;
   const pianoPlayability = validatePianoScorePlayability(pianoScore, {
     lowestNote: pianoTrack?.lowestNote,
     highestNote: pianoTrack?.highestNote,
@@ -839,7 +843,7 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     );
   }
 
-  const result: Omit<ComposeResult, 'pianoEngineInput' | 'pianoScore' | 'pianoRealizedScoreEvents' | 'pianoPlayability'> = {
+  const result: Omit<ComposeResult, 'pianoEngineInput' | 'pianoScore' | 'pianoRealizedScoreEvents' | 'pianoPlayability' | 'pianoDiagnostics'> = {
     tracks,
     orchestration,
     stringsTrackIds,
@@ -851,6 +855,7 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     ['pianoScore', pianoScore],
     ['pianoRealizedScoreEvents', pianoRealization.realizedScoreEvents],
     ['pianoPlayability', pianoPlayability],
+    ['pianoDiagnostics', pianoComposition.diagnostics],
   ] as const) {
     Object.defineProperty(result, key, {
       value,

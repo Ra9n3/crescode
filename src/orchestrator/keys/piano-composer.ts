@@ -10,6 +10,7 @@
 import { PPQ } from '../../shared/schema/types';
 import type { PianoAnalyzerReport, PianoInstrumentObservedFacts, PianoIntervalActivity } from './piano-analyzer';
 import type { PianoEngineInput, PianoGenerationIdentity, PianoMomentKind, PianoTemplateRule } from './piano-engine';
+import { composeTextureTheme, type PianoCompositionDiagnostics } from './piano-texture-theme';
 import { createPianoScore, type PianoScore, type PianoScoreEvent, type PianoScoreRest, type PianoScoreTarget, type PianoScoreVoiceId, type PianoMusicalRole, type PianoGestureIntent, type PianoTechniqueIntent } from './piano-score';
 
 export type PianoPlanStatus = 'composed' | 'ineligible' | 'insufficient-harmony';
@@ -3473,13 +3474,13 @@ function scoreRests(plan: PianoComposerPlan, events: readonly PianoScoreEvent[],
 }
 
 /**
- * Write Composer-owned MIDI note events from the established phrase/harmony
- * plan. The Realizer receives this score in production and only converts it to
- * the shared Note shape, applies existing template safety policy, and builds
- * the existing CC64 lane. Target ranges and the supplied project endpoint are
- * hard inputs; no range or song length is inferred here.
+ * Legacy per-chord foundation writer (Stages 1-4A). Production no longer uses
+ * its bass, support, inner or motif-cell notes: `composePianoScore` writes the
+ * Texture-and-Theme composition and borrows only this writer's prepared
+ * suspension voice. It is retained for that voice and for the regression
+ * tests that pin the earlier voice-leading and contextual-technique rules.
  */
-export function composePianoScore(
+export function composePianoFoundationScore(
   input: PianoEngineInput,
   plan: PianoComposerPlan,
   target: PianoScoreTarget | null,
@@ -4261,4 +4262,199 @@ export function composePianoScore(
     events,
     rests,
   });
+}
+
+export interface PianoScoreComposition {
+  readonly score: PianoScore;
+  /** Ephemeral sidecar; null when no score could be written. Never persisted. */
+  readonly diagnostics: PianoCompositionDiagnostics | null;
+}
+
+/**
+ * Write the Composer-owned Piano score.
+ *
+ *   Section Arc Plan -> Theme Layer -> Pattern/Texture Layer
+ *     -> Bounded Orchestral Adaptation -> PianoScore
+ *
+ * The Realizer receives the frozen score and only converts it to Note values,
+ * applies the existing template safety policy and builds the CC64 lane.
+ * Target ranges and the supplied project endpoint are hard inputs.
+ */
+export function composePianoScoreWithDiagnostics(
+  input: PianoEngineInput,
+  plan: PianoComposerPlan,
+  target: PianoScoreTarget | null,
+  projectEndTick: number,
+): PianoScoreComposition {
+  const validEnd = Number.isInteger(projectEndTick) && projectEndTick > 0 ? projectEndTick : 0;
+  const validTarget = target !== null
+    && target.family === 'Keys'
+    && target.role === 'piano'
+    && !target.locked
+    && Number.isInteger(target.lowestNote)
+    && Number.isInteger(target.highestNote)
+    && target.lowestNote >= 0
+    && target.highestNote <= 127
+    && target.lowestNote <= target.highestNote;
+  if (!validTarget || validEnd <= 0 || !plan.template.eligible || plan.status !== 'composed'
+    || !input.context.template.pianoEligible || !plan.harmonicEvents.length) {
+    return {
+      score: createPianoScore({
+        generationIdentity: plan.generationIdentity,
+        templateId: plan.template.id,
+        projectEndTick: validEnd,
+        events: [],
+        rests: [],
+      }),
+      diagnostics: null,
+    };
+  }
+  const density = scoreClamp(generationDensity(input), 0.1, 1);
+  const composition = composeTextureTheme(input, plan, target!, validEnd, density);
+  const harmonicById = new Map(plan.harmonicEvents.map((event) => [event.chord.id, event]));
+  const fallbackHarmony = plan.harmonicEvents[0];
+  let nextEventId = 0;
+  const events: PianoScoreEvent[] = composition.events.map((draft) => {
+    const source = harmonicById.get(draft.chordId) ?? fallbackHarmony;
+    return {
+      id: `${plan.generationIdentity.key}:score:${nextEventId++}`,
+      pitch: draft.pitch,
+      startTick: draft.startTick,
+      durationTicks: draft.durationTicks,
+      hand: draft.hand,
+      voiceId: draft.voiceId,
+      musicalRole: draft.musicalRole,
+      phraseId: draft.phraseId,
+      sectionId: draft.sectionId || null,
+      gestureIntent: draft.gestureIntent,
+      techniqueIntent: draft.techniqueIntent,
+      noteRoleTag: draft.noteRoleTag,
+      articulation: draft.articulation,
+      dynamicIntent: {
+        intensity: Math.round(draft.intensity * 100) / 100,
+        velocity: draft.velocity,
+        phraseShape: source.dynamicIntent.gesture,
+        sourceEnergyTarget: source.dynamicIntent.sourceEnergyTarget,
+      },
+      harmonicContext: scoreHarmonicContext(source),
+    };
+  });
+
+  // Prepared suspensions remain a Composer decision. Each planned pair is
+  // placed under the theme as an inner voice where it fits the right hand and
+  // does not collide with a theme attack; otherwise it is left out and the
+  // Realizer audit reports it as not written.
+  const foundation = composePianoFoundationScore(input, plan, target, projectEndTick);
+  const suspensionVoice = foundation.events.filter((event) => event.voiceId === 'rh.suspension');
+  const endOf = (event: PianoScoreEvent) => event.startTick + event.durationTicks;
+  const lastSuspensionPitch = new Map<string, number>();
+  for (let index = 0; index + 1 < suspensionVoice.length; index++) {
+    const tension = suspensionVoice[index];
+    const resolution = suspensionVoice[index + 1];
+    if (tension.techniqueIntent !== 'prepared-suspension' || resolution.techniqueIntent !== 'stepwise-resolution'
+      || endOf(tension) !== resolution.startTick) continue;
+    index++;
+    const windowStart = tension.startTick;
+    const windowEnd = endOf(resolution);
+    const overlapping = () => events.filter((event) => event.startTick < windowEnd && endOf(event) > windowStart);
+    const upperLine = () => overlapping().filter((event) => event.voiceId === 'rh.melody' || event.voiceId === 'rh.octave');
+    const leftTop = Math.max(-1, ...overlapping().filter((event) => event.hand === 'left').map((event) => event.pitch));
+    // The suspension voice stays in one register inside a phrase.
+    const previousInVoice = tension.phraseId ? lastSuspensionPitch.get(tension.phraseId) : undefined;
+    const withinVoiceReach = (pitch: number) => previousInVoice === undefined || Math.abs(pitch - previousInVoice) <= 12;
+    const fitUnder = (): number | null => {
+      const melody = upperLine();
+      if (!melody.length) return null;
+      const melodyLow = Math.min(...melody.map((event) => event.pitch));
+      const melodyHigh = Math.max(...melody.map((event) => event.pitch));
+      // Prefer a placement the right hand can hold with the theme (within an octave). Otherwise
+      // accept one the pedal carries, still inside the validator's hard span limit, so that the
+      // theme is not displaced by its own inner suspension.
+      for (const reach of [12, 19]) {
+        for (const candidate of [0, -12, 12, -24, 24]) {
+          const pitches = [tension.pitch + candidate, resolution.pitch + candidate];
+          if (pitches.every((pitch) => withinVoiceReach(pitch) && pitch > leftTop && pitch < melodyLow - 1
+            && melodyHigh - pitch <= reach
+            && pitch >= target!.lowestNote && pitch <= target!.highestNote)) return candidate;
+        }
+      }
+      return null;
+    };
+    let takeoverEnd: number | null = null;
+    let shift = fitUnder();
+    if (shift === null) {
+      // No room beneath the theme: the suspension takes the theme's place for the boundary beat
+      // only. The theme note struck with it gives way, a theme note already sounding is released
+      // as the dissonance enters, and the theme resumes at its next attack, where the resolution ends.
+      const resume = events
+        .filter((event) => (event.voiceId === 'rh.melody' || event.voiceId === 'rh.octave')
+          && event.startTick >= resolution.startTick + PPQ / 2 && event.startTick < windowEnd)
+        .reduce((earliest, event) => Math.min(earliest, event.startTick), windowEnd);
+      takeoverEnd = resume;
+      for (let eventIndex = events.length - 1; eventIndex >= 0; eventIndex--) {
+        const event = events[eventIndex];
+        if (event.voiceId !== 'rh.melody' && event.voiceId !== 'rh.octave') continue;
+        if (event.startTick >= resume || endOf(event) <= windowStart) continue;
+        if (event.startTick < windowStart) events[eventIndex] = { ...event, durationTicks: windowStart - event.startTick };
+        else events.splice(eventIndex, 1);
+      }
+      const before = events.filter((event) => event.voiceId === 'rh.melody' && event.startTick < windowStart)
+        .sort((x, y) => y.startTick - x.startTick)[0];
+      const reference = previousInVoice ?? before?.pitch ?? Math.max(leftTop + 12, 67);
+      const fits = [0, -12, 12, -24, 24].filter((candidate) =>
+        [tension.pitch + candidate, resolution.pitch + candidate].every((pitch) => pitch > leftTop + 2
+          && pitch >= target!.lowestNote && pitch <= target!.highestNote));
+      fits.sort((x, y) => Math.abs(tension.pitch + x - reference) - Math.abs(tension.pitch + y - reference) || x - y);
+      shift = fits.length ? fits[0] : null;
+    }
+    if (shift === null) continue;
+    const tensionPitch = tension.pitch + shift;
+    const resolutionPitch = resolution.pitch + shift;
+    if (resolution.phraseId) lastSuspensionPitch.set(resolution.phraseId, resolutionPitch);
+    if (tension.phraseId && tension.phraseId !== resolution.phraseId) lastSuspensionPitch.set(tension.phraseId, tensionPitch);
+    // Clear inner support that would smear the dissonance or its resolution.
+    for (let eventIndex = events.length - 1; eventIndex >= 0; eventIndex--) {
+      const event = events[eventIndex];
+      if (event.voiceId !== 'rh.inner' || event.startTick >= windowEnd || endOf(event) <= windowStart) continue;
+      if (Math.abs(event.pitch - tensionPitch) > 2 && Math.abs(event.pitch - resolutionPitch) > 1
+        && Math.abs(event.pitch - Math.min(tensionPitch, resolutionPitch)) <= 12) continue;
+      if (event.startTick < windowStart - PPQ / 2) {
+        events[eventIndex] = { ...event, durationTicks: windowStart - event.startTick };
+      } else {
+        events.splice(eventIndex, 1);
+      }
+    }
+    events.push(
+      { ...tension, id: `${plan.generationIdentity.key}:score:${nextEventId++}`, pitch: tensionPitch },
+      {
+        ...resolution,
+        id: `${plan.generationIdentity.key}:score:${nextEventId++}`,
+        pitch: resolutionPitch,
+        durationTicks: takeoverEnd === null ? resolution.durationTicks
+          : Math.max(1, Math.min(resolution.durationTicks, takeoverEnd - resolution.startTick)),
+      },
+    );
+  }
+
+  const cleaned = avoidScoreUnisonRearticulation(events);
+  return {
+    score: createPianoScore({
+      generationIdentity: plan.generationIdentity,
+      templateId: plan.template.id,
+      projectEndTick: validEnd,
+      events: cleaned,
+      rests: scoreRests(plan, cleaned, validEnd),
+    }),
+    diagnostics: composition.diagnostics,
+  };
+}
+
+/** Production score entry point; see `composePianoScoreWithDiagnostics`. */
+export function composePianoScore(
+  input: PianoEngineInput,
+  plan: PianoComposerPlan,
+  target: PianoScoreTarget | null,
+  projectEndTick: number,
+): PianoScore {
+  return composePianoScoreWithDiagnostics(input, plan, target, projectEndTick).score;
 }

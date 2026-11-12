@@ -24,7 +24,10 @@ export type PianoGestureIntent =
   | 'octave-reinforcement'
   | 'prepared-tension'
   | 'stepwise-resolution'
-  | 'cadential-landing';
+  | 'cadential-landing'
+  | 'arpeggio-figure'
+  | 'chordal-weight'
+  | 'cascading-gesture';
 export type PianoTechniqueIntent =
   | 'sustained-bass-foundation'
   | 'pulsed-bass-pattern'
@@ -45,7 +48,17 @@ export type PianoTechniqueIntent =
   | 'staccato-fill-gesture'
   | 'prepared-suspension'
   | 'stepwise-resolution'
-  | 'final-harmony';
+  | 'final-harmony'
+  | 'theme-statement'
+  | 'theme-development'
+  | 'rolling-arpeggio-accompaniment'
+  | 'broken-tenth-accompaniment'
+  | 'stride-accompaniment'
+  | 'block-chord'
+  | 'held-chord-support'
+  | 'rhythmic-chord-accompaniment'
+  | 'flowing-inner-voice'
+  | 'cascading-gesture';
 
 export interface PianoScoreHarmonicContext {
   /** One event normally names one chord; a tied common tone can name several. */

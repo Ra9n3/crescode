@@ -27,6 +27,17 @@ import type { PianoComposerPlan, PianoHarmonicEvent, PianoTemplateIdentity } fro
 import type {
   PianoGestureIntent, PianoHand, PianoMusicalRole, PianoScoreTarget, PianoScoreVoiceId, PianoTechniqueIntent,
 } from './piano-score';
+import {
+  derivePianoPerformanceRoles,
+  type PianoPerformanceRole, type PianoPhraseRoleDecision, type PianoPhraseRoleEvidence, type PianoRoleContext,
+} from './piano-performance-role';
+import {
+  adaptPianoTransitions, planPianoTransitions,
+  type PianoBoundaryContext, type PianoBoundaryOrchestration, type PianoTransitionDecision, type PianoTransitionFacts,
+  type PianoTransitionGesture,
+  fallbackPianoTransition, verifyPianoTransition,
+  type PianoTransitionNote, type PianoTransitionRendering,
+} from './piano-transitions';
 
 export type PianoArcRole =
   | 'statement' | 'development' | 'contrast' | 'response' | 'reprise'
@@ -71,6 +82,12 @@ export interface PianoArcBar {
   readonly finalLanding: boolean;
   /** Identity composer only: the theme bar is reduced to its structural notes. */
   readonly themeSkeleton?: boolean;
+  /**
+   * Identity composer only: the conductor's energy for this bar where the Piano reads it differently.
+   * The last bar of a section carries a general pre-change dip; the Piano's `energy` continues the
+   * section instead and the transition decision shapes the bar.
+   */
+  readonly suppliedEnergy?: number;
 }
 
 export interface PianoArcPhrase {
@@ -112,7 +129,10 @@ export interface PianoAdaptationRecord {
   readonly kind:
     | 'accompany-lead' | 'answer-in-lead-rests' | 'register-shift' | 'texture-level-lowered'
     | 'right-hand-thinned' | 'left-hand-simplified' | 'moment-yield' | 'moment-support'
-    | 'unison-substitution' | 'velocity-trim';
+    | 'unison-substitution' | 'velocity-trim'
+    /** Stage 2A: phrase-level performance roles (identity composer only). */
+    | 'role-featured' | 'role-supporting' | 'role-rhythmic' | 'role-atmospheric' | 'role-restrained'
+    | 'co-lead' | 'theme-withheld' | 'sustained-colour' | 'hand-rest' | 'transition-changed';
   readonly reason: string;
   readonly evidence: string;
 }
@@ -129,6 +149,10 @@ interface BarDirective {
   protectHead?: boolean;
   rightThin?: boolean;
   leftLight?: boolean;
+  /** Stage 2A (identity composer only): the full theme sounds beside a lead; only unisons with it are avoided. */
+  coLead?: boolean;
+  /** Stage 2A (identity composer only): a hand, or the whole Piano, rests for this bar. */
+  rest?: 'left' | 'right' | 'both';
 }
 
 export interface PianoDraftEvent {
@@ -209,6 +233,114 @@ export interface PianoCompositionDiagnostics {
     readonly textureLevelBars: readonly [number, number, number, number];
   };
   readonly flags: readonly string[];
+  /** Stage 2A. Present only when the identity composer wrote the piece; absent in Classic mode. */
+  readonly performance?: PianoPerformanceDiagnostics;
+}
+
+/**
+ * One measurement of a Supporting phrase against its lead. Every stage uses the same two note
+ * populations (see `PianoLeadBalance`), so the stages can be compared directly.
+ */
+export interface PianoLeadBalanceStage {
+  /**
+   * `draft`: the Composer's notes after the phrase trim.
+   * `score`: the finished Piano score (suspensions added, unisons merged).
+   * `track`: the Piano track after the Realizer and the final mix guard. This is what is previewed and exported.
+   */
+  readonly stage: 'draft' | 'score' | 'track';
+  readonly pianoNotes: number;
+  /** Piano notes of the population at or below the quietest written velocity (30); they cannot be lowered by the trim. */
+  readonly pianoNotesAtFloor: number;
+  readonly pianoVelocity: number;
+  readonly leadVelocity: number;
+  /** Piano mean velocity minus lead mean velocity. Negative: the Piano's written notes are softer. */
+  readonly difference: number;
+}
+
+/**
+ * Relative balance of a Supporting phrase against the lead it accompanies, measured on written
+ * note velocities. It is a statement about MIDI velocity, not about loudness.
+ *
+ * Definitions, used at every stage:
+ * - Measured bars (`bars`): the sounding bars of the phrase in which the lead is written. The
+ *   phrase is measured only if these are at least half of its sounding bars.
+ * - Lead population: every note of the lead track(s) that sounds in a measured bar, counted once.
+ * - Piano population: every Piano note that starts in a measured bar, all voices.
+ * - `target`: lead mean velocity minus `margin`. The phrase is on target when the Piano mean is
+ *   at or below it, within half a velocity step.
+ */
+export interface PianoLeadBalance {
+  readonly leadTrackIds: readonly string[];
+  readonly bars: readonly number[];
+  readonly barWindows: readonly { readonly bar: number; readonly startTick: number; readonly endTick: number }[];
+  /** Number of measured bars, and sounding bars of the phrase. */
+  readonly leadBars: number;
+  readonly liveBars: number;
+  readonly leadNotes: number;
+  /** Lead mean velocity when the trim was decided. */
+  readonly leadVelocity: number;
+  /** Piano mean velocity before the phrase trim. Bar-local reductions of the role are already in it. */
+  readonly pianoVelocity: number;
+  /** `pianoVelocity - leadVelocity`: the relation before the phrase trim. */
+  readonly difference: number;
+  /** Piano attack points per lead attack in the measured bars. */
+  readonly activityRatio: number;
+  /** How far below the lead the Piano is asked to sit; 2 for equal activity, up to 6 for a Piano four times as busy. */
+  readonly margin: number;
+  readonly target: number;
+  /** Velocity points taken from the phrase (0 to `PIANO_LEAD_BALANCE_LIMIT`); one amount for the whole phrase. */
+  readonly trim: number;
+  /**
+   * Measured bars that already carry a bar-local reduction (a conductor moment, a thinned right
+   * hand). The phrase trim is not added to it: the larger of the two applies in that bar.
+   */
+  readonly barLocalReductions: readonly { readonly bar: number; readonly amount: number }[];
+  /** The measurements after the trim, in pipeline order. */
+  readonly stages: readonly PianoLeadBalanceStage[];
+  /** The last stage reached: `track` in a full compose. */
+  readonly final: PianoLeadBalanceStage;
+  /** Whether the final Piano mean is at or below the target (within half a step). */
+  readonly withinTarget: boolean;
+  /** Why the final result is above the target, when it is. Null otherwise. */
+  readonly exception: string | null;
+  readonly note: string;
+}
+
+/** How the independent composition was presented in the arrangement, and how its sections were joined. */
+export interface PianoPerformanceDiagnostics {
+  readonly version: 1;
+  /** `none`: every phrase is Featured and the presentation pass did nothing. */
+  readonly evidence: 'available' | 'none';
+  readonly roles: readonly (PianoPhraseRoleDecision & {
+    readonly sectionName: string;
+    readonly startBar: number;
+    readonly endBar: number;
+    readonly presentation: {
+      /** Sounding bars by how the theme is presented. */
+      readonly themeBars: { readonly presented: number; readonly answered: number; readonly skeleton: number; readonly withheld: number };
+      readonly restBars: { readonly left: number; readonly right: number; readonly both: number };
+      readonly melodyEvents: { readonly independent: number; readonly adapted: number };
+      readonly attacksPerBar: { readonly independent: number; readonly adapted: number };
+      /** Whether the written result matches what the role asks for. */
+      readonly asIntended: boolean;
+      readonly note: string;
+      /** Supporting under a written lead: the measured relation to that lead and the trim it produced. Null otherwise. */
+      readonly balance: PianoLeadBalance | null;
+      /** A Supporting phrase with a written lead that was not measured: why. Null otherwise. */
+      readonly balanceNote: string | null;
+    };
+  })[];
+  readonly roleBars: Readonly<Record<PianoPerformanceRole, number>>;
+  readonly transitions: readonly PianoTransitionDecision[];
+  /**
+   * Every transition decision compared with the notes written into its bar. Filled from the
+   * Composer's adapted notes and replaced by the score overlay with the check of the final score.
+   */
+  readonly transitionRendering: PianoTransitionRendering[];
+  /** Bars whose energy the Piano read without the conductor's pre-change dip. */
+  readonly energyReadings: readonly { readonly bar: number; readonly supplied: number; readonly used: number }[];
+  /** Planned suspensions the Composer deliberately did not write, with the deciding reason. Filled by the score overlay. */
+  readonly omittedSuspensions: { readonly startTick: number; readonly resolutionTick: number; readonly reason: string }[];
 }
 
 export interface PianoTextureThemeResult {
@@ -462,10 +594,28 @@ function planArc(
   const restricted = restrictedWindows(plan);
   const sectionNameById = new Map(input.context.sections.map((section) => [section.id, section.name]));
   const windows = [...input.context.barWindows].sort((a, b) => a.startTick - b.startTick);
+  // The energy the Piano composes from. Classic: exactly the supplied arc. Identity: the last bar of
+  // a non-final section does not take the conductor's general pre-change dip. It continues the
+  // section, and the transition decision for that boundary decides whether the bar softens, grows
+  // or stays as it is. The conductor's arc itself is not changed and other instruments still use it.
+  const targetByBar = new Map(input.context.energy.map((entry) => [entry.bar, entry.target]));
+  if (idn) {
+    const ordered = [...input.context.sections].sort((a, b) => a.startTick - b.startTick);
+    ordered.slice(0, -1).forEach((section) => {
+      const inSection = windows.filter((bar) => bar.startTick >= section.startTick && bar.startTick < section.endTick);
+      if (inSection.length < 2) return;
+      const last = energyByBar.get(inSection[inSection.length - 1].bar);
+      const before = energyByBar.get(inSection[inSection.length - 2].bar);
+      if (!last || !before || last.nearSilence || before.nearSilence || last.target >= before.target - 0.01) return;
+      const earlier = inSection.length >= 3 ? energyByBar.get(inSection[inSection.length - 3].bar) : undefined;
+      const slope = earlier && !earlier.nearSilence ? clamp(before.target - earlier.target, -0.05, 0.05) : 0;
+      targetByBar.set(last.bar, clamp(before.target + slope, 0, 1));
+    });
+  }
   const liveEnergies = windows
     .map((bar) => energyByBar.get(bar.bar))
     .filter((entry): entry is NonNullable<typeof entry> => !!entry && !entry.nearSilence)
-    .map((entry) => entry.target);
+    .map((entry) => targetByBar.get(entry.bar) ?? entry.target);
   const minEnergy = liveEnergies.length ? Math.min(...liveEnergies) : 0.5;
   const maxEnergy = liveEnergies.length ? Math.max(...liveEnergies) : 0.5;
   const range = maxEnergy - minEnergy;
@@ -496,8 +646,8 @@ function planArc(
     const isRestricted = (bar: typeof windows[number]) => (energyByBar.get(bar.bar)?.nearSilence ?? false)
       || restricted.some((window) => window.startTick <= bar.startTick && window.endTick >= bar.endTick);
     const live = bars.filter((bar) => !isRestricted(bar));
-    const energies = bars.map((bar) => energyByBar.get(bar.bar)?.target ?? 0.5);
-    const liveEnergy = live.map((bar) => energyByBar.get(bar.bar)?.target ?? 0.5);
+    const energies = bars.map((bar) => targetByBar.get(bar.bar) ?? 0.5);
+    const liveEnergy = live.map((bar) => targetByBar.get(bar.bar) ?? 0.5);
     drafts.push({
       id: phrase.id, sectionId: phrase.sectionId, sectionName, bars, energies,
       mean: liveEnergy.length ? liveEnergy.reduce((sum, value) => sum + value, 0) / liveEnergy.length : 0,
@@ -752,7 +902,8 @@ function planArc(
       const fillHere = density >= 0.4 && level >= 1 && !isRestricted && plan.fillDecisions.some((decision) =>
         decision.target.toLowerCase() === 'piano' && decision.decision === 'consider-brief-gesture'
         && decision.startTick < window.endTick && decision.endTick > window.startTick);
-      const fillRun: 'up' | 'down' | null = fillHere && (!idn || idn.techniques.runs === 'free')
+      // Identity: a fill reservation is one input of the boundary's transition decision, not a run by itself.
+      const fillRun: 'up' | 'down' | null = fillHere && !idn
         ? (unitRandom(seed, `independent:fill-direction:${window.bar}`) < 0.5 ? 'up' : 'down') : null;
       const alternate = !!idn && idn.accompaniment.changeBySection && draft.distinctIndex % 2 === 1;
       const patternList = level === 0 ? ['sustain' as PianoLeftPattern] : profile.left[level as 1 | 2 | 3];
@@ -785,6 +936,7 @@ function planArc(
         run: level >= 2 && map.run ? map.run : fillRun,
         finalLanding: isFinal,
         ...(map.skeleton ? { themeSkeleton: true } : {}),
+        ...(idn && entry && Math.abs(entry.target - energy) > 1e-9 ? { suppliedEnergy: entry.target } : {}),
       });
     });
     const rationale = role === 'breath' ? 'Every bar of the phrase is a supplied near-silence or explicit rest window.'
@@ -969,7 +1121,7 @@ function buildIdentityTheme(idn: PianoCompositionIdentity, chords: readonly Chor
 
 interface ExternalEvidence {
   readonly available: boolean;
-  readonly leadNotesByBar: ReadonlyMap<number, readonly { start: number; end: number; pitch: number }[]>;
+  readonly leadNotesByBar: ReadonlyMap<number, readonly { start: number; end: number; pitch: number; velocity?: number; trackId?: string }[]>;
   readonly leadIdsByBar: ReadonlyMap<number, readonly string[]>;
   readonly upperOnsetsByBar: ReadonlyMap<number, number>;
   readonly bassOnsetsByBar: ReadonlyMap<number, number>;
@@ -1002,12 +1154,18 @@ interface RenderOptions {
   readonly evidence: ExternalEvidence | null;
   readonly records: PianoAdaptationRecord[] | null;
   readonly idn: PianoCompositionIdentity | null;
+  /** Stage 2A (identity composer only): transition decision by the last bar of each section. */
+  readonly transitions?: ReadonlyMap<number, PianoTransitionDecision>;
 }
 
 function render(options: RenderOptions): PianoDraftEvent[] {
-  const { plan, profile, theme, arc, chords, scale, target, endTick, density, directives, evidence, records, idn } = options;
+  const { plan, profile, theme, arc, chords, scale, target, endTick, density, directives, evidence, records, idn, transitions } = options;
   const seed = compositionSeed(plan);
   const events: PianoDraftEvent[] = [];
+  // Stage 2A, set per bar and only by the identity composer: a progressive velocity change across
+  // a transition bar, and a hand that rests.
+  let ramp: { start: number; end: number; amount: number } | null = null;
+  let mute: 'left' | 'right' | 'both' | null = null;
   const octaveForbidden = plan.templateConstraints.octaveDoubling === 'forbidden';
   const gaps = restrictedWindows(plan);
   const attackAllowed = (tick: number): boolean => !gaps.some((gap) => tick >= gap.startTick && tick < gap.endTick);
@@ -1021,14 +1179,18 @@ function render(options: RenderOptions): PianoDraftEvent[] {
     if (!Number.isInteger(event.pitch) || event.pitch < low || event.pitch > high) return;
     const start = Math.round(event.startTick);
     if (start < 0 || start >= endTick || !attackAllowed(start)) return;
+    if (mute && (mute === 'both' || mute === event.hand)) return;
     let end = Math.min(endTick, start + Math.max(1, Math.round(event.durationTicks)));
     for (const gap of gaps) if (gap.startTick > start && gap.startTick < end) end = gap.startTick;
     if (end - start < 1) return;
+    const shaped = ramp
+      ? clamp(event.velocity + Math.round(ramp.amount * clamp((start - ramp.start) / Math.max(1, ramp.end - ramp.start), 0, 1)), 30, 127)
+      : event.velocity;
     events.push({
       ...event,
       startTick: start,
       durationTicks: end - start,
-      velocity: Math.round(clamp(event.velocity, 1, 127)),
+      velocity: Math.round(clamp(shaped, 1, 127)),
       sectionId: phraseSection.get(event.phraseId) ?? '',
     });
   };
@@ -1054,7 +1216,7 @@ function render(options: RenderOptions): PianoDraftEvent[] {
   let previousMelody: number | null = null;
   let previousMelodyPhrase: string | null = null;
 
-  interface MelodyNote { tick: number; dur: number; pitch: number; structural: boolean; run: boolean }
+  interface MelodyNote { tick: number; dur: number; pitch: number; structural: boolean; run: boolean; /** Written by a transition gesture. */ gesture?: boolean }
 
   const melodyForBar = (bar: PianoArcBar, directive: BarDirective): MelodyNote[] => {
     if (!theme || bar.themeBar === null || directive.melody === 'none') return [];
@@ -1163,6 +1325,157 @@ function render(options: RenderOptions): PianoDraftEvent[] {
     return output.filter((note) => note.dur > 0);
   };
 
+  /**
+   * Stage 2A: the melodic part of a transition gesture, written into the last bar of a section.
+   * The left hand and the inner voices are shaped separately in the bar loop.
+   */
+  const transitionMelody = (
+    bar: PianoArcBar, melody: MelodyNote[], gesture: PianoTransitionGesture, nextTarget: number | null,
+  ): MelodyNote[] => {
+    if (!melody.length || bar.themeHand === 'left' || bar.run) return melody;
+    const slots = Math.max(1, Math.round((bar.endTick - bar.startTick) / EIGHTH));
+    if (slots < 8) return melody;
+    const half = bar.startTick + Math.floor(slots / 2) * EIGHTH;
+    const rangeLow = Math.max(low, 57);
+    const rangeHigh = Math.min(high, profile.melodyCenter + 19);
+    const until = (at: number): MelodyNote[] => melody.filter((note) => note.tick < at)
+      .map((note) => ({ ...note, dur: Math.min(note.dur, at - note.tick) }));
+    const lastPitch = (notes: MelodyNote[]): number => (notes.length ? notes[notes.length - 1].pitch : melody[0].pitch);
+    // A line in one direction that keeps the theme's own rule for non-chord tones: a passing tone is
+    // written only where the very next note is a chord tone a step away. Otherwise the line takes the
+    // next chord tone in its direction. The result never changes direction.
+    const scalarLine = (from: number, direction: 1 | -1, ticks: readonly number[], floor: number, ceiling: number): number[] => {
+      const line: number[] = [];
+      let pitch = from;
+      for (let index = 0; index < ticks.length; index++) {
+        const chord = chordAt(ticks[index]);
+        if (!chord) break;
+        let next = stepInScale(pitch, direction, chord.localScale);
+        if (!chord.tones.includes(pc(next))) {
+          const after = index + 1 < ticks.length ? chordAt(ticks[index + 1]) : undefined;
+          const following = after ? stepInScale(next, direction, after.localScale) : null;
+          const resolves = following !== null && after!.tones.includes(pc(following)) && Math.abs(following - next) <= 2
+            && following >= floor && following <= ceiling;
+          if (!resolves) {
+            const tone = direction > 0
+              ? nearestWithClasses(next + 1, chord.tones, next + 1, next + 5)
+              : nearestWithClasses(next - 1, chord.tones, next - 5, next - 1);
+            if (tone === null) break;
+            next = tone;
+          }
+        }
+        if (next < floor || next > ceiling) break;
+        line.push(next);
+        pitch = next;
+      }
+      // The line ends on a chord tone.
+      while (line.length && !(chordAt(ticks[line.length - 1])?.tones.includes(pc(line[line.length - 1])) ?? true)) line.pop();
+      return line;
+    };
+    const ticksFrom = (from: number, step: number): number[] => {
+      const ticks: number[] = [];
+      for (let tick = from; tick < bar.endTick; tick += step) ticks.push(tick);
+      return ticks;
+    };
+    switch (gesture) {
+      case 'rising-figure':
+      case 'flourish': {
+        const before = until(half);
+        const step = gesture === 'flourish' ? EIGHTH / 2 : EIGHTH;
+        const ticks = ticksFrom(half, step);
+        const pitches = scalarLine(lastPitch(before), 1, ticks, rangeLow, Math.min(high, rangeHigh + 5));
+        if (pitches.length < 2) return melody;
+        return [...before, ...pitches.map((pitch, index) => ({ tick: ticks[index], dur: step, pitch, structural: false, run: true, gesture: true }))];
+      }
+      case 'descending-resolution': {
+        const from = bar.startTick + 2 * EIGHTH;
+        const before = until(from);
+        const ticks = ticksFrom(from, 2 * EIGHTH);
+        const pitches = scalarLine(lastPitch(before), -1, ticks, rangeLow, high);
+        if (pitches.length < 2) return melody;
+        // The line comes to rest: its last note is a chord tone and is held to the bar line.
+        return [...before, ...pitches.map((pitch, index) => {
+          const last = index === pitches.length - 1;
+          return { tick: ticks[index], dur: last ? bar.endTick - ticks[index] : 2 * EIGHTH, pitch, structural: last, run: false, gesture: true };
+        })];
+      }
+      case 'pickup': {
+        const from = bar.endTick - 3 * EIGHTH;
+        const before = until(from);
+        const current = lastPitch(before);
+        const chord = chordAt(from);
+        if (!chord) return melody;
+        const goal = nextTarget ?? nearestWithClasses(current + 2, chord.tones, rangeLow, rangeHigh) ?? current;
+        const away = goal >= current ? -1 : 1; // the upbeat lies on this side of its goal
+        const ticks = [from, from + EIGHTH, from + 2 * EIGHTH];
+        const chords = ticks.map((tick) => chordAt(tick) ?? chord);
+        // Built backwards from the goal. The last upbeat note is a chord tone next to the goal; a
+        // passing tone before it is allowed only because the note after it is a chord tone a step away.
+        const third = away < 0
+          ? nearestWithClasses(goal - 1, chords[2].tones, goal - 4, goal - 1)
+          : nearestWithClasses(goal + 1, chords[2].tones, goal + 1, goal + 4);
+        if (third === null) return melody;
+        const second = stepInScale(third, away, chords[1].localScale);
+        let first = stepInScale(second, away, chords[0].localScale);
+        if (!chords[0].tones.includes(pc(first)) && !chords[1].tones.includes(pc(second))) {
+          const tone = away < 0
+            ? nearestWithClasses(second - 1, chords[0].tones, second - 5, second - 1)
+            : nearestWithClasses(second + 1, chords[0].tones, second + 1, second + 5);
+          if (tone === null) return melody;
+          first = tone;
+        }
+        const pitches = [first, second, third];
+        if (pitches.some((pitch) => pitch < rangeLow || pitch > Math.min(high, rangeHigh + 3))) return melody;
+        return [...before, ...pitches.map((pitch, index) => ({ tick: ticks[index], dur: EIGHTH, pitch, structural: false, run: false, gesture: true }))];
+      }
+      case 'short-fill': {
+        const from = bar.endTick - 3 * EIGHTH;
+        const before = until(from);
+        const base = lastPitch(before);
+        const chord = chordAt(from);
+        if (!chord) return melody;
+        const below = nearestWithClasses(base - 4, chord.tones, Math.max(rangeLow, base - 8), base - 1);
+        const centre = nearestWithClasses(base, chord.tones, base - 2, base + 2) ?? base;
+        const above = nearestWithClasses(base + 4, chord.tones, base + 1, Math.min(rangeHigh, base + 8));
+        const figure = [below ?? above, centre, above ?? below].filter((pitch): pitch is number => pitch !== null);
+        if (figure.length < 3 || new Set(figure).size < 2) return melody;
+        return [...before, ...figure.map((pitch, index) => ({ tick: from + index * EIGHTH, dur: EIGHTH, pitch, structural: true, run: false, gesture: true }))];
+      }
+      case 'register-lift': {
+        const before = until(half);
+        let pitch = lastPitch(before);
+        const climb: MelodyNote[] = [];
+        for (let tick = half; tick < bar.endTick; tick += 2 * EIGHTH) {
+          const chord = chordAt(tick);
+          if (!chord) break;
+          const next = nearestWithClasses(pitch + 4, chord.tones, pitch + 2, Math.min(rangeHigh, pitch + 9));
+          if (next === null) break;
+          pitch = next;
+          climb.push({ tick, dur: Math.min(2 * EIGHTH, bar.endTick - tick), pitch, structural: true, run: false, gesture: true });
+        }
+        return climb.length ? [...before, ...climb] : melody;
+      }
+      case 'sustained-handover': {
+        const first = melody[0];
+        let end = bar.endTick;
+        for (const chord of chords) {
+          if (chord.startTick > first.tick && chord.startTick < bar.endTick && !chord.tones.includes(pc(first.pitch))) { end = chord.startTick; break; }
+        }
+        return [{ ...first, dur: end - first.tick, structural: true }];
+      }
+      case 'cadence': {
+        const final = melody[melody.length - 1];
+        return [...melody.slice(0, -1), { ...final, dur: bar.endTick - final.tick }];
+      }
+      case 'chordal-punctuation':
+        return [{ ...melody[0], dur: Math.min(melody[0].dur, PPQ) }];
+      case 'break':
+        return until(bar.startTick + PPQ);
+      default:
+        return melody;
+    }
+  };
+
   /** Every non-chord tone must resolve by step onto a chord tone; otherwise it becomes a chord tone. */
   const resolveNonChordTones = (notes: MelodyNote[]): MelodyNote[] => {
     const isChordTone = (note: MelodyNote) => chordAt(note.tick)?.tones.includes(pc(note.pitch)) ?? true;
@@ -1261,14 +1574,24 @@ function render(options: RenderOptions): PianoDraftEvent[] {
     'cell-figure': 'rhythmic-ostinato',
   };
 
-  for (const bar of arc.bars) {
+  for (const [barIndex, bar] of arc.bars.entries()) {
+    ramp = null;
+    mute = null;
     if (bar.restricted) { previousInner = []; continue; }
     const directive = directives.get(bar.bar) ?? {
       level: bar.level, melody: 'theme' as const, registerShift: 0, velocityTrim: 0, melodyTrim: 0, rightCap: null, leftCap: null,
     };
+    // Stage 2A: the boundary decision for this bar, if it ends a section. The final landing is never reshaped.
+    const transition = (!bar.finalLanding && transitions?.get(bar.bar)) || null;
+    const gesture: PianoTransitionGesture | null = transition ? transition.gesture : null;
+    const barFirstEvent = events.length;
+    if (!bar.finalLanding && directive.rest) mute = directive.rest;
+    if (transition && transition.ramp !== 0) ramp = { start: bar.startTick, end: bar.endTick, amount: transition.ramp };
     const level = directive.level;
-    const leftLevel = directive.leftCap === null ? level : Math.min(level, directive.leftCap) as PianoTextureLevel;
-    const intensity = bar.intensity;
+    const leftLevel = gesture === 'sustained-handover' ? 0
+      : directive.leftCap === null ? level : Math.min(level, directive.leftCap) as PianoTextureLevel;
+    const intensity = transition && transition.intensityDelta !== 0
+      ? clamp(bar.intensity + transition.intensityDelta, 0.6, profile.intensityCap) : bar.intensity;
     const trim = directive.velocityTrim;
     const segments = chords
       .filter((chord) => chord.startTick < bar.endTick && chord.endTick > bar.startTick)
@@ -1307,15 +1630,30 @@ function render(options: RenderOptions): PianoDraftEvent[] {
 
     /* ---------------- melody ---------------- */
     let melody = melodyForBar(bar, directive);
+    if (gesture && gesture !== 'none' && gesture !== 'minimal' && melody.length) {
+      let nextTarget: number | null = null;
+      if (gesture === 'pickup') {
+        const next = arc.bars[barIndex + 1];
+        const nextDirective = next ? directives.get(next.bar) ?? {
+          level: next.level, melody: 'theme' as const, registerShift: 0, velocityTrim: 0, melodyTrim: 0, rightCap: null, leftCap: null,
+        } : null;
+        const opening = next && nextDirective && !next.restricted && next.themeHand !== 'left' ? melodyForBar(next, nextDirective)[0] : undefined;
+        nextTarget = opening && opening.tick === next!.startTick ? opening.pitch : null;
+      }
+      melody = transitionMelody(bar, melody, gesture, nextTarget);
+    }
     const leftTheme = bar.themeHand === 'left' && melody.length > 0;
-    if (directive.melody === 'answers' && evidence) {
+    if ((directive.melody === 'answers' || directive.coLead === true) && evidence) {
       const lead = evidence.leadNotesByBar.get(bar.bar) ?? [];
       const busy = (tick: number) => lead.some((note) => Math.abs(note.start - tick) < EIGHTH);
       // Protected theme head (identity only): its notes also stay where the lead attacks at the same
       // moment, as long as the lead is not in the same register. A lead within a fourth is a real
       // conflict and the note still goes.
       const clear = (note: MelodyNote) => !lead.some((other) => Math.abs(other.start - note.tick) < EIGHTH && Math.abs(other.pitch - note.pitch) < 5);
-      const kept = melody.filter((note, index) => !busy(note.tick)
+      // Co-lead (identity only): the whole theme stays; only a unison with the lead is avoided below.
+      const kept = directive.coLead === true && directive.melody !== 'answers' ? melody : melody.filter((note, index) => !busy(note.tick)
+        // (Stage 2A) the notes of a transition figure were decided with the arrangement in view; they are not filtered again.
+        || note.gesture === true
         || (note.structural && (index === 0 || note.dur >= 2 * PPQ))
         || (directive.protectHead === true && clear(note)));
       if (records && kept.length !== melody.length) {
@@ -1404,6 +1742,7 @@ function render(options: RenderOptions): PianoDraftEvent[] {
       const bass = chooseBass(chord);
       const slots = Math.max(1, Math.round((end - start) / EIGHTH));
       const pattern: PianoLeftPattern = leftLevel === 0 ? 'sustain'
+        : gesture === 'cadence' ? 'half-notes'
         : leftLevel === bar.level || directive.leftLight ? bar.leftPattern
           : idn ? idn.accompaniment.left[leftLevel as 1 | 2 | 3] : profile.left[leftLevel as 1 | 2 | 3][0];
       // Protected rhythm cell under a busy low register (identity only): the cell keeps sounding in
@@ -1504,7 +1843,7 @@ function render(options: RenderOptions): PianoDraftEvent[] {
     });
 
     /* ---------------- right hand under (or without) the melody ---------------- */
-    const style: PianoRightStyle = level === 0 ? 'held'
+    const style: PianoRightStyle = level === 0 || gesture === 'sustained-handover' || gesture === 'cadence' ? 'held'
       : directive.rightCap ?? bar.rightStyle;
     const innerCount = directive.rightThin ? 1 : level === 0 ? (density >= 0.6 ? 2 : 1)
       : level === 1 ? Math.min(2, profile.innerVoices)
@@ -1564,7 +1903,7 @@ function render(options: RenderOptions): PianoDraftEvent[] {
       const melodyAttackSlots = new Set(sounding.filter((note) => note.tick >= start && note.tick < end)
         .map((note) => Math.round((note.tick - start) / EIGHTH)));
 
-      if (leftTheme) {
+      if (leftTheme && gesture !== 'cadence' && gesture !== 'sustained-handover') {
         // Hands exchange roles: the right hand takes the broken figure.
         const figure = tones.length >= 2 ? tones : [tones[0]];
         const stepSlots = level >= 2 ? 1 : 2;
@@ -1655,6 +1994,40 @@ function render(options: RenderOptions): PianoDraftEvent[] {
       nextInner.push(...tones);
     });
     previousInner = nextInner.length ? [...new Set(nextInner)] : previousInner;
+
+    /* ---------------- Stage 2A: gestures that shape the whole bar ---------------- */
+    const barLength = bar.endTick - bar.startTick;
+    if (gesture === 'break' && barLength >= 4 * PPQ) {
+      // The downbeat sounds and is released by the middle of the bar; the rest is silence.
+      const cut = bar.startTick + Math.floor(barLength / (2 * PPQ)) * PPQ;
+      const written = events.splice(barFirstEvent);
+      for (const event of written) {
+        if (event.startTick >= bar.startTick + PPQ) continue;
+        events.push({ ...event, durationTicks: Math.max(1, Math.min(event.durationTicks, cut - event.startTick)) });
+      }
+    } else if (gesture === 'chordal-punctuation' && barLength >= 3 * PPQ) {
+      // Two struck chords: the downbeat, and the last beat before the bar line.
+      const second = bar.endTick - PPQ;
+      const written = events.splice(barFirstEvent);
+      const downbeat = written.filter((event) => event.startTick === bar.startTick);
+      const chord = chordAt(second);
+      for (const event of downbeat) {
+        events.push({ ...event, durationTicks: Math.min(event.durationTicks, Math.round(PPQ * 0.9)) });
+      }
+      if (chord && downbeat.length) {
+        const used = new Set<number>();
+        for (const event of downbeat) {
+          const pitch = chord.tones.includes(pc(event.pitch)) ? event.pitch
+            : nearestWithClasses(event.pitch, event.layer === 'bass' ? [chord.bass] : chord.tones, event.pitch - 4, event.pitch + 4);
+          if (pitch === null || used.has(pitch) || pitch < low || pitch > high) continue;
+          used.add(pitch);
+          events.push({
+            ...event, pitch, chordId: chord.id, startTick: second, durationTicks: Math.round(PPQ * 0.75),
+            noteRoleTag: 'punctuation', articulation: 'staccato', velocity: Math.round(clamp(event.velocity + 3, 30, 127)),
+          });
+        }
+      }
+    }
   }
 
   return events;
@@ -1670,7 +2043,7 @@ const UNPITCHED_ROLES = new Set(['timpani', 'snare', 'cymbals', 'aux', 'percussi
 function collectEvidence(input: PianoEngineInput, plan: PianoComposerPlan, arc: ArcContext): ExternalEvidence {
   const tracks = input.analysis.tracks.filter((track) =>
     track.role !== 'piano' && track.notes.length > 0 && track.compositionState?.composerVisible !== false);
-  const leadNotesByBar = new Map<number, { start: number; end: number; pitch: number }[]>();
+  const leadNotesByBar = new Map<number, { start: number; end: number; pitch: number; velocity?: number; trackId?: string }[]>();
   const leadIdsByBar = new Map<number, string[]>();
   const upperOnsetsByBar = new Map<number, number>();
   const bassOnsetsByBar = new Map<number, number>();
@@ -1680,9 +2053,9 @@ function collectEvidence(input: PianoEngineInput, plan: PianoComposerPlan, arc: 
       .filter((event) => event.chord.startTick < bar.endTick && event.chord.endTick > bar.startTick)
       .flatMap((event) => event.orchestration.explicitLeadTrackIds))];
     const leadNotes = tracks.filter((track) => leadIds.includes(track.id))
-      .flatMap((track) => track.notes)
-      .filter((note) => note.startTick < bar.endTick && note.startTick + note.durationTicks > bar.startTick)
-      .map((note) => ({ start: note.startTick, end: note.startTick + note.durationTicks, pitch: note.pitch }));
+      .flatMap((track) => track.notes
+        .filter((note) => note.startTick < bar.endTick && note.startTick + note.durationTicks > bar.startTick)
+        .map((note) => ({ start: note.startTick, end: note.startTick + note.durationTicks, pitch: note.pitch, velocity: note.velocity, trackId: track.id })));
     if (leadNotes.length) { leadNotesByBar.set(bar.bar, leadNotes); leadIdsByBar.set(bar.bar, leadIds); }
     let upper = 0;
     let bass = 0;
@@ -1831,6 +2204,406 @@ function adaptDirectives(
 }
 
 /* ------------------------------------------------------------------ */
+/* Stage 2A: performance roles and transitions (identity composer)     */
+/* ------------------------------------------------------------------ */
+
+const DEFAULT_DIRECTIVE = (bar: PianoArcBar): BarDirective => ({
+  level: bar.level, melody: 'theme', registerShift: 0, velocityTrim: 0, melodyTrim: 0, rightCap: null, leftCap: null,
+});
+
+/** The evidence a phrase role is decided from, collected from data the engine already holds. */
+function roleContext(
+  plan: PianoComposerPlan,
+  arc: ArcContext,
+  evidence: ExternalEvidence,
+  profile: TextureProfile,
+  idn: PianoCompositionIdentity,
+): PianoRoleContext {
+  const livePhrases = arc.phrases.filter((phrase) => phrase.role !== 'breath');
+  const energies = livePhrases.map((phrase) => phrase.meanEnergy);
+  const minEnergy = energies.length ? Math.min(...energies) : 0;
+  const maxEnergy = energies.length ? Math.max(...energies) : 0;
+  const phrases: PianoPhraseRoleEvidence[] = arc.phrases.map((phrase) => {
+    const all = arc.bars.filter((bar) => bar.phraseId === phrase.phraseId);
+    const bars = all.filter((bar) => !bar.restricted);
+    const count = Math.max(1, bars.length);
+    const led = bars.filter((bar) => (evidence.leadNotesByBar.get(bar.bar) ?? []).length > 0);
+    const leadNotes = led.flatMap((bar) => evidence.leadNotesByBar.get(bar.bar) ?? []);
+    const leadOnsets = led.reduce((sum, bar) => sum + (evidence.leadNotesByBar.get(bar.bar) ?? [])
+      .filter((note) => note.start >= bar.startTick && note.start < bar.endTick).length, 0);
+    const startTick = all.length ? all[0].startTick : 0;
+    const endTick = all.length ? all[all.length - 1].endTick : 0;
+    const chords = plan.harmonicEvents.filter((event) => event.chord.startTick < endTick && event.chord.endTick > startTick);
+    const share = (test: (event: PianoHarmonicEvent) => boolean): number => (chords.length ? chords.filter(test).length / chords.length : 0);
+    const themed = bars.filter((bar) => bar.themeBar !== null);
+    return {
+      phraseId: phrase.phraseId,
+      sectionName: phrase.sectionName,
+      arcRole: phrase.role,
+      liveBars: bars.length,
+      meanEnergy: phrase.meanEnergy,
+      energyRank: maxEnergy - minEnergy > 1e-6 ? (phrase.meanEnergy - minEnergy) / (maxEnergy - minEnergy) : 0.5,
+      hasThemeHead: bars.some((bar) => bar.themeBar === 0),
+      themeCentre: profile.melodyCenter + 12 * (themed.length ? Math.max(...themed.map((bar) => bar.themeOctave)) : 0),
+      leadCoverage: led.length / count,
+      leadOnsetsPerBar: led.length ? leadOnsets / led.length : 0,
+      leadMeanPitch: leadNotes.length ? leadNotes.reduce((sum, note) => sum + note.pitch, 0) / leadNotes.length : null,
+      upperOnsetsPerBar: bars.reduce((sum, bar) => sum + (evidence.upperOnsetsByBar.get(bar.bar) ?? 0), 0) / count,
+      bassOnsetsPerBar: bars.reduce((sum, bar) => sum + (evidence.bassOnsetsByBar.get(bar.bar) ?? 0), 0) / count,
+      interweaveShare: share((event) => event.orchestration.interaction === 'interweave'),
+      leaveSpaceShare: share((event) => event.orchestration.interaction === 'leave-space'),
+      spotlightYieldShare: share((event) => event.orchestration.interaction === 'yield-to-spotlight'),
+      handYieldShare: share((event) => event.hands.left.motion === 'yield' || event.hands.right.motion === 'yield'),
+      arrivalShare: share((event) => event.structuralRole === 'arrival'),
+      spotlightShare: bars.filter((bar) => {
+        const moment = evidence.momentByBar.get(bar.bar);
+        return !!moment && !moment.pianoParticipates && (moment.kind === 'soli' || moment.kind === 'unison');
+      }).length / count,
+    };
+  });
+  return {
+    evidenceAvailable: evidence.available,
+    templateIdentity: plan.template.style.identity,
+    archetype: idn.archetype,
+    protectedTraits: idn.protectedTraits,
+    phrases,
+  };
+}
+
+/** One context per section boundary, read from the independent arc and the harmony. */
+function boundaryContexts(
+  input: PianoEngineInput,
+  plan: PianoComposerPlan,
+  arc: ArcContext,
+  chords: readonly ChordInfo[],
+): PianoBoundaryContext[] {
+  const sections = [...input.context.sections].sort((a, b) => a.startTick - b.startTick);
+  const roleOf = new Map(arc.phrases.map((phrase) => [phrase.phraseId, phrase.role]));
+  const supplied = new Map(input.context.energy.map((entry) => [entry.bar, entry.target]));
+  const seen: string[] = [];
+  const boundaries: PianoBoundaryContext[] = [];
+  sections.forEach((section, index) => {
+    seen.push(section.name);
+    const next = sections[index + 1];
+    if (!next) return;
+    const outgoing = arc.bars.filter((bar) => bar.startTick >= section.startTick && bar.startTick < section.endTick);
+    const incoming = arc.bars.filter((bar) => bar.startTick >= next.startTick && bar.startTick < next.endTick);
+    if (!outgoing.length || !incoming.length) return;
+    const last = outgoing[outgoing.length - 1];
+    const first = incoming[0];
+    const opening = incoming.filter((bar) => !bar.restricted).slice(0, 2);
+    const lastChord = chords.find((chord) => chord.startTick < last.endTick && chord.endTick >= last.endTick) ?? null;
+    const firstChord = chords.find((chord) => chord.startTick <= first.startTick && first.startTick < chord.endTick) ?? null;
+    boundaries.push({
+      bar: last.bar,
+      outgoingSection: section.name,
+      incomingSection: next.name,
+      outgoingArcRole: roleOf.get(last.phraseId) ?? 'development',
+      incomingArcRole: roleOf.get((opening[0] ?? first).phraseId) ?? 'development',
+      suppliedEnergy: supplied.get(last.bar) ?? last.energy,
+      outgoingEnergy: last.energy,
+      incomingEnergy: opening.length ? opening.reduce((sum, bar) => sum + bar.energy, 0) / opening.length : first.energy,
+      restricted: last.restricted,
+      incomingRestricted: first.restricted,
+      existingRun: last.run,
+      level: last.level,
+      slots: Math.max(1, Math.round((last.endTick - last.startTick) / EIGHTH)),
+      hasRightHandTheme: last.themeBar !== null && last.themeHand === 'right',
+      authenticMotion: !!lastChord && !!firstChord && lastChord.id !== firstChord.id && pc(lastChord.root - firstChord.root) === 7,
+      pianoOwnsFill: plan.fillDecisions.some((decision) => decision.target.toLowerCase() === 'piano'
+        && decision.decision === 'consider-brief-gesture' && decision.startTick < last.endTick && decision.endTick > last.startTick),
+      incomingIsClimax: roleOf.get((opening[0] ?? first).phraseId) === 'climax',
+      incomingIsFinalSection: index + 1 === sections.length - 1,
+      incomingReturns: seen.includes(next.name),
+      outgoingBars: outgoing.length,
+    });
+  });
+  return boundaries;
+}
+
+/** What the other parts do at the end of each section, for the arrangement-aware transition pass. */
+function boundaryOrchestration(
+  input: PianoEngineInput,
+  arc: ArcContext,
+  boundaries: readonly PianoBoundaryContext[],
+  roles: ReadonlyMap<string, PianoPhraseRoleDecision>,
+  directives: ReadonlyMap<number, BarDirective>,
+): Map<number, PianoBoundaryOrchestration> {
+  const tracks = input.analysis.tracks.filter((track) =>
+    track.role !== 'piano' && track.notes.length > 0 && track.compositionState?.composerVisible !== false);
+  const result = new Map<number, PianoBoundaryOrchestration>();
+  for (const boundary of boundaries) {
+    const index = arc.bars.findIndex((bar) => bar.bar === boundary.bar);
+    if (index < 0) continue;
+    const bar = arc.bars[index];
+    const next = arc.bars[index + 1];
+    const middle = bar.startTick + Math.floor((bar.endTick - bar.startTick) / 2);
+    const before = arc.bars.slice(Math.max(0, index - 2), index);
+    const tailIds: string[] = [];
+    let tail = 0;
+    let usual = 0;
+    let tagged = 0;
+    for (const track of tracks) {
+      let own = 0;
+      for (const note of track.notes) {
+        if (note.startTick >= middle && note.startTick < bar.endTick) own++;
+        if (note.startTick >= bar.startTick && note.startTick < bar.endTick && note.roleTag === 'flourish') tagged++;
+        if (before.length && note.startTick >= before[0].startTick && note.startTick < bar.startTick) usual++;
+      }
+      tail += own;
+      if (own >= 2) tailIds.push(track.id);
+    }
+    result.set(boundary.bar, {
+      outgoingRole: roles.get(bar.phraseId)?.role ?? 'featured',
+      incomingRole: (next && roles.get(next.phraseId)?.role) ?? 'featured',
+      tailOnsets: tail,
+      usualHalfBarOnsets: before.length ? usual / (2 * before.length) : 0,
+      fillTaggedNotes: tagged,
+      tailTrackIds: tailIds,
+      melody: bar.themeBar === null ? 'none' : directives.get(bar.bar)?.melody ?? 'theme',
+      rest: directives.get(bar.bar)?.rest ?? null,
+    });
+  }
+  return result;
+}
+
+/**
+ * Presentation directives of the identity composer: the role of the phrase decides the function
+ * of the Piano, and the existing bar-level rules stay as bounded adjustments inside that role.
+ * Nothing here touches the independent draft.
+ */
+function adaptDirectivesByRole(
+  arc: ArcContext,
+  evidence: ExternalEvidence,
+  profile: TextureProfile,
+  records: PianoAdaptationRecord[],
+  idn: PianoCompositionIdentity,
+  roles: ReadonlyMap<string, PianoPhraseRoleDecision>,
+  templateIdentity: string,
+): Map<number, BarDirective> {
+  const protects = (trait: 'theme-head' | 'rhythm-cell' | 'bass-motion'): boolean => idn.protectedTraits.includes(trait);
+  const directives = new Map<number, BarDirective>();
+  const vocal = templateIdentity === 'vocal-space';
+  const roleOf = (phraseId: string): PianoPerformanceRole => roles.get(phraseId)?.role ?? 'featured';
+
+  // One register decision per phrase, so the theme never jumps octaves mid-phrase.
+  const phraseShift = new Map<string, { shift: number; mean: number; centre: number; why: string }>();
+  const phraseLead = new Map<string, number>();
+  for (const phrase of arc.phrases) {
+    const bars = arc.bars.filter((bar) => bar.phraseId === phrase.phraseId && !bar.restricted && bar.themeBar !== null);
+    const led = bars.filter((bar) => (evidence.leadNotesByBar.get(bar.bar) ?? []).length > 0);
+    phraseLead.set(phrase.phraseId, led.length);
+    if (!bars.length) continue;
+    const role = roleOf(phrase.phraseId);
+    const centre = profile.melodyCenter + 12 * Math.max(...bars.map((bar) => bar.themeOctave));
+    if (role === 'atmospheric') {
+      // Colour sits above the accompaniment when that register is free.
+      const upper = bars.reduce((sum, bar) => sum + (evidence.upperOnsetsByBar.get(bar.bar) ?? 0), 0) / bars.length;
+      const notes = led.flatMap((bar) => evidence.leadNotesByBar.get(bar.bar) ?? []);
+      const mean = notes.length ? notes.reduce((sum, note) => sum + note.pitch, 0) / notes.length : null;
+      if (centre + 12 <= 88 && upper < 8 && (mean === null || mean <= centre + 3)) {
+        phraseShift.set(phrase.phraseId, { shift: 1, mean: mean ?? 0, centre, why: 'the register above is free, so the sustained colour is placed an octave higher' });
+      }
+      continue;
+    }
+    if (role !== 'featured' && role !== 'supporting') continue;
+    if (led.length * 2 < bars.length) continue;
+    const notes = led.flatMap((bar) => evidence.leadNotesByBar.get(bar.bar) ?? []);
+    const mean = notes.reduce((sum, note) => sum + note.pitch, 0) / notes.length;
+    const down = centre - 12 >= (role === 'supporting' ? 60 : 64);
+    const up = centre + 12 <= 91;
+    if (role === 'supporting') {
+      // Accompanying: the Piano's line belongs under the lead, not on top of it.
+      if (centre >= mean - 4 && down) phraseShift.set(phrase.phraseId, { shift: -1, mean, centre, why: 'to sit under the lead it accompanies' });
+      else if (Math.abs(mean - centre) <= 6 && up) phraseShift.set(phrase.phraseId, { shift: 1, mean, centre, why: 'to clear the lead\'s register' });
+    } else if (Math.abs(mean - centre) <= 6) {
+      // Two melodic voices: they take different octaves.
+      const shift = mean >= centre ? (down ? -1 : up ? 1 : 0) : (up ? 1 : down ? -1 : 0);
+      if (shift !== 0) phraseShift.set(phrase.phraseId, { shift, mean, centre, why: 'so the two melodic voices take different octaves' });
+    }
+  }
+
+  const announced = new Set<string>();
+  for (const bar of arc.bars) {
+    const directive = DEFAULT_DIRECTIVE(bar);
+    directives.set(bar.bar, directive);
+    if (!evidence.available || bar.restricted) continue; // Missing evidence is a no-op, never a rest.
+
+    const role = roleOf(bar.phraseId);
+    const decision = roles.get(bar.phraseId);
+    const phraseBars = arc.bars.filter((entry) => entry.phraseId === bar.phraseId && !entry.restricted);
+    const lastOfPhrase = phraseBars[phraseBars.length - 1]?.bar === bar.bar;
+    const firstOfPhrase = phraseBars[0]?.bar === bar.bar;
+    const lead = evidence.leadNotesByBar.get(bar.bar) ?? [];
+    const ids = (evidence.leadIdsByBar.get(bar.bar) ?? []).join(', ');
+    const moment = evidence.momentByBar.get(bar.bar);
+    const upper = evidence.upperOnsetsByBar.get(bar.bar) ?? 0;
+    const bass = evidence.bassOnsetsByBar.get(bar.bar) ?? 0;
+    const shift = phraseShift.get(bar.phraseId);
+
+    if (!announced.has(bar.phraseId) && decision) {
+      announced.add(bar.phraseId);
+      records.push({
+        bar: bar.bar, kind: `role-${role}` as PianoAdaptationRecord['kind'],
+        reason: `Phrase ${bar.phraseId} is ${role}. ${decision.reason}`,
+        evidence: decision.evidence,
+      });
+    }
+    const applyShift = () => {
+      if (!shift || bar.themeHand === 'left' || bar.themeBar === null) return;
+      directive.registerShift = shift.shift;
+      records.push({
+        bar: bar.bar, kind: 'register-shift',
+        reason: `Piano theme moved ${shift.shift > 0 ? 'up' : 'down'} an octave for this phrase ${shift.why}.`,
+        evidence: shift.mean ? `Lead mean pitch ${shift.mean.toFixed(1)} against Piano theme centre ${shift.centre}.` : `Piano theme centre ${shift.centre}; no lead in the phrase.`,
+      });
+    };
+
+    if (role === 'featured') {
+      if (lead.length) {
+        directive.coLead = true;
+        applyShift();
+        records.push({
+          bar: bar.bar, kind: 'co-lead',
+          reason: 'Featured beside a lead: the theme is presented whole; only a note that would double the lead is replaced.',
+          evidence: `${lead.length} lead note(s) from ${ids}.`,
+        });
+      }
+    } else if (role === 'supporting') {
+      if (lead.length) {
+        directive.melody = 'answers';
+        directive.melodyTrim = -3;
+        if (protects('theme-head') && bar.themeBar === 0) directive.protectHead = true;
+        records.push({
+          bar: bar.bar, kind: 'accompany-lead',
+          reason: 'Supporting an annotated lead: the Piano keeps its accompaniment and moves its theme into an answering role.',
+          evidence: `${lead.length} lead note(s) from ${ids}.`,
+        });
+        applyShift();
+        if (bar.level === 3) {
+          directive.level = 2;
+          records.push({
+            bar: bar.bar, kind: 'texture-level-lowered',
+            reason: 'Full two-hand figuration reduced one level under the lead; the left-hand pattern continues.',
+            evidence: `Lead active (${ids}); independent level 3.`,
+          });
+        }
+      } else if (vocal || (phraseLead.get(bar.phraseId) ?? 0) === 0) {
+        // No written lead to answer (a singer, or a full orchestra): the theme is kept as the long
+        // top notes of the accompaniment and speaks out at the end of the phrase.
+        const speaks = lastOfPhrase || (!vocal && bar.themeBar === 0 && protects('theme-head'));
+        directive.melody = speaks ? 'theme' : 'skeleton';
+        if (!speaks && bar.themeBar !== null) {
+          records.push({
+            bar: bar.bar, kind: 'theme-withheld',
+            reason: vocal
+              ? 'Supporting a sung phrase: the theme is reduced to its long structural notes here and answers in the last bar of the phrase.'
+              : 'Supporting a full texture without a single lead: the theme is reduced to its long structural notes here and answers in the last bar of the phrase.',
+            evidence: decision?.evidence ?? '',
+          });
+        }
+      } else {
+        applyShift();
+      }
+    } else if (role === 'rhythmic') {
+      const head = bar.themeBar === 0 && protects('theme-head');
+      directive.melody = head ? 'skeleton' : 'none';
+      if (bar.themeBar !== null) {
+        records.push({
+          bar: bar.bar, kind: 'theme-withheld',
+          reason: head
+            ? 'Rhythmic role: the left-hand pattern and the chords continue; of the theme only the protected head remains, as long notes.'
+            : 'Rhythmic role: the left-hand pattern and the chords continue; the theme is withheld.',
+          evidence: `Texture level ${bar.level}, left pattern ${bar.leftPattern}, right style ${bar.rightStyle}.`,
+        });
+      }
+    } else if (role === 'atmospheric') {
+      if (directive.level > 1) directive.level = 1;
+      directive.leftCap = 0;
+      directive.rightCap = 'held';
+      directive.melody = 'skeleton';
+      if (shift && bar.themeHand !== 'left' && bar.themeBar !== null) directive.registerShift = shift.shift;
+      records.push({
+        bar: bar.bar, kind: 'sustained-colour',
+        reason: `Atmospheric role: held bass and held chord, the theme as long notes${directive.registerShift ? `; ${shift!.why}` : ''}.`,
+        evidence: `Independent level ${bar.level}; ${upper} upper and ${bass} low attacks from other parts in bar ${bar.bar}.`,
+      });
+    } else {
+      // Restrained: held harmony only, and a hand rests where its register is already full.
+      directive.level = 0;
+      directive.melody = 'none';
+      const wanted: BarDirective['rest'] | undefined = upper >= 12 && bass >= 8 ? 'both' : upper >= 12 ? 'right' : bass >= 8 ? 'left' : undefined;
+      // The phrase never disappears entirely: its first bar keeps at least the bass.
+      const rest = wanted === 'both' && firstOfPhrase ? 'right' : wanted;
+      if (rest) {
+        directive.rest = rest;
+        records.push({
+          bar: bar.bar, kind: 'hand-rest',
+          reason: rest === 'both' ? 'Restrained role: both registers are full, so the Piano rests for this bar.'
+            : `Restrained role: the ${rest} hand rests because its register is already full; the other holds the harmony.`,
+          evidence: `${upper} attacks between MIDI 60 and 96 and ${bass} between MIDI 28 and 55 from other parts in bar ${bar.bar}.`,
+        });
+      }
+    }
+
+    // Explicit conductor moments stay bar-local, whatever the role.
+    if (moment && !moment.pianoParticipates && (moment.kind === 'soli' || moment.kind === 'unison')) {
+      if (directive.level > 1) directive.level = 1;
+      if (directive.melody !== 'none') directive.melody = 'skeleton';
+      directive.coLead = false;
+      directive.velocityTrim = -8;
+      records.push({
+        bar: bar.bar, kind: 'moment-yield',
+        reason: `Explicit ${moment.kind} moment without the Piano: texture held to level ${directive.level} and the theme reduced to its skeleton for this bar only.`,
+        evidence: `Conductor ${moment.kind} moment overlaps bar ${bar.bar}.`,
+      });
+    } else if (moment && (moment.pianoParticipates || moment.kind === 'tutti')) {
+      records.push({
+        bar: bar.bar, kind: 'moment-support',
+        reason: `Piano joins the ${moment.kind} moment in its ${role} role.`,
+        evidence: `Conductor ${moment.kind} moment overlaps bar ${bar.bar}.`,
+      });
+    }
+
+    // Bounded register adjustments inside the role (unchanged rules of the identity composer).
+    if (role === 'featured' || role === 'supporting' || role === 'rhythmic') {
+      if (upper >= 12 && directive.level >= 2 && bar.rightStyle === 'answer-chords' && protects('rhythm-cell')) {
+        directive.rightThin = true;
+        directive.velocityTrim = Math.min(directive.velocityTrim, -3);
+        records.push({
+          bar: bar.bar, kind: 'right-hand-thinned',
+          reason: 'Right-hand answers reduced to a single soft note each: the registers above are busy, and the answering rhythm is a protected trait of this piece.',
+          evidence: `${upper} non-lead onsets between MIDI 60 and 96 in bar ${bar.bar}.`,
+        });
+      } else if (upper >= 12 && directive.level >= 2 && bar.rightStyle !== 'held' && role !== 'rhythmic') {
+        directive.rightCap = 'held';
+        records.push({
+          bar: bar.bar, kind: 'right-hand-thinned',
+          reason: 'Right-hand chord motion held instead of re-struck: the middle and upper registers are already busy. Theme and left hand are unchanged.',
+          evidence: `${upper} non-lead onsets between MIDI 60 and 96 in bar ${bar.bar}.`,
+        });
+      }
+      if (bass >= 8 && directive.level >= 2 && bar.leftPattern === 'cell-figure' && protects('rhythm-cell')) {
+        directive.leftLight = true;
+        records.push({
+          bar: bar.bar, kind: 'left-hand-simplified',
+          reason: 'Left-hand figure keeps its rhythm on the upper notes only: the repeated bass notes are left out against an actively moving low register. The rhythm of the theme is a protected trait of this piece.',
+          evidence: `${bass} onsets between MIDI 28 and 55 in bar ${bar.bar}.`,
+        });
+      } else if (bass >= 8 && directive.level >= 2 && role !== 'rhythmic') {
+        directive.leftCap = 1;
+        records.push({
+          bar: bar.bar, kind: 'left-hand-simplified',
+          reason: 'Left-hand figuration reduced to its quarter-note pattern against an actively moving low register; the Piano bass is kept.',
+          evidence: `${bass} onsets between MIDI 28 and 55 in bar ${bar.bar}.`,
+        });
+      }
+    }
+  }
+  return directives;
+}
+
+/* ------------------------------------------------------------------ */
 /* Clean-up, diagnostics and entry point                               */
 /* ------------------------------------------------------------------ */
 
@@ -1882,7 +2655,9 @@ function buildDiagnostics(
   records: readonly PianoAdaptationRecord[],
   profile: TextureProfile,
   idn: PianoCompositionIdentity | null = null,
+  performance: PerformanceResult | null = null,
 ): PianoCompositionDiagnostics {
+  const performanceRole = new Map((performance?.roles ?? []).map((entry) => [entry.phraseId, entry.role]));
   const roleByPhrase = new Map(arc.phrases.map((phrase) => [phrase.phraseId, phrase.role]));
   const bars = arc.bars.map((bar) => ({
     bar: bar.bar,
@@ -1955,7 +2730,9 @@ function buildDiagnostics(
     if (phraseBars.length && phraseBars.every((bar) => bar.adapted.attacks === 0)) {
       flags.push(`empty-non-rest-phrase: ${phrase.phraseId} has no Piano attack although it is not a rest phrase.`);
     }
-    if (phrase.melodyEvents.independent > 0 && phrase.melodyEvents.adapted === 0) {
+    // A role that withholds the theme on purpose is reported under `performance`, not as a fault.
+    const withheldByRole = ['rhythmic', 'restrained', 'atmospheric'].includes(performanceRole.get(phrase.phraseId) ?? '');
+    if (phrase.melodyEvents.independent > 0 && phrase.melodyEvents.adapted === 0 && !withheldByRole) {
       flags.push(`missing-melody-role: adaptation removed every theme note in ${phrase.phraseId}.`);
     }
   }
@@ -2010,6 +2787,264 @@ function buildDiagnostics(
     },
     flags,
     ...(idn ? { identity: idn } : {}),
+    ...(idn && performance ? { performance: performanceDiagnostics(arc, phrases, directives, evidence, performance) } : {}),
+  };
+}
+
+/** Roles, what they did to the presentation, and the transition decisions. */
+interface PerformanceResult {
+  readonly roles: readonly PianoPhraseRoleDecision[];
+  readonly transitions: readonly PianoTransitionDecision[];
+  readonly rendering: readonly PianoTransitionRendering[];
+  readonly balance: ReadonlyMap<string, PianoLeadBalance>;
+  readonly balanceNotes: ReadonlyMap<string, string>;
+}
+
+/**
+ * The most a Supporting phrase is lowered against its lead: about one dynamic level of the Piano's
+ * own velocity table. Beyond that the phrase would no longer be the dynamic the piece asked for.
+ */
+export const PIANO_LEAD_BALANCE_LIMIT = 12;
+
+/** The notes of a draft as a transition check reads them. Octave doublings of the theme are left out. */
+export function transitionNotesOfDraft(events: readonly PianoDraftEvent[]): PianoTransitionNote[] {
+  return events.filter((event) => event.voiceId !== 'rh.octave' && event.voiceId !== 'rh.suspension')
+    .map((event) => ({ startTick: event.startTick, durationTicks: event.durationTicks, pitch: event.pitch, melody: event.layer === 'melody' }));
+}
+
+const BALANCE_FLOOR = 30;
+const meanOf = (values: readonly number[]): number => values.reduce((sum, value) => sum + value, 0) / values.length;
+const tenth = (value: number): number => Math.round(value * 10) / 10;
+
+/**
+ * The phrase trim that brings the Piano mean to the target. `barTrim` is the bar-local reduction
+ * a note already carries (zero or negative): the phrase trim replaces it where it is larger and
+ * is not added to it, so such a note moves by less. A note at the quietest written velocity does
+ * not move at all. The smallest whole amount that reaches the target is used; the limit stands.
+ */
+export function solvePianoLeadTrim(
+  notes: readonly { readonly velocity: number; readonly barTrim: number }[], target: number,
+): { readonly trim: number; readonly predicted: number; readonly reachable: boolean } {
+  if (!notes.length) return { trim: 0, predicted: 0, reachable: true };
+  const predict = (trim: number) => meanOf(notes.map((note) => Math.max(Math.min(note.velocity, BALANCE_FLOOR), note.velocity - Math.max(0, trim + Math.min(0, note.barTrim)))));
+  for (let trim = 0; trim <= PIANO_LEAD_BALANCE_LIMIT; trim++) {
+    const predicted = predict(trim);
+    if (predicted <= target + 0.5) return { trim, predicted, reachable: true };
+  }
+  return { trim: PIANO_LEAD_BALANCE_LIMIT, predicted: predict(PIANO_LEAD_BALANCE_LIMIT), reachable: false };
+}
+
+/** A bar-local reduction and the phrase trim are not added: the larger of the two applies. */
+export function combinePianoVelocityTrims(barTrim: number, phraseTrim: number): number {
+  return Math.min(barTrim, -Math.abs(phraseTrim));
+}
+
+function balanceStage(
+  stage: PianoLeadBalanceStage['stage'], entry: Pick<PianoLeadBalance, 'barWindows'>,
+  piano: readonly { readonly startTick: number; readonly velocity: number }[], leadVelocity: number,
+): PianoLeadBalanceStage | null {
+  const inside = piano.filter((note) => entry.barWindows.some((bar) => note.startTick >= bar.startTick && note.startTick < bar.endTick));
+  if (!inside.length) return null;
+  const pianoVelocity = meanOf(inside.map((note) => note.velocity));
+  return {
+    stage, pianoNotes: inside.length, pianoNotesAtFloor: inside.filter((note) => note.velocity <= BALANCE_FLOOR).length,
+    pianoVelocity: tenth(pianoVelocity), leadVelocity: tenth(leadVelocity), difference: tenth(pianoVelocity - leadVelocity),
+  };
+}
+
+function withStage(entry: PianoLeadBalance, measured: PianoLeadBalanceStage | null): PianoLeadBalance {
+  if (!measured) return entry;
+  const stages = [...entry.stages.filter((item) => item.stage !== measured.stage), measured];
+  const target = tenth(measured.leadVelocity - entry.margin);
+  const withinTarget = measured.pianoVelocity <= target + 0.5;
+  let exception: string | null = null;
+  if (!withinTarget) {
+    const causes: string[] = [];
+    if (entry.trim >= PIANO_LEAD_BALANCE_LIMIT) causes.push(`the trim stops at its limit of ${PIANO_LEAD_BALANCE_LIMIT}`);
+    if (entry.trim > 0 && entry.barLocalReductions.length) {
+      const amounts = [...new Set(entry.barLocalReductions.map((item) => item.amount))].sort((a, b) => a - b);
+      causes.push(`${entry.barLocalReductions.length} of ${entry.leadBars} measured bars already carry a bar-local reduction of ${amounts.join(' or ')}, which the phrase trim replaces and is not added to`);
+    }
+    if (measured.pianoNotesAtFloor > 0) causes.push(`${measured.pianoNotesAtFloor} of ${measured.pianoNotes} Piano notes are already at the quietest written velocity (${BALANCE_FLOOR})`);
+    const draft = stages.find((item) => item.stage === 'draft');
+    if (draft && measured.stage !== 'draft' && measured.pianoVelocity > draft.pianoVelocity + 0.2) {
+      causes.push(`the finished score differs from the trimmed draft by ${tenth(measured.pianoVelocity - draft.pianoVelocity)} (suspension notes are written at their own level; merged unisons keep the louder note)`);
+    }
+    if (Math.abs(measured.leadVelocity - entry.leadVelocity) > 0.2) causes.push(`the lead measures ${measured.leadVelocity} in the final tracks against ${entry.leadVelocity} when the trim was decided`);
+    if (!causes.length) causes.push('whole velocity steps: bar-local reductions and rounding leave the phrase mean short of the target');
+    exception = `Above the target of ${target} by ${tenth(measured.pianoVelocity - target)}: ${causes.join('; ')}.`;
+  }
+  const lowered = stages.length > 1 ? stages[stages.length - 2].pianoVelocity - measured.pianoVelocity : 0;
+  const note = `Lead ${measured.leadVelocity}, Piano ${entry.pianoVelocity} before the phrase trim (${entry.difference >= 0 ? '+' : ''}${entry.difference}). `
+    + `${entry.trim === 0 ? 'No phrase trim' : `Phrase lowered by ${entry.trim}`}; asked to sit ${entry.margin} below (${tenth(entry.activityRatio)} Piano attacks per lead attack). `
+    + `Final (${measured.stage}): Piano ${measured.pianoVelocity}, ${measured.difference >= 0 ? '+' : ''}${measured.difference} against the lead`
+    + `${measured.stage === 'track' && lowered > 0.05 ? `; a later pass lowered the phrase by a further ${tenth(lowered)}` : ''}. `
+    + (exception ?? 'On target.');
+  return { ...entry, stages, final: measured, target, withinTarget, exception, note };
+}
+
+/**
+ * Relative balance under a lead (Stage 2A). For each Supporting phrase in which a written lead
+ * sounds in at least half of the sounding bars, the Piano's written notes are
+ * compared with the lead's written notes in those bars (definitions: `PianoLeadBalance`). The
+ * whole phrase is lowered by one amount, so the shape inside the phrase is untouched. Nothing is
+ * lowered where the Piano already sits below the target, and nothing is ever raised.
+ */
+function leadBalance(
+  arc: ArcContext,
+  evidence: ExternalEvidence,
+  roles: ReadonlyMap<string, PianoPhraseRoleDecision>,
+  directives: ReadonlyMap<number, BarDirective>,
+  events: readonly PianoDraftEvent[],
+): { balance: Map<string, PianoLeadBalance>; notes: Map<string, string> } {
+  const balance = new Map<string, PianoLeadBalance>();
+  const notes = new Map<string, string>();
+  if (!evidence.available) return { balance, notes };
+  for (const phrase of arc.phrases) {
+    if (roles.get(phrase.phraseId)?.role !== 'supporting') continue;
+    const live = arc.bars.filter((bar) => bar.phraseId === phrase.phraseId && !bar.restricted);
+    const withLead = live.filter((bar) => (evidence.leadNotesByBar.get(bar.bar) ?? []).length > 0);
+    if (!withLead.length) continue;
+    // Every bar in which the lead is written counts, whatever texture the Piano has there: the
+    // answering texture, or the skeleton a conductor moment reduces it to.
+    const led = withLead;
+    if (led.length * 2 < live.length) {
+      notes.set(phrase.phraseId, `Not measured: the lead is written in ${led.length} of ${live.length} sounding bars of the phrase (at least half are needed).`);
+      continue;
+    }
+    // Each lead note once, however many measured bars it sounds through.
+    const seen = new Set<string>();
+    const lead = led.flatMap((bar) => evidence.leadNotesByBar.get(bar.bar) ?? [])
+      .filter((note): note is typeof note & { velocity: number } => typeof note.velocity === 'number')
+      .filter((note) => { const key = `${note.trackId ?? ''}:${note.start}:${note.end}:${note.pitch}`; if (seen.has(key)) return false; seen.add(key); return true; });
+    const piano = events.filter((event) => led.some((bar) => event.startTick >= bar.startTick && event.startTick < bar.endTick));
+    if (!lead.length || !piano.length) { notes.set(phrase.phraseId, 'Not measured: no lead or Piano notes with a velocity in the bars of the lead.'); continue; }
+    const leadVelocity = meanOf(lead.map((note) => note.velocity));
+    const pianoVelocity = meanOf(piano.map((event) => event.velocity));
+    const activityRatio = new Set(piano.map((event) => event.startTick)).size / Math.max(1, new Set(lead.map((note) => note.start)).size);
+    // A Piano that attacks more often than the lead it accompanies needs more room below it.
+    const margin = 2 + Math.round(2 * clamp(Math.log2(Math.max(1, activityRatio)), 0, 2));
+    const barTrimAt = (tick: number) => directives.get(led.find((bar) => tick >= bar.startTick && tick < bar.endTick)!.bar)?.velocityTrim ?? 0;
+    const { trim } = solvePianoLeadTrim(piano.map((event) => ({ velocity: event.velocity, barTrim: barTrimAt(event.startTick) })), leadVelocity - margin);
+    const barWindows = led.map((bar) => ({ bar: bar.bar, startTick: bar.startTick, endTick: bar.endTick }));
+    const before: PianoLeadBalanceStage = {
+      stage: 'draft', pianoNotes: piano.length, pianoNotesAtFloor: piano.filter((event) => event.velocity <= BALANCE_FLOOR).length,
+      pianoVelocity: tenth(pianoVelocity), leadVelocity: tenth(leadVelocity), difference: tenth(pianoVelocity - leadVelocity),
+    };
+    balance.set(phrase.phraseId, {
+      leadTrackIds: [...new Set(led.flatMap((bar) => evidence.leadIdsByBar.get(bar.bar) ?? []))].sort(),
+      bars: led.map((bar) => bar.bar), barWindows,
+      leadBars: led.length, liveBars: live.length, leadNotes: lead.length,
+      leadVelocity: tenth(leadVelocity), pianoVelocity: tenth(pianoVelocity), difference: tenth(pianoVelocity - leadVelocity),
+      activityRatio: tenth(activityRatio), margin, target: tenth(leadVelocity - margin), trim,
+      barLocalReductions: led.flatMap((bar) => { const amount = -(directives.get(bar.bar)?.velocityTrim ?? 0); return amount > 0 ? [{ bar: bar.bar, amount }] : []; }),
+      stages: [], final: before, withinTarget: pianoVelocity <= leadVelocity - margin + 0.5, exception: null, note: '',
+    });
+  }
+  return { balance, notes };
+}
+
+/**
+ * Measures every balanced phrase again on the notes of a later stage and rewrites its report.
+ * Nothing is changed in the notes: this is how the diagnostic comes to describe the result that is
+ * actually exported, after every pass that can still move a Piano velocity.
+ */
+export function reconcilePianoLeadBalance(
+  diagnostics: PianoCompositionDiagnostics | null,
+  stage: 'score' | 'track',
+  pianoNotes: readonly { readonly startTick: number; readonly velocity: number }[],
+  leadTracks: readonly { readonly id: string; readonly notes: readonly { readonly startTick: number; readonly durationTicks: number; readonly velocity: number }[] }[] | null = null,
+): void {
+  for (const role of diagnostics?.performance?.roles ?? []) {
+    const entry = role.presentation.balance;
+    if (!entry) continue;
+    let leadVelocity = entry.final.leadVelocity;
+    if (leadTracks) {
+      const lead = leadTracks.filter((track) => entry.leadTrackIds.includes(track.id))
+        .flatMap((track) => track.notes.filter((note) => entry.barWindows.some((bar) => note.startTick < bar.endTick && note.startTick + note.durationTicks > bar.startTick)));
+      if (lead.length) leadVelocity = meanOf(lead.map((note) => note.velocity));
+    }
+    (role.presentation as { balance: PianoLeadBalance | null }).balance = withStage(entry, balanceStage(stage, entry, pianoNotes, leadVelocity));
+  }
+}
+
+function performanceDiagnostics(
+  arc: ArcContext,
+  phrases: readonly (PianoArcPhrase & {
+    readonly melodyEvents: { readonly independent: number; readonly adapted: number };
+    readonly attacksPerBar: { readonly independent: number; readonly adapted: number };
+  })[],
+  directives: ReadonlyMap<number, BarDirective>,
+  evidence: ExternalEvidence,
+  performance: PerformanceResult,
+): PianoPerformanceDiagnostics {
+  const roleBars: Record<PianoPerformanceRole, number> = { featured: 0, supporting: 0, rhythmic: 0, atmospheric: 0, restrained: 0 };
+  const roles = performance.roles.map((decision) => {
+    const phrase = phrases.find((entry) => entry.phraseId === decision.phraseId)!;
+    const bars = arc.bars.filter((bar) => bar.phraseId === decision.phraseId && !bar.restricted);
+    const themeBars = { presented: 0, answered: 0, skeleton: 0, withheld: 0 };
+    const restBars = { left: 0, right: 0, both: 0 };
+    for (const bar of bars) {
+      const directive = directives.get(bar.bar);
+      const melody = directive?.melody ?? 'theme';
+      if (bar.themeBar !== null) {
+        if (melody === 'theme') themeBars.presented++;
+        else if (melody === 'answers') themeBars.answered++;
+        else if (melody === 'skeleton') themeBars.skeleton++;
+        else themeBars.withheld++;
+      }
+      if (directive?.rest) restBars[directive.rest]++;
+    }
+    if (phrase.role !== 'breath') roleBars[decision.role] += bars.length;
+    const { independent, adapted } = phrase.melodyEvents;
+    let asIntended = true;
+    let note: string;
+    switch (decision.role) {
+      case 'featured':
+        asIntended = independent === 0 || adapted >= Math.ceil(independent * 0.75) || themeBars.skeleton > 0;
+        note = evidence.available
+          ? `Theme presented: ${adapted} of ${independent} independent theme notes sound${themeBars.skeleton ? ' (a conductor moment reduces some bars to the skeleton)' : ''}.`
+          : 'No orchestral evidence: the adapted score is the independent draft.';
+        break;
+      case 'supporting':
+        asIntended = adapted <= independent && (independent === 0 || adapted > 0);
+        note = `Theme answers: ${adapted} of ${independent} theme notes sound (${themeBars.answered} answering bar(s), ${themeBars.skeleton} skeleton, ${themeBars.presented} whole).`;
+        break;
+      case 'rhythmic':
+        asIntended = themeBars.presented === 0 && themeBars.answered === 0 && phrase.attacksPerBar.adapted > 0;
+        note = `Theme withheld in ${themeBars.withheld} bar(s)${themeBars.skeleton ? `, head kept as long notes in ${themeBars.skeleton}` : ''}; ${phrase.attacksPerBar.adapted} attacks per bar remain in the accompaniment.`;
+        break;
+      case 'atmospheric':
+        asIntended = themeBars.presented === 0 && phrase.attacksPerBar.adapted <= Math.max(phrase.attacksPerBar.independent, 2);
+        note = `Sustained colour: ${phrase.attacksPerBar.adapted} attacks per bar against ${phrase.attacksPerBar.independent} in the independent draft.`;
+        break;
+      default:
+        asIntended = adapted === 0;
+        note = `Held harmony only; hand rests in ${restBars.left + restBars.right} bar(s), whole Piano rests in ${restBars.both}.`;
+    }
+    if (phrase.role === 'breath') { asIntended = true; note = 'Rest phrase.'; }
+    return {
+      ...decision,
+      sectionName: phrase.sectionName,
+      startBar: phrase.startBar,
+      endBar: phrase.endBar,
+      presentation: {
+        themeBars, restBars, melodyEvents: phrase.melodyEvents, attacksPerBar: phrase.attacksPerBar, asIntended, note,
+        balance: performance.balance.get(decision.phraseId) ?? null,
+        balanceNote: performance.balanceNotes.get(decision.phraseId) ?? null,
+      },
+    };
+  });
+  return {
+    version: 1,
+    evidence: evidence.available ? 'available' : 'none',
+    roles,
+    roleBars,
+    transitions: performance.transitions,
+    transitionRendering: [...performance.rendering],
+    omittedSuspensions: [],
+    energyReadings: arc.bars.filter((bar) => bar.suppliedEnergy !== undefined)
+      .map((bar) => ({ bar: bar.bar, supplied: Math.round(bar.suppliedEnergy! * 1000) / 1000, used: Math.round(bar.energy * 1000) / 1000 })),
   };
 }
 
@@ -2074,19 +3109,126 @@ export function composeTextureTheme(
   const shared = { input, plan, profile, identity, theme, arc, chords, scale, target, endTick: projectEndTick, density, idn };
 
   const independentDirectives = new Map<number, BarDirective>();
-  const independent = resolveUnisons(render({ ...shared, directives: independentDirectives, evidence: null, records: null }));
+  if (!idn) {
+    // Classic: the Texture-and-Theme Composer exactly as accepted.
+    const independent = resolveUnisons(render({ ...shared, directives: independentDirectives, evidence: null, records: null }));
+    const evidence = collectEvidence(input, plan, arc);
+    const records: PianoAdaptationRecord[] = [];
+    const directives = adaptDirectives(arc, evidence, profile, records, idn);
+    const adapted = evidence.available
+      ? resolveUnisons(render({ ...shared, directives, evidence, records }))
+      : independent;
+    return {
+      events: adapted,
+      diagnostics: buildDiagnostics(identity, density, theme, arc, independent, adapted, directives, evidence, records, profile, idn),
+    };
+  }
 
+  // Identity. The independent piece is composed first, including how its sections are joined:
+  // the transition decisions below read only the form, the harmony, the energy and the identity.
+  const seed = compositionSeed(plan);
+  const noise = (label: string): number => unitRandom(seed, label);
+  const facts: PianoTransitionFacts = {
+    archetype: idn.archetype, runs: idn.techniques.runs, sixteenthRuns: profile.sixteenthRuns, density,
+  };
+  const boundaries = theme ? boundaryContexts(input, plan, arc, chords) : [];
+  const boundaryByBar = new Map(boundaries.map((boundary) => [boundary.bar, boundary]));
+  const barOfDecision = (decision: PianoTransitionDecision) => {
+    const bar = arc.bars.find((entry) => entry.bar === decision.bar)!;
+    return {
+      startTick: bar.startTick, endTick: bar.endTick, existingRun: decision.fromThemeRun,
+      chordStarts: chords.filter((chord) => chord.startTick > bar.startTick && chord.startTick < bar.endTick).map((chord) => chord.startTick),
+    };
+  };
+  const check = (decisions: readonly PianoTransitionDecision[], events: readonly PianoDraftEvent[]): PianoTransitionRendering[] => {
+    const notes = transitionNotesOfDraft(events);
+    return decisions.map((decision) => verifyPianoTransition(decision, barOfDecision(decision), notes));
+  };
+  // A decision is only kept if its figure is really in the notes. Where the renderer cannot write
+  // the figure (register, a left-hand theme, a line reduced by the role), the boundary falls back
+  // to "minimal" and the piece is rendered again with the corrected decision. Two passes at most.
+  const settle = (
+    decisions: readonly PianoTransitionDecision[],
+    renderWith: (decisions: readonly PianoTransitionDecision[]) => PianoDraftEvent[],
+  ): { decisions: readonly PianoTransitionDecision[]; events: PianoDraftEvent[] } => {
+    let current = decisions;
+    let events = renderWith(current);
+    for (let pass = 0; pass < 2; pass++) {
+      const rendering = check(current, events);
+      const failed = new Map(rendering
+        .filter((entry) => !entry.rendered && entry.gesture !== 'minimal' && entry.gesture !== 'none' && entry.gesture !== 'break')
+        .map((entry) => [entry.bar, entry.found]));
+      if (!failed.size) break;
+      current = current.map((decision) => (failed.has(decision.bar) && boundaryByBar.has(decision.bar)
+        ? fallbackPianoTransition(decision, boundaryByBar.get(decision.bar)!, failed.get(decision.bar)!) : decision));
+      events = renderWith(current);
+    }
+    return { decisions: current, events };
+  };
+  const independentResult = settle(planPianoTransitions(boundaries, facts, noise), (decisions) => resolveUnisons(render({
+    ...shared, directives: independentDirectives, evidence: null, records: null,
+    transitions: new Map(decisions.map((decision) => [decision.bar, decision])),
+  })));
+  // The independent decisions carry their own outcome: a fallback of the independent piece is its decision.
+  const independentTransitions = independentResult.decisions.map((decision) => ({ ...decision, independentGesture: decision.gesture }));
+  const independent = independentResult.events;
+
+  // Then the finished arrangement decides how that piece is presented. Without evidence every
+  // phrase is Featured, the transitions are the independent ones and the draft is returned as it is.
   const evidence = collectEvidence(input, plan, arc);
+  const roles = derivePianoPerformanceRoles(roleContext(plan, arc, evidence, profile, idn));
+  const roleByPhrase = new Map(roles.map((decision) => [decision.phraseId, decision]));
   const records: PianoAdaptationRecord[] = [];
-  const directives = adaptDirectives(arc, evidence, profile, records, idn);
-  const adapted = evidence.available
-    ? resolveUnisons(render({ ...shared, directives, evidence, records }))
-    : independent;
+  const directives = adaptDirectivesByRole(arc, evidence, profile, records, idn, roleByPhrase, identity);
+  if (!evidence.available) {
+    return {
+      events: independent,
+      diagnostics: buildDiagnostics(identity, density, theme, arc, independent, independent, directives, evidence, records, profile, idn,
+        { roles, transitions: independentTransitions, rendering: check(independentTransitions, independent), balance: new Map(), balanceNotes: new Map() }),
+    };
+  }
+  const planned = adaptPianoTransitions(independentTransitions, boundaries, facts, boundaryOrchestration(input, arc, boundaries, roleByPhrase, directives), noise);
+  const renderAdapted = (decisions: readonly PianoTransitionDecision[], renderRecords: PianoAdaptationRecord[] | null) => resolveUnisons(render({
+    ...shared, directives, evidence, records: renderRecords,
+    transitions: new Map(decisions.map((decision) => [decision.bar, decision])),
+  }));
+  // Relative balance under a lead is measured on the notes the roles produce, then applied per phrase.
+  const { balance, notes: balanceNotes } = leadBalance(arc, evidence, roleByPhrase, directives, renderAdapted(planned, null));
+  for (const phrase of arc.phrases) {
+    const entry = balance.get(phrase.phraseId);
+    if (!entry || entry.trim === 0) continue;
+    const live = arc.bars.filter((bar) => bar.phraseId === phrase.phraseId && !bar.restricted);
+    for (const bar of live) {
+      const directive = directives.get(bar.bar);
+      // One amount for the phrase. A bar that a conductor moment already lowers further keeps that.
+      if (directive) directive.velocityTrim = combinePianoVelocityTrims(directive.velocityTrim, entry.trim);
+    }
+    records.push({
+      bar: live[0].bar, kind: 'velocity-trim',
+      reason: `Supporting under a lead: phrase lowered by ${entry.trim} so that its mean velocity sits ${entry.margin} below the lead's (${entry.activityRatio} Piano attacks per lead attack).`,
+      evidence: `Lead (${entry.leadTrackIds.join(', ')}) written in ${entry.leadBars} of ${entry.liveBars} bars of phrase ${phrase.phraseId}; lead mean velocity ${entry.leadVelocity}, Piano mean velocity ${entry.pianoVelocity} in those bars before the trim.`,
+    });
+  }
+  let renderRecords: PianoAdaptationRecord[] = [];
+  const adaptedResult = settle(planned, (decisions) => { renderRecords = []; return renderAdapted(decisions, renderRecords); });
+  const transitions = adaptedResult.decisions.map((decision) => (decision.gesture !== decision.independentGesture && !decision.changedByArrangement
+    ? { ...decision, changedByArrangement: true } : decision));
+  const adapted = adaptedResult.events;
+  for (const decision of transitions) {
+    if (!decision.changedByArrangement) continue;
+    records.push({ bar: decision.bar, kind: 'transition-changed', reason: decision.reason, evidence: decision.evidence });
+  }
+  records.push(...renderRecords);
+  // The first measurement after the trim: the Composer's own notes.
+  for (const [phraseId, entry] of balance) balance.set(phraseId, withStage(entry, balanceStage('draft', entry, adapted, entry.leadVelocity)));
 
   return {
     events: adapted,
-    diagnostics: buildDiagnostics(identity, density, theme, arc, independent, adapted, directives, evidence, records, profile, idn),
+    diagnostics: buildDiagnostics(identity, density, theme, arc, independent, adapted, directives, evidence, records, profile, idn,
+      { roles, transitions, rendering: check(transitions, adapted), balance, balanceNotes }),
   };
 }
 
 export type { PianoHarmonicEvent };
+export type { PianoPerformanceRole, PianoPhraseRoleDecision } from './piano-performance-role';
+export type { PianoTransitionDecision, PianoTransitionGesture } from './piano-transitions';

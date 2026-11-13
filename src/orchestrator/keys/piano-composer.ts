@@ -10,8 +10,9 @@
 import { PPQ } from '../../shared/schema/types';
 import type { PianoAnalyzerReport, PianoInstrumentObservedFacts, PianoIntervalActivity } from './piano-analyzer';
 import type { PianoEngineInput, PianoGenerationIdentity, PianoMomentKind, PianoTemplateRule } from './piano-engine';
-import { composeTextureTheme, type PianoCompositionDiagnostics } from './piano-texture-theme';
+import { composeTextureTheme, reconcilePianoLeadBalance, type PianoCompositionDiagnostics } from './piano-texture-theme';
 import type { PianoCompositionMode } from './piano-composition-identity';
+import { verifyPianoTransition, type PianoTransitionBar, type PianoTransitionDecision, type PianoTransitionNote, type PianoTransitionRendering } from './piano-transitions';
 import { createPianoScore, type PianoScore, type PianoScoreEvent, type PianoScoreRest, type PianoScoreTarget, type PianoScoreVoiceId, type PianoMusicalRole, type PianoGestureIntent, type PianoTechniqueIntent } from './piano-score';
 
 export type PianoPlanStatus = 'composed' | 'ineligible' | 'insufficient-harmony';
@@ -2560,6 +2561,32 @@ function fillDecisions(
   return decisions;
 }
 
+/**
+ * Stage 2A, identity composer only. A conductor fill window rests the other parts so that the
+ * Piano can fill the bar. When the plan then declines the fill and nothing else is written in
+ * the window, the whole ensemble is silent for a bar at the end of the section. Such a window is
+ * handed to the Piano's transition decision instead: the bar is no longer forced silent, and the
+ * decision for that boundary (which may still be a break, or nothing at all) shapes it.
+ *
+ * A window in which any other part is written keeps its leave-space decision. Only
+ * `fillDecisions` changes; Classic never calls this.
+ */
+export function openPianoOwnedTransitionBars(plan: PianoComposerPlan): PianoComposerPlan {
+  let changed = false;
+  const fillDecisions = plan.fillDecisions.map((decision): PianoFillDecision => {
+    if (decision.target.toLowerCase() !== 'piano' || decision.decision !== 'leave-space'
+      || decision.observedWrittenActivity.availability !== 'available'
+      || decision.observedWrittenActivity.activeTrackIds.length > 0) return decision;
+    changed = true;
+    return {
+      ...decision,
+      decision: 'consider-brief-gesture',
+      rationale: 'The window is reserved for the Piano and no other part is written in it, so leaving it open would silence the whole ensemble for the bar. The Piano\'s transition decision for this boundary shapes the bar; it is not required to add a figure.',
+    };
+  });
+  return changed ? { ...plan, fillDecisions } : plan;
+}
+
 function attackRestrictions(input: PianoEngineInput): PianoAttackRestriction[] {
   const energyByBar = new Map(input.context.energy.map((energy) => [energy.bar, energy]));
   return input.context.barWindows.flatMap((bar) => {
@@ -4351,12 +4378,63 @@ export function composePianoScoreWithDiagnostics(
   const suspensionVoice = foundation.events.filter((event) => event.voiceId === 'rh.suspension');
   const endOf = (event: PianoScoreEvent) => event.startTick + event.durationTicks;
   const lastSuspensionPitch = new Map<string, number>();
+  // Stage 2A, identity composer only. A suspension is an inner voice of a sounding texture. It is
+  // not written into a near-silence or leave-space window, not across a section boundary whose
+  // transition decision is a different gesture, not into a phrase in which the Piano is restrained,
+  // and never where it would be the only Piano note sounding.
+  const performance = mode === 'classic' ? null : composition.diagnostics.performance ?? null;
+  const silentWindows = [
+    ...plan.attackRestrictions.map(({ startTick, endTick }) => ({ startTick, endTick })),
+    ...plan.fillDecisions
+      .filter((decision) => decision.target.toLowerCase() === 'piano' && decision.decision === 'leave-space')
+      .map(({ startTick, endTick }) => ({ startTick, endTick })),
+  ];
+  const transitionWindows = (performance?.transitions ?? []).flatMap((decision) => {
+    const bar = input.context.barWindows.find((window) => window.bar === decision.bar);
+    return bar ? [{ bar: decision.bar, startTick: bar.startTick, endTick: bar.endTick, gesture: decision.gesture as string }] : [];
+  });
+  const figureStillWritten = (): Set<number> => new Set(performance
+    ? verifyPianoTransitions(input, plan, performance.transitions, pianoTransitionNotes(events)).filter((entry) => entry.rendered).map((entry) => entry.bar)
+    : []);
+  const restrainedPhrases = new Set((performance?.roles ?? []).filter((entry) => entry.role === 'restrained').map((entry) => entry.phraseId));
+  const SUSPENSION_FRIENDLY = new Set(['none', 'minimal', 'cadence', 'sustained-handover', 'descending-resolution']);
+  const suspensionOmission = (tension: PianoScoreEvent, resolution: PianoScoreEvent): string | null => {
+    if (!performance) return null;
+    const from = tension.startTick;
+    const to = endOf(resolution);
+    if (silentWindows.some((window) => window.startTick < to && window.endTick > from)) {
+      return 'The suspension would sound inside a near-silence or leave-space window.';
+    }
+    if ((tension.phraseId && restrainedPhrases.has(tension.phraseId)) || (resolution.phraseId && restrainedPhrases.has(resolution.phraseId))) {
+      return 'The Piano is restrained in this phrase.';
+    }
+    // The dissonance is struck before a chord change and held across it. It is not written into, or out
+    // of, the last bar of a section whose transition decision is a figure of its own.
+    const figureBar = transitionWindows.find((window) => window.startTick < to && window.endTick >= from && !SUSPENSION_FRIENDLY.has(window.gesture));
+    if (figureBar) {
+      return `The transition decision of bar ${figureBar.bar} is "${figureBar.gesture}", which a held dissonance would contradict.`;
+    }
+    const accompanied = (start: number, end: number) => events.some((event) => event.startTick < end && endOf(event) > start);
+    if (!accompanied(tension.startTick, endOf(tension)) || !accompanied(resolution.startTick, to)) {
+      return 'No other Piano note sounds with it; it would be an isolated note.';
+    }
+    return null;
+  };
+  const suspensionAllowed = (tension: PianoScoreEvent, resolution: PianoScoreEvent): boolean => {
+    const reason = suspensionOmission(tension, resolution);
+    if (reason && performance) performance.omittedSuspensions.push({ startTick: tension.startTick, resolutionTick: resolution.startTick, reason });
+    return reason === null;
+  };
   for (let index = 0; index + 1 < suspensionVoice.length; index++) {
     const tension = suspensionVoice[index];
     const resolution = suspensionVoice[index + 1];
     if (tension.techniqueIntent !== 'prepared-suspension' || resolution.techniqueIntent !== 'stepwise-resolution'
       || endOf(tension) !== resolution.startTick) continue;
     index++;
+    if (!suspensionAllowed(tension, resolution)) continue;
+    // A suspension may take the theme's place for a beat. It may not take the place of a transition
+    // figure: the state is kept, and restored if a figure that was written is no longer there.
+    const snapshot = performance ? { events: [...events], nextEventId, pitches: new Map(lastSuspensionPitch), written: figureStillWritten() } : null;
     const windowStart = tension.startTick;
     const windowEnd = endOf(resolution);
     const overlapping = () => events.filter((event) => event.startTick < windowEnd && endOf(event) > windowStart);
@@ -4437,9 +4515,31 @@ export function composePianoScoreWithDiagnostics(
           : Math.max(1, Math.min(resolution.durationTicks, takeoverEnd - resolution.startTick)),
       },
     );
+    if (snapshot && performance) {
+      const after = figureStillWritten();
+      const broken = [...snapshot.written].filter((bar) => !after.has(bar));
+      if (broken.length) {
+        events.length = 0;
+        events.push(...snapshot.events);
+        nextEventId = snapshot.nextEventId;
+        lastSuspensionPitch.clear();
+        for (const [phraseId, pitch] of snapshot.pitches) lastSuspensionPitch.set(phraseId, pitch);
+        performance.omittedSuspensions.push({
+          startTick: tension.startTick, resolutionTick: resolution.startTick,
+          reason: `Writing it would have replaced notes of the transition figure in bar ${broken.join(', ')}.`,
+        });
+      }
+    }
   }
 
   const cleaned = avoidScoreUnisonRearticulation(events);
+  if (performance) {
+    // The last word on every boundary: the decision against the notes of the finished score.
+    performance.transitionRendering.length = 0;
+    performance.transitionRendering.push(...verifyPianoTransitions(input, plan, performance.transitions, pianoTransitionNotes(cleaned)));
+    // The balance under a lead, measured again on the finished score.
+    reconcilePianoLeadBalance(composition.diagnostics, 'score', cleaned.map((event) => ({ startTick: event.startTick, velocity: event.dynamicIntent.velocity })));
+  }
   return {
     score: createPianoScore({
       generationIdentity: plan.generationIdentity,
@@ -4450,6 +4550,40 @@ export function composePianoScoreWithDiagnostics(
     }),
     diagnostics: composition.diagnostics,
   };
+}
+
+/** The notes of a score as a transition check reads them: no octave doublings, no suspension voice. */
+export function pianoTransitionNotes(
+  events: readonly Pick<PianoScoreEvent, 'startTick' | 'durationTicks' | 'pitch' | 'voiceId' | 'techniqueIntent'>[],
+): PianoTransitionNote[] {
+  return events.filter((event) => event.voiceId !== 'rh.octave' && event.voiceId !== 'rh.suspension')
+    .map((event) => ({
+      startTick: event.startTick, durationTicks: event.durationTicks, pitch: event.pitch,
+      melody: event.voiceId === 'rh.melody' || event.techniqueIntent === 'independent-counterline',
+    }));
+}
+
+/** The bar of a transition decision, with the chord changes inside it. */
+export function pianoTransitionBar(
+  input: PianoEngineInput, plan: PianoComposerPlan, decision: Pick<PianoTransitionDecision, 'bar' | 'fromThemeRun'>,
+): PianoTransitionBar | null {
+  const window = input.context.barWindows.find((entry) => entry.bar === decision.bar);
+  if (!window) return null;
+  return {
+    startTick: window.startTick, endTick: window.endTick,
+    chordStarts: plan.harmonicEvents.map((event) => event.chord.startTick).filter((tick) => tick > window.startTick && tick < window.endTick),
+    existingRun: decision.fromThemeRun,
+  };
+}
+
+/** Every transition decision of a composition against a set of written notes. */
+export function verifyPianoTransitions(
+  input: PianoEngineInput, plan: PianoComposerPlan, decisions: readonly PianoTransitionDecision[], notes: readonly PianoTransitionNote[],
+): PianoTransitionRendering[] {
+  return decisions.flatMap((decision) => {
+    const bar = pianoTransitionBar(input, plan, decision);
+    return bar ? [verifyPianoTransition(decision, bar, notes)] : [];
+  });
 }
 
 /** Production score entry point; see `composePianoScoreWithDiagnostics`. */

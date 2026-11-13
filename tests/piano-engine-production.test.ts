@@ -10,7 +10,7 @@ import { projectEndTick } from '../src/shared/schema/meter';
 import { composeAllTracks as compose } from '../src/orchestrator/compose';
 import { governKeysVelocities } from '../src/orchestrator/keys/render';
 import { analyzePianoInput } from '../src/orchestrator/keys/piano-analyzer';
-import { composePianoPlan, composePianoScore } from '../src/orchestrator/keys/piano-composer';
+import { composePianoPlan, composePianoScore, openPianoOwnedTransitionBars } from '../src/orchestrator/keys/piano-composer';
 import { realizePianoPlanWithAudit } from '../src/orchestrator/keys/piano-realizer';
 
 const CASES = [
@@ -54,7 +54,8 @@ describe('Piano Engine V5 production path', () => {
       const { project, result, piano } = composeCase(entry.id, entry.take, entry.fixture);
       const input = result.pianoEngineInput;
       const analysis = analyzePianoInput(input);
-      const plan = composePianoPlan(input, analysis);
+      // Stage 2A: the production path opens the Piano's own transition windows before scoring.
+      const plan = openPianoOwnedTransitionBars(composePianoPlan(input, analysis));
       const target = project.tracks.find((track) => track.id === piano.id)!;
       const score = composePianoScore(input, plan, target, projectEndTick(project));
       const template = resolveTemplate(project.ensemble)!;
@@ -137,8 +138,23 @@ describe('Piano Engine V5 production path', () => {
         expect(explicitFill || explicitSuspension,
           `${entry.id} bar ${restriction.bar} attack is not a planned exception`).toBe(true);
       }
-      expect(realization.suspensions.every((audit) => audit.complete),
-        `${entry.id} planned suspensions resolve: ${JSON.stringify(realization.suspensions.filter((audit) => !audit.complete))}`).toBe(true);
+      // Stage 2A: a planned suspension is either written whole, or deliberately omitted whole with
+      // a recorded reason. It is never half written.
+      const omissions = result.pianoDiagnostics?.performance?.omittedSuspensions ?? [];
+      const omitted = { has: (boundaryTick: number) => omissions.some((item) => item.startTick < boundaryTick && item.resolutionTick >= boundaryTick) };
+      const unresolved = realization.suspensions.filter((audit) => !audit.complete
+        && !(omitted.has(audit.boundaryTick) && !audit.preparationFound && !audit.resolutionFound));
+      expect(unresolved, `${entry.id} planned suspensions resolve or are omitted whole: ${JSON.stringify(unresolved)}`).toEqual([]);
+      // An omission is a recorded decision about one planned suspension, with its reason, and it
+      // leaves no suspension note of that span in the score.
+      for (const omission of omissions) {
+        expect(omission.reason.length, `${entry.id} omission at ${omission.startTick} has a reason`).toBeGreaterThan(0);
+        expect(realization.suspensions.some((audit) => omission.startTick < audit.boundaryTick && omission.resolutionTick >= audit.boundaryTick),
+          `${entry.id} omission at ${omission.startTick} names a planned suspension`).toBe(true);
+        expect(result.pianoScore.events.filter((event) => event.voiceId === 'rh.suspension'
+          && event.startTick >= omission.startTick && event.startTick <= omission.resolutionTick),
+          `${entry.id} omitted suspension at ${omission.startTick} left a note`).toEqual([]);
+      }
     }
   });
 

@@ -292,6 +292,17 @@ describe('Piano Engine Stage 3 musical development and coordinated writing', () 
     // Texture levels: each level is a different way of playing, not a different note count.
     // Up to level 1 the left hand stays on the beat; from level 2 it moves in eighth notes.
     const leftDraft = (bar: number) => draft.filter((note) => barOf(note.t) === bar && (note.l === 'bass' || note.l === 'accompaniment'));
+    const reshapedByTransition = new Set((form.performance?.transitions ?? [])
+      .filter((decision) => (decision.independentGesture ?? decision.gesture) !== 'none' && (decision.independentGesture ?? decision.gesture) !== 'minimal')
+      .map((decision) => decision.bar));
+    // Those bars are not left unchecked: each is a section boundary whose gesture was verified
+    // against the final score, and they are a small part of the piece.
+    const boundaryRendering = new Map((form.performance?.transitionRendering ?? []).map((item) => [item.bar, item]));
+    for (const bar of reshapedByTransition) {
+      expect(boundaryRendering.get(bar)?.rendered, `boundary bar ${bar}: ${boundaryRendering.get(bar)?.found}`).toBe(true);
+    }
+    expect(reshapedByTransition.size).toBeLessThanOrEqual((form.performance?.transitions ?? []).length);
+    expect(reshapedByTransition.size * 4).toBeLessThanOrEqual(form.bars.length);
     const levelsPresent = [...new Set(form.bars.map((bar) => bar.independentLevel))].sort();
     expect(levelsPresent.length).toBeGreaterThanOrEqual(3);
     for (const bar of form.bars.filter((entry) => entry.independent.attacks > 0 && entry.independent.bass + entry.independent.accompaniment > 0)) {
@@ -299,6 +310,8 @@ describe('Piano Engine Stage 3 musical development and coordinated writing', () 
       // (A bar in which the left hand carries the theme is not an accompaniment bar.)
       const leftTheme = draft.some((note) => barOf(note.t) === bar.bar && note.k === 'independent-counterline');
       if (leftTheme) continue;
+      // (Stage 2A: a boundary bar whose transition gesture reshapes the bar is not a texture-level bar.)
+      if (reshapedByTransition.has(bar.bar)) continue;
       if (bar.independentLevel <= 1) expect(offBeat, `level ${bar.independentLevel} bar ${bar.bar} keeps to the beat`).toBe(0);
       else expect(offBeat, `level ${bar.independentLevel} bar ${bar.bar} flows in eighths`).toBeGreaterThan(0);
     }

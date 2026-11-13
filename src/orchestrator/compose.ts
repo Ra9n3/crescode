@@ -47,9 +47,9 @@ import { KEYS_PARTS } from './keys/profile';
 import { EMPTY_KEYS_PLAN } from './keys/plan';
 import { buildPianoEngineInput, type PianoEngineInput } from './keys/piano-engine';
 import { analyzePianoInput } from './keys/piano-analyzer';
-import { composePianoPlan, composePianoScoreWithDiagnostics } from './keys/piano-composer';
+import { composePianoPlan, composePianoScoreWithDiagnostics, openPianoOwnedTransitionBars } from './keys/piano-composer';
 import type { PianoCompositionMode } from './keys/piano-composition-identity';
-import type { PianoCompositionDiagnostics } from './keys/piano-texture-theme';
+import { reconcilePianoLeadBalance, type PianoCompositionDiagnostics } from './keys/piano-texture-theme';
 import { validatePianoScorePlayability } from './keys/piano-playability';
 import type { PianoScore } from './keys/piano-score';
 import type { PianoPlayabilityReport } from './keys/piano-playability';
@@ -784,7 +784,10 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     finalizedTracks: tracks,
   });
   const pianoAnalyzerReport = analyzePianoInput(pianoEngineInput);
-  const pianoPlanV5 = composePianoPlan(pianoEngineInput, pianoAnalyzerReport);
+  // Identity mode: a fill window that would leave the whole ensemble silent goes to the Piano's
+  // transition decision. Classic keeps the plan exactly as composed.
+  const pianoPlanComposed = composePianoPlan(pianoEngineInput, pianoAnalyzerReport);
+  const pianoPlanV5 = options.pianoComposition === 'classic' ? pianoPlanComposed : openPianoOwnedTransitionBars(pianoPlanComposed);
   const pianoTrack = project.tracks.find((track) => isInstrumentTrack(track)
     && track.family === 'Keys' && track.role === 'piano' && !track.locked
     && isInBand(track.role, ensemble, template));
@@ -837,6 +840,10 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
             .filter((track) => isInstrumentTrack(track) && track.role !== 'piano')
             .map((track) => ({ role: track.role, notes: track.notes })),
         });
+        // Stage 2A: the balance report is measured on these final notes, after the Realizer and
+        // the mix guard above, against the final notes of the lead. Report only; no note changes.
+        reconcilePianoLeadBalance(pianoComposition.diagnostics, 'track', outputPiano.notes,
+          tracks.flatMap((track) => (isInstrumentTrack(track) && track.role !== 'piano' ? [{ id: track.id, notes: track.notes }] : [])));
       }
     }
     const completeSuspensions = pianoRealization.suspensions.filter((audit) => audit.complete).length;

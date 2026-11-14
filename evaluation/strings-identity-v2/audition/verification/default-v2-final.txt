@@ -1,0 +1,17 @@
+
+ RUN  v3.2.7 /home/user/crescode
+
+ ✓ tests/strings-identity-v2.test.ts (12 tests) 29559ms
+   ✓ actual default production material, not identifiers > repeats the full result exactly and leaves classic/nonstring handoffs unchanged  1037ms
+   ✓ actual default production material, not identifiers > separates template-induced composition from roster/energy effects; no mood claim  5219ms
+   ✓ coherence, memory, bounded transformations and failure policy > can compose a genuine repeated-note opening without enharmonic interval tricks  380ms
+   ✓ coherence, memory, bounded transformations and failure policy > fits material to changed harmony, rather than changing only labels  767ms
+   ✓ coherence, memory, bounded transformations and failure policy > supports three-beat material and one-bar homes; rejects unsupported meter/insufficient room  358ms
+   ✓ coherence, memory, bounded transformations and failure policy > composes coherent major/minor/modal and static/pedal/chromatic harmonic homes  4300ms
+   ✓ coherence, memory, bounded transformations and failure policy > uses an available violin primary and reports an unavailable violin handoff  888ms
+
+ Test Files  1 passed (1)
+      Tests  12 passed (12)
+   Start at  17:20:51
+   Duration  31.39s (transform 1.35s, setup 0ms, collect 1.58s, tests 29.56s, environment 0ms, prepare 78ms)
+

@@ -1,0 +1,1122 @@
+
+> crescode@0.0.0 test
+> vitest run --maxWorkers=2 --no-file-parallelism
+
+
+ RUN  v3.2.7 /home/user/crescode
+
+stdout | tests/phase10.test.ts > Phase 10: the clamp and the baseline pins > the chorus mean and the below-floor counts, before (golden96) and after — reported, with the presence contract pinned
+PHASE10 chorus (mean/below-floor, 10 takes aggregated) symphony: 4.860/90 -> 5.063/82 (takes lowered: 1/10)
+PHASE10 chorus (mean/below-floor, 10 takes aggregated) cinematic: 5.365/98 -> 5.406/106 (takes lowered: 5/10)
+PHASE10 chorus (mean/below-floor, 10 takes aggregated) hybridstudio: 5.236/126 -> 5.213/136 (takes lowered: 5/10)
+
+ ❯ tests/phase10.test.ts (24 tests | 1 failed) 34991ms
+   ✓ Phase 10: roster, ranges, fixed notes > percussion notes appear only on rostered percussion tracks, inside the hard ranges; templates without percussion stay silent 186ms
+   ✓ Phase 10: roster, ranges, fixed notes > the unpitched tracks use only their fixed note; the timpani stays in 38-57 on roots and fifths, never the leading tone 135ms
+   ✓ Phase 10: tacets, crashes, rolls > percussion is absent in soli bars and in the near-silence bar: no note starts and no note rings into them 91ms
+   ✓ Phase 10: tacets, crashes, rolls > every crash is preceded by a strictly lower-energy bar, never two within 4 bars, at most one per section; the peak chorus always gets one 6ms
+   ✓ Phase 10: tacets, crashes, rolls > rolls stay within their caps and end on a hit at the target downbeat (unless the target is a tacet) 20ms
+   ✓ Phase 10: the cell, the chorus presence, the anchors > the snare stays inside the section's drawn rhythm cell (every onset is a cell slot tick) 3ms
+   ✓ Phase 10: the cell, the chorus presence, the anchors > chorus-type sections have percussion from their first bar at mid energy and above (tacet first bars exempt) 2ms
+   ✓ Phase 10: the cell, the chorus presence, the anchors > the timpani anchors on downbeats or the cell's anchor slot and never moves faster than eighths outside rolls 23ms
+   ✓ Phase 10.1: the chorus drive > every chorus bar at mid energy and above carries the timpani on the downbeat (templates that roster it); the kit never abandons the bar 9ms
+   ✓ Phase 10.1: the chorus drive > the pre-chorus bar keeps the entry prepared: the groove — the timpani pulse, the snare pattern, the aux off-beat — is tacet there, while the build (the rolls' 16ths, the cymbal swell, the ending hit) sounds as in Phase 10 46ms
+   ✓ Phase 10.1: the chorus drive > the drive's shapes: the snare backbeat sits on beats 2 and 4 (the kit's quarter grid without a timpani), the aux on the off-beat eighths, and the timpani drive never moves faster than quarters 154ms
+   ✓ Phase 10: micro-timing and velocities > the stored offsets sit in the part's lag range, never cross the bar, and the preview/export read the same notes 74ms
+   ✓ Phase 10: micro-timing and velocities > white-box: every percussion note's velocity and offset recomputes exactly from (track, start, pitch) hashes and the window bounds 13ms
+   ✓ Phase 10: micro-timing and velocities > no machine-gun runs: a bar's snare pattern never sits on one velocity where the clamp is not binding, and rolls ramp 3ms
+   ✓ Phase 10: micro-timing and velocities > on a tutti downbeat the timpani and cymbals lag the strings by 24 ms at most 4ms
+   ✓ Phase 10: the clamp and the baseline pins > energy never exceeds the clamp max across six templates × takes 1–10 × both fixtures (zero aboveMax) 204ms
+   × Phase 10: the clamp and the baseline pins > chamber, sonata and vocalbacking are byte-identical to the baseline (3 templates × 2 fixtures × takes 1–10) 6074ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ Phase 10: the clamp and the baseline pins > symphony, cinematic, hybridstudio: every non-percussion, non-keys track is byte-identical to the baseline (everywhere — the percussion module must not perturb anything else)  14754ms
+   ✓ Phase 10: the clamp and the baseline pins > the chorus mean and the below-floor counts, before (golden96) and after — reported, with the presence contract pinned  9471ms
+   ✓ Phase 10: locks, band, hygiene, exports > locked and out-of-band percussion tracks are never written  531ms
+   ✓ Phase 10: locks, band, hygiene, exports > deterministic per (inputs, take); sanitizeNotes is a no-op on the percussion output; validateProject passes  2868ms
+   ✓ Phase 10: locks, band, hygiene, exports > no CC lanes on any percussion track (the generator writes none today; the module adds none) 3ms
+   ✓ Phase 10: locks, band, hygiene, exports > export without the profile passes the percussion through; with the profile the percussion parts claim it (Phase 12)  307ms
+   ✓ Phase 10: locks, band, hygiene, exports > the plan reports the gates and the crash/roll lists (audit trail) 2ms
+ ✓ tests/strings-v1-double-bass.test.ts (47 tests) 21743ms
+   ✓ where a Double Bass is written > invents no desk for Chamber, Sonata or Vocal Backing: no track, a stated reason, the track list as classic  8605ms
+   ✓ where a Double Bass is written > says "no desk" for Chamber, whose four voices are composed  2062ms
+   ✓ where a Double Bass is written > keeps a locked desk exactly as it is  3041ms
+   ✓ determinism > composes the same Double Bass from the same input, and another from another take  4061ms
+   ✓ the hand-off to the existing desk, and the old split > keeps the desk classic, note for note, wherever the Double Bass was not written  935ms
+   ✓ isolation > reproduces the kept Stage 4 and Stage 5 reference files byte for byte (chamber, D Dorian, 16 bars, seed 1, take 0)  2095ms
+ ✓ tests/strings-v1-cello.test.ts (61 tests) 43489ms
+   ✓ four-voice review > is answered only by simplifying the Cello: plainer is plainer, silent is silent, and nothing else is returned  2330ms
+   ✓ four-voice review > a review pass that lowered a stretch really happened somewhere, and the result has fewer findings than before it  9557ms
+   ✓ determinism > gives the same Cello for the same template, fixture, seed and take  4777ms
+   ✓ silence and declining > writes no Cello, and keeps the classic part, where there are no three composed voices to join  744ms
+   ✓ silence and declining > writes no Cello when the Cello track is locked, and leaves that track untouched  860ms
+   ✓ isolation > changes the Cello track and nothing else relative to Stage 4 (Stage 6 adds the Double Bass): every other family equals classic  25094ms
+stdout | tests/phase9.test.ts > Phase 9: the chorus-aware gate > the chorus mean energy never drops below the baseline (per template, takes 1–10 aggregated, three-chorus)
+PHASE9 chorus mean symphony (captures): pre-winds 0.457 -> with winds 0.486
+PHASE9 chorus mean cinematic (captures): pre-winds 0.508 -> with winds 0.536
+PHASE9 chorus mean hybridstudio (captures): pre-winds 0.481 -> with winds 0.524
+
+ ❯ tests/phase9.test.ts (19 tests | 1 failed) 22568ms
+   ✓ Phase 9: roster, ranges, zones > wind notes appear only on rostered wind tracks, inside the hard ranges and the writing windows; templates without winds stay silent 296ms
+   ✓ Phase 9: roster, ranges, zones > no soft dynamics in the strained zones; the addendum floors and ceiling hold (oboe ≥ 63, bassoon ≥ 41, flute soft ≤ 84) 112ms
+   ✓ Phase 9: roster, ranges, zones > the clarinet 65–68 ban: no lead, counterline or pickup-run note there; the flute never leads from 60–66 3ms
+   ✓ Phase 9: phrase caps and rhythm floors > every continuous wind stretch respects the part cap (seconds and the addendum bar bounds) and rests ≥ 1 beat after a cut 22ms
+   ✓ Phase 9: phrase caps and rhythm floors > the bassoon never moves faster than eighths; oboes and clarinets repeat same-pitch 16ths only below 120 BPM; flutes may always 2ms
+   ✓ Phase 9: the bassoon low-interval rule > every sub-48 bassoon note sits a unison, octave or 5th+ from every other low voice sounding with it 46ms
+   ✓ Phase 9: the wind lead > wind leads live in bridge interiors, 2–4 bars, never with the brass lead or a moment; the other winds stay under the lead ceiling 3ms
+   ✓ Phase 9: pickup runs and lead doubles > pickup runs are rare (≤ 2 per piece), land on a chord tone at the chorus downbeat, and ride scale tones 3ms
+   ✓ Phase 9: pickup runs and lead doubles > the lead double is drawn per section and varies across sections and takes (never one constant choice) 1ms
+   ✓ Phase 9: the hard clamp > energy never exceeds the clamp max across six templates × takes 1–10 × both fixtures 213ms
+   × Phase 9: the moments-on baseline pins (golden90, captured at the post-8.3 HEAD) > chamber, sonata and vocalbacking are byte-identical to the baseline (3 templates × 2 fixtures × takes 1–10) 5804ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ Phase 9: the moments-on baseline pins (golden90, captured at the post-8.3 HEAD) > symphony, cinematic, hybridstudio: every non-wind, non-percussion track matches the baseline outside the sanctioned bars (wind leads, wind solis, moments, brass leads)  14205ms
+   ✓ Phase 9: locks and band > locked and out-of-band wind tracks are never written  352ms
+   ✓ Phase 9: hygiene > sanitizeNotes is a no-op on wind output; the preview plans every wind note; determinism holds; hard findings are 0  850ms
+   ✓ Phase 9: hygiene > the no-profile export passes the winds through untouched; the UVI profile claims them with their own parts (Phase 12) 290ms
+   ✓ Phase 9: the chorus-aware gate > in chorus-type sections the upper winds sound for most of the bars; the bassoon sounds wherever the cellos play 8ms
+   ✓ Phase 9: the chorus-aware gate > the chorus mean energy never drops below the baseline (per template, takes 1–10 aggregated, three-chorus)  342ms
+   ✓ Phase 9: the wind moment joins > the tutti hit reaches the winds; the unison join raises flutes/oboes an octave and drops the bassoon with the cellos (D2) 10ms
+   ✓ Phase 9: the wind moment joins > a wind soli, when drawn, plays the carrier line alone on the wind tracks 1ms
+ ✓ tests/piano-stage2a-performance.test.ts (29 tests) 56588ms
+   ✓ Stage 2A production path > roles, transitions and notes are deterministic  1901ms
+   ✓ Stage 2A production path > Piano-only: no evidence, every phrase featured, adaptation is a no-op, and the piece is a full composition  1354ms
+   ✓ Stage 2A production path > Classic carries no Stage 2A decisions and does not use the opened plan  2495ms
+   ✓ Stage 2A production path > the independent draft is the same with and without the arrangement  2328ms
+   ✓ Stage 2A production path > no boundary bar carries an isolated suspension note, and restricted bars stay silent  7262ms
+   ✓ Stage 2A production path > arrangement changes to a transition only reduce the Piano gesture, and are explained  6171ms
+   ✓ Stage 2A production path > roles are reported per phrase with reasons, hold inside a section, and keep the template character  7615ms
+   ✓ Stage 2A production path > takes still differ in the full arrangement (Stage 2 variation is kept)  8316ms
+   ✓ Stage 2A production path > MIDI integrity: notes inside the project, positive lengths, valid velocities, pedal lane present  2595ms
+   ✓ Stage 2A decisions against the final notes > every transition decision is found in the final score, the track and the serialized MIDI  6689ms
+   ✓ Stage 2A decisions against the final notes > a minimal boundary sounds, a break is silent after the first beat, in the track notes  4420ms
+   ✓ Stage 2A decisions against the final notes > a suspension is never written across a boundary figure, and an omitted one leaves no note behind  5417ms
+ ✓ tests/piano-stage4a-contextual-accompaniment.test.ts (8 tests) 1182ms
+   ✓ Piano Stage 4A contextual accompaniment from finalized tracks > keeps template-specific vocabulary gates and seed-stable score events across Compose All templates  660ms
+ ✓ tests/strings-v1-viola.test.ts (40 tests) 125147ms
+   ✓ three-voice review > is answered only by simplifying the Viola: plainer is plainer, silent is silent  1179ms
+   ✓ determinism > gives the same Viola for the same template, fixture, seed and take  14960ms
+   ✓ silence and declining > writes no Viola, and keeps the classic part, where the two-violin plan does not exist  784ms
+   ✓ silence and declining > writes no Viola when the Viola track is locked, and leaves that track untouched  386ms
+   ✓ isolation > changes the Viola track and nothing else relative to Stage 3 (Stage 5 adds the Cello, Stage 6 the Double Bass): every other family equals classic  25173ms
+   ✓ isolation > either clears every finding or keeps the classic Viola, on every fingerprint cell  82571ms
+stdout | tests/phase48.test.ts > Phase 4.8: the drawn style is real (three-chorus + dorian cinematic, takes 0..39) > at least 6 distinct ostinato onset patterns across the ostinato takes — every onset on its drawn cell
+4.8 onset patterns (157 verified draws): syncopated:eighthsx29, sparse:eighthsx27, straight:eighthsx38, straight:sixteenthsx28, gallop:eighthsx10, offBeat:eighthsx25
+
+stdout | tests/phase48.test.ts > Phase 4.8: the drawn style is real (three-chorus + dorian cinematic, takes 0..39) > two ostinato takes never share both cell and contour more than ~25% of the time
+4.8 (cell,contour) draws: 157, worst share straight|ascending = 14.0% over 20 combos
+
+stdout | tests/phase48.test.ts > Phase 4.8: the drawn style is real (three-chorus + dorian cinematic, takes 0..39) > the style dimensions are genuinely drawn: contours, accents, densities, hocket all appear
+4.8 drawn styles: contours descending/pedal/ascending/pingPong, accents offBeat/downbeat/flat, densities dip/rise, pairings unison/hocket/interlock
+
+stdout | tests/phase48.test.ts > Phase 4.8: the drawn style is real (three-chorus + dorian cinematic, takes 0..39) > the interlocking texture only draws calm cells (no gallop: two gallop tracks break the calm-down bound)
+4.8 interlock cells verified on 31 draws: only calm cells
+
+stdout | tests/phase48.test.ts > Phase 4.8: the drawn style is real (three-chorus + dorian cinematic, takes 0..39) > hocket takes answer across bars: exactly one track per bar, V2 on even section bars
+4.8 hocket alternation verified on 10 (take, type) draws
+
+stdout | tests/phase48.test.ts > Phase 4.8: the drawn style is real (three-chorus + dorian cinematic, takes 0..39) > density-curve takes thin to one track on their arc half and fill to two on the other
+4.8 density curve verified on 11 draws: 7 thin bars, 6 full bars (5 with both tracks, 1 ceiling-squeezed)
+
+stdout | tests/phase48.test.ts > Phase 4.8: the drawn style is real (three-chorus + dorian cinematic, takes 0..39) > downbeat accents stay audible above the same bar other onsets (humanize jitter averaged out)
+4.8 downbeat accent verified over 42 draws (28 clearly accented): aggregate firsts 95.8 vs others 93.5
+
+stdout | tests/phase48.test.ts > Phase 4.8: 3/4 and 6/8 fixtures — cells land on felt beats > 3/4: every ostinato onset of every drawn style sits on its felt-beat slots
+4.8 3/4 cells observed: straight, gallop, offBeat, syncopated, sparse over 29 draws
+
+stdout | tests/phase48.test.ts > Phase 4.8: 3/4 and 6/8 fixtures — cells land on felt beats > 6/8: every ostinato onset of every drawn style sits on its felt-beat slots
+4.8 6/8 cells observed: straight, gallop, offBeat, syncopated, sparse over 29 draws
+
+ ✓ tests/phase48.test.ts (23 tests) 4705ms
+   ✓ Phase 4.8: 3/4 and 6/8 fixtures — cells land on felt beats > 3/4: every ostinato onset of every drawn style sits on its felt-beat slots  2284ms
+   ✓ Phase 4.8: 3/4 and 6/8 fixtures — cells land on felt beats > 6/8: every ostinato onset of every drawn style sits on its felt-beat slots  1706ms
+ ✓ tests/strings-v1-understanding.test.ts (24 tests) 202ms
+ ❯ tests/brass.test.ts (18 tests | 1 failed) 26265ms
+   ✓ Phase 8: roster, ranges, ceilings > brass notes appear only on rostered brass tracks and stay inside the hard ranges and the sweet zones (survey) 283ms
+   ✓ Phase 8: roster, ranges, ceilings > no soft dynamics above the soft ceilings (horns ≤ 72, trumpets ≤ 77); accents respect the high gate out of the sweet spot 23ms
+   ✓ Phase 8: phrase caps and rhythm floors > every continuous horns/trumpets stretch respects the phrase cap; trombone/tuba runs either fit the cap or ride the cello line they double 8ms
+   ✓ Phase 8: phrase caps and rhythm floors > trombones and tuba never move faster than eighths 15ms
+   ✓ Phase 8: gates and prepared entrances > trumpets and trombones never (re-)enter below their gate; the level gates follow the arc fractions (chorus relief: the lowered chorus gates inside chorus-type sections, Phase 8.3) 4ms
+   ✓ Phase 8: gates and prepared entrances > every brass entrance follows a strictly lower-energy bar (bar 1 never enters; moment kinds carry their own contract) 6ms
+   ✓ Phase 8: low-interval rule > below MIDI 48 simultaneous low voices are unisons/octaves or a 5th or wider 5ms
+   ✓ Phase 8: one lead at a time > brass leads never share bars with a moment, and the strings read pad with no carrier on lead bars 1ms
+   ✓ Phase 8: one lead at a time > the brass lead lives on the trumpets track (horns double at the octave below), inside the peak section only 2ms
+   ✓ Phase 8: energy clamp > energy never exceeds the clamp max across six templates × takes 1–10 × both fixtures 223ms
+   × Phase 8: the moments-on baseline pins > chamber, sonata and vocalbacking are byte-identical to the pre-brass baseline (3 templates × 2 fixtures × takes 1–10) 5950ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ Phase 8: the moments-on baseline pins > symphony, cinematic, hybridstudio: every non-brass track matches the baseline outside the sanctioned bars (brass leads, horn solis)  14466ms
+   ✓ Phase 8: locks and band > locked and out-of-band brass tracks are never written  418ms
+   ✓ Phase 8: exports, preview, hygiene > the UVI profile and the no-profile export both round-trip with brass; unmapped brass parts pass through untouched 241ms
+   ✓ Phase 8: exports, preview, hygiene > sanitizeNotes is a no-op on brass output; the preview plans every brass note; determinism holds  744ms
+   ✓ Phase 8: moments with brass > the tutti hit reaches the brass: every rostered brass part hits the downbeat marcato under the whole-roster cap 2ms
+   ✓ Phase 8: moments with brass > the horn unison join plays the carrier line's pitch classes at the fitting octave and never the leading tone 16ms
+   ✓ Phase 8: moments with brass > a horn soli exists in the take sweep and silences the strings under it  3852ms
+ ✓ tests/phase81.test.ts (24 tests) 13607ms
+   ✓ brass keyswitch emission > on a real export the brass chunks follow the emit-on-change rules with no switch past its trigger  484ms
+   ✓ round-trip parse of a profile export with brass > the brass keyswitch notes survive the write/parse with their ~30 ms lead through the tempo map  351ms
+   ✓ brass guard drops: the target is zero for trumpets and horns (and holds for all four) > every brass note in three-chorus symphony/cinematic/hybridstudio takes 1–10 and dorian cinematic takes 1–10 sits at or above its part's playableLow  12632ms
+ ✓ tests/suggestion-engine.test.ts (48 tests) 254ms
+ ✓ tests/phase55.test.ts (30 tests) 660ms
+stdout | tests/phase12.test.ts > Phase 12: the snare rotation and the cymbal key > the snare rotation is deterministic, stays inside snareHitKeys (48–62), never repeats a key immediately and keeps every note
+PHASE12 snare rotation: 40 runs, 15 distinct keys realised of the 15-key pool (48,49,50,51,52,53,54,55,56,57,58,59,60,61,62)
+
+stdout | tests/phase12.test.ts > Phase 12: the snare rotation and the cymbal key > the cymbal output contains only the long-crash key 48 (and could only ever hold 55–59 beside it); every hit survives
+PHASE12 cymbals: 56 runs, realised pitches 48 (55–59 never fired: no non-crash/swell cymbal note exists)
+
+stdout | tests/phase12.test.ts > Phase 12: aux stays unmapped > aux is left out of every exported file, keeps its notes in the project and is warned about in the dialog
+PHASE12 aux: 60 runs with aux notes — all left out of the export, warned in the dialog, kept in the project
+
+stdout | tests/phase12.test.ts > Phase 12: the fold and remap report > the Phase 12 patches fold and drop nothing across the corpus; the remap counts equal the engine note counts
+PHASE12 report totals: the Phase 12 patches folded 0 and dropped 0; snare keys rotated 1846, cymbal keys remapped 100
+
+ ✓ tests/phase12.test.ts (16 tests) 8108ms
+   ✓ Phase 12: the byte pins > the no-profile per-track export preserves non-Piano note events from historical golden105 (120 runs)  488ms
+   ✓ Phase 12: the byte pins > the string and brass profile output is byte-identical to the pre-change reference (merged slice + per-track files, 120 runs)  998ms
+   ✓ Phase 12: playability and keyswitch confinement > every exported note sits at or above the patch’s first playable key, or is a keyswitch (merged + per-track, 120 runs)  2037ms
+   ✓ Phase 12: playability and keyswitch confinement > keyswitches exist only in the exported file: the project is untouched by the exports and still validates  988ms
+   ✓ Phase 12: the snare rotation and the cymbal key > the snare rotation is deterministic, stays inside snareHitKeys (48–62), never repeats a key immediately and keeps every note  432ms
+   ✓ Phase 12: aux stays unmapped > aux is left out of every exported file, keeps its notes in the project and is warned about in the dialog  659ms
+   ✓ Phase 12: the channel map > the merged file carries channels 1–9 + 11–16, never 10, and no percussion part (120 runs)  511ms
+   ✓ Phase 12: the channel map > the percussion parts export as their own files on the documented channels 10, 11 and 12  375ms
+   ✓ Phase 12: the CC rules > exports well-formed generated Piano CC64 when a pedal gesture is planned; harp and percussion stay CC-free (120 runs)  411ms
+   ✓ Phase 12: the CC rules > the wind CC lanes follow the brass convention: 1/7/11 exported, 68/74 dropped  449ms
+   ✓ Phase 12: the fold and remap report > the Phase 12 patches fold and drop nothing across the corpus; the remap counts equal the engine note counts  372ms
+stdout | tests/phase51.test.ts > Phase 5.1.3: the 5e matrix re-run at 60 and 180 BPM (6 templates × 3 key/modes × takes 0..2) > every cell (108): validate + sanitize no-op + CC validity + CC7 static + CC68 over legato + energy clamp + non-negative starts
+5.1.3 matrix: 108 cells (6 templates × 3 key/modes × takes 0..2 × {60, 180} BPM) all green
+
+stdout | tests/phase51.test.ts > Phase 5.1.3: the 5e matrix re-run at 60 and 180 BPM (6 templates × 3 key/modes × takes 0..2) > report: offset min/max per track in ms AND ticks, at each tempo (three-chorus fixture, take 1)
+5.1.3 offsets per track through each tempo map (ms | ticks):
+   60 BPM symphony      Cellos/Basses   ms 13.5..26.0  ticks 13..25
+   60 BPM symphony      Violas          ms 6.3..15.6  ticks 6..15
+   60 BPM symphony      Violins II      ms 5.2..14.6  ticks 5..14
+   60 BPM symphony      Violins I       ms 5.2..16.7  ticks 5..16
+   60 BPM chamber       Cellos/Basses   ms 12.5..26.0  ticks 12..25
+   60 BPM chamber       Violas          ms 5.2..14.6  ticks 5..14
+   60 BPM chamber       Violins II      ms 5.2..15.6  ticks 5..15
+   60 BPM chamber       Violins I       ms 5.2..14.6  ticks 5..14
+   60 BPM cinematic     Cellos/Basses   ms 13.5..25.0  ticks 13..24
+   60 BPM cinematic     Violas          ms 5.2..16.7  ticks 5..16
+   60 BPM cinematic     Violins II      ms 6.3..16.7  ticks 6..16
+   60 BPM cinematic     Violins I       ms 6.3..16.7  ticks 6..16
+   60 BPM sonata        Cellos/Basses   ms 13.5..27.1  ticks 13..26
+   60 BPM sonata        Violins I       ms 8.3..16.7  ticks 8..16
+   60 BPM vocalbacking  Cellos/Basses   ms 15.6..27.1  ticks 15..26
+   60 BPM vocalbacking  Violas          ms 5.2..16.7  ticks 5..16
+   60 BPM vocalbacking  Violins II      ms 6.3..17.7  ticks 6..17
+   60 BPM hybridstudio  Cellos/Basses   ms 13.5..24.0  ticks 13..23
+   60 BPM hybridstudio  Violas          ms 6.3..17.7  ticks 6..17
+   60 BPM hybridstudio  Violins II      ms 6.3..15.6  ticks 6..15
+   60 BPM hybridstudio  Violins I       ms 6.3..17.7  ticks 6..17
+  180 BPM symphony      Cellos/Basses   ms 14.2..27.1  ticks 41..78
+  180 BPM symphony      Violas          ms 6.3..16.0  ticks 18..46
+  180 BPM symphony      Violins II      ms 6.6..16.7  ticks 19..48
+  180 BPM symphony      Violins I       ms 6.3..14.9  ticks 18..43
+  180 BPM chamber       Cellos/Basses   ms 17.4..27.4  ticks 50..79
+  180 BPM chamber       Violas          ms 7.3..17.0  ticks 21..49
+  180 BPM chamber       Violins II      ms 6.6..13.5  ticks 19..39
+  180 BPM chamber       Violins I       ms 6.6..16.0  ticks 19..46
+  180 BPM cinematic     Cellos/Basses   ms 14.6..25.3  ticks 42..73
+  180 BPM cinematic     Violas          ms 7.3..16.7  ticks 21..48
+  180 BPM cinematic     Violins II      ms 7.6..17.4  ticks 22..50
+  180 BPM cinematic     Violins I       ms 10.4..13.5  ticks 30..39
+  180 BPM sonata        Cellos/Basses   ms 16.7..26.4  ticks 48..76
+  180 BPM sonata        Violins I       ms 6.3..17.4  ticks 18..50
+  180 BPM vocalbacking  Cellos/Basses   ms 14.6..27.1  ticks 42..78
+  180 BPM vocalbacking  Violas          ms 5.6..16.0  ticks 16..46
+  180 BPM vocalbacking  Violins II      ms 5.6..17.4  ticks 16..50
+  180 BPM hybridstudio  Cellos/Basses   ms 16.3..26.7  ticks 47..77
+  180 BPM hybridstudio  Violas          ms 5.9..15.3  ticks 17..44
+  180 BPM hybridstudio  Violins II      ms 5.6..16.0  ticks 16..46
+  180 BPM hybridstudio  Violins I       ms 8.3..15.6  ticks 24..45
+
+ ✓ tests/phase51.test.ts (12 tests) 50337ms
+   ✓ Phase 5.1.3: the 5e matrix re-run at 60 and 180 BPM (6 templates × 3 key/modes × takes 0..2) > every cell (108): validate + sanitize no-op + CC validity + CC7 static + CC68 over legato + energy clamp + non-negative starts  11760ms
+   ✓ Phase 5.1.3: the 5e matrix re-run at 60 and 180 BPM (6 templates × 3 key/modes × takes 0..2) > every cell: determinism — the same take composes byte-identically at both tempos  7414ms
+   ✓ Phase 5.1.3: the 5e matrix re-run at 60 and 180 BPM (6 templates × 3 key/modes × takes 0..2) > every cell: each offset is in its ms range through THAT tempo map and never negative  14046ms
+   ✓ Phase 5.1.3: the 5e matrix re-run at 60 and 180 BPM (6 templates × 3 key/modes × takes 0..2) > report: offset min/max per track in ms AND ticks, at each tempo (three-chorus fixture, take 1)  4253ms
+   ✓ Phase 5.1.1: baseline CC coverage (both fixtures, all six templates) > CC1/CC11/CC7 start at tick 0 and CC1/CC11 close at the project end, on every composed track  2476ms
+   ✓ Phase 5.1.1: baseline CC coverage (both fixtures, all six templates) > no undefined stretch: the CC1/CC11 value is defined at every bar tick, and the baseline keeps CC11 >= CC1 over texture bars  2720ms
+   ✓ Phase 5.1.2: legato overlap (all six templates, both fixtures) > every same-track overlap is an octave double, a join crossfade (<= 31 ms) or the line’s own both-legato overlap  4496ms
+   ✓ Phase 5.1.2: legato overlap (all six templates, both fixtures) > a non-legato note never reaches past the next note; nothing ends past its section window or the project end  2652ms
+   ✓ Phase 5.1.2: legato overlap (all six templates, both fixtures) > sanitizeNotes is a no-op, validateProject passes and the clamp holds with the overlap in place (all six templates)  514ms
+ ✓ tests/suggestion-hardening.test.ts (40 tests) 146ms
+stdout | tests/phase7.test.ts > Phase 7: moments > energy never exceeds the clamp, moments create no hard findings, sanitize is a no-op, validateProject passes — six templates × takes 1–10
+PHASE7 soft findings: overlapAvoid=3647, energy=2690, brassParallels=126, octaveDoubling=58
+PHASE7 hard findings outside moment bars (pre-existing, 0):
+
+
+stdout | tests/phase7.test.ts > Phase 7: moments > report data: per-template moment counts and the three-chorus take-1 timeline
+PHASE7 moment counts over takes 1–10 (three-chorus) + 1–6 (dorian):
+  ensemble.symphony        unison:14 tutti:6 soli:11 divisi:3 imitation:6
+  ensemble.chamber         unison:0 tutti:0 soli:15 divisi:7 imitation:11
+  ensemble.cinematic       unison:12 tutti:8 soli:9 divisi:7 imitation:0
+  ensemble.sonata          unison:0 tutti:0 soli:17 divisi:0 imitation:0
+  ensemble.vocalbacking    unison:0 tutti:0 soli:0 divisi:0 imitation:0
+  ensemble.hybridstudio    unison:11 tutti:6 soli:10 divisi:7 imitation:8
+PHASE7 three-chorus-40bars take 1, moment timeline by bar:
+  ensemble.symphony: unison bars 5–8; divisi bars 18–21 (violins2); soli bars 25–28 (cellosBasses); tutti bars 29–29
+  ensemble.chamber: imitation bars 25–28 (violins2); divisi bars 30–33 (violas)
+  ensemble.cinematic: unison bars 16–19; soli bars 25–28 (cellosBasses); tutti bars 29–29
+  ensemble.sonata: soli bars 29–32 (violins1)
+  ensemble.vocalbacking: no moments this take
+  ensemble.hybridstudio: unison bars 16–19; soli bars 25–28 (violins1); tutti bars 29–29
+
+ ✓ tests/phase7.test.ts (15 tests) 28835ms
+   ✓ Phase 7: moments > planning is deterministic: the same take composes byte-identically (moments on)  1393ms
+   ✓ Phase 7: moments > the texture draws are UNCHANGED: same textures, the layer plan differs only on moment bars (takes 1–10)  26004ms
+   ✓ Phase 7: moments > energy never exceeds the clamp, moments create no hard findings, sanitize is a no-op, validateProject passes — six templates × takes 1–10  582ms
+   ✓ Phase 7: moments > locked and out-of-band tracks are untouched (byte-identical), moments or not  704ms
+ ✓ tests/suggestion-interaction.test.ts (40 tests) 45ms
+ ✓ tests/piano-engine-stage3-development.test.ts (3 tests) 3377ms
+   ✓ Piano Engine Stage 3 musical development and coordinated writing > is deterministic for identical inputs, varies by generation seed, and retains template identity  2962ms
+   ✓ Piano Engine Stage 3 musical development and coordinated writing > production contract — musical development and texture: phrase roles, theme operations and texture levels make audible structural differences  376ms
+ ✓ tests/piano-engine-v3-textures.test.ts (9 tests) 1269ms
+   ✓ Piano Engine V3 context-aware textures > covers sparse, broken, arpeggiated, melody-plus-accompaniment, block, dialogue, and reserved flourishes  537ms
+ ✓ tests/piano-stage2a-lead-balance.test.ts (17 tests) 24664ms
+   ✓ Stage 2A lead balance: the report describes the exported notes > final figures equal the serialized MIDI and the final lead track, for every measured phrase  7215ms
+   ✓ Stage 2A lead balance: the report describes the exported notes > Featured, Rhythmic, Atmospheric, Restrained and Piano-only passages carry no balance and no trim  6435ms
+   ✓ Stage 2A lead balance: the report describes the exported notes > a Featured phrase beside a lead keeps the velocities of the independent piece unless the mix guard lowers them  424ms
+   ✓ Stage 2A lead balance: every pass after the Composer > the Realizer keeps score velocities; the mix guard only lowers; the file is the track  3263ms
+   ✓ Stage 2A lead balance: leads other than the first violins > flutes annotated as the lead of a generated cinematic arrangement  2010ms
+   ✓ Stage 2A lead balance: leads other than the first violins > clarinets annotated as the lead of a generated cinematic arrangement  2004ms
+   ✓ Stage 2A lead balance: leads other than the first violins > cellosBasses annotated as the lead of a generated chamber arrangement  893ms
+   ✓ Stage 2A lead balance: leads other than the first violins > violas annotated as the lead of a generated chamber arrangement  1026ms
+   ✓ Stage 2A lead balance: leads other than the first violins > cellosBasses annotated as the lead of a generated sonata arrangement  724ms
+ ✓ tests/strings-v1-ensemble.test.ts (29 tests) 56040ms
+   ✓ determinism and casting > gives the same two voices for the same template, fixture, seed and take  17760ms
+   ✓ determinism and casting > casts by take, not by chance: take 0 puts the theme on Violin II, take 1 on Violin I, every time  12475ms
+   ✓ isolation > changes the two violins (and, since Stage 4, the Viola; since Stage 5, the Cello; since Stage 6, the Double Bass) and nothing else: every other family equals classic  25097ms
+   ✓ isolation > writes no second voice when the band has only one violin, and says why  651ms
+ ✓ tests/phase6.test.ts (12 tests) 84ms
+stdout | tests/orchestrator-conductor.test.ts > conductor: per-bar layer plan (3a) > uses the shared layer vocabulary and gives every string track exactly one role per bar (4a, 4.6 palettes)
+chamber take 1 textures: {"verse":"v2Handoff","chorus":"v2Handoff"} → verse bass+lead+pad, chorus bass+lead+pad
+
+stdout | tests/orchestrator-conductor.test.ts > conductor: per-bar layer plan (3a) > presets assign the documented roles per bar (4a/4.6): the plan matches the drawn texture, cinematic switches V1 by arc energy
+cinematic take 1 textures: {"verse":"trailer","chorus":"trailer"}
+
+ ✓ tests/orchestrator-conductor.test.ts (21 tests) 4569ms
+   ✓ conductor: per-bar layer plan (3a) > uses the shared layer vocabulary and gives every string track exactly one role per bar (4a, 4.6 palettes)  352ms
+   ✓ conductor: per-bar layer plan (3a) > presets assign the documented roles per bar (4a/4.6): the plan matches the drawn texture, cinematic switches V1 by arc energy  565ms
+   ✓ conductor: per-bar layer plan (3a) > fillGating breaths: the resting parts rest on each non-final section’s last bar, ≥ minGapTicks, fills registered  606ms
+   ✓ conductor: per-bar layer plan (3a) > Phase 3.5: the final bar always sounds — no breath or fill lands on it (all six templates)  592ms
+   ✓ conductor: per-bar layer plan (3a) > the plan never exceeds maxLayers and never plans doubling against the band policy  427ms
+   ✓ checker from the annotation (3b): maxLayers + fillGating replace their stubs > the real plan audits clean — no maxLayers/fillGating findings and no stubs for them  467ms
+   ✓ energy arc (3c): per-section curves, dips, tapers, one near-silence bar > composed output follows the arc: measureEnergy stays under the clamp with the near-silence in it  522ms
+   ✓ Phase 3.5: peak reservation — one section owns the top of the range > exactly one section reaches within 3% of the clamp; every other caps at PEAK_RESERVE; measureEnergy never exceeds it  551ms
+ ✓ tests/phase5.test.ts (8 tests) 44ms
+ ✓ tests/strings-v1-voice.test.ts (23 tests) 93803ms
+   ✓ the theme > is sound by the line rules, deterministic per seed, and differs between seeds  1490ms
+   ✓ instrument selection > does not always choose the same instrument, never the bass carrier, and never creates a track  31280ms
+   ✓ replacement and isolation > is deterministic: the same request gives the same composition  1988ms
+   ✓ replacement and isolation > leaves every track but the composed voices (two violins, Viola, Cello, Double Bass) — the other strings and every other family — exactly as classic  56485ms
+   ✓ replacement and isolation > handles missing or unsuitable material by leaving the classic strings in place  2466ms
+ ✓ tests/suggestion-hardening-integration.test.ts (22 tests) 36ms
+ ✓ tests/suggestion-textentry.test.ts (36 tests) 32ms
+stdout | tests/phase8.test.ts > Phase 8: 1 — orchestration hard findings (figuration exemption) > zero hard findings across all six templates × takes 1–10 (three-chorus) and 1–6 (dorian)
+PHASE8 hard findings: 0 across 6 templates × all takes (figuration exemption active)
+
+stdout | tests/phase8.test.ts > Phase 8: 4 — per-note seeding: notes outside moment bars are byte-identical > every note whose end does not reach into a moment bar is identical to the moments:false run (6 templates × takes 1–10)
+PHASE8 jitter identity: 29662 notes outside moment bars byte-identical to the moments:false runs
+
+stdout | tests/phase8.test.ts > Phase 8: 2 — divisi in exports (UVI profile) > the tremolo merge keeps the two divisi lines separate (per-pitch groups, no cross-pitch gluing)
+PHASE8 tremolo divisi ensemble.cinematic t9: 7 simultaneous pitches merge independently
+
+stdout | tests/phase8.test.ts > Phase 8: 3 — soft findings do not rise with moments on > overlapAvoid and octaveDoubling-climaxOnly counts (moments on) ≤ the moments:false counts + the wind moment joins
+PHASE8 soft findings (moments on vs off): overlapAvoid 3647 vs 3573 (Δ74, wind moment joins 1425), climaxOnly 41 vs 46 (Δ-5)
+
+ ✓ tests/phase8.test.ts (9 tests) 80001ms
+   ✓ Phase 8: 1 — orchestration hard findings (figuration exemption) > zero hard findings across all six templates × takes 1–10 (three-chorus) and 1–6 (dorian)  18427ms
+   ✓ Phase 8: 4 — per-note seeding: notes outside moment bars are byte-identical > every note whose end does not reach into a moment bar is identical to the moments:false run (6 templates × takes 1–10)  27910ms
+   ✓ Phase 8: 4 — per-note seeding: notes outside moment bars are byte-identical > humanize jitter is a pure function of (track, start, pitch): identical inputs, identical offsets  896ms
+   ✓ Phase 8: 3 — soft findings do not rise with moments on > overlapAvoid and octaveDoubling-climaxOnly counts (moments on) ≤ the moments:false counts + the wind moment joins  32568ms
+ ✓ tests/suggestion-overlay.test.ts (35 tests) 51ms
+ ✓ tests/band.test.ts (42 tests) 28ms
+stdout | tests/orchestrator-compose.test.ts > Compose All through the orchestrator: property sweep > D11 take variety: ≥40% of spans differ in PITCHES between neighbouring takes, hard rules intact
+D11 take variety 0→1: 17/17 spans differ (100.0%)
+D11 take variety 1→2: 17/17 spans differ (100.0%)
+D11 take variety 2→3: 17/17 spans differ (100.0%)
+D11 take variety 3→4: 17/17 spans differ (100.0%)
+D11 take variety 4→5: 17/17 spans differ (100.0%)
+
+stdout | tests/orchestrator-compose.test.ts > golden: fixtures/dorian-16bars.json (half-bar chords, C/E and G/B bass) > per-template listening map (notes per track) lands in a sane band
+PHASE2 listening map: {
+ "Symphony Orchestra": {
+  "Violins I": 31,
+  "Violins II": 27,
+  "Violas": 40,
+  "Cellos/Basses": 25,
+  "Double Basses": 22,
+  "French Horns": 22,
+  "Trumpets": 8,
+  "Trombones": 20,
+  "Tuba": 8,
+  "Flutes": 30,
+  "Oboes": 1,
+  "Clarinets": 10,
+  "Bassoons": 16,
+  "Timpani": 17,
+  "Snare": 16,
+  "Cymbals": 1,
+  "Aux": 32,
+  "Harp": 92
+ },
+ "Chamber": {
+  "Violins I": 27,
+  "Violins II": 38,
+  "Violas": 27,
+  "Cellos/Basses": 27,
+  "Piano": 144
+ },
+ "Cinematic": {
+  "Violins I": 136,
+  "Violins II": 174,
+  "Violas": 131,
+  "Cellos/Basses": 27,
+  "Double Basses": 17,
+  "French Horns": 218,
+  "Trumpets": 104,
+  "Trombones": 10,
+  "Tuba": 7,
+  "Flutes": 52,
+  "Clarinets": 56,
+  "Bassoons": 15,
+  "Timpani": 21,
+  "Cymbals": 1,
+  "Aux": 52,
+  "Piano": 97,
+  "Harp": 76
+ },
+ "Sonata": {
+  "Violins I": 40,
+  "Cellos/Basses": 27,
+  "Piano": 206
+ },
+ "Vocal Backing": {
+  "Violins II": 27,
+  "Violas": 27,
+  "Cellos/Basses": 27,
+  "Piano": 98,
+  "Harp": 66
+ },
+ "Hybrid Studio": {
+  "Violins I": 44,
+  "Violins II": 36,
+  "Violas": 27,
+  "Cellos/Basses": 27,
+  "Double Basses": 19,
+  "French Horns": 19,
+  "Trumpets": 6,
+  "Trombones": 19,
+  "Flutes": 23,
+  "Clarinets": 11,
+  "Snare": 32,
+  "Cymbals": 1,
+  "Aux": 32,
+  "Piano": 188,
+  "Harp": 52
+ }
+}
+
+ ✓ tests/orchestrator-compose.test.ts (66 tests) 9772ms
+   ✓ Compose All through the orchestrator: property sweep > Symphony Orchestra · key 2 · Dorian: green end to end  312ms
+   ✓ Compose All through the orchestrator: property sweep > Symphony Orchestra · key 9 · Dorian: green end to end  366ms
+   ✓ Compose All through the orchestrator: property sweep > Cinematic · key 9 · Dorian: green end to end  377ms
+   ✓ Compose All through the orchestrator: property sweep > Hybrid Studio · key 9 · Ionian: green end to end  352ms
+   ✓ Compose All through the orchestrator: property sweep > a different take yields a different score  404ms
+   ✓ Compose All through the orchestrator: property sweep > D11 take variety: ≥40% of spans differ in PITCHES between neighbouring takes, hard rules intact  541ms
+   ✓ Compose All through the orchestrator: property sweep > non-string family tracks are composed by the orchestrator pipeline  587ms
+   ✓ golden: fixtures/dorian-16bars.json (half-bar chords, C/E and G/B bass) > per-template listening map (notes per track) lands in a sane band  869ms
+   ✓ Compose All in the store: one edit, take inside it > composing increments the take and one undo restores the whole picture  359ms
+stdout | tests/orchestrator-energy.test.ts > Phase 2.5 diagnostics: beam vs exhaustive > beam vs exhaustive (best-of-N sampled paths per configuration — report numbers printed)
+beam-vs-exhaustive: {"seeds":8,"beamBest":15.2,"exhaustiveBest":15.2,"pitchAgreement":"8/8"}
+
+ ✓ tests/orchestrator-energy.test.ts (25 tests) 245ms
+ ❯ tests/piano-texture-theme.test.ts (10 tests | 1 failed) 17640ms
+   ✓ Piano Texture-and-Theme Composer (production Compose All) > plans a section arc with roles and texture levels that the written score follows  2305ms
+   ✓ Piano Texture-and-Theme Composer (production Compose All) > writes a genuine multi-bar theme and develops it by role across the form  628ms
+   ✓ Piano Texture-and-Theme Composer (production Compose All) > gives each template its own bar-level pattern vocabulary and real right-hand chords  464ms
+   × Piano Texture-and-Theme Composer (production Compose All) > lets density change the composition, not multiply notes 5289ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ Piano Texture-and-Theme Composer (production Compose All) > keeps the independent composition identical when the orchestra changes, and adapts without stacking  563ms
+   ✓ Piano Texture-and-Theme Composer (production Compose All) > confines a conductor moment to its own bars 70ms
+   ✓ Piano Texture-and-Theme Composer (production Compose All) > respects near-silence, range, playability and the Realizer contract on every template and fixture  4063ms
+   ✓ Piano Texture-and-Theme Composer (production Compose All) > is deterministic, varies with the seed, and keeps Symphony Piano-free  1654ms
+   ✓ Piano Texture-and-Theme Composer (production Compose All) > writes Alberti, walking-bass and ostinato figures with their defining shapes in ordinary Compose All output  587ms
+   ✓ Piano Texture-and-Theme Composer (production Compose All) > adds octave reinforcement only at a policy-permitted climax, an octave under the theme and softer than it  2014ms
+ ✓ tests/suggestion-contracts.test.ts (30 tests) 18ms
+ ✓ tests/piano-stage4-contextual-techniques.test.ts (3 tests) 1838ms
+   ✓ Piano Stage 4 contextual score techniques (legacy foundation writer, not the production score) > writes Alberti, walking-bass, and repeated-note ostinato events only in compatible open contexts  1764ms
+ ✓ tests/piano-score-stage1.test.ts (7 tests) 617ms
+   ✓ Piano Stage 1 note-level score contract > production contract — independent composition: the Piano writes its own theme, bass, accompaniment and inner voices without taking material from other instruments  315ms
+ ✓ tests/phase82.test.ts (12 tests) 5179ms
+   ✓ the split Compose All in the store > adds the Double Basses track in ONE undo step (with the notes and the take)  405ms
+   ✓ roster energy (D3): the desk adds no loudness > the energy peak stays within the clamp with the desk counted under the cellosBasses role  4158ms
+ ✓ tests/piano-variation-baseline.test.ts (18 tests) 3349ms
+   ✓ Piano fingerprints > are deterministic and compact  310ms
+   ✓ Piano fingerprints > recognise the same notes in another key as a transposition, in every template  638ms
+   ✓ Piano fingerprints > order the calibration anchors: same generation < other density < other template  560ms
+   ✓ Texture-and-Theme baseline protection > pins the auditioned baseline: notes, pedal and both fingerprints  791ms
+   ✓ Texture-and-Theme baseline protection > stays playable  661ms
+ ✓ tests/phase4a.test.ts (10 tests) 8451ms
+   ✓ Piano Engine Phase 4A ephemeral context contract > exposes the resolved template gate and only applicable rules with checker severities for all six templates  2328ms
+   ✓ Piano Engine Phase 4A ephemeral context contract > keeps Symphony ineligible when a pinned piano passes the generic band selector  415ms
+   ✓ Piano Engine Phase 4A ephemeral context contract > reuses the deterministic V5 identity and produces the same input for identical inputs/takes  1135ms
+   ✓ Piano Engine Phase 4A ephemeral context contract > snapshots mute, solo, lock, and band visibility without hiding preserved locked notes  668ms
+   ✓ Piano Engine Phase 4A ephemeral context contract > keys V5 identity to user seed, take, and density and changes the musical plan deterministically  914ms
+   ✓ Piano Engine Phase 4A ephemeral context contract > keeps the analysis snapshot deeply immutable, piano-excluded, and harp read-only  461ms
+   ✓ Piano Engine Phase 4A ephemeral context contract > keeps every non-Piano track byte-identical to the pre-V2 baseline for every template  1874ms
+ ✓ tests/phase4b.test.ts (8 tests) 19ms
+ ✓ tests/suggestion-picker.test.ts (26 tests) 51ms
+stdout | tests/phase46.test.ts > Phase 4.6 (1): texture palettes — variety and trailer frequency (three-chorus, takes 0..39) > at least 4 distinct Verse/Chorus texture combos across the 40 takes
+4.6 texture combos (18):
+  tremoloBed|pizzPulse
+  interlockingOstinato|tremoloBed
+  pizzPulse|trailer
+  leadPadBed|interlockingOstinato
+  pizzPulse|pizzPulse
+  leadPadBed|leadPadBed
+  singleOstinato|pizzPulse
+  trailer|tremoloBed
+  tremoloBed|singleOstinato
+  singleOstinato|interlockingOstinato
+  singleOstinato|singleOstinato
+  leadPadBed|trailer
+  singleOstinato|leadPadBed
+  leadPadBed|tremoloBed
+  singleOstinato|tremoloBed
+  pizzPulse|singleOstinato
+  trailer|pizzPulse
+  leadPadBed|singleOstinato
+
+stdout | tests/phase46.test.ts > Phase 4.6 (1): texture palettes — variety and trailer frequency (three-chorus, takes 0..39) > V2+Vla both on 16th ostinato in a Chorus (trailer) in <= 20% of takes (target ~10%)
+4.6 trailer frequency: chorus 8/40 (20.0%), verse 2/40 (weights: trailer 10/100)
+
+stdout | tests/phase46.test.ts > Phase 4.6 (1): texture palettes — variety and trailer frequency (three-chorus, takes 0..39) > report: the texture drawn per take 1..10 (dorian cinematic, Verse/Chorus)
+4.6 cinematic textures per take (dorian):
+  take 1: Verse=trailer, Chorus=trailer
+  take 2: Verse=interlockingOstinato, Chorus=singleOstinato
+  take 3: Verse=tremoloBed, Chorus=singleOstinato
+  take 4: Verse=interlockingOstinato, Chorus=pizzPulse
+  take 5: Verse=tremoloBed, Chorus=leadPadBed
+  take 6: Verse=tremoloBed, Chorus=singleOstinato
+  take 7: Verse=leadPadBed, Chorus=pizzPulse
+  take 8: Verse=leadPadBed, Chorus=tremoloBed
+  take 9: Verse=leadPadBed, Chorus=tremoloBed
+  take 10: Verse=tremoloBed, Chorus=pizzPulse
+
+stdout | tests/phase46.test.ts > Phase 4.6 (2): the 40-take hygiene battery (dorian cinematic, takes 0..39) > the lead (always V1 on cinematic) is the top line in most bars, every take
+4.6 lead-on-top (cinematic, 40 takes): worst 0 at 100% of sounding bars
+
+stdout | tests/phase46.test.ts > Phase 4.6 (3): ostinato calm-down (three-chorus cinematic, takes 0..39) > non-trailer takes are calm: max ostinato notes per chorus bar <= half the trailer count
+4.6 ostinato notes/chorus-bar: trailer max 32 (3,14,18,20,22,26,35,40), calm takes max 8 (16th trailer vs 8th textures)
+
+stdout | tests/phase46.test.ts > Phase 4.6 (3): ostinato calm-down (three-chorus cinematic, takes 0..39) > interlocking textures: the half-slot offset on a both-tracks bar, or the hocket alternation (4.8)
+4.6/4.8 interlock verified on 0 interlocked + 4 hocketed take(s): half-slot offset / across-bar call-response
+
+stdout | tests/phase46.test.ts > Phase 4.6 (3): ostinato calm-down (three-chorus cinematic, takes 0..39) > report: ostinato notes per template (dorian, take 1)
+4.6 ostinato/pizz note counts per template:
+  symphony (take 1, v1LeadsSustainedBass): {}
+  chamber (take 1, v2Handoff): {}
+  cinematic (take 1, trailer): {"Violins II":174,"Violas":131}
+  sonata (take 1, soloist): {}
+  vocalbacking (take 1, padBed): {}
+  hybridstudio (take 1, v2Counter): {}
+
+stdout | tests/phase46.test.ts > Phase 4.6 (4): every other template varies its role plan across takes > symphony, chamber, sonata, hybrid: >= 2 distinct role plans across 20 takes; vocal backing stays pad only
+4.6 role plans symphony: 9 distinct across 20 takes
+4.6 role plans chamber: 8 distinct across 20 takes
+4.6 role plans sonata: 4 distinct across 20 takes
+4.6 role plans hybridstudio: 4 distinct across 20 takes
+
+ ✓ tests/phase46.test.ts (15 tests) 11236ms
+   ✓ Phase 4.6 (1): texture palettes — variety and trailer frequency (three-chorus, takes 0..39) > the same take is byte-identical, twice over  2309ms
+   ✓ Phase 4.6 (1): texture palettes — variety and trailer frequency (three-chorus, takes 0..39) > report: the texture drawn per take 1..10 (dorian cinematic, Verse/Chorus)  828ms
+   ✓ Phase 4.6 (2): the 40-take hygiene battery (dorian cinematic, takes 0..39) > same take byte-identical (all 40, plan and score)  836ms
+   ✓ Phase 4.6 (2): the 40-take hygiene battery (dorian cinematic, takes 0..39) > every take passes validateProject, ranges, sanitize no-op and the energy clamp  376ms
+   ✓ Phase 4.6 (3): ostinato calm-down (three-chorus cinematic, takes 0..39) > report: ostinato notes per template (dorian, take 1)  549ms
+   ✓ Phase 4.6 (4): every other template varies its role plan across takes > symphony, chamber, sonata, hybrid: >= 2 distinct role plans across 20 takes; vocal backing stays pad only  6259ms
+stdout | tests/orchestrator-presets.test.ts > cinematic preset (4e): ostinato + measured tremolo > V2 + Vla play chord tones on the subdivision grid, spiccato-length, viola under V2 (trailer chorus)
+Phase 4e report (4.6 trailer take 1, textures {"verse":"trailer","chorus":"trailer"}): cinematic V2+Vla chorus ostinato 88+70 notes (rate 240 ticks)
+
+stdout | tests/orchestrator-presets.test.ts > cinematic preset (4e): ostinato + measured tremolo > V1 plays measured tremolo only where the arc energy ≥ 0.65, and leads below it
+Phase 4e report: cinematic V1 tremolo adds 112 repeated notes (rate 240 ticks)
+
+stdout | tests/orchestrator-presets.test.ts > cinematic preset (4e): ostinato + measured tremolo > the tremolo carries the lead: first repeat on the motif pitch at the motif onset, repeats grouped per lead note
+Phase 4.5 report: cinematic tremolo: 112 measured repeats carry the lead motif (articulation 'tremolo') (lead notes rendered as tremolo groups: 17)
+
+stdout | tests/orchestrator-presets.test.ts > symphony preset (4e): cellosBasses pizz-pulse > short pizz notes on the strong beats (1 and 3), nothing else, in an all-pizz take
+symphony pizz-pulse verified on take 2
+
+stdout | tests/orchestrator-presets.test.ts > Vc+Cb layering (4f, per note since 4.5): octave below where policy and range allow > symphony dorian: the Cb doubles every note that stays in range; skips are per note and reported
+Phase 4.5 report (symphony · dorian): Vc+Cb layering (ensemble.symphony): 18/27 notes doubled an octave below (skipped: 9 under the track's low E1) | cello/basses split (take 1): 4 note(s) routed to the Double Basses desk (2 octave-up answers on the cello, 2 octave-up answer(s) suppressed by the low-interval rule, 0 wide-unison notes), Cb doubles ride the desk
+
+stdout | tests/orchestrator-presets.test.ts > Vc+Cb layering (4f, per note since 4.5): octave below where policy and range allow > a leading tone is never doubled, note by note (cinematic on C Ionian)
+Phase 4.5 report (cinematic · C Ionian): Vc+Cb layering (ensemble.cinematic): 11/27 notes doubled an octave below (skipped: 14 under the track's low E1, 2 on the leading tone)
+
+stdout | tests/orchestrator-presets.test.ts > Vc+Cb layering (4f, per note since 4.5): octave below where policy and range allow > reports the doubled/total counts per template (dorian fixture)
+Phase 4.5 report (dorian · symphony): Vc+Cb layering (ensemble.symphony): 18/27 notes doubled an octave below (skipped: 9 under the track's low E1)
+Phase 4.5 report (dorian · chamber): Vc+Cb layering (ensemble.chamber): skipped — the octaveDoubling policy is climaxOnly
+Phase 4.5 report (dorian · cinematic): Vc+Cb layering (ensemble.cinematic): 15/27 notes doubled an octave below (skipped: 12 under the track's low E1)
+Phase 4.5 report (dorian · sonata): Vc+Cb layering (ensemble.sonata): skipped — the octaveDoubling policy is forbidden
+Phase 4.5 report (dorian · vocalbacking): Vc+Cb layering (ensemble.vocalbacking): skipped — the octaveDoubling policy is forbidden
+Phase 4.5 report (dorian · hybridstudio): Vc+Cb layering (ensemble.hybridstudio): 13/27 notes doubled an octave below (skipped: 14 under the track's low E1)
+
+ ✓ tests/orchestrator-presets.test.ts (10 tests) 1826ms
+   ✓ symphony preset (4e): cellosBasses pizz-pulse > short pizz notes on the strong beats (1 and 3), nothing else, in an all-pizz take  312ms
+   ✓ Vc+Cb layering (4f, per note since 4.5): octave below where policy and range allow > reports the doubled/total counts per template (dorian fixture)  683ms
+ ✓ tests/phase8-followthrough.test.ts (4 tests) 211ms
+stdout | tests/phase56.test.ts > automation events: coalesced and bounded > max AudioParam events per track on the three-chorus fixture (reported)
+[phase6] max automation events per track (three-chorus): 54 CC11 events on "Cellos/Basses"
+[phase6] per-track event counts (three-chorus, cinematic take 1):
+  Violins I: CC11 events 45, lanes 1+7+11 coalesced 74
+  Violins II: CC11 events 46, lanes 1+7+11 coalesced 73
+  Violas: CC11 events 30, lanes 1+7+11 coalesced 55
+  Cellos/Basses: CC11 events 54, lanes 1+7+11 coalesced 92
+  Double Basses: CC11 events 43, lanes 1+7+11 coalesced 80
+  French Horns: CC11 events 37, lanes 1+7+11 coalesced 74
+  Trumpets: CC11 events 23, lanes 1+7+11 coalesced 46
+  Trombones: CC11 events 35, lanes 1+7+11 coalesced 69
+  Tuba: CC11 events 24, lanes 1+7+11 coalesced 48
+  Flutes: CC11 events 40, lanes 1+7+11 coalesced 74
+  Oboes: CC11 events 0, lanes 1+7+11 coalesced 0
+  Clarinets: CC11 events 37, lanes 1+7+11 coalesced 73
+  Bassoons: CC11 events 36, lanes 1+7+11 coalesced 70
+  Timpani: CC11 events 0, lanes 1+7+11 coalesced 0
+  Snare: CC11 events 0, lanes 1+7+11 coalesced 0
+  Cymbals: CC11 events 0, lanes 1+7+11 coalesced 0
+  Aux: CC11 events 0, lanes 1+7+11 coalesced 0
+  Piano: CC11 events 0, lanes 1+7+11 coalesced 0
+  Harp: CC11 events 0, lanes 1+7+11 coalesced 0
+
+ ✓ tests/phase56.test.ts (25 tests) 601ms
+ ✓ tests/suggestion-parse.test.ts (29 tests) 44ms
+ ✓ tests/piano-dynamic-alignment.test.ts (6 tests) 6898ms
+   ✓ Piano V5 dynamic alignment > unwinds falling Outro energy without an artificial arrival peak across all five Piano templates  2808ms
+   ✓ Piano V5 dynamic alignment > retains a genuine build into a strong final arrival across all five templates  333ms
+   ✓ Piano V5 dynamic alignment > keeps the descending ending across different take-derived seeds  3568ms
+ ✓ tests/follow.test.ts (35 tests) 25ms
+ ✓ tests/phase5d-humanize.test.ts (8 tests) 1908ms
+   ✓ Phase 5d (1): timing offsets are positive, in-range, correlated, ends kept > every offset lands in its role range (violins/violas +5..18 ms, bass +12..28 ms), ends never move  327ms
+   ✓ Phase 5d (2): velocity jitter is cap-safe and the clamp still holds > after humanize the mix governor re-runs: measureEnergy <= clamp on all six templates  849ms
+   ✓ Phase 5d (3): engine invariants on the humanized score > sanitizeNotes is a no-op, validateProject passes, nothing starts before 0 or ends past the project end  365ms
+stdout | tests/phase5e-matrix.test.ts > Phase 5e: the expression matrix (6 templates × 3 key/modes × takes 0..2) > every cell: validate + sanitize no-op + determinism + CC validity + energy clamp + non-negative starts
+5e matrix: 54 cells (6 templates × 3 key/modes × takes 0..2) all green
+
+stdout | tests/phase5e-matrix.test.ts > Phase 5e: the expression matrix (6 templates × 3 key/modes × takes 0..2) > report: offset min/max per track and CC point counts per track per template (cap never approached)
+5e report (three-chorus 40-bar fixture, take 1; lane cap 1024, worst lane 81):
+  symphony      Cellos/Basses   offset 13.1..26.3 ms  cc lanes 5 points 29/37/7/70/1
+  symphony      Violas          offset 5.6..16.3 ms  cc lanes 5 points 37/73/5/18/1
+  symphony      Violins II      offset 6.9..14.4 ms  cc lanes 5 points 37/73/5/18/1
+  symphony      Violins I       offset 5.6..16.9 ms  cc lanes 5 points 39/60/5/20/1
+  chamber       Cellos/Basses   offset 15.0..26.9 ms  cc lanes 5 points 40/75/15/20/1
+  chamber       Violas          offset 5.6..15.0 ms  cc lanes 5 points 39/68/13/16/1
+  chamber       Violins II      offset 5.6..15.0 ms  cc lanes 5 points 39/78/25/16/1
+  chamber       Violins I       offset 6.9..13.7 ms  cc lanes 5 points 39/58/13/16/1
+  cinematic     Cellos/Basses   offset 13.8..26.3 ms  cc lanes 5 points 38/63/9/18/1
+  cinematic     Violas          offset 6.3..16.9 ms  cc lanes 5 points 32/68/7/52/1
+  cinematic     Violins II      offset 8.1..16.9 ms  cc lanes 5 points 36/44/7/32/1
+  cinematic     Violins I       offset 6.9..16.9 ms  cc lanes 5 points 32/55/9/44/1
+  sonata        Cellos/Basses   offset 13.1..26.9 ms  cc lanes 5 points 40/81/5/20/1
+  sonata        Violins I       offset 7.5..15.6 ms  cc lanes 5 points 40/60/15/20/1
+  vocalbacking  Cellos/Basses   offset 14.4..26.9 ms  cc lanes 5 points 40/80/5/20/1
+  vocalbacking  Violas          offset 6.9..15.6 ms  cc lanes 5 points 40/65/5/20/1
+  vocalbacking  Violins II      offset 7.5..15.6 ms  cc lanes 5 points 40/70/5/20/1
+  hybridstudio  Cellos/Basses   offset 16.2..23.8 ms  cc lanes 5 points 38/59/15/20/1
+  hybridstudio  Violas          offset 7.5..15.6 ms  cc lanes 5 points 38/59/15/20/1
+  hybridstudio  Violins II      offset 5.6..15.6 ms  cc lanes 5 points 38/70/15/18/1
+  hybridstudio  Violins I       offset 6.9..16.9 ms  cc lanes 5 points 38/64/15/20/1
+
+ ✓ tests/phase5e-matrix.test.ts (6 tests) 22779ms
+   ✓ Phase 5e: the expression matrix (6 templates × 3 key/modes × takes 0..2) > every cell: validate + sanitize no-op + determinism + CC validity + energy clamp + non-negative starts  5906ms
+   ✓ Phase 5e: the expression matrix (6 templates × 3 key/modes × takes 0..2) > every cell: determinism (the same take composes byte-identically, notes and CC)  4289ms
+   ✓ Phase 5e: the expression matrix (6 templates × 3 key/modes × takes 0..2) > every cell: each offset is in its ms range through the tempo map and never negative  6649ms
+   ✓ Phase 5e: the expression matrix (6 templates × 3 key/modes × takes 0..2) > MIDI export round-trips the new CC lanes  2289ms
+   ✓ Phase 5e: the expression matrix (6 templates × 3 key/modes × takes 0..2) > report: offset min/max per track and CC point counts per track per template (cap never approached)  3492ms
+stdout | tests/phase5c-cc.test.ts > Phase 5c (3): scope + determinism + point budget > point counts per track per template on the 40-bar fixture — the 1024 cap is never approached
+5c CC points per track (three-chorus 40-bar fixture, take 1; lane cap 1024):
+  symphony      Violins I       total 120  CC1:39 CC11:55 CC68:5 CC74:20 CC7:1
+  symphony      Violins II      total 135  CC1:39 CC11:70 CC68:5 CC74:20 CC7:1
+  symphony      Violas          total 135  CC1:39 CC11:70 CC68:5 CC74:20 CC7:1
+  symphony      Cellos/Basses   total 153  CC1:28 CC11:31 CC68:5 CC74:88 CC7:1
+  symphony      Double Basses   total 135  CC1:28 CC11:31 CC68:5 CC74:70 CC7:1
+  chamber       Violins I       total 141  CC1:40 CC11:65 CC68:15 CC74:20 CC7:1
+  chamber       Violins II      total 168  CC1:40 CC11:80 CC68:27 CC74:20 CC7:1
+  chamber       Violas          total 151  CC1:40 CC11:75 CC68:15 CC74:20 CC7:1
+  chamber       Cellos/Basses   total 151  CC1:40 CC11:75 CC68:15 CC74:20 CC7:1
+  cinematic     Violins I       total 155  CC1:31 CC11:52 CC68:9 CC74:62 CC7:1
+  cinematic     Violins II      total 121  CC1:38 CC11:41 CC68:5 CC74:36 CC7:1
+  cinematic     Violas          total 153  CC1:31 CC11:60 CC68:5 CC74:56 CC7:1
+  cinematic     Cellos/Basses   total 136  CC1:39 CC11:69 CC68:7 CC74:20 CC7:1
+  cinematic     Double Basses   total 135  CC1:39 CC11:69 CC68:7 CC74:19 CC7:1
+  sonata        Violins I       total 136  CC1:40 CC11:60 CC68:15 CC74:20 CC7:1
+  sonata        Violins II      total   0  
+  sonata        Violas          total   0  
+  sonata        Cellos/Basses   total 147  CC1:40 CC11:81 CC68:5 CC74:20 CC7:1
+  vocalbacking  Violins I       total   0  
+  vocalbacking  Violins II      total 136  CC1:40 CC11:70 CC68:5 CC74:20 CC7:1
+  vocalbacking  Violas          total 131  CC1:40 CC11:65 CC68:5 CC74:20 CC7:1
+  vocalbacking  Cellos/Basses   total 146  CC1:40 CC11:80 CC68:5 CC74:20 CC7:1
+  hybridstudio  Violins I       total 138  CC1:38 CC11:64 CC68:15 CC74:20 CC7:1
+  hybridstudio  Violins II      total 153  CC1:38 CC11:69 CC68:25 CC74:20 CC7:1
+  hybridstudio  Violas          total 133  CC1:38 CC11:59 CC68:15 CC74:20 CC7:1
+  hybridstudio  Cellos/Basses   total 133  CC1:38 CC11:59 CC68:15 CC74:20 CC7:1
+  hybridstudio  Double Basses   total 127  CC1:38 CC11:53 CC68:15 CC74:20 CC7:1
+
+ ✓ tests/phase5c-cc.test.ts (10 tests) 4642ms
+   ✓ Phase 5c (2): CC68 legato windows + no expressive CC on ostinato/pizz tracks > a tremolo-bed take: no CC68 window covers a tremolo passage; arcs still ride the track  964ms
+   ✓ Phase 5c (3): scope + determinism + point budget > the same take composes byte-identical CC lanes  382ms
+   ✓ Phase 5c (3): scope + determinism + point budget > point counts per track per template on the 40-bar fixture — the 1024 cap is never approached  2625ms
+stdout | tests/phase4-matrix.test.ts > Phase 4h: lines across the template matrix > the lead is the top sounding string line in most bars (templates with a lead, handoff bars exempt)
+lead-on-top symphony (take 1): 7/7 bars (handoff bars exempt: 8)
+lead-on-top chamber (take 2): 11/15 bars (handoff bars exempt: 0)
+lead-on-top sonata (take 1): 14/15 bars (handoff bars exempt: 0)
+lead-on-top hybridstudio (take 1): 14/15 bars (handoff bars exempt: 0)
+
+stdout | tests/phase4-matrix.test.ts > Phase 4h: lines across the template matrix > the counterline is mostly contrary to the lead end-to-end (fallback spans excluded, quartet take)
+counterline contrary (take 2, fallbacks excluded): 10/12
+
+stdout | tests/phase4-matrix.test.ts > multi-chorus fixture: peak reservation + motif development across choruses > the motif recurs and develops: Chorus 1 keeps the Verse 1 contour class, higher register (V1-led take)
+multi-chorus motif contour agreements:
+  take 3 (verse=v1LeadsNoCounter, chorus=v1LeadsNoCounter): agreement 0.63, mean 70.6 → 81.6
+  take 4 (verse=quartet, chorus=quartet): agreement 0.80, mean 73.0 → 85.4
+
+stdout | tests/phase4-matrix.test.ts > target vs written velocity (sonata + chamber chorus): is the mix pass flattening the build? > prints arc target → written string velocity → measured energy per chorus bar
+== Sonata (clamp 0.65) — Chorus bars 9–16:
+  bar 9: target E 0.552 → written strings meanVel 68.8 → measured E 0.452
+  bar 10: target E 0.569 → written strings meanVel 68.4 → measured E 0.484
+  bar 11: target E 0.585 → written strings meanVel 62.2 → measured E 0.490
+  bar 12: target E 0.601 → written strings meanVel 69.5 → measured E 0.570
+  bar 13: target E 0.617 → written strings meanVel 61.3 → measured E 0.552
+  bar 14: target E 0.634 → written strings meanVel 76.3 → measured E 0.587
+  bar 15: target E 0.650 → written strings meanVel 75.8 → measured E 0.555
+  bar 16: target E 0.358 → written strings meanVel 46.6 → measured E 0.296
+== Chamber (clamp 0.7) — Chorus bars 9–16:
+  bar 9: target E 0.595 → written strings meanVel 69.0 → measured E 0.198
+  bar 10: target E 0.612 → written strings meanVel 65.0 → measured E 0.211
+  bar 11: target E 0.630 → written strings meanVel 61.0 → measured E 0.210
+  bar 12: target E 0.647 → written strings meanVel 70.3 → measured E 0.219
+  bar 13: target E 0.665 → written strings meanVel 74.1 → measured E 0.569
+  bar 14: target E 0.682 → written strings meanVel 75.5 → measured E 0.589
+  bar 15: target E 0.700 → written strings meanVel 77.8 → measured E 0.604
+  bar 16: target E 0.385 → written strings meanVel 52.7 → measured E 0.310
+
+ ✓ tests/phase4-matrix.test.ts (7 tests) 3836ms
+   ✓ Phase 4h: lines across the template matrix > determinism holds across keys, modes and takes; a new take re-rolls the motif  1285ms
+   ✓ Phase 4h: lines across the template matrix > the composed output stays clean: validate, ranges, sanitize no-op, energy, chords track  682ms
+   ✓ Phase 4h: lines across the template matrix > the lead is the top sounding string line in most bars (templates with a lead, handoff bars exempt)  401ms
+   ✓ multi-chorus fixture: peak reservation + motif development across choruses > the LAST Chorus is the peak; every other section caps at PEAK_RESERVE; measured energy never exceeds the clamp  883ms
+   ✓ multi-chorus fixture: peak reservation + motif development across choruses > the motif recurs and develops: Chorus 1 keeps the Verse 1 contour class, higher register (V1-led take)  335ms
+ ✓ tests/piano-composition-identity.test.ts (15 tests) 34563ms
+   ✓ Piano Composition Identity: the draw > is the production default, and Classic is a separate explicit mode  506ms
+   ✓ Piano Composition Identity: the draw > draws coordinated, compatible identities: the compatibility rules hold for every template, seed and take  625ms
+   ✓ Piano Composition Identity: production Compose All > composes identically for identical seed and take  1294ms
+   ✓ Piano Composition Identity: production Compose All > does not let density change the identity  3770ms
+   ✓ Piano Composition Identity: production Compose All > does not let the rest of the arrangement change the identity  556ms
+   ✓ Piano Composition Identity: production Compose All > gives successive Compose All takes different archetypes until the template set is used up  3464ms
+   ✓ Piano Composition Identity: production Compose All > keeps template limits authoritative: texture ceiling, playability and a present theme  17775ms
+   ✓ Piano Composition Identity: production Compose All > keeps the theme recognisable through adaptation in every generation, without demanding exact bars  5590ms
+   ✓ Piano Composition Identity: production Compose All > writes the theme the identity describes: the head rhythm of the plan is the rhythm that sounds  688ms
+ ✓ tests/piano-engine-production.test.ts (5 tests) 5433ms
+   ✓ Piano Engine V5 production path > is the only Piano-track note producer for all five eligible templates  2762ms
+   ✓ Piano Engine V5 production path > replays identical notes and CC64 for the same project, take, user seed, and density  1752ms
+   ✓ Piano Engine V5 production path > keeps Symphony Piano-free even when a pin admits Piano to the generic band  440ms
+ ✓ tests/generate.test.ts (17 tests) 229ms
+stdout | tests/phase83.test.ts > Phase 8.3: the target — a chorus never sounds thinner than a verse > chorus mean energy > verse mean energy on every take 1–10, all three templates
+8.3 chorus>verse (after the relief): 30 take-checks pass
+  symphony t1 chorus 0.522 > verse 0.184
+  symphony t2 chorus 0.560 > verse 0.192
+  symphony t3 chorus 0.442 > verse 0.190
+  symphony t4 chorus 0.474 > verse 0.152
+  symphony t5 chorus 0.611 > verse 0.191
+  symphony t6 chorus 0.438 > verse 0.178
+  symphony t7 chorus 0.424 > verse 0.180
+  symphony t8 chorus 0.545 > verse 0.214
+  symphony t9 chorus 0.542 > verse 0.181
+  symphony t10 chorus 0.504 > verse 0.173
+  cinematic t1 chorus 0.571 > verse 0.208
+  cinematic t2 chorus 0.520 > verse 0.220
+  cinematic t3 chorus 0.542 > verse 0.185
+  cinematic t4 chorus 0.490 > verse 0.200
+  cinematic t5 chorus 0.590 > verse 0.193
+  cinematic t6 chorus 0.576 > verse 0.184
+  cinematic t7 chorus 0.540 > verse 0.195
+  cinematic t8 chorus 0.481 > verse 0.203
+  cinematic t9 chorus 0.496 > verse 0.174
+  cinematic t10 chorus 0.599 > verse 0.196
+  hybridstudio t1 chorus 0.611 > verse 0.177
+  hybridstudio t2 chorus 0.484 > verse 0.199
+  hybridstudio t3 chorus 0.604 > verse 0.198
+  hybridstudio t4 chorus 0.533 > verse 0.173
+  hybridstudio t5 chorus 0.574 > verse 0.181
+  hybridstudio t6 chorus 0.606 > verse 0.176
+  hybridstudio t7 chorus 0.398 > verse 0.204
+  hybridstudio t8 chorus 0.507 > verse 0.173
+  hybridstudio t9 chorus 0.409 > verse 0.178
+  hybridstudio t10 chorus 0.487 > verse 0.167
+
+stdout | tests/phase83.test.ts > Phase 8.3: the clamp and the ranges hold with the relief > zero aboveMax findings across both fixtures, three templates, takes 1–10
+8.3 aboveMax: 0 across 48 compose runs (both fixtures, takes 1–10/1–6)
+
+ ✓ tests/phase83.test.ts (8 tests) 42648ms
+   ✓ Phase 8.3: the target — a chorus never sounds thinner than a verse > chorus mean energy > verse mean energy on every take 1–10, all three templates  10365ms
+   ✓ Phase 8.3: the clamp and the ranges hold with the relief > zero aboveMax findings across both fixtures, three templates, takes 1–10  12039ms
+   ✓ Phase 8.3: the clamp and the ranges hold with the relief > every brass note stays inside the hard range and the sweet zone  10422ms
+   ✓ Phase 8.3: the clamp and the ranges hold with the relief > the peak chorus keeps the full choir: at the peak level every ROSTERED brass part’s ordinary line sounds, tuba included where the template has one (moment output overrides aside)  9759ms
+ ✓ tests/mode-transform.test.ts (38 tests) 19ms
+stdout | tests/phase45.test.ts > Phase 4.5 (2): the peak is shaped onto the clamp, not clipped to it > per-bar chorus targets for chamber, sonata, vocalbacking, cinematic: open ~85% of clamp, rise over bars 1–6, top out at the clamp
+== chamber (clamp max 0.7), peak chorus targets:
+  chorus bar 1: 0.8500 of clamp (0.5950)
+  chorus bar 2: 0.8750 of clamp (0.6125)
+  chorus bar 3: 0.9000 of clamp (0.6300)
+  chorus bar 4: 0.9250 of clamp (0.6475)
+  chorus bar 5: 0.9500 of clamp (0.6650)
+  chorus bar 6: 0.9750 of clamp (0.6825)
+  chorus bar 7: 1.0000 of clamp (0.7000)
+  chorus bar 8: 0.5500 of clamp (0.3850)
+== sonata (clamp max 0.65), peak chorus targets:
+  chorus bar 1: 0.8500 of clamp (0.5525)
+  chorus bar 2: 0.8750 of clamp (0.5687)
+  chorus bar 3: 0.9000 of clamp (0.5850)
+  chorus bar 4: 0.9250 of clamp (0.6013)
+  chorus bar 5: 0.9500 of clamp (0.6175)
+  chorus bar 6: 0.9750 of clamp (0.6338)
+  chorus bar 7: 1.0000 of clamp (0.6500)
+  chorus bar 8: 0.5500 of clamp (0.3575)
+== vocalbacking (clamp max 0.65), peak chorus targets:
+  chorus bar 1: 0.8500 of clamp (0.5525)
+  chorus bar 2: 0.8800 of clamp (0.5720)
+  chorus bar 3: 0.9100 of clamp (0.5915)
+  chorus bar 4: 0.9400 of clamp (0.6110)
+  chorus bar 5: 0.9700 of clamp (0.6305)
+  chorus bar 6: 1.0000 of clamp (0.6500)
+  chorus bar 7: 0.7750 of clamp (0.5038)
+  chorus bar 8: 0.5500 of clamp (0.3575)
+== cinematic (clamp max 0.95), peak chorus targets:
+  chorus bar 1: 0.8500 of clamp (0.8075)
+  chorus bar 2: 0.8750 of clamp (0.8312)
+  chorus bar 3: 0.9000 of clamp (0.8550)
+  chorus bar 4: 0.9250 of clamp (0.8788)
+  chorus bar 5: 0.9500 of clamp (0.9025)
+  chorus bar 6: 0.9750 of clamp (0.9262)
+  chorus bar 7: 1.0000 of clamp (0.9500)
+  chorus bar 8: 0.5500 of clamp (0.5225)
+
+stdout | tests/phase45.test.ts > Phase 4.5 (1): the cinematic chorus keeps its tune > V1 pitches in the chorus bars match the motif contour class like the other templates; the tremolo count is reported
+cinematic motif contour: verse "UUDUSDUUDUUDUUDUUDUUDUS" chorus "USDUUDUUDUSDUUDUSDUSDUU" (agreement 0.74)
+Phase 4.5 report: cinematic tremolo: 48 measured repeats carry the lead motif (articulation 'tremolo')
+
+stdout | tests/phase45.test.ts > Phase 4.5 (4): three-chorus fixture — the peak plan end-to-end > measured strings-only energy: chorus 3 >= 1.10x chorus 1 in chamber and cinematic; the clamp still holds
+== Chamber: strings-only measured energy — chorus 1 max 0.360 (mean 0.346), chorus 3 max 0.474 (mean 0.254), ratio max 1.316
+== Cinematic: strings-only measured energy — chorus 1 max 0.171 (mean 0.093), chorus 3 max 0.238 (mean 0.190), ratio max 1.389
+
+ ✓ tests/phase45.test.ts (4 tests) 3967ms
+   ✓ Phase 4.5 (2): the peak is shaped onto the clamp, not clipped to it > per-bar chorus targets for chamber, sonata, vocalbacking, cinematic: open ~85% of clamp, rise over bars 1–6, top out at the clamp  582ms
+   ✓ Phase 4.5 (4): three-chorus fixture — the peak plan end-to-end > planned: choruses 1-2 stay <= ~88% of the clamp, chorus 3 reaches it (within 3%), the outro is not the peak  2436ms
+   ✓ Phase 4.5 (4): three-chorus fixture — the peak plan end-to-end > measured strings-only energy: chorus 3 >= 1.10x chorus 1 in chamber and cinematic; the clamp still holds  734ms
+ ✓ tests/strings-v1-mode.test.ts (9 tests | 2 skipped) 43043ms
+   ✓ strings composition mode switch > selects classic when the option is omitted, and explicit classic is identical  2206ms
+   ✓ strings composition mode switch > V1 replaces at most the two violin tracks, the Viola track, the Cello track and the Double Bass desk and leaves everything else equal to classic  13872ms
+   ✓ strings composition mode switch > keeps the diagnostics off the persisted shape of the result  1975ms
+   ✓ strings composition mode switch > leaves the Piano mode selection unaffected  12374ms
+   ✓ strings V1 is not exposed and nothing else moved > documents Double Bass hand-off points that still exist in compose.ts; the classic split itself is not rewired  12606ms
+ ✓ tests/uvi-piano-profile.test.ts (8 tests) 6992ms
+   ✓ Piano Engine V5 CC64 and UVI profile > composes a generated Piano pedal lane without a source CC64 lane  521ms
+   ✓ Piano Engine V5 CC64 and UVI profile > keeps authored pedal events, merges them with generated events, and finishes released  655ms
+   ✓ Piano Engine V5 CC64 and UVI profile > recomposes prior V5 output without accumulating it as source CC64  929ms
+   ✓ Piano Engine V5 CC64 and UVI profile > writes no Piano notes or pedal events for Symphony and does not change non-Piano controllers  603ms
+   ✓ Piano Engine V5 CC64 and UVI profile > is deterministic and varies pedal articulation with Piano templates  3796ms
+ ✓ tests/ensemble-template.test.ts (27 tests) 17ms
+ ✓ tests/orchestrator-voicing.test.ts (16 tests) 105ms
+ ✓ tests/piano-engine-v5.test.ts (4 tests) 1259ms
+   ✓ Piano Engine V5 production behavior > uses only Composer-visible orchestration evidence and never infers an unannotated lead  434ms
+ ✓ tests/orchestration-schema.test.ts (14 tests) 23ms
+ ✓ tests/strings-identity-v2.test.ts (9 tests) 25736ms
+   ✓ actual default production material, not identifiers > repeats the full result exactly and leaves classic/nonstring handoffs unchanged  1116ms
+   ✓ actual default production material, not identifiers > separates template-induced composition from roster/energy effects; no mood claim  6121ms
+   ✓ coherence, memory, bounded transformations and failure policy > fits material to changed harmony, rather than changing only labels  1014ms
+   ✓ coherence, memory, bounded transformations and failure policy > supports three-beat material and one-bar homes; rejects unsupported meter/insufficient room  370ms
+ ✓ tests/suggestion-context.test.ts (7 tests) 25ms
+ ✓ tests/schema.test.ts (13 tests) 27ms
+ ✓ tests/piano-engine-v4-musical-quality.test.ts (3 tests) 4288ms
+   ✓ Piano Engine V4 musical-quality writing > keeps the production Composer → Realizer path deterministic and metrically grounded for all five Piano templates  2966ms
+   ✓ Piano Engine V4 musical-quality writing > develops a two-bar subject across Chamber and Sonata phrases and keeps their bass lines economical  636ms
+   ✓ Piano Engine V4 musical-quality writing > keeps two-hand separation intentional in the realized opening material  683ms
+ ✓ tests/orchestrator-lines.test.ts (9 tests) 36ms
+ ✓ tests/export.test.ts (10 tests) 105ms
+ ✓ tests/key-transpose.test.ts (25 tests) 14ms
+ ✓ tests/piano-pedal.test.ts (5 tests) 7ms
+stdout | tests/phase47.test.ts > Phase 4.7: the texture draw distribution (dorian cinematic, 400 takes) > per-texture frequency matches the weights for Verse and Chorus (chi-square < 11.07, 5 df)
+4.7 draw distribution over 400 takes (weights 25/20/15/15/15/10):
+  texture      weight  Verse            Chorus
+  leadPadBed             25%    23.3% (93)    24.0% (96)
+  singleOstinato         20%    21.3% (85)    23.3% (93)
+  interlockingOstinato   15%    13.3% (53)    17.0% (68)
+  pizzPulse              15%    16.0% (64)    14.5% (58)
+  tremoloBed             15%    17.0% (68)    13.8% (55)
+  trailer                10%     9.3% (37)     7.5% (30)
+  chi-square: verse 3.18, chorus 6.32 (95% critical 11.07, 5 df)
+
+stdout | tests/phase47.test.ts > Phase 4.7: the texture draw distribution (dorian cinematic, 400 takes) > trailer in Chorus within 6–14% (tightened from <= 20%)
+4.7 trailer: chorus 7.5% (30/400), verse 9.3% (37/400) — window 6–14%
+
+stdout | tests/phase47.test.ts > Phase 4.7: the texture draw distribution (dorian cinematic, 400 takes) > Verse and Chorus draws are independent (chi-square independence < 37.65, 25 df; joint table reported)
+4.7 joint table (verse rows, chorus cols, takes of 400):
+  verse \ chorus        lead sing inte pizz trem trai
+  leadPadBed              25   20   17   11   13    7
+  singleOstinato          25   20   15    7   12    6
+  interlockingOstinato     9   11   10   11    9    3
+  pizzPulse               14   14   10   17    3    6
+  tremoloBed              15   20   11    8   11    3
+  trailer                  8    8    5    4    7    5
+  chi-square independence 24.58 (95% critical 37.65, 25 df)
+  largest cells: pizzPulse|pizzPulse 17 vs 9.3, pizzPulse|tremoloBed 3 vs 8.8
+
+stdout | tests/phase47.test.ts > Phase 4.7: the texture draw distribution (dorian cinematic, 400 takes) > a fresh project's first Compose All draws its textures at take 1 (reported)
+4.7 fresh project, first Compose All → textures (take 1): verse=trailer, chorus=trailer
+
+ ✓ tests/phase47.test.ts (4 tests) 254ms
+ ✓ tests/strings-v1-capabilities.test.ts (6 tests) 26ms
+ ✓ tests/harp-regression.test.ts (2 tests) 6348ms
+   ✓ Harp compatibility and regression contract > preserves the six-case pre-V2 Harp note and CC baselines  2445ms
+   ✓ Harp compatibility and regression contract > keeps Harp planning and rendering deterministic and within the written-track boundary  3901ms
+stdout | tests/phase5a-staircase.test.ts > Phase 5a: non-peak choruses staircase toward the peak (three-chorus fixture) > chorus 1 caps at ~70% of the clamp, chorus 2 at ~85%, and the planned means rise chorus 1 < 2 < 3 — all six templates
+5a per-chorus planned E (three-chorus fixture, take 1):
+  symphony      (clamp 0.85): means 0.586 → 0.682 → 0.756  maxes 0.595 / 0.722 / 0.850
+  chamber       (clamp 0.7): means 0.490 → 0.581 → 0.616  maxes 0.490 / 0.595 / 0.700
+  cinematic     (clamp 0.95): means 0.648 → 0.713 → 0.848  maxes 0.665 / 0.783 / 0.950
+  sonata        (clamp 0.65): means 0.455 → 0.553 → 0.572  maxes 0.455 / 0.552 / 0.650
+  vocalbacking  (clamp 0.65): means 0.455 → 0.546 → 0.573  maxes 0.455 / 0.552 / 0.650
+  hybridstudio  (clamp 0.9): means 0.619 → 0.712 → 0.803  maxes 0.630 / 0.765 / 0.900
+
+stdout | tests/phase5a-staircase.test.ts > Phase 5a: non-peak choruses staircase toward the peak (three-chorus fixture) > a lone non-peak chorus sits at the top share (~85%); the interpolation is linear with three of them
+5a three-non-peak staircase caps 0.665 / 0.736 / 0.807 → measured maxes 0.665 / 0.736 / 0.763 (peak chorus bars 17-20: 0.950)
+
+ ✓ tests/phase5a-staircase.test.ts (2 tests) 4923ms
+   ✓ Phase 5a: non-peak choruses staircase toward the peak (three-chorus fixture) > chorus 1 caps at ~70% of the clamp, chorus 2 at ~85%, and the planned means rise chorus 1 < 2 < 3 — all six templates  2920ms
+   ✓ Phase 5a: non-peak choruses staircase toward the peak (three-chorus fixture) > a lone non-peak chorus sits at the top share (~85%); the interpolation is linear with three of them  2001ms
+ ✓ tests/orchestration-seed.test.ts (6 tests) 503ms
+   ✓ orchestrationSeed per D8: inputs = chords, structure, key, mode, tempo, template, band > same inputs + same take compose byte-identical string tracks; a new take re-seeds  488ms
+stdout | tests/seed-dump.test.ts > seed-audit dump: 20 seeds x 5 structures over the shipped engine
+[seed-dump] wrote /tmp/crescode-seed-audit.txt (124 lines)
+
+ ✓ tests/seed-dump.test.ts (1 test) 314ms
+   ✓ seed-audit dump: 20 seeds x 5 structures over the shipped engine  313ms
+ ✓ tests/strings-v1-comparison.test.ts (3 tests) 93094ms
+   ✓ classic versus V1 comparison harness > reports the composed voices (two violins, Viola, Cello, Double Bass) as the only difference on every fingerprint cell  90979ms
+   ✓ classic versus V1 comparison harness > separates direct string differences, consumed information and downstream behaviour when two compositions differ  534ms
+   ✓ classic versus V1 comparison harness > never alters the compositions it compares  1570ms
+ ✓ tests/chord-spans.test.ts (9 tests) 11ms
+stdout | tests/phase3-listening.test.ts > PHASE3 listening map > prints per-template, per-section mean energy per bar + per-string-track layers
+Symphony Orchestra (clamp 0.25–0.85, maxLayers 7, policy allowed)
+  measureEnergy: max 0.802 · strings notes 153
+  Verse (bars 1–8):
+    mean E/bar: [0.103, 0.213, 0.255, 0.296, 0.320, 0.271, 0.314, 0.000]
+    cellosBasses: bass 1–7, REST (nearSilence+nearSilence) 8
+    violas+violins2: pad 1–7, REST (nearSilence+nearSilence) 8
+    violins1: lead 1–7, REST (nearSilence+nearSilence) 8
+  Chorus (bars 9–16):
+    mean E/bar: [0.505, 0.465, 0.477, 0.489, 0.692, 0.772, 0.722, 0.417]
+    cellosBasses: bass 9–16
+    violas: lead 9–16
+    violins1+violins2: pad 9–16
+Chamber (clamp 0.2–0.7, maxLayers 5, policy climaxOnly)
+  measureEnergy: max 0.616 · strings notes 101
+  Verse (bars 1–8):
+    mean E/bar: [0.333, 0.348, 0.374, 0.396, 0.439, 0.438, 0.467, 0.000]
+    cellosBasses: bass 1–7, REST (fillGating+nearSilence) 8
+    violas+violins1: pad 1–7, REST (fillGating+nearSilence) 8
+    violins2: lead 1–7, REST (fillGating+nearSilence) 8
+  Chorus (bars 9–16):
+    mean E/bar: [0.198, 0.211, 0.210, 0.219, 0.569, 0.589, 0.604, 0.310]
+    cellosBasses: bass 9–16
+    violas+violins1: pad 9–16
+    violins2: lead 9–16
+Cinematic (clamp 0.35–0.95, maxLayers 9, policy allowed)
+  measureEnergy: max 0.871 · strings notes 388
+  Verse (bars 1–8):
+    mean E/bar: [0.081, 0.221, 0.326, 0.323, 0.338, 0.351, 0.357, 0.000]
+    cellosBasses: bass 1–7, REST (nearSilence+nearSilence) 8
+    violas+violins2: ostinato 1–7, REST (nearSilence+nearSilence) 8
+    violins1: lead 1–7, REST (nearSilence+nearSilence) 8
+  Chorus (bars 9–16):
+    mean E/bar: [0.633, 0.595, 0.596, 0.631, 0.759, 0.785, 0.814, 0.405]
+    cellosBasses: bass 9–16
+    violas+violins2: ostinato 9–16
+    violins1: tremolo 9–15, lead 16
+Sonata (clamp 0.15–0.65, maxLayers 3, policy forbidden)
+  measureEnergy: max 0.592 · strings notes 67
+  Verse (bars 1–8):
+    mean E/bar: [0.329, 0.430, 0.476, 0.504, 0.536, 0.515, 0.512, 0.000]
+    cellosBasses: bass 1–7, REST (nearSilence+nearSilence) 8
+    violins1: lead 1–7, REST (fillGating) 8
+  Chorus (bars 9–16):
+    mean E/bar: [0.452, 0.484, 0.490, 0.570, 0.552, 0.587, 0.555, 0.296]
+    cellosBasses: bass 9–16
+    violins1: lead 9–16
+Vocal Backing (clamp 0.15–0.65, maxLayers 4, policy forbidden)
+  measureEnergy: max 0.629 · strings notes 81
+  Verse (bars 1–8):
+    mean E/bar: [0.433, 0.453, 0.374, 0.402, 0.421, 0.430, 0.440, 0.000]
+    cellosBasses+violas+violins2: pad 1–7, REST (nearSilence+nearSilence) 8
+  Chorus (bars 9–16):
+    mean E/bar: [0.606, 0.601, 0.565, 0.597, 0.597, 0.621, 0.538, 0.337]
+    cellosBasses+violas+violins2: pad 9–16
+Hybrid Studio (clamp 0.3–0.9, maxLayers 8, policy allowed)
+  measureEnergy: max 0.828 · strings notes 140
+  Verse (bars 1–8):
+    mean E/bar: [0.116, 0.218, 0.225, 0.271, 0.278, 0.228, 0.288, 0.000]
+    cellosBasses: bass 1–7, REST (fillGating+nearSilence) 8
+    violas: pad 1–7, REST (fillGating+nearSilence) 8
+    violins2: counterline 1–7, REST (fillGating+nearSilence) 8
+    violins1: lead 1–7, REST (fillGating+nearSilence) 8
+  Chorus (bars 9–16):
+    mean E/bar: [0.563, 0.521, 0.532, 0.537, 0.588, 0.793, 0.806, 0.475]
+    cellosBasses: bass 9–16
+    violas: counterline 9–16
+    violins2: pad 9–16
+    violins1: lead 9–16
+
+ ✓ tests/phase3-listening.test.ts (1 test) 915ms
+   ✓ PHASE3 listening map > prints per-template, per-section mean energy per bar + per-string-track layers  914ms
+ ✓ tests/strings-classic-fingerprint.test.ts (4 tests) 8463ms
+   ✓ classic string fingerprints > still match classic output for every cell  8237ms
+ ✓ tests/transport-model.test.ts (14 tests) 9ms
+stdout | tests/phase5b-contour.test.ts > Phase 5b: verse vs chorus contour agreement on every take (0–5), both fixtures > dorian 16-bar: agreement >= 0.7 for takes 0..5 (cinematic planned lead)
+5b contour agreement (dorian 16-bar, cinematic planned lead):
+  take 0: verse "UDUUDUDUSDUDUSDUDUU" (19) chorus "UDUSDUDUUDUDUDDUDUS" (19) agreement 0.79
+  take 1: verse "DDUDDUDDUDDUDDUDDUDDUDD" (23) chorus "DDUDDUDDUDDUDDUDDUDDUDD" (23) agreement 1.00
+  take 2: verse "UUDUSDUUDUUDUUDUUDUUDUS" (23) chorus "USDUUDUUDUSDUUDUSDUSDUU" (23) agreement 0.74
+  take 3: verse "DDUDDUDDUDDUDDUDDUDDUDD" (23) chorus "DDUDDUDDUDDUDDUDDUDDUDD" (23) agreement 1.00
+  take 4: verse "UDDUDDUDDUDDUDDUDDUDDUD" (23) chorus "UDDUDDUDDUDDUDDUDDUDDUD" (23) agreement 1.00
+  take 5: verse "UDUDSUUDUDDUUDUDSUUDUDS" (23) chorus "UDUDDUDDUDSUUDUDDUDDUDD" (23) agreement 0.74
+
+stdout | tests/phase5b-contour.test.ts > Phase 5b: verse vs chorus contour agreement on every take (0–5), both fixtures > three-chorus 40-bar: agreement >= 0.7 for takes 0..5 (cinematic planned lead)
+5b contour agreement (three-chorus 40-bar, cinematic planned lead):
+  take 0: verse "UDDUDDUDDUD" (11) chorus "UDDUDDUDDUDDUDDUDDUDDUDSUDDUDDUDDUDDUDDUDDUDDUDSUDDUDDUDDUDDUDDUDDUDDUD" (71) agreement 1.00
+  take 1: verse "SUDDUUDDUUDDUUD" (15) chorus "SUDDUUDDUUDDUUDDUUDDUUDDUUDDUUDSSUDDUUDDUUDDUUDDUUDDUUDDUUDDUUDSSUDDUUDDUUDDUUDDUUDDUUDDUUDDUUD" (95) agreement 1.00
+  take 2: verse "UUUDUUUDUUUDUUU" (15) chorus "UUSDUUUDUUUDUUSDUUUDUUSDUUUDUUUDUUSDUUUDUUUDUUSDUUUDUUSDUUUDUUUDUUSDUUUDUUUDUUSDUUUDUUSDUUUDUUU" (95) agreement 0.87
+  take 3: verse "DUDDDUDUDSD" (11) chorus "DUDUDUDUDSDUDUDDDUDUDSDUDUDUDUDUDSDUDUDDDUDUDSDUDUDUDUDUDSDUDUDSDUDUDSD" (71) agreement 0.91
+  take 4: verse "DUDUDUDUDUD" (11) chorus "DUDUDUDUDUDUDUDUDUDUDUDUDUDUDUDUDUDUDUDUDUDUDUDUDUDUDUDUDUDUDUDUDUDUDUD" (71) agreement 1.00
+  take 5: verse "DUDDUUDUDDU" (11) chorus "DUDDUUDUDDUUDUDSUDDUSDUUDUDDUUDUDDUUDUDSUDDUSDUUDUDDUUDUDDUUDUDDUSDUSDU" (71) agreement 1.00
+
+ ✓ tests/phase5b-contour.test.ts (2 tests) 5381ms
+   ✓ Phase 5b: verse vs chorus contour agreement on every take (0–5), both fixtures > dorian 16-bar: agreement >= 0.7 for takes 0..5 (cinematic planned lead)  1400ms
+   ✓ Phase 5b: verse vs chorus contour agreement on every take (0–5), both fixtures > three-chorus 40-bar: agreement >= 0.7 for takes 0..5 (cinematic planned lead)  3979ms
+ ✓ tests/browser-globals.test.ts (1 test) 27ms
+stderr | tests/compose-failure.test.ts > Compose All failure is never silent > composeAll returns null, toasts the real error and leaves the project untouched
+[composeAll] composing threw — the project is untouched Error: boom: timpani fold
+    at [90m/home/user/crescode/[39mtests/compose-failure.test.ts:13:61
+    at mockCall [90m(file:///home/user/crescode/[39mnode_modules/[4m@vitest/spy[24m/dist/index.js:96:15[90m)[39m
+    at spy [90m(file:///home/user/crescode/[39mnode_modules/[4mtinyspy[24m/dist/index.js:47:80[90m)[39m
+    at Object.composeAll [90m(/home/user/crescode/[39msrc/store/store.ts:405:13[90m)[39m
+    at [90m/home/user/crescode/[39mtests/compose-failure.test.ts:30:19
+    at [90mfile:///home/user/crescode/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/user/crescode/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/user/crescode/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/user/crescode/[39mnode_modules/[4m@vitest/runner[24m/dist/chunk-hooks.js:1863:10[90m)[39m
+
+ ✓ tests/compose-failure.test.ts (1 test) 15ms
+ ✓ tests/mixer.test.ts (2 tests) 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/brass.test.ts > Phase 8: the moments-on baseline pins > chamber, sonata and vocalbacking are byte-identical to the pre-brass baseline (3 templates × 2 fixtures × takes 1–10)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/brass.test.ts:318:3
+    316| 
+    317| describe('Phase 8: the moments-on baseline pins', () => {
+    318|   it('chamber, sonata and vocalbacking are byte-identical to the pre-b…
+       |   ^
+    319|     // Phase 11: the keys tracks (harp, piano) are excluded — the keys…
+    320|     // owns their sound from Phase 11 on (the sanctioned change)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  tests/phase10.test.ts > Phase 10: the clamp and the baseline pins > chamber, sonata and vocalbacking are byte-identical to the baseline (3 templates × 2 fixtures × takes 1–10)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/phase10.test.ts:671:3
+    669|   });
+    670| 
+    671|   it('chamber, sonata and vocalbacking are byte-identical to the basel…
+       |   ^
+    672|     // Phase 11: the keys tracks (harp, piano) are excluded — the keys…
+    673|     // owns their sound from Phase 11 on (the sanctioned change); the …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  tests/phase9.test.ts > Phase 9: the moments-on baseline pins (golden90, captured at the post-8.3 HEAD) > chamber, sonata and vocalbacking are byte-identical to the baseline (3 templates × 2 fixtures × takes 1–10)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/phase9.test.ts:401:3
+    399| 
+    400| describe('Phase 9: the moments-on baseline pins (golden90, captured at…
+    401|   it('chamber, sonata and vocalbacking are byte-identical to the basel…
+       |   ^
+    402|     // Phase 11: the keys tracks (harp, piano) are excluded — the keys…
+    403|     // owns their sound from Phase 11 on (the sanctioned change); the …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  tests/piano-texture-theme.test.ts > Piano Texture-and-Theme Composer (production Compose All) > lets density change the composition, not multiply notes
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/piano-texture-theme.test.ts:135:3
+    133|   });
+    134| 
+    135|   it('lets density change the composition, not multiply notes', () => {
+       |   ^
+    136|     for (const templateId of TEMPLATES) {
+    137|       const low = compose(templateId, 'threeChorus', { density: 0.3 });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 4 unhandled errors during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-worker]: Timeout calling "onTaskUpdate"
+ ❯ Object.onTimeoutError node_modules/vitest/dist/chunks/rpc.-pEldfrD.js:53:10
+ ❯ Timeout._onTimeout node_modules/vitest/dist/chunks/index.B521nVV-.js:59:62
+ ❯ listOnTimeout node:internal/timers:585:17
+ ❯ processTimers node:internal/timers:521:7
+
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-worker]: Timeout calling "onTaskUpdate"
+ ❯ Object.onTimeoutError node_modules/vitest/dist/chunks/rpc.-pEldfrD.js:53:10
+ ❯ Timeout._onTimeout node_modules/vitest/dist/chunks/index.B521nVV-.js:59:62
+ ❯ listOnTimeout node:internal/timers:585:17
+ ❯ processTimers node:internal/timers:521:7
+
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-worker]: Timeout calling "onTaskUpdate"
+ ❯ Object.onTimeoutError node_modules/vitest/dist/chunks/rpc.-pEldfrD.js:53:10
+ ❯ Timeout._onTimeout node_modules/vitest/dist/chunks/index.B521nVV-.js:59:62
+ ❯ listOnTimeout node:internal/timers:585:17
+ ❯ processTimers node:internal/timers:521:7
+
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-worker]: Timeout calling "onTaskUpdate"
+ ❯ Object.onTimeoutError node_modules/vitest/dist/chunks/rpc.-pEldfrD.js:53:10
+ ❯ Timeout._onTimeout node_modules/vitest/dist/chunks/index.B521nVV-.js:59:62
+ ❯ listOnTimeout node:internal/timers:585:17
+ ❯ processTimers node:internal/timers:521:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  4 failed | 84 passed (88)
+      Tests  4 failed | 1452 passed | 2 skipped (1458)
+     Errors  4 errors
+   Start at  16:41:28
+   Duration  1423.54s (transform 4.33s, setup 0ms, collect 312.48s, tests 1092.88s, environment 16ms, prepare 5.84s)
+

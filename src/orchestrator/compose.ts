@@ -58,7 +58,9 @@ import type { OrchestratorContext } from './module';
 // Strings V1 (mode-guarded): classic strings stay the default; see ./strings/mode
 import { resolveStringsCompositionMode, type StringsCompositionMode } from './strings/mode';
 import { createStringsV1Context, prepareStringsForMode, stringsDiagnosticsOf, withStringsV1Composition, withStringsV1Ensemble, withStringsV1Viola, withStringsV1Cello, withStringsV1DoubleBass, type StringsCompositionDiagnostics } from './strings/bridge';
+import { createStringsIdentity } from './strings/identity';
 import { composeStringsV1Voice, type StringsV1VoiceInput } from './strings/composition';
+import { realizeOrchestration } from './strings/orchestration/realize';
 import { composeStringsV1Companion } from './strings/ensemble/compose';
 import { composeStringsV1Viola } from './strings/ensemble/third';
 import { composeStringsV1Cello } from './strings/ensemble/fourth';
@@ -84,6 +86,10 @@ export interface ComposeOptions {
    * equals classic output). Independent of `pianoComposition`.
    */
   stringsComposition?: StringsCompositionMode;
+  /** V1 defaults to ensemble-v1 around the unchanged V2 theme/phrase engine.
+   * Explicit older values reconstruct their historical handoffs. Classic
+   * never reads this option. No production UI enablement. */
+  stringsDevelopment?: 'legacy' | 'identity-v2' | 'ensemble-v1';
 }
 
 export interface ComposeResult {
@@ -897,7 +903,10 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
       arc,
       understanding: ctx.stringsV1.understanding,
       seed,
+      ...(options.stringsDevelopment === 'legacy' ? {} : { identity: createStringsIdentity(seed, options.seed, orchestration.take) }),
       voiceTracks,
+      ...(options.stringsDevelopment === 'legacy' || options.stringsDevelopment === 'identity-v2' ? {} : { orchestrationTracks: tracks.filter((t) => t.family === 'Strings' && isInstrumentTrack(t)) }),
+      orchestrationOtherNotes: tracks.filter((t) => t.family !== 'Strings' && isInstrumentTrack(t)).map((t) => ({ role: t.role, notes: t.notes })),
       reservedTrackIds: splitOn && cbTrack ? [{ trackId: cbTrack.id, reason: 'its notes feed the separate Double Basses desk' }] : [],
       assignment: ctx.lines!.assignment,
       carrierByBar: ctx.lines!.carrierByBar,
@@ -905,6 +914,18 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     };
     const v1Voice = composeStringsV1Voice(v1Input);
     ctx.stringsV1 = withStringsV1Composition(ctx.stringsV1, v1Voice);
+    if (v1Input.orchestrationTracks) {
+      // Atomic coordinated handoff after ALL other families and the classic
+      // split. The source preview is not installed first; no final part sees
+      // a stale classic cello/bass as if it were the intended foundation.
+      const ensemble = realizeOrchestration(v1Input, v1Voice);
+      ctx.stringsV1 = { ...ctx.stringsV1, passThrough: !ensemble.accepted, orchestration: ensemble };
+      if (ensemble.accepted) tracks = tracks.map((t) => {
+        const notes = ensemble.notesByTrackId[t.id];
+        return notes && isInstrumentTrack(t) ? { ...t, notes: [...notes], cc: [...(ensemble.ccByTrackId[t.id] ?? [])] } : t;
+      });
+      ctx.lines!.reports.push(`strings V1 ensemble orchestration: ${ensemble.accepted ? 'accepted' : 'CLASSIC FALLBACK'} — ${ensemble.reason}; ${ensemble.desks.map((d) => `${d.role}: ${d.state} (${d.notes} notes)`).join('; ')}`);
+    } else {
     if (v1Voice.written && v1Voice.trackId) {
       const { trackId, notes, cc } = v1Voice;
       tracks = tracks.map((t) => (t.id === trackId && isInstrumentTrack(t) ? { ...t, notes: [...notes], cc: [...cc] } : t));
@@ -978,6 +999,7 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     } else if (v1Voice.written) {
       ctx.lines!.reports.push(`strings V1 (take ${orchestration.take}): no Double Bass voice, the desk unchanged — ${v1DoubleBass.reason}`);
     }
+    } // explicit historical development: sequential Stage 2–6 handoffs
   }
 
   const result: Omit<ComposeResult, 'pianoEngineInput' | 'pianoScore' | 'pianoRealizedScoreEvents' | 'pianoPlayability' | 'pianoDiagnostics' | 'stringsDiagnostics'> = {

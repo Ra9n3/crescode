@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/home/user/crescode/scripts/strings-orchestration-measure.py", line 100, in <module>
+    e=json.loads((folder/'evidence.json').read_text());o=e['orchestration'];end=e['endTick'];m=midi(folder/'02_strings__uvi.mid')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/pathlib.py", line 1059, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/pathlib.py", line 1045, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/home/user/crescode/evaluation/strings-orchestration-v1/audition/verification-logs/evidence.json'

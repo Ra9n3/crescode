@@ -1,0 +1,48 @@
+
+ RUN  v3.2.7 /home/user/crescode
+
+stdout | tests/phase10.test.ts > Phase 10: the clamp and the baseline pins > the chorus mean and the below-floor counts, before (golden96) and after — reported, with the presence contract pinned
+PHASE10 chorus (mean/below-floor, 10 takes aggregated) symphony: 4.860/90 -> 5.063/82 (takes lowered: 1/10)
+PHASE10 chorus (mean/below-floor, 10 takes aggregated) cinematic: 5.365/98 -> 5.406/106 (takes lowered: 5/10)
+PHASE10 chorus (mean/below-floor, 10 takes aggregated) hybridstudio: 5.236/126 -> 5.213/136 (takes lowered: 5/10)
+
+ ✓ tests/phase10.test.ts (24 tests) 36429ms
+   ✓ Phase 10: the clamp and the baseline pins > chamber, sonata and vocalbacking are byte-identical to the baseline (3 templates × 2 fixtures × takes 1–10)  6641ms
+   ✓ Phase 10: the clamp and the baseline pins > symphony, cinematic, hybridstudio: every non-percussion, non-keys track is byte-identical to the baseline (everywhere — the percussion module must not perturb anything else)  14768ms
+   ✓ Phase 10: the clamp and the baseline pins > the chorus mean and the below-floor counts, before (golden96) and after — reported, with the presence contract pinned  9981ms
+   ✓ Phase 10: locks, band, hygiene, exports > locked and out-of-band percussion tracks are never written  582ms
+   ✓ Phase 10: locks, band, hygiene, exports > deterministic per (inputs, take); sanitizeNotes is a no-op on the percussion output; validateProject passes  3129ms
+   ✓ Phase 10: locks, band, hygiene, exports > export without the profile passes the percussion through; with the profile the percussion parts claim it (Phase 12)  332ms
+ ✓ tests/brass.test.ts (18 tests) 25421ms
+   ✓ Phase 8: the moments-on baseline pins > chamber, sonata and vocalbacking are byte-identical to the pre-brass baseline (3 templates × 2 fixtures × takes 1–10)  6267ms
+   ✓ Phase 8: the moments-on baseline pins > symphony, cinematic, hybridstudio: every non-brass track matches the baseline outside the sanctioned bars (brass leads, horn solis)  13716ms
+   ✓ Phase 8: locks and band > locked and out-of-band brass tracks are never written  384ms
+   ✓ Phase 8: exports, preview, hygiene > sanitizeNotes is a no-op on brass output; the preview plans every brass note; determinism holds  725ms
+   ✓ Phase 8: moments with brass > a horn soli exists in the take sweep and silences the strings under it  3469ms
+stdout | tests/phase9.test.ts > Phase 9: the chorus-aware gate > the chorus mean energy never drops below the baseline (per template, takes 1–10 aggregated, three-chorus)
+PHASE9 chorus mean symphony (captures): pre-winds 0.457 -> with winds 0.486
+PHASE9 chorus mean cinematic (captures): pre-winds 0.508 -> with winds 0.536
+PHASE9 chorus mean hybridstudio (captures): pre-winds 0.481 -> with winds 0.524
+
+ ✓ tests/phase9.test.ts (19 tests) 21786ms
+   ✓ Phase 9: the moments-on baseline pins (golden90, captured at the post-8.3 HEAD) > chamber, sonata and vocalbacking are byte-identical to the baseline (3 templates × 2 fixtures × takes 1–10)  5096ms
+   ✓ Phase 9: the moments-on baseline pins (golden90, captured at the post-8.3 HEAD) > symphony, cinematic, hybridstudio: every non-wind, non-percussion track matches the baseline outside the sanctioned bars (wind leads, wind solis, moments, brass leads)  14111ms
+   ✓ Phase 9: locks and band > locked and out-of-band wind tracks are never written  400ms
+   ✓ Phase 9: hygiene > sanitizeNotes is a no-op on wind output; the preview plans every wind note; determinism holds; hard findings are 0  938ms
+   ✓ Phase 9: the chorus-aware gate > the chorus mean energy never drops below the baseline (per template, takes 1–10 aggregated, three-chorus)  356ms
+ ✓ tests/piano-texture-theme.test.ts (10 tests) 17995ms
+   ✓ Piano Texture-and-Theme Composer (production Compose All) > plans a section arc with roles and texture levels that the written score follows  2456ms
+   ✓ Piano Texture-and-Theme Composer (production Compose All) > writes a genuine multi-bar theme and develops it by role across the form  555ms
+   ✓ Piano Texture-and-Theme Composer (production Compose All) > gives each template its own bar-level pattern vocabulary and real right-hand chords  468ms
+   ✓ Piano Texture-and-Theme Composer (production Compose All) > lets density change the composition, not multiply notes  5576ms
+   ✓ Piano Texture-and-Theme Composer (production Compose All) > keeps the independent composition identical when the orchestra changes, and adapts without stacking  684ms
+   ✓ Piano Texture-and-Theme Composer (production Compose All) > respects near-silence, range, playability and the Realizer contract on every template and fixture  4181ms
+   ✓ Piano Texture-and-Theme Composer (production Compose All) > is deterministic, varies with the seed, and keeps Symphony Piano-free  1331ms
+   ✓ Piano Texture-and-Theme Composer (production Compose All) > writes Alberti, walking-bass and ostinato figures with their defining shapes in ordinary Compose All output  478ms
+   ✓ Piano Texture-and-Theme Composer (production Compose All) > adds octave reinforcement only at a policy-permitted climax, an octave under the theme and softer than it  2148ms
+
+ Test Files  4 passed (4)
+      Tests  71 passed (71)
+   Start at  17:05:19
+   Duration  175.83s (transform 1.63s, setup 0ms, collect 72.88s, tests 101.63s, environment 1ms, prepare 302ms)
+

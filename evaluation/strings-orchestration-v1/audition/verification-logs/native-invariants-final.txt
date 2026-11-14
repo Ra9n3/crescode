@@ -1,0 +1,1 @@
+PASS extra native invariants: opening/role diversity, fixed-seed takes, prior V2/legacy seed6, classic default, frozen-material context, silent/pickup windows, lower-only ensemble, expected edge fallback policy

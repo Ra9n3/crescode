@@ -1,0 +1,22 @@
+
+ RUN  v3.2.7 /home/user/crescode
+
+ ✓ tests/strings-v1-voice.test.ts (23 tests) 111805ms
+   ✓ the theme > is sound by the line rules, deterministic per seed, and differs between seeds  1924ms
+   ✓ instrument selection > does not always choose the same instrument, never the bass carrier, and never creates a track  42606ms
+   ✓ replacement and isolation > is deterministic: the same request gives the same composition  2180ms
+   ✓ replacement and isolation > leaves every track but the composed voices (two violins, Viola, Cello, Double Bass) — the other strings and every other family — exactly as classic  62450ms
+   ✓ replacement and isolation > handles missing or unsuitable material by leaving the classic strings in place  2500ms
+ ✓ tests/strings-v1-ensemble.test.ts (29 tests) 56977ms
+   ✓ determinism and casting > gives the same two voices for the same template, fixture, seed and take  18405ms
+   ✓ determinism and casting > casts by take, not by chance: take 0 puts the theme on Violin II, take 1 on Violin I, every time  12144ms
+   ✓ isolation > changes the two violins (and, since Stage 4, the Viola; since Stage 5, the Cello; since Stage 6, the Double Bass) and nothing else: every other family equals classic  25555ms
+   ✓ isolation > writes no second voice when the band has only one violin, and says why  801ms
+ ✓ tests/strings-classic-fingerprint.test.ts (4 tests) 8052ms
+   ✓ classic string fingerprints > still match classic output for every cell  7845ms
+
+ Test Files  3 passed (3)
+      Tests  56 passed (56)
+   Start at  17:12:24
+   Duration  200.86s (transform 2.00s, setup 0ms, collect 23.18s, tests 176.83s, environment 1ms, prepare 251ms)
+

@@ -1,0 +1,20 @@
+{
+  "base": "43d393c154f1a39adbbf5b16cc0f96a035bcefc8",
+  "unchangedFiles": [
+    "specs/ensemble-templates/ensemble-template.schema.json",
+    "specs/ensemble-templates/templates/chamber.json",
+    "specs/ensemble-templates/templates/cinematic.json",
+    "specs/ensemble-templates/templates/hybridstudio.json",
+    "specs/ensemble-templates/templates/sonata.json",
+    "specs/ensemble-templates/templates/symphony.json",
+    "specs/ensemble-templates/templates/vocalbacking.json",
+    "src/config/ensembles.ts",
+    "src/config/generation-rules.ts",
+    "src/orchestrator/strings/characters/capabilities.ts",
+    "src/orchestrator/strings/characters/cello.ts",
+    "src/orchestrator/strings/characters/double-bass.ts",
+    "src/orchestrator/strings/characters/viola.ts",
+    "src/orchestrator/strings/characters/voices.ts"
+  ],
+  "changedOrMissing": []
+}

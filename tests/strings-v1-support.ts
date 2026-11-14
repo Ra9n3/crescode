@@ -80,6 +80,9 @@ export type StringsModeOption = 'classic' | 'v1' | undefined;
 export function composeOptionsFor(cell: StringCell, stringsComposition: StringsModeOption): ComposeOptions {
   return {
     seed: cell.seed,
+    // Stage 1–6 suites reconstruct accepted historical auditions. V2 has a
+    // separate production-default matrix, not regenerated historical hashes.
+    stringsDevelopment: 'legacy',
     ...(cell.density !== undefined ? { density: cell.density } : {}),
     ...(cell.humanize !== undefined ? { humanize: cell.humanize } : {}),
     ...(cell.moments !== undefined ? { moments: cell.moments } : {}),

@@ -1,0 +1,47 @@
+[
+  {
+    "label": "targeted",
+    "command": "npm test -- tests/strings-orchestration-v1.test.ts tests/strings-identity-v2.test.ts tests/strings-v1-voice.test.ts tests/strings-v1-ensemble.test.ts tests/strings-v1-viola.test.ts tests/strings-v1-cello.test.ts tests/strings-v1-double-bass.test.ts --maxWorkers=1 --minWorkers=1",
+    "exit": 127,
+    "timeout": false,
+    "elapsedSeconds": 0.50400888199988,
+    "workersRequested": 1,
+    "workersStarted": 0
+  },
+  {
+    "label": "adjacent",
+    "command": "npm test -- tests/strings-classic-fingerprint.test.ts tests/strings-v1-mode.test.ts tests/orchestrator-compose.test.ts tests/piano-engine-production.test.ts tests/phase4a.test.ts tests/phase4b.test.ts tests/harp-regression.test.ts tests/piano-pedal.test.ts tests/export.test.ts tests/phase12.test.ts --maxWorkers=1 --minWorkers=1",
+    "exit": 127,
+    "timeout": false,
+    "elapsedSeconds": 0.11742809599991233,
+    "workersRequested": 1,
+    "workersStarted": 0
+  },
+  {
+    "label": "full",
+    "command": "npm test -- --maxWorkers=1 --minWorkers=1",
+    "exit": 127,
+    "timeout": false,
+    "elapsedSeconds": 0.11644019000004846,
+    "workersRequested": 1,
+    "workersStarted": 0
+  },
+  {
+    "label": "typecheck",
+    "command": "npm run typecheck",
+    "exit": 127,
+    "timeout": false,
+    "elapsedSeconds": 0.1072348160000729,
+    "workersRequested": null,
+    "workersStarted": null
+  },
+  {
+    "label": "build",
+    "command": "npm run build",
+    "exit": 127,
+    "timeout": false,
+    "elapsedSeconds": 0.10789278599986574,
+    "workersRequested": null,
+    "workersStarted": null
+  }
+]

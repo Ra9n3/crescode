@@ -10,6 +10,10 @@
  * recorded on the context here. The classic branch and the classic string
  * code are never edited.
  *
+ * Ensemble orchestration V1 adds `orchestration`: its accepted note/CC maps
+ * are the final handoff. In that path `composition` is a thematic-source
+ * preview and the four historical sequential output fields stay null.
+ *
  * What the bridge owns:
  *   - the V1 context attached to the compose run (`StringsV1Context`);
  *   - the routing of the prepared lines by mode;
@@ -29,6 +33,7 @@ import type { StringsV1Ensemble } from '../ensemble/compose';
 import type { StringsV1ThirdVoice } from '../ensemble/third';
 import type { StringsV1FourthVoice } from '../ensemble/fourth';
 import type { StringsV1FifthVoice } from '../ensemble/fifth';
+import type { EnsembleRealization } from '../orchestration/realize';
 
 /** The V1 annotation of one compose run. In memory only; never persisted. */
 export interface StringsV1Context {
@@ -48,6 +53,9 @@ export interface StringsV1Context {
   readonly cello: StringsV1FourthVoice | null;
   /** Stage 6: the Double Bass as a fifth voice, its plan and the five-voice review; null until the compose run reaches that step. */
   readonly doubleBass: StringsV1FifthVoice | null;
+  /** Coordinated ensemble path. When present the sequential fields above
+   * remain null: they must not be mistaken for accepted final parts. */
+  readonly orchestration?: EnsembleRealization;
 }
 
 export function createStringsV1Context(understanding: StringsUnderstanding): StringsV1Context {
@@ -187,6 +195,12 @@ export interface IndependentBassHandOff {
  * A report of what the run did; the compose run itself does not call this.
  */
 export function independentBassHandOff(v1: StringsV1Context | null): IndependentBassHandOff | null {
+  if (v1?.orchestration) {
+    const ensemble = v1.orchestration;
+    const desk = ensemble.plan?.capabilities.find((c) => c.role === 'basses');
+    if (!ensemble.accepted || !desk) return null;
+    return { notes: (ensemble.notesByTrackId[desk.trackId] ?? []).map((n) => ({ ...n })) };
+  }
   const bass = v1?.doubleBass;
   if (!bass || !bass.written) return null;
   return { notes: bass.notes.map((n) => ({ ...n })) };

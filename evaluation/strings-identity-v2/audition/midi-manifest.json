@@ -1,0 +1,506 @@
+[
+  {
+    "file": "symphony-dorian-16bars-seed1-take0/01_primary__uvi.mid",
+    "bytes": 666,
+    "sha256": "513525c52fd4e159afa0680b6ca50d6c0d2436d36f1ff9206dacbb9bbb105e80",
+    "instrumentTracks": 1,
+    "noteOns": 42
+  },
+  {
+    "file": "symphony-dorian-16bars-seed1-take0/02_strings__uvi.mid",
+    "bytes": 1788,
+    "sha256": "005b78f196d36b0b87dfa861527daf892d9836f836e903e735000e77bed12356",
+    "instrumentTracks": 5,
+    "noteOns": 81
+  },
+  {
+    "file": "symphony-dorian-16bars-seed1-take0/03_primary__plain.mid",
+    "bytes": 789,
+    "sha256": "42c46d2e489976f1415dc0f4ba53a31edb7cfaa58061dad03f848d73031778ca",
+    "instrumentTracks": 1,
+    "noteOns": 41
+  },
+  {
+    "file": "symphony-dorian-16bars-seed1-take0/04_theme_home__uvi.mid",
+    "bytes": 187,
+    "sha256": "606d1bb6a094b435fd01141da24d71aa3569caf1babca8c38fc44da44aaeaa7c",
+    "instrumentTracks": 1,
+    "noteOns": 7
+  },
+  {
+    "file": "symphony-dorian-16bars-seed2-take0/01_primary__uvi.mid",
+    "bytes": 718,
+    "sha256": "746cc51974ba9f2e97a74cc073202a145c682915743c7a9ba9b234265293d812",
+    "instrumentTracks": 1,
+    "noteOns": 50
+  },
+  {
+    "file": "symphony-dorian-16bars-seed2-take0/02_strings__uvi.mid",
+    "bytes": 2607,
+    "sha256": "88876eeae66621ed040dad0d3c380a3db7cccaf2af6324448a192395cf27f683",
+    "instrumentTracks": 5,
+    "noteOns": 130
+  },
+  {
+    "file": "symphony-dorian-16bars-seed2-take0/03_primary__plain.mid",
+    "bytes": 769,
+    "sha256": "7a9555d779243ba26c656b1daa8310cbdd0b1df78a39952389a7c3f19eb32871",
+    "instrumentTracks": 1,
+    "noteOns": 49
+  },
+  {
+    "file": "symphony-dorian-16bars-seed2-take0/04_theme_home__uvi.mid",
+    "bytes": 222,
+    "sha256": "976cee34a31c968b53030742a7ef618aa6e4401ddbc6643f30db29b077b48599",
+    "instrumentTracks": 1,
+    "noteOns": 11
+  },
+  {
+    "file": "symphony-dorian-16bars-seed3-take0/01_primary__uvi.mid",
+    "bytes": 817,
+    "sha256": "cb9cb0c7f0b6b6df8dad06ca4ea5c0b09595cf2a0986d28b3857dd177395850f",
+    "instrumentTracks": 1,
+    "noteOns": 60
+  },
+  {
+    "file": "symphony-dorian-16bars-seed3-take0/02_strings__uvi.mid",
+    "bytes": 2838,
+    "sha256": "d958699e0dcb2a57c7ddd893c356407079a9b26fd13eba80834f5b2ca61c73b0",
+    "instrumentTracks": 5,
+    "noteOns": 156
+  },
+  {
+    "file": "symphony-dorian-16bars-seed3-take0/03_primary__plain.mid",
+    "bytes": 916,
+    "sha256": "f8b331912bb13e745e107252fcb4d44feaffda5aefadf1ba4e2b1f11cc632e3d",
+    "instrumentTracks": 1,
+    "noteOns": 59
+  },
+  {
+    "file": "symphony-dorian-16bars-seed3-take0/04_theme_home__uvi.mid",
+    "bytes": 222,
+    "sha256": "0b228a73561890619d774ce8da3a21f6c22fd4e739ee6196b8840d3701c59cb1",
+    "instrumentTracks": 1,
+    "noteOns": 11
+  },
+  {
+    "file": "symphony-dorian-16bars-seed4-take0/01_primary__uvi.mid",
+    "bytes": 781,
+    "sha256": "a3d9896fbbd1e93a09ecc17f23e62ee0c6287712cf5a1df2f910a3d07fdedbec",
+    "instrumentTracks": 1,
+    "noteOns": 58
+  },
+  {
+    "file": "symphony-dorian-16bars-seed4-take0/02_strings__uvi.mid",
+    "bytes": 3117,
+    "sha256": "1a572fd9beb4cc00243ccdd639f29b438b413a43e329372324373f3543483efd",
+    "instrumentTracks": 5,
+    "noteOns": 166
+  },
+  {
+    "file": "symphony-dorian-16bars-seed4-take0/03_primary__plain.mid",
+    "bytes": 888,
+    "sha256": "6f8651e2312c0c2de809be4cb82e01d5ae4b9fcd705c7c2cb93348831c7d7813",
+    "instrumentTracks": 1,
+    "noteOns": 57
+  },
+  {
+    "file": "symphony-dorian-16bars-seed4-take0/04_theme_home__uvi.mid",
+    "bytes": 222,
+    "sha256": "bee2ac63a2316fd4e2da0da3d4778afac49b53a7bed1d3f133e19e98a587eb9d",
+    "instrumentTracks": 1,
+    "noteOns": 11
+  },
+  {
+    "file": "symphony-dorian-16bars-seed5-take0/01_primary__uvi.mid",
+    "bytes": 619,
+    "sha256": "b5d85fada9ff41a03e709abb57975fa64cf7601f850315a820788699332362ad",
+    "instrumentTracks": 1,
+    "noteOns": 40
+  },
+  {
+    "file": "symphony-dorian-16bars-seed5-take0/02_strings__uvi.mid",
+    "bytes": 2746,
+    "sha256": "76405d41944eb053f194239b7e9d67fe4953ac663220e56cb31e4f302d97952a",
+    "instrumentTracks": 5,
+    "noteOns": 133
+  },
+  {
+    "file": "symphony-dorian-16bars-seed5-take0/03_primary__plain.mid",
+    "bytes": 734,
+    "sha256": "d13dca6b497c80ae5b30b9dafb2167a8dae50f92c5f2d1b6908b381f20ebb8ec",
+    "instrumentTracks": 1,
+    "noteOns": 39
+  },
+  {
+    "file": "symphony-dorian-16bars-seed5-take0/04_theme_home__uvi.mid",
+    "bytes": 186,
+    "sha256": "0489f0527f3265a456c87e187e2b8c4837c0b8a002b0df47870c868a12db970d",
+    "instrumentTracks": 1,
+    "noteOns": 7
+  },
+  {
+    "file": "symphony-dorian-16bars-seed6-take0/01_primary__uvi.mid",
+    "bytes": 600,
+    "sha256": "e12872650883c93b5755ed40ade28b9930451114494be491bdc62d68d275a8c8",
+    "instrumentTracks": 1,
+    "noteOns": 38
+  },
+  {
+    "file": "symphony-dorian-16bars-seed6-take0/02_strings__uvi.mid",
+    "bytes": 3186,
+    "sha256": "8253d24ae2fbae51b135d2a8c3eab57c4cbe0b4ef60819097089e5e0f78f3b04",
+    "instrumentTracks": 5,
+    "noteOns": 152
+  },
+  {
+    "file": "symphony-dorian-16bars-seed6-take0/03_primary__plain.mid",
+    "bytes": 716,
+    "sha256": "515bfe3bc48782db2afa1cf7ac2b6b4363c672c7c39f80bc2b7dc68ab0802d09",
+    "instrumentTracks": 1,
+    "noteOns": 37
+  },
+  {
+    "file": "symphony-dorian-16bars-seed6-take0/04_theme_home__uvi.mid",
+    "bytes": 186,
+    "sha256": "073fb02cccff95a36d21b5f3cd508af945ed27d8d7ce95822cab0c073cdbdfe1",
+    "instrumentTracks": 1,
+    "noteOns": 7
+  },
+  {
+    "file": "symphony-dorian-16bars-seed7-take0/01_primary__uvi.mid",
+    "bytes": 680,
+    "sha256": "c0775ce833df3ddab508a7e05c73e73e619c53702c2845e73adb6534116cfd34",
+    "instrumentTracks": 1,
+    "noteOns": 45
+  },
+  {
+    "file": "symphony-dorian-16bars-seed7-take0/02_strings__uvi.mid",
+    "bytes": 3037,
+    "sha256": "af15e133d24a168a05b3a64843d40a1b472140ae30552ddd9430da791e5822e6",
+    "instrumentTracks": 5,
+    "noteOns": 170
+  },
+  {
+    "file": "symphony-dorian-16bars-seed7-take0/03_primary__plain.mid",
+    "bytes": 763,
+    "sha256": "8528f9fb571053d13ee0e2048b582a1d94ad1d062f4bcc70d74c04221bae7d11",
+    "instrumentTracks": 1,
+    "noteOns": 44
+  },
+  {
+    "file": "symphony-dorian-16bars-seed7-take0/04_theme_home__uvi.mid",
+    "bytes": 204,
+    "sha256": "953e6adc04d9128a5c6ddc20dddcd5f76a2e70a7f337af2b738f364c310496b2",
+    "instrumentTracks": 1,
+    "noteOns": 9
+  },
+  {
+    "file": "symphony-dorian-16bars-seed8-take0/01_primary__uvi.mid",
+    "bytes": 653,
+    "sha256": "1f89a94776964c7e8c8f1429d1b075cffd550a5f2f47b8da1b2714ed79d84dea",
+    "instrumentTracks": 1,
+    "noteOns": 43
+  },
+  {
+    "file": "symphony-dorian-16bars-seed8-take0/02_strings__uvi.mid",
+    "bytes": 1968,
+    "sha256": "0af9ab6b6b65be0968c6efd59611f56f893e08793d65ecda45b1182f8ed8eddd",
+    "instrumentTracks": 5,
+    "noteOns": 92
+  },
+  {
+    "file": "symphony-dorian-16bars-seed8-take0/03_primary__plain.mid",
+    "bytes": 776,
+    "sha256": "a879c15b9ce715fe670010b0ba1c3b402b13d1be2023e4df82a94ed7a9719462",
+    "instrumentTracks": 1,
+    "noteOns": 42
+  },
+  {
+    "file": "symphony-dorian-16bars-seed8-take0/04_theme_home__uvi.mid",
+    "bytes": 205,
+    "sha256": "120aa69fba4117d2009f55fb5bc2f4d56aded1ba06f3c764aba584f9a4f35a13",
+    "instrumentTracks": 1,
+    "noteOns": 9
+  },
+  {
+    "file": "symphony-dorian-16bars-seed11-take0/01_primary__uvi.mid",
+    "bytes": 726,
+    "sha256": "120256abdeee87c146262a493453b6147603c08ed8b372e34298b0c8bd559683",
+    "instrumentTracks": 1,
+    "noteOns": 51
+  },
+  {
+    "file": "symphony-dorian-16bars-seed11-take0/02_strings__uvi.mid",
+    "bytes": 2468,
+    "sha256": "fac94ff9777de4f2b338dc698307c705de439f2db512e69884708b26043cd90c",
+    "instrumentTracks": 5,
+    "noteOns": 168
+  },
+  {
+    "file": "symphony-dorian-16bars-seed11-take0/03_primary__plain.mid",
+    "bytes": 857,
+    "sha256": "69e926fab6b080e1acd3687193fb21755594b05ea32de3af10aa050ca31dcfeb",
+    "instrumentTracks": 1,
+    "noteOns": 50
+  },
+  {
+    "file": "symphony-dorian-16bars-seed11-take0/04_theme_home__uvi.mid",
+    "bytes": 205,
+    "sha256": "f94cc4cc994435b0b8f2ff8997fcd50a8938a0a986fd496be8e003c98cac165c",
+    "instrumentTracks": 1,
+    "noteOns": 9
+  },
+  {
+    "file": "symphony-dorian-16bars-seed1-take1/01_primary__uvi.mid",
+    "bytes": 599,
+    "sha256": "7f36057e18dbda253092fb064694b4efa6b197f55dec947420c0e2c2c5b3f3cd",
+    "instrumentTracks": 1,
+    "noteOns": 38
+  },
+  {
+    "file": "symphony-dorian-16bars-seed1-take1/02_strings__uvi.mid",
+    "bytes": 2256,
+    "sha256": "9d5ddd006d3445a2b63405f1e8e9f1b710cdaaf014e1f02fff4a88a2796e6334",
+    "instrumentTracks": 5,
+    "noteOns": 112
+  },
+  {
+    "file": "symphony-dorian-16bars-seed1-take1/03_primary__plain.mid",
+    "bytes": 698,
+    "sha256": "9a34e28f1d18e8fa024a59e27c7b579236e982f5af1e117dedae9657194a9cbb",
+    "instrumentTracks": 1,
+    "noteOns": 37
+  },
+  {
+    "file": "symphony-dorian-16bars-seed1-take1/04_theme_home__uvi.mid",
+    "bytes": 186,
+    "sha256": "8f2b9945bcbbd4c3da8d1939bd3929d1037a269a60f0528fb2e5492898240bf0",
+    "instrumentTracks": 1,
+    "noteOns": 7
+  },
+  {
+    "file": "symphony-dorian-16bars-seed1-take2/01_primary__uvi.mid",
+    "bytes": 634,
+    "sha256": "f18a6520495612f64d63812573a306aa3813e721f602a64b9fe5d38d09765270",
+    "instrumentTracks": 1,
+    "noteOns": 38
+  },
+  {
+    "file": "symphony-dorian-16bars-seed1-take2/02_strings__uvi.mid",
+    "bytes": 2304,
+    "sha256": "1ff6816accab501c89d5ff90f9db08df4c5b6ce7bd877d93ec7d3da9474776e9",
+    "instrumentTracks": 5,
+    "noteOns": 146
+  },
+  {
+    "file": "symphony-dorian-16bars-seed1-take2/03_primary__plain.mid",
+    "bytes": 773,
+    "sha256": "db124129a3ea548e2f9203d957b004b17aca03e6f270f323145218d0518e909d",
+    "instrumentTracks": 1,
+    "noteOns": 37
+  },
+  {
+    "file": "symphony-dorian-16bars-seed1-take2/04_theme_home__uvi.mid",
+    "bytes": 187,
+    "sha256": "2edae770d5dd19d29edc0fc3f0018b34b578cc2ff22efc22a0e8df3b516eb692",
+    "instrumentTracks": 1,
+    "noteOns": 7
+  },
+  {
+    "file": "symphony-dorian-16bars-seed1-take3/01_primary__uvi.mid",
+    "bytes": 628,
+    "sha256": "c27714f2697ee013ee3652ece66be88db9d88e5afcb6a5ae0d28ed5e1ee428e5",
+    "instrumentTracks": 1,
+    "noteOns": 38
+  },
+  {
+    "file": "symphony-dorian-16bars-seed1-take3/02_strings__uvi.mid",
+    "bytes": 2279,
+    "sha256": "c0a85b45cadcc63208d3b0aa5d289c51736c20eb1cd195a90369bb0c2f776fec",
+    "instrumentTracks": 5,
+    "noteOns": 118
+  },
+  {
+    "file": "symphony-dorian-16bars-seed1-take3/03_primary__plain.mid",
+    "bytes": 727,
+    "sha256": "dc6b117e3797ac7a08891cff0bb26d6bffc32ee0930b894a51ece4e54a51fa03",
+    "instrumentTracks": 1,
+    "noteOns": 37
+  },
+  {
+    "file": "symphony-dorian-16bars-seed1-take3/04_theme_home__uvi.mid",
+    "bytes": 186,
+    "sha256": "d02c38139fe3538b2d40ce1c50918ffd4936c0a0a3d11940eb81358ff6004db6",
+    "instrumentTracks": 1,
+    "noteOns": 7
+  },
+  {
+    "file": "chamber-dorian-16bars-seed1-take0/01_primary__uvi.mid",
+    "bytes": 880,
+    "sha256": "214d35c9e961e0baff36f60b7c17301ea63786a24e15caf6483b0fd221082936",
+    "instrumentTracks": 1,
+    "noteOns": 67
+  },
+  {
+    "file": "chamber-dorian-16bars-seed1-take0/02_strings__uvi.mid",
+    "bytes": 2554,
+    "sha256": "abbfcab248bc8cffb58da582f8e7c0efe785f966dc4a2361e1712fc0c69b9a4c",
+    "instrumentTracks": 4,
+    "noteOns": 132
+  },
+  {
+    "file": "chamber-dorian-16bars-seed1-take0/03_primary__plain.mid",
+    "bytes": 940,
+    "sha256": "b40d39d372656a8c8312f3c32c8a136ba5da5e5ac5f126014020b4d46b681a29",
+    "instrumentTracks": 1,
+    "noteOns": 66
+  },
+  {
+    "file": "chamber-dorian-16bars-seed1-take0/04_theme_home__uvi.mid",
+    "bytes": 222,
+    "sha256": "fe576382fb329d58093577c609865b146969c1d6780be2ac4a7adb1f92bc490d",
+    "instrumentTracks": 1,
+    "noteOns": 11
+  },
+  {
+    "file": "cinematic-dorian-16bars-seed1-take0/01_primary__uvi.mid",
+    "bytes": 778,
+    "sha256": "d1e51e79c42f27a78a27a84fb5e8f61761410d436d9b1b432febf91eb58c8a5a",
+    "instrumentTracks": 1,
+    "noteOns": 54
+  },
+  {
+    "file": "cinematic-dorian-16bars-seed1-take0/02_strings__uvi.mid",
+    "bytes": 3143,
+    "sha256": "40d8125db37c8c54cd99b4a85ef2732830675d2a706757f11d84a5f49e847bad",
+    "instrumentTracks": 5,
+    "noteOns": 245
+  },
+  {
+    "file": "cinematic-dorian-16bars-seed1-take0/03_primary__plain.mid",
+    "bytes": 893,
+    "sha256": "623eb2d12baf8386623704bf7c5065ee610ee5eccc4c383eb68800f1aeafcbcc",
+    "instrumentTracks": 1,
+    "noteOns": 53
+  },
+  {
+    "file": "cinematic-dorian-16bars-seed1-take0/04_theme_home__uvi.mid",
+    "bytes": 223,
+    "sha256": "2db75e760ba306f0ac13804099283be5800959530c1c40e21164a46078159635",
+    "instrumentTracks": 1,
+    "noteOns": 11
+  },
+  {
+    "file": "hybridstudio-dorian-16bars-seed1-take0/01_primary__uvi.mid",
+    "bytes": 493,
+    "sha256": "413156a03fead352ece7601a17d6e38561c9829363a9b0a978dc3addc58d6b77",
+    "instrumentTracks": 1,
+    "noteOns": 26
+  },
+  {
+    "file": "hybridstudio-dorian-16bars-seed1-take0/02_strings__uvi.mid",
+    "bytes": 2258,
+    "sha256": "8109be632cd1fcca5201ef4032893524f0bcca96edb44ba67a71701c64a4d1e8",
+    "instrumentTracks": 5,
+    "noteOns": 110
+  },
+  {
+    "file": "hybridstudio-dorian-16bars-seed1-take0/03_primary__plain.mid",
+    "bytes": 600,
+    "sha256": "1f647204d1b5443448718471cbade60a3feeccb9006b2c6e8519af287ac3d107",
+    "instrumentTracks": 1,
+    "noteOns": 25
+  },
+  {
+    "file": "hybridstudio-dorian-16bars-seed1-take0/04_theme_home__uvi.mid",
+    "bytes": 168,
+    "sha256": "133d315299e9e86dfef39121a9886660eac91a400ae5cc9612631109285754a4",
+    "instrumentTracks": 1,
+    "noteOns": 5
+  },
+  {
+    "file": "symphony-multi-chorus-16bars-seed1-take0/01_primary__uvi.mid",
+    "bytes": 758,
+    "sha256": "707a3784c5f986437e3024759f9e8bf271b85e93df56f12a222074c68c41b7c1",
+    "instrumentTracks": 1,
+    "noteOns": 39
+  },
+  {
+    "file": "symphony-multi-chorus-16bars-seed1-take0/02_strings__uvi.mid",
+    "bytes": 2396,
+    "sha256": "210ed007c3634927bce6a445aeebffd034f0e0ce9099c57fe7f3d8c3bc4fc4a7",
+    "instrumentTracks": 5,
+    "noteOns": 143
+  },
+  {
+    "file": "symphony-multi-chorus-16bars-seed1-take0/03_primary__plain.mid",
+    "bytes": 889,
+    "sha256": "a2b4ee92ed894076688067070354fa24a4e898a9133d49c4919ab355fbde5350",
+    "instrumentTracks": 1,
+    "noteOns": 38
+  },
+  {
+    "file": "symphony-multi-chorus-16bars-seed1-take0/04_theme_home__uvi.mid",
+    "bytes": 272,
+    "sha256": "12434d202725bf71c0d5f4a89c71ff975ef447b7f3edbbe96cacf34338060d08",
+    "instrumentTracks": 1,
+    "noteOns": 7
+  },
+  {
+    "file": "symphony-three-chorus-40bars-seed1-take0/01_primary__uvi.mid",
+    "bytes": 2064,
+    "sha256": "6afc4b0b81293f8405d2d008c22e8d99ab34e9f8ae09d7c85aceb1ecf7accce0",
+    "instrumentTracks": 1,
+    "noteOns": 152
+  },
+  {
+    "file": "symphony-three-chorus-40bars-seed1-take0/02_strings__uvi.mid",
+    "bytes": 8748,
+    "sha256": "821119ea14f1b8d34aa8d45d2a198cdddf54679d2e36feb3b99280beca833018",
+    "instrumentTracks": 5,
+    "noteOns": 486
+  },
+  {
+    "file": "symphony-three-chorus-40bars-seed1-take0/03_primary__plain.mid",
+    "bytes": 2355,
+    "sha256": "937f8bae2d02748b92efd3ee108fb3ab5840e5a4ced3c1c847aaf1e7aa6a14c0",
+    "instrumentTracks": 1,
+    "noteOns": 151
+  },
+  {
+    "file": "symphony-three-chorus-40bars-seed1-take0/04_theme_home__uvi.mid",
+    "bytes": 385,
+    "sha256": "1b3ff996f07c8465009cabed90ea4bd408ac91c57efa69a68e4aded6ff7f91a9",
+    "instrumentTracks": 1,
+    "noteOns": 11
+  },
+  {
+    "file": "fixed-material-energy-control/symphony__primary__uvi.mid",
+    "bytes": 513,
+    "sha256": "6c455626c7c56370abe10a1d3c62d85ca5c2ed47b01c18800d953cd3f3ab7944",
+    "instrumentTracks": 1,
+    "noteOns": 42
+  },
+  {
+    "file": "fixed-material-energy-control/chamber__primary__uvi.mid",
+    "bytes": 513,
+    "sha256": "e93d14a4f331e718c44d2708b85d95fe1e66533a98f09657f0c82d149a210952",
+    "instrumentTracks": 1,
+    "noteOns": 42
+  },
+  {
+    "file": "fixed-material-energy-control/cinematic__primary__uvi.mid",
+    "bytes": 513,
+    "sha256": "720bb8d9ee756af573bffee20ec46a0ff9c67d00b4b08657da713f1c8f174e17",
+    "instrumentTracks": 1,
+    "noteOns": 42
+  },
+  {
+    "file": "fixed-material-energy-control/hybridstudio__primary__uvi.mid",
+    "bytes": 513,
+    "sha256": "5fb26150ca95dd554d33bca1f27ea0ff8c37c41850be9bf4e118ec2c1a9a04da",
+    "instrumentTracks": 1,
+    "noteOns": 42
+  }
+]

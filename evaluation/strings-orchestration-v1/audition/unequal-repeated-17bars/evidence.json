@@ -1,0 +1,5901 @@
+{
+  "tag": "unequal-repeated-17bars",
+  "seed": 1,
+  "storedTake": 0,
+  "producedTake": 1,
+  "mode": "Dorian",
+  "key": 2,
+  "meter": {
+    "numerator": 4,
+    "denominator": 4
+  },
+  "endTick": 65280,
+  "codec": "audit-only SMF encoder; actual compose/export/profile functions; classic golden byte equality checked",
+  "sections": [
+    {
+      "id": "unequal-0",
+      "name": "Verse",
+      "startBar": 1,
+      "lengthBars": 3
+    },
+    {
+      "id": "unequal-1",
+      "name": "Chorus",
+      "startBar": 4,
+      "lengthBars": 5
+    },
+    {
+      "id": "unequal-2",
+      "name": "Verse",
+      "startBar": 9,
+      "lengthBars": 2
+    },
+    {
+      "id": "unequal-3",
+      "name": "Chorus",
+      "startBar": 11,
+      "lengthBars": 7
+    }
+  ],
+  "chords": [
+    {
+      "id": "unequal-c0",
+      "symbol": "Dm",
+      "startTick": 0,
+      "durationTicks": 3840
+    },
+    {
+      "id": "unequal-c1",
+      "symbol": "G",
+      "startTick": 3840,
+      "durationTicks": 3840
+    },
+    {
+      "id": "unequal-c2",
+      "symbol": "Dm",
+      "startTick": 7680,
+      "durationTicks": 3840
+    },
+    {
+      "id": "unequal-c3",
+      "symbol": "C",
+      "startTick": 11520,
+      "durationTicks": 3840
+    },
+    {
+      "id": "unequal-c4",
+      "symbol": "Dm",
+      "startTick": 15360,
+      "durationTicks": 3840
+    },
+    {
+      "id": "unequal-c5",
+      "symbol": "G",
+      "startTick": 19200,
+      "durationTicks": 3840
+    },
+    {
+      "id": "unequal-c6",
+      "symbol": "Dm",
+      "startTick": 23040,
+      "durationTicks": 3840
+    },
+    {
+      "id": "unequal-c7",
+      "symbol": "C",
+      "startTick": 26880,
+      "durationTicks": 3840
+    },
+    {
+      "id": "unequal-c8",
+      "symbol": "Dm",
+      "startTick": 30720,
+      "durationTicks": 3840
+    },
+    {
+      "id": "unequal-c9",
+      "symbol": "G",
+      "startTick": 34560,
+      "durationTicks": 3840
+    },
+    {
+      "id": "unequal-c10",
+      "symbol": "Dm",
+      "startTick": 38400,
+      "durationTicks": 3840
+    },
+    {
+      "id": "unequal-c11",
+      "symbol": "C",
+      "startTick": 42240,
+      "durationTicks": 3840
+    },
+    {
+      "id": "unequal-c12",
+      "symbol": "Dm",
+      "startTick": 46080,
+      "durationTicks": 3840
+    },
+    {
+      "id": "unequal-c13",
+      "symbol": "G",
+      "startTick": 49920,
+      "durationTicks": 3840
+    },
+    {
+      "id": "unequal-c14",
+      "symbol": "Dm",
+      "startTick": 53760,
+      "durationTicks": 3840
+    },
+    {
+      "id": "unequal-c15",
+      "symbol": "C",
+      "startTick": 57600,
+      "durationTicks": 3840
+    },
+    {
+      "id": "unequal-c16",
+      "symbol": "Dm",
+      "startTick": 61440,
+      "durationTicks": 3840
+    }
+  ],
+  "sourceSelection": {
+    "chosen": {
+      "trackId": "trk_03_violins1",
+      "role": "violins1",
+      "name": "Violin I",
+      "suitable": true,
+      "unsuitable": [],
+      "octave": 0,
+      "range": [
+        60,
+        77
+      ],
+      "registerFit": 0.76,
+      "competition": 0.25,
+      "masking": 0.295,
+      "score": 0.725,
+      "replaces": "classic layers by bar: pad ×5, tacet ×4, lead ×8",
+      "character": "bright and carrying; at its best above the staff"
+    },
+    "evaluations": [
+      {
+        "trackId": "trk_04_violins2",
+        "role": "violins2",
+        "name": "Violin II",
+        "suitable": true,
+        "unsuitable": [],
+        "octave": 0,
+        "range": [
+          60,
+          77
+        ],
+        "registerFit": 1,
+        "competition": 1,
+        "masking": 0.58,
+        "score": -0.58,
+        "replaces": "classic layers by bar: pad ×13, tacet ×4",
+        "character": "warm, in the middle of the violin; close to a singing voice"
+      },
+      {
+        "trackId": "trk_03_violins1",
+        "role": "violins1",
+        "name": "Violin I",
+        "suitable": true,
+        "unsuitable": [],
+        "octave": 0,
+        "range": [
+          60,
+          77
+        ],
+        "registerFit": 0.76,
+        "competition": 0.25,
+        "masking": 0.295,
+        "score": 0.725,
+        "replaces": "classic layers by bar: pad ×5, tacet ×4, lead ×8",
+        "character": "bright and carrying; at its best above the staff"
+      }
+    ],
+    "reason": "Violin I: 76% of the line inside its singing register, a competing classic tune in 25% of the line's bars, another string voice within a third for 30% of its sounding time (score 0.725; next: Violin II -0.58)"
+  },
+  "theme": {
+    "id": "strings-theme-v2-9e5d7fca-0",
+    "notes": [
+      {
+        "tick": 480,
+        "duration": 960,
+        "step": 2,
+        "alter": 0,
+        "function": "chord-tone",
+        "inHead": true
+      },
+      {
+        "tick": 1440,
+        "duration": 1440,
+        "step": 6,
+        "alter": 0,
+        "function": "appoggiatura",
+        "inHead": true
+      },
+      {
+        "tick": 2880,
+        "duration": 960,
+        "step": 7,
+        "alter": 0,
+        "function": "chord-tone",
+        "inHead": true
+      },
+      {
+        "tick": 3840,
+        "duration": 1440,
+        "step": 5,
+        "alter": 0,
+        "function": "chord-tone",
+        "inHead": false
+      },
+      {
+        "tick": 5280,
+        "duration": 960,
+        "step": 3,
+        "alter": 0,
+        "function": "chord-tone",
+        "inHead": false
+      },
+      {
+        "tick": 6240,
+        "duration": 1440,
+        "step": 0,
+        "alter": 0,
+        "function": "chord-tone",
+        "inHead": false
+      }
+    ],
+    "lengthTicks": 7680,
+    "headCount": 3,
+    "identity": {
+      "intervals": [
+        4,
+        1,
+        -2,
+        -2,
+        -3
+      ],
+      "semitoneIntervals": [
+        7,
+        2,
+        -3,
+        -4,
+        -5
+      ],
+      "rhythm": [
+        1,
+        1.5,
+        1,
+        1.5,
+        1,
+        1.5
+      ],
+      "contour": "++---",
+      "leap": {
+        "fromIndex": 0,
+        "steps": 4,
+        "semitones": 7,
+        "name": "rising 5th"
+      },
+      "apexIndex": 2,
+      "dissonances": [
+        {
+          "kind": "appoggiatura",
+          "index": 1,
+          "resolvesToIndex": 2,
+          "direction": "up"
+        }
+      ],
+      "colourTone": {
+        "index": 3,
+        "pitchClass": 11,
+        "reason": "the scale degree that tells this mode from plain major or minor"
+      },
+      "chromatic": [],
+      "character": "spacious, pickup; leaning and resolving",
+      "protectedFeatures": [
+        "the head rhythm",
+        "the head interval directions",
+        "the characteristic interval"
+      ],
+      "preferredFeatures": [
+        "the rhythm of the tail",
+        "the direction of every move in the tail",
+        "the dissonance on note 2 and its resolution up by step",
+        "the mode's colour note on note 4"
+      ],
+      "direction": "returning inward",
+      "harmonicRoles": [
+        "chord-tone",
+        "appoggiatura",
+        "chord-tone",
+        "chord-tone",
+        "chord-tone",
+        "chord-tone"
+      ],
+      "rhythmicCharacter": "spacious, pickup"
+    },
+    "home": {
+      "startTick": 0,
+      "endTick": 7680,
+      "chords": [
+        "Dm",
+        "G"
+      ]
+    },
+    "score": -4.622960284146427,
+    "scoreParts": {
+      "line": 0.9157851414558881,
+      "rhythm": 3.7071751426905393,
+      "breadth": 0
+    },
+    "candidatesJudged": 800
+  },
+  "phrases": [
+    {
+      "index": 0,
+      "window": {
+        "startTick": 0,
+        "endTick": 7680
+      },
+      "lifted": false,
+      "startTick": 0,
+      "endTick": 5760,
+      "development": {
+        "strategy": "sequence",
+        "relationship": "introduction",
+        "evidence": [
+          "remaining sounding window"
+        ]
+      },
+      "goal": {
+        "tick": 3840,
+        "chord": "G",
+        "evidence": "root falls a fifth onto a chord that is not the tonic",
+        "ending": "open"
+      },
+      "climax": {
+        "tick": 2400,
+        "step": 7
+      },
+      "segments": [
+        {
+          "kind": "development",
+          "startTick": 0,
+          "endTick": 3360,
+          "noteCount": 3,
+          "adaptation": {
+            "ok": true,
+            "notes": [
+              {
+                "tick": 0,
+                "duration": 960,
+                "step": 2,
+                "alter": 0
+              },
+              {
+                "tick": 960,
+                "duration": 1440,
+                "step": 6,
+                "alter": 0
+              },
+              {
+                "tick": 2400,
+                "duration": 960,
+                "step": 7,
+                "alter": 0
+              }
+            ],
+            "functions": [
+              "chord-tone",
+              "appoggiatura",
+              "chord-tone"
+            ],
+            "strategy": "reinterpretation",
+            "shift": 0,
+            "moved": [],
+            "preferredLost": [],
+            "tried": [
+              "transposed +1 steps: dissonance over Dm does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed -1 steps: dissonance over Dm does not resolve by step; dissonance over Dm does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed -2 steps: the line ends on a dissonance over Dm",
+              "transposed +3 steps: dissonance over Dm does not resolve by step; unsingable leap of 6 semitones; the line ends on a dissonance over Dm",
+              "transposed -3 steps: dissonance over Dm does not resolve by step",
+              "transposed +4 steps: dissonance over Dm does not resolve by step",
+              "transposed -4 steps: dissonance over Dm does not resolve by step; unsingable leap of 6 semitones; the line ends on a dissonance over Dm",
+              "transposed +5 steps: the line ends on a dissonance over Dm"
+            ]
+          },
+          "operation": "head",
+          "description": "head, rhythm ×1, reinterpretation, shift 0",
+          "rhythmScale": 1,
+          "thematicHeadTicks": 3360
+        },
+        {
+          "kind": "ending",
+          "startTick": 3840,
+          "endTick": 5760,
+          "noteCount": 1,
+          "adaptation": null,
+          "operation": "arrival",
+          "description": "fifth-fall: root falls a fifth onto a chord that is not the tonic"
+        }
+      ],
+      "notes": [
+        {
+          "tick": 0,
+          "duration": 960,
+          "step": 2,
+          "alter": 0,
+          "segment": "development",
+          "breathAfter": false,
+          "function": "chord-tone",
+          "intensity": 0.45
+        },
+        {
+          "tick": 960,
+          "duration": 1440,
+          "step": 6,
+          "alter": 0,
+          "segment": "development",
+          "breathAfter": false,
+          "function": "appoggiatura",
+          "intensity": 0.67
+        },
+        {
+          "tick": 2400,
+          "duration": 960,
+          "step": 7,
+          "alter": 0,
+          "segment": "development",
+          "breathAfter": true,
+          "function": "chord-tone",
+          "intensity": 1
+        },
+        {
+          "tick": 3840,
+          "duration": 1920,
+          "step": 7,
+          "alter": 0,
+          "segment": "ending",
+          "breathAfter": true,
+          "function": "chord-tone",
+          "intensity": 0.30000000000000004
+        }
+      ],
+      "landmarks": [
+        {
+          "tick": 0,
+          "label": "sequence: phrase begins"
+        },
+        {
+          "tick": 0,
+          "label": "head, rhythm ×1, reinterpretation, shift 0"
+        },
+        {
+          "tick": 3840,
+          "label": "fifth-fall: root falls a fifth onto a chord that is not the tonic"
+        },
+        {
+          "tick": 2400,
+          "label": "high point"
+        },
+        {
+          "tick": 5760,
+          "label": "phrase ends"
+        }
+      ],
+      "breathTicks": 1920
+    },
+    {
+      "index": 1,
+      "window": {
+        "startTick": 11520,
+        "endTick": 30720
+      },
+      "lifted": true,
+      "startTick": 12000,
+      "endTick": 30720,
+      "development": {
+        "strategy": "lyrical",
+        "relationship": "development of the remembered theme",
+        "evidence": [
+          "remaining sounding window"
+        ]
+      },
+      "goal": {
+        "tick": 28800,
+        "chord": "C",
+        "evidence": "safe release inside the available window",
+        "ending": "open"
+      },
+      "climax": {
+        "tick": 16800,
+        "step": 8
+      },
+      "segments": [
+        {
+          "kind": "statement",
+          "startTick": 12000,
+          "endTick": 26400,
+          "noteCount": 6,
+          "adaptation": {
+            "ok": true,
+            "notes": [
+              {
+                "tick": 12000,
+                "duration": 1920,
+                "step": 3,
+                "alter": 0
+              },
+              {
+                "tick": 13920,
+                "duration": 2880,
+                "step": 7,
+                "alter": 0
+              },
+              {
+                "tick": 16800,
+                "duration": 1920,
+                "step": 8,
+                "alter": 1
+              },
+              {
+                "tick": 18720,
+                "duration": 2880,
+                "step": 6,
+                "alter": 0
+              },
+              {
+                "tick": 21600,
+                "duration": 1920,
+                "step": 5,
+                "alter": 0
+              },
+              {
+                "tick": 23520,
+                "duration": 2880,
+                "step": 0,
+                "alter": 0
+              }
+            ],
+            "functions": [
+              "chord-tone",
+              "appoggiatura",
+              "chord-tone",
+              "appoggiatura",
+              "chord-tone",
+              "chord-tone"
+            ],
+            "strategy": "stepwise-moves",
+            "shift": 1,
+            "moved": [
+              {
+                "index": 2,
+                "how": "raised a semitone into the chord"
+              },
+              {
+                "index": 4,
+                "how": "up a step"
+              },
+              {
+                "index": 5,
+                "how": "down a step"
+              }
+            ],
+            "preferredLost": [],
+            "tried": [
+              "at pitch: dissonance over C does not resolve by step; held into Dm without belonging to it or falling by step; dissonance over Dm does not resolve by step",
+              "transposed +1 steps: dissonance over C does not resolve by step; dissonance over Dm does not resolve by step; held into G without belonging to it or falling by step; dissonance over Dm does not resolve by step; dissonance over G does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed -1 steps: held into Dm without belonging to it or falling by step; dissonance over C does not resolve by step; dissonance over Dm does not resolve by step; held into G without belonging to it or falling by step; dissonance over G does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed +2 steps: dissonance over C does not resolve by step; held into Dm without belonging to it or falling by step; unsingable leap of 6 semitones",
+              "transposed -2 steps: dissonance over C does not resolve by step; dissonance over C does not resolve by step; dissonance over Dm does not resolve by step; dissonance over Dm does not resolve by step; dissonance over G does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed +3 steps: dissonance over C does not resolve by step; unsingable leap of 6 semitones; dissonance over C does not resolve by step; dissonance over Dm does not resolve by step; held into G without belonging to it or falling by step; dissonance over Dm does not resolve by step; dissonance over G does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed -3 steps: held into Dm without belonging to it or falling by step; held into G without belonging to it or falling by step",
+              "transposed +4 steps: held into Dm without belonging to it or falling by step; held into G without belonging to it or falling by step",
+              "transposed -4 steps: dissonance over C does not resolve by step; unsingable leap of 6 semitones; dissonance over C does not resolve by step; dissonance over Dm does not resolve by step; held into G without belonging to it or falling by step; dissonance over Dm does not resolve by step; dissonance over G does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed +5 steps: dissonance over C does not resolve by step; dissonance over C does not resolve by step; dissonance over Dm does not resolve by step; dissonance over Dm does not resolve by step; dissonance over G does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed -5 steps: dissonance over C does not resolve by step; held into Dm without belonging to it or falling by step; unsingable leap of 6 semitones",
+              "transposed +7 steps: dissonance over C does not resolve by step; held into Dm without belonging to it or falling by step; dissonance over Dm does not resolve by step",
+              "transposed -7 steps: dissonance over C does not resolve by step; held into Dm without belonging to it or falling by step; dissonance over Dm does not resolve by step"
+            ]
+          },
+          "operation": "augmentation",
+          "description": "augmentation, rhythm ×2, stepwise-moves, shift 1",
+          "rhythmScale": 2,
+          "thematicHeadTicks": 6720
+        },
+        {
+          "kind": "approach",
+          "startTick": 27360,
+          "endTick": 28560,
+          "noteCount": 2,
+          "adaptation": {
+            "ok": true,
+            "notes": [
+              {
+                "tick": 27360,
+                "duration": 480,
+                "step": -1,
+                "alter": 0
+              },
+              {
+                "tick": 27840,
+                "duration": 720,
+                "step": 3,
+                "alter": 0
+              }
+            ],
+            "functions": [
+              "chord-tone",
+              "chord-tone"
+            ],
+            "strategy": "transposition",
+            "shift": -3,
+            "moved": [],
+            "preferredLost": [],
+            "tried": [
+              "at pitch: dissonance over C does not resolve by step",
+              "transposed +1 steps: the line ends on a dissonance over C",
+              "transposed -1 steps: the line ends on a dissonance over C",
+              "transposed +2 steps: dissonance over C does not resolve by step",
+              "transposed -2 steps: dissonance over C does not resolve by step; the line ends on a dissonance over C",
+              "transposed +3 steps: dissonance over C does not resolve by step; unsingable leap of 6 semitones; the line ends on a dissonance over C",
+              "transposed +4 steps: unsingable leap of 10 semitones",
+              "transposed -4 steps: dissonance over C does not resolve by step; unsingable leap of 6 semitones; the line ends on a dissonance over C",
+              "transposed +5 steps: dissonance over C does not resolve by step; the line ends on a dissonance over C",
+              "transposed -5 steps: dissonance over C does not resolve by step",
+              "transposed +7 steps: unsingable leap of 15 semitones; dissonance over C does not resolve by step",
+              "transposed -7 steps: dissonance over C does not resolve by step"
+            ]
+          },
+          "operation": "tail → fragment (harmonic repair)",
+          "description": "tail → fragment (harmonic repair), rhythm ×0.5, transposition, shift -3",
+          "rhythmScale": 0.5,
+          "thematicHeadTicks": 1200
+        },
+        {
+          "kind": "ending",
+          "startTick": 28800,
+          "endTick": 30720,
+          "noteCount": 1,
+          "adaptation": null,
+          "operation": "arrival",
+          "description": "nearest safe harmonic release"
+        }
+      ],
+      "notes": [
+        {
+          "tick": 12000,
+          "duration": 1920,
+          "step": 3,
+          "alter": 0,
+          "segment": "statement",
+          "breathAfter": false,
+          "function": "chord-tone",
+          "intensity": 0.45
+        },
+        {
+          "tick": 13920,
+          "duration": 2880,
+          "step": 7,
+          "alter": 0,
+          "segment": "statement",
+          "breathAfter": false,
+          "function": "appoggiatura",
+          "intensity": 0.67
+        },
+        {
+          "tick": 16800,
+          "duration": 1920,
+          "step": 8,
+          "alter": 1,
+          "segment": "statement",
+          "breathAfter": false,
+          "function": "chord-tone",
+          "intensity": 1
+        },
+        {
+          "tick": 18720,
+          "duration": 2880,
+          "step": 6,
+          "alter": 0,
+          "segment": "statement",
+          "breathAfter": false,
+          "function": "appoggiatura",
+          "intensity": 0.888
+        },
+        {
+          "tick": 21600,
+          "duration": 1920,
+          "step": 5,
+          "alter": 0,
+          "segment": "statement",
+          "breathAfter": false,
+          "function": "chord-tone",
+          "intensity": 0.72
+        },
+        {
+          "tick": 23520,
+          "duration": 2880,
+          "step": 0,
+          "alter": 0,
+          "segment": "statement",
+          "breathAfter": true,
+          "function": "chord-tone",
+          "intensity": 0.608
+        },
+        {
+          "tick": 27360,
+          "duration": 480,
+          "step": -1,
+          "alter": 0,
+          "segment": "approach",
+          "breathAfter": false,
+          "function": "chord-tone",
+          "intensity": 0.3840000000000001
+        },
+        {
+          "tick": 27840,
+          "duration": 720,
+          "step": 3,
+          "alter": 0,
+          "segment": "approach",
+          "breathAfter": true,
+          "function": "chord-tone",
+          "intensity": 0.3560000000000001
+        },
+        {
+          "tick": 28800,
+          "duration": 1920,
+          "step": 3,
+          "alter": 0,
+          "segment": "ending",
+          "breathAfter": true,
+          "function": "chord-tone",
+          "intensity": 0.30000000000000004
+        }
+      ],
+      "landmarks": [
+        {
+          "tick": 12000,
+          "label": "lyrical: phrase begins"
+        },
+        {
+          "tick": 12000,
+          "label": "augmentation, rhythm ×2, stepwise-moves, shift 1"
+        },
+        {
+          "tick": 27360,
+          "label": "tail → fragment (harmonic repair), rhythm ×0.5, transposition, shift -3"
+        },
+        {
+          "tick": 28800,
+          "label": "nearest safe harmonic release"
+        },
+        {
+          "tick": 16800,
+          "label": "high point"
+        },
+        {
+          "tick": 30720,
+          "label": "phrase ends"
+        }
+      ],
+      "breathTicks": 0
+    },
+    {
+      "index": 2,
+      "window": {
+        "startTick": 30720,
+        "endTick": 38400
+      },
+      "lifted": false,
+      "startTick": 30720,
+      "endTick": 36480,
+      "development": {
+        "strategy": "fragment-response",
+        "relationship": "development of the remembered theme",
+        "evidence": [
+          "remaining sounding window"
+        ]
+      },
+      "goal": {
+        "tick": 34560,
+        "chord": "G",
+        "evidence": "root falls a fifth onto a chord that is not the tonic",
+        "ending": "open"
+      },
+      "climax": {
+        "tick": 31680,
+        "step": 4
+      },
+      "segments": [
+        {
+          "kind": "development",
+          "startTick": 30720,
+          "endTick": 33120,
+          "noteCount": 2,
+          "adaptation": {
+            "ok": true,
+            "notes": [
+              {
+                "tick": 30720,
+                "duration": 960,
+                "step": 0,
+                "alter": 0
+              },
+              {
+                "tick": 31680,
+                "duration": 1440,
+                "step": 4,
+                "alter": 0
+              }
+            ],
+            "functions": [
+              "chord-tone",
+              "chord-tone"
+            ],
+            "strategy": "transposition",
+            "shift": -2,
+            "moved": [],
+            "preferredLost": [],
+            "tried": [
+              "at pitch: the line ends on a dissonance over Dm",
+              "transposed +1 steps: dissonance over Dm does not resolve by step",
+              "transposed -1 steps: dissonance over Dm does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed +2 steps: the line ends on a dissonance over Dm",
+              "transposed +3 steps: dissonance over Dm does not resolve by step; unsingable leap of 6 semitones",
+              "transposed -3 steps: dissonance over Dm does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed +4 steps: dissonance over Dm does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed -4 steps: dissonance over Dm does not resolve by step; unsingable leap of 6 semitones",
+              "transposed -5 steps: the line ends on a dissonance over Dm",
+              "transposed +7 steps: the line ends on a dissonance over Dm",
+              "transposed -7 steps: the line ends on a dissonance over Dm"
+            ]
+          },
+          "operation": "fragment",
+          "description": "fragment, rhythm ×1, transposition, shift -2",
+          "rhythmScale": 1,
+          "thematicHeadTicks": 2400
+        },
+        {
+          "kind": "ending",
+          "startTick": 34560,
+          "endTick": 36480,
+          "noteCount": 1,
+          "adaptation": null,
+          "operation": "arrival",
+          "description": "fifth-fall: root falls a fifth onto a chord that is not the tonic"
+        }
+      ],
+      "notes": [
+        {
+          "tick": 30720,
+          "duration": 960,
+          "step": 0,
+          "alter": 0,
+          "segment": "development",
+          "breathAfter": false,
+          "function": "chord-tone",
+          "intensity": 0.45
+        },
+        {
+          "tick": 31680,
+          "duration": 1440,
+          "step": 4,
+          "alter": 0,
+          "segment": "development",
+          "breathAfter": true,
+          "function": "chord-tone",
+          "intensity": 1
+        },
+        {
+          "tick": 34560,
+          "duration": 1920,
+          "step": 3,
+          "alter": 0,
+          "segment": "ending",
+          "breathAfter": true,
+          "function": "chord-tone",
+          "intensity": 0.30000000000000004
+        }
+      ],
+      "landmarks": [
+        {
+          "tick": 30720,
+          "label": "reconstruction: phrase begins"
+        },
+        {
+          "tick": 30720,
+          "label": "fragment, rhythm ×1, transposition, shift -2"
+        },
+        {
+          "tick": 34560,
+          "label": "fifth-fall: root falls a fifth onto a chord that is not the tonic"
+        },
+        {
+          "tick": 31680,
+          "label": "high point"
+        },
+        {
+          "tick": 36480,
+          "label": "phrase ends"
+        }
+      ],
+      "breathTicks": 1920
+    },
+    {
+      "index": 3,
+      "window": {
+        "startTick": 38400,
+        "endTick": 65280
+      },
+      "lifted": true,
+      "startTick": 38880,
+      "endTick": 63360,
+      "development": {
+        "strategy": "delayed-arrival",
+        "relationship": "development of the remembered theme",
+        "evidence": [
+          "remaining sounding window"
+        ]
+      },
+      "goal": {
+        "tick": 61440,
+        "chord": "Dm",
+        "evidence": "root moves by step onto the tonic",
+        "ending": "closed"
+      },
+      "climax": {
+        "tick": 38880,
+        "step": 9
+      },
+      "segments": [
+        {
+          "kind": "approach",
+          "startTick": 38880,
+          "endTick": 42720,
+          "noteCount": 3,
+          "adaptation": {
+            "ok": true,
+            "notes": [
+              {
+                "tick": 38880,
+                "duration": 1440,
+                "step": 9,
+                "alter": 0
+              },
+              {
+                "tick": 40320,
+                "duration": 960,
+                "step": 7,
+                "alter": 0
+              },
+              {
+                "tick": 41280,
+                "duration": 1440,
+                "step": 4,
+                "alter": 0
+              }
+            ],
+            "functions": [
+              "chord-tone",
+              "chord-tone",
+              "chord-tone"
+            ],
+            "strategy": "transposition",
+            "shift": 4,
+            "moved": [],
+            "preferredLost": [],
+            "tried": [
+              "transposed -2 steps: dissonance over Dm does not resolve by step; dissonance over Dm does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed -1 steps: the line ends on a dissonance over Dm",
+              "at pitch: dissonance over Dm does not resolve by step; dissonance over Dm does not resolve by step",
+              "transposed -4 steps: dissonance over Dm does not resolve by step; dissonance over Dm does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed +3 steps: dissonance over Dm does not resolve by step; dissonance over Dm does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed +5 steps: dissonance over Dm does not resolve by step; dissonance over Dm does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed -5 steps: dissonance over Dm does not resolve by step; unsingable leap of 6 semitones",
+              "transposed +7 steps: dissonance over Dm does not resolve by step; dissonance over Dm does not resolve by step",
+              "transposed -7 steps: dissonance over Dm does not resolve by step; dissonance over Dm does not resolve by step"
+            ]
+          },
+          "operation": "tail",
+          "description": "tail, rhythm ×1, transposition, shift 4",
+          "rhythmScale": 1,
+          "thematicHeadTicks": 0
+        },
+        {
+          "kind": "statement",
+          "startTick": 42720,
+          "endTick": 49920,
+          "noteCount": 6,
+          "adaptation": {
+            "ok": true,
+            "notes": [
+              {
+                "tick": 42720,
+                "duration": 960,
+                "step": 1,
+                "alter": 0
+              },
+              {
+                "tick": 43680,
+                "duration": 1440,
+                "step": 5,
+                "alter": 0
+              },
+              {
+                "tick": 45120,
+                "duration": 960,
+                "step": 6,
+                "alter": 0
+              },
+              {
+                "tick": 46080,
+                "duration": 1440,
+                "step": 4,
+                "alter": 0
+              },
+              {
+                "tick": 47520,
+                "duration": 960,
+                "step": 2,
+                "alter": 0
+              },
+              {
+                "tick": 48480,
+                "duration": 1440,
+                "step": 0,
+                "alter": 0
+              }
+            ],
+            "functions": [
+              "chord-tone",
+              "appoggiatura",
+              "chord-tone",
+              "chord-tone",
+              "chord-tone",
+              "chord-tone"
+            ],
+            "strategy": "stepwise-moves",
+            "shift": -1,
+            "moved": [
+              {
+                "index": 5,
+                "how": "up a step"
+              }
+            ],
+            "preferredLost": [],
+            "tried": [
+              "at pitch: dissonance over C does not resolve by step; dissonance over C does not resolve by step; dissonance over Dm does not resolve by step; dissonance over Dm does not resolve by step",
+              "transposed +1 steps: dissonance over Dm does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed -1 steps: the line ends on a dissonance over Dm",
+              "transposed +2 steps: dissonance over C does not resolve by step; dissonance over C does not resolve by step; dissonance over Dm does not resolve by step; unsingable leap of 6 semitones",
+              "transposed -2 steps: dissonance over C does not resolve by step; dissonance over C does not resolve by step; dissonance over C does not resolve by step; dissonance over Dm does not resolve by step; dissonance over Dm does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed +3 steps: dissonance over C does not resolve by step; unsingable leap of 6 semitones; dissonance over Dm does not resolve by step; dissonance over Dm does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed -3 steps: dissonance over C does not resolve by step",
+              "transposed +4 steps: dissonance over C does not resolve by step",
+              "transposed -4 steps: unsingable leap of 10 semitones; dissonance over C does not resolve by step; unsingable leap of 6 semitones; dissonance over Dm does not resolve by step; dissonance over Dm does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed +5 steps: dissonance over C does not resolve by step; dissonance over C does not resolve by step; dissonance over C does not resolve by step; dissonance over Dm does not resolve by step; dissonance over Dm does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed -5 steps: dissonance over C does not resolve by step; dissonance over C does not resolve by step; dissonance over Dm does not resolve by step; unsingable leap of 6 semitones",
+              "transposed +7 steps: dissonance over C does not resolve by step; dissonance over C does not resolve by step; dissonance over Dm does not resolve by step; dissonance over Dm does not resolve by step",
+              "transposed -7 steps: unsingable leap of 16 semitones; dissonance over C does not resolve by step; dissonance over C does not resolve by step; dissonance over Dm does not resolve by step; dissonance over Dm does not resolve by step"
+            ]
+          },
+          "operation": "statement",
+          "description": "statement, rhythm ×1, stepwise-moves, shift -1",
+          "rhythmScale": 1,
+          "thematicHeadTicks": 3360
+        },
+        {
+          "kind": "approach",
+          "startTick": 50400,
+          "endTick": 54240,
+          "noteCount": 3,
+          "adaptation": {
+            "ok": true,
+            "notes": [
+              {
+                "tick": 50400,
+                "duration": 1440,
+                "step": 5,
+                "alter": 0
+              },
+              {
+                "tick": 51840,
+                "duration": 960,
+                "step": 3,
+                "alter": 0
+              },
+              {
+                "tick": 52800,
+                "duration": 1440,
+                "step": 0,
+                "alter": 0
+              }
+            ],
+            "functions": [
+              "chord-tone",
+              "chord-tone",
+              "chord-tone"
+            ],
+            "strategy": "reinterpretation",
+            "shift": 0,
+            "moved": [],
+            "preferredLost": [],
+            "tried": [
+              "transposed +1 steps: unsingable leap of 10 semitones; dissonance over G does not resolve by step; dissonance over G does not resolve by step; the line ends on a dissonance over G",
+              "transposed +2 steps: unsingable leap of 6 semitones; the line ends on a dissonance over G",
+              "transposed +3 steps: unsingable leap of 14 semitones; dissonance over G does not resolve by step; dissonance over G does not resolve by step",
+              "transposed -1 steps: dissonance over G does not resolve by step; dissonance over G does not resolve by step; the line ends on a dissonance over G",
+              "transposed -3 steps: dissonance over G does not resolve by step; the line ends on a dissonance over G",
+              "transposed +4 steps: unsingable leap of 15 semitones; dissonance over G does not resolve by step; the line ends on a dissonance over G",
+              "transposed -4 steps: dissonance over G does not resolve by step; dissonance over G does not resolve by step",
+              "transposed +5 steps: unsingable leap of 17 semitones; dissonance over G does not resolve by step",
+              "transposed -5 steps: unsingable leap of 6 semitones; the line ends on a dissonance over G",
+              "transposed +7 steps: unsingable leap of 21 semitones"
+            ]
+          },
+          "operation": "head → tail (harmonic repair)",
+          "description": "head → tail (harmonic repair), rhythm ×1, reinterpretation, shift 0",
+          "rhythmScale": 1,
+          "thematicHeadTicks": 0
+        },
+        {
+          "kind": "approach",
+          "startTick": 54240,
+          "endTick": 56640,
+          "noteCount": 2,
+          "adaptation": {
+            "ok": true,
+            "notes": [
+              {
+                "tick": 54240,
+                "duration": 960,
+                "step": 0,
+                "alter": 0
+              },
+              {
+                "tick": 55200,
+                "duration": 1440,
+                "step": 4,
+                "alter": 0
+              }
+            ],
+            "functions": [
+              "chord-tone",
+              "chord-tone"
+            ],
+            "strategy": "transposition",
+            "shift": -2,
+            "moved": [],
+            "preferredLost": [],
+            "tried": [
+              "transposed -1 steps: dissonance over Dm does not resolve by step; the line ends on a dissonance over Dm",
+              "at pitch: the line ends on a dissonance over Dm",
+              "transposed +1 steps: dissonance over Dm does not resolve by step",
+              "transposed -3 steps: dissonance over Dm does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed +3 steps: dissonance over Dm does not resolve by step; unsingable leap of 6 semitones",
+              "transposed +4 steps: unsingable leap of 10 semitones; dissonance over Dm does not resolve by step; the line ends on a dissonance over Dm",
+              "transposed -4 steps: dissonance over Dm does not resolve by step; unsingable leap of 6 semitones",
+              "transposed -5 steps: the line ends on a dissonance over Dm",
+              "transposed +7 steps: unsingable leap of 15 semitones; the line ends on a dissonance over Dm",
+              "transposed -7 steps: the line ends on a dissonance over Dm"
+            ]
+          },
+          "operation": "tail → fragment (harmonic repair)",
+          "description": "tail → fragment (harmonic repair), rhythm ×1, transposition, shift -2",
+          "rhythmScale": 1,
+          "thematicHeadTicks": 2400
+        },
+        {
+          "kind": "development",
+          "startTick": 58080,
+          "endTick": 59760,
+          "noteCount": 3,
+          "adaptation": {
+            "ok": true,
+            "notes": [
+              {
+                "tick": 58080,
+                "duration": 480,
+                "step": 1,
+                "alter": 0
+              },
+              {
+                "tick": 58560,
+                "duration": 720,
+                "step": 5,
+                "alter": 1
+              },
+              {
+                "tick": 59280,
+                "duration": 480,
+                "step": 6,
+                "alter": 0
+              }
+            ],
+            "functions": [
+              "chord-tone",
+              "chord-tone",
+              "chord-tone"
+            ],
+            "strategy": "stepwise-moves",
+            "shift": -1,
+            "moved": [
+              {
+                "index": 1,
+                "how": "raised a semitone into the chord"
+              }
+            ],
+            "preferredLost": [],
+            "tried": [
+              "transposed +1 steps: unaccented dissonance reached by leap does not fall",
+              "transposed +2 steps: dissonance over C does not resolve by step; the line ends on a dissonance over C",
+              "at pitch: dissonance over C does not resolve by step; the line ends on a dissonance over C",
+              "transposed +3 steps: dissonance over C does not resolve by step; unsingable leap of 6 semitones; unaccented dissonance reached by leap does not fall",
+              "transposed -1 steps: unaccented dissonance reached by leap does not fall",
+              "transposed -3 steps: the line ends on a dissonance over C",
+              "transposed +4 steps: the line ends on a dissonance over C",
+              "transposed -4 steps: unsingable leap of 10 semitones; dissonance over C does not resolve by step; unsingable leap of 6 semitones; unaccented dissonance reached by leap does not fall",
+              "transposed +5 steps: dissonance over C does not resolve by step; dissonance over C does not resolve by step; the line ends on a dissonance over C",
+              "transposed -5 steps: dissonance over C does not resolve by step; the line ends on a dissonance over C",
+              "transposed +7 steps: dissonance over C does not resolve by step; the line ends on a dissonance over C",
+              "transposed -7 steps: unsingable leap of 16 semitones; dissonance over C does not resolve by step; the line ends on a dissonance over C"
+            ]
+          },
+          "operation": "head",
+          "description": "head, rhythm ×0.5, stepwise-moves, shift -1",
+          "rhythmScale": 0.5,
+          "thematicHeadTicks": 1680
+        },
+        {
+          "kind": "ending",
+          "startTick": 61440,
+          "endTick": 63360,
+          "noteCount": 1,
+          "adaptation": null,
+          "operation": "arrival",
+          "description": "step-to-tonic: root moves by step onto the tonic"
+        }
+      ],
+      "notes": [
+        {
+          "tick": 38880,
+          "duration": 1440,
+          "step": 9,
+          "alter": 0,
+          "segment": "approach",
+          "breathAfter": false,
+          "function": "chord-tone",
+          "intensity": 0.45
+        },
+        {
+          "tick": 40320,
+          "duration": 960,
+          "step": 7,
+          "alter": 0,
+          "segment": "approach",
+          "breathAfter": false,
+          "function": "chord-tone",
+          "intensity": 0.9553191489361702
+        },
+        {
+          "tick": 41280,
+          "duration": 1440,
+          "step": 4,
+          "alter": 0,
+          "segment": "approach",
+          "breathAfter": true,
+          "function": "chord-tone",
+          "intensity": 0.925531914893617
+        },
+        {
+          "tick": 42720,
+          "duration": 960,
+          "step": 1,
+          "alter": 0,
+          "segment": "statement",
+          "breathAfter": false,
+          "function": "chord-tone",
+          "intensity": 0.8808510638297873
+        },
+        {
+          "tick": 43680,
+          "duration": 1440,
+          "step": 5,
+          "alter": 0,
+          "segment": "statement",
+          "breathAfter": false,
+          "function": "appoggiatura",
+          "intensity": 0.851063829787234
+        },
+        {
+          "tick": 45120,
+          "duration": 960,
+          "step": 6,
+          "alter": 0,
+          "segment": "statement",
+          "breathAfter": false,
+          "function": "chord-tone",
+          "intensity": 0.8063829787234043
+        },
+        {
+          "tick": 46080,
+          "duration": 1440,
+          "step": 4,
+          "alter": 0,
+          "segment": "statement",
+          "breathAfter": false,
+          "function": "chord-tone",
+          "intensity": 0.7765957446808511
+        },
+        {
+          "tick": 47520,
+          "duration": 960,
+          "step": 2,
+          "alter": 0,
+          "segment": "statement",
+          "breathAfter": false,
+          "function": "chord-tone",
+          "intensity": 0.7319148936170212
+        },
+        {
+          "tick": 48480,
+          "duration": 1440,
+          "step": 0,
+          "alter": 0,
+          "segment": "statement",
+          "breathAfter": true,
+          "function": "chord-tone",
+          "intensity": 0.7021276595744681
+        },
+        {
+          "tick": 50400,
+          "duration": 1440,
+          "step": 5,
+          "alter": 0,
+          "segment": "approach",
+          "breathAfter": false,
+          "function": "chord-tone",
+          "intensity": 0.6425531914893617
+        },
+        {
+          "tick": 51840,
+          "duration": 960,
+          "step": 3,
+          "alter": 0,
+          "segment": "approach",
+          "breathAfter": false,
+          "function": "chord-tone",
+          "intensity": 0.597872340425532
+        },
+        {
+          "tick": 52800,
+          "duration": 1440,
+          "step": 0,
+          "alter": 0,
+          "segment": "approach",
+          "breathAfter": true,
+          "function": "chord-tone",
+          "intensity": 0.5680851063829787
+        },
+        {
+          "tick": 54240,
+          "duration": 960,
+          "step": 0,
+          "alter": 0,
+          "segment": "approach",
+          "breathAfter": false,
+          "function": "chord-tone",
+          "intensity": 0.5234042553191489
+        },
+        {
+          "tick": 55200,
+          "duration": 1440,
+          "step": 4,
+          "alter": 0,
+          "segment": "approach",
+          "breathAfter": true,
+          "function": "chord-tone",
+          "intensity": 0.4936170212765958
+        },
+        {
+          "tick": 58080,
+          "duration": 480,
+          "step": 1,
+          "alter": 0,
+          "segment": "development",
+          "breathAfter": false,
+          "function": "chord-tone",
+          "intensity": 0.4042553191489362
+        },
+        {
+          "tick": 58560,
+          "duration": 720,
+          "step": 5,
+          "alter": 1,
+          "segment": "development",
+          "breathAfter": false,
+          "function": "chord-tone",
+          "intensity": 0.3893617021276595
+        },
+        {
+          "tick": 59280,
+          "duration": 480,
+          "step": 6,
+          "alter": 0,
+          "segment": "development",
+          "breathAfter": true,
+          "function": "chord-tone",
+          "intensity": 0.3670212765957447
+        },
+        {
+          "tick": 61440,
+          "duration": 1920,
+          "step": 7,
+          "alter": 0,
+          "segment": "ending",
+          "breathAfter": true,
+          "function": "chord-tone",
+          "intensity": 0.30000000000000004
+        }
+      ],
+      "landmarks": [
+        {
+          "tick": 38880,
+          "label": "delayed-arrival: phrase begins"
+        },
+        {
+          "tick": 38880,
+          "label": "tail, rhythm ×1, transposition, shift 4"
+        },
+        {
+          "tick": 42720,
+          "label": "statement, rhythm ×1, stepwise-moves, shift -1"
+        },
+        {
+          "tick": 50400,
+          "label": "head → tail (harmonic repair), rhythm ×1, reinterpretation, shift 0"
+        },
+        {
+          "tick": 54240,
+          "label": "tail → fragment (harmonic repair), rhythm ×1, transposition, shift -2"
+        },
+        {
+          "tick": 58080,
+          "label": "head, rhythm ×0.5, stepwise-moves, shift -1"
+        },
+        {
+          "tick": 61440,
+          "label": "step-to-tonic: root moves by step onto the tonic"
+        },
+        {
+          "tick": 38880,
+          "label": "high point"
+        },
+        {
+          "tick": 63360,
+          "label": "phrase ends"
+        }
+      ],
+      "breathTicks": 1920
+    }
+  ],
+  "orchestration": {
+    "version": "ensemble-v1",
+    "accepted": true,
+    "reason": "foreground accepted; supporting rejections/sparsity remain explicit, not relabelled as full realization",
+    "plan": {
+      "version": "ensemble-v1",
+      "facts": {
+        "brightness": 0.4856410256410257,
+        "openness": 0.5,
+        "density": 0.75,
+        "slope": -0.3888888888888889,
+        "harmonicMotion": 1,
+        "chromaticShare": 0
+      },
+      "capabilities": [
+        {
+          "role": "violins1",
+          "trackId": "trk_03_violins1",
+          "range": [
+            55,
+            88
+          ],
+          "triggerable": [
+            "legato",
+            "marcato",
+            "spiccato",
+            "pizz",
+            "tremolo",
+            "sustain"
+          ]
+        },
+        {
+          "role": "violins2",
+          "trackId": "trk_04_violins2",
+          "range": [
+            55,
+            86
+          ],
+          "triggerable": [
+            "legato",
+            "marcato",
+            "spiccato",
+            "pizz",
+            "tremolo",
+            "sustain"
+          ]
+        },
+        {
+          "role": "violas",
+          "trackId": "trk_05_violas",
+          "range": [
+            48,
+            79
+          ],
+          "triggerable": [
+            "legato",
+            "marcato",
+            "spiccato",
+            "pizz",
+            "tremolo",
+            "sustain"
+          ]
+        },
+        {
+          "role": "cellosBasses",
+          "trackId": "trk_06_cellosBasses",
+          "range": [
+            36,
+            69
+          ],
+          "triggerable": [
+            "legato",
+            "marcato",
+            "pizz",
+            "tremolo",
+            "sustain"
+          ]
+        },
+        {
+          "role": "basses",
+          "trackId": "trk_basses",
+          "range": [
+            28,
+            48
+          ],
+          "triggerable": [
+            "legato",
+            "marcato",
+            "pizz",
+            "tremolo",
+            "sustain"
+          ]
+        }
+      ],
+      "unavailable": [],
+      "opening": {
+        "foreground": null,
+        "untilTick": 3360,
+        "reason": "spacious patient subject: lower harmony prepares the later thematic continuation"
+      },
+      "contributions": [
+        {
+          "index": 0,
+          "phrase": 0,
+          "startTick": 3360,
+          "endTick": 5760,
+          "role": "violins2",
+          "duty": "foreground",
+          "target": 69.92820512820512,
+          "tessitura": [
+            59,
+            80
+          ],
+          "reason": "remembered sequence; tessitura follows energy and head-to-tail direction"
+        },
+        {
+          "index": 1,
+          "phrase": 0,
+          "startTick": 0,
+          "endTick": 5760,
+          "role": "basses",
+          "duty": "motion",
+          "target": 34.32769230769231,
+          "tessitura": [
+            29,
+            40
+          ],
+          "reason": "a coordinated floor, not a copy of a provisional classic lower part"
+        },
+        {
+          "index": 2,
+          "phrase": 0,
+          "startTick": 0,
+          "endTick": 3360,
+          "role": "violas",
+          "duty": "support",
+          "target": 57.85641025641026,
+          "tessitura": [
+            50,
+            65
+          ],
+          "reason": "harmonic preparation; thematic entrance deliberately withheld"
+        },
+        {
+          "index": 3,
+          "phrase": 1,
+          "startTick": 12000,
+          "endTick": 30720,
+          "role": "violas",
+          "duty": "foreground",
+          "target": 61.020797720797724,
+          "tessitura": [
+            51,
+            72
+          ],
+          "reason": "remembered lyrical; tessitura follows energy and head-to-tail direction"
+        },
+        {
+          "index": 4,
+          "phrase": 1,
+          "startTick": 12000,
+          "endTick": 30720,
+          "role": "basses",
+          "duty": "motion",
+          "target": 33.679544159544164,
+          "tessitura": [
+            28,
+            39
+          ],
+          "reason": "a coordinated floor, not a copy of a provisional classic lower part"
+        },
+        {
+          "index": 5,
+          "phrase": 1,
+          "startTick": 12000,
+          "endTick": 30720,
+          "role": "cellosBasses",
+          "duty": "support",
+          "target": 59.20826210826211,
+          "tessitura": [
+            52,
+            67
+          ],
+          "reason": "Bass carries the floor: Cello is freed into a tenor counter-layer rather than recentered on D3"
+        },
+        {
+          "index": 6,
+          "phrase": 2,
+          "startTick": 30720,
+          "endTick": 36480,
+          "role": "violas",
+          "duty": "foreground",
+          "target": 60.11339031339031,
+          "tessitura": [
+            50,
+            71
+          ],
+          "reason": "remembered fragment-response; tessitura follows energy and head-to-tail direction"
+        },
+        {
+          "index": 7,
+          "phrase": 2,
+          "startTick": 30720,
+          "endTick": 36480,
+          "role": "basses",
+          "duty": "motion",
+          "target": 33.03139601139601,
+          "tessitura": [
+            28,
+            39
+          ],
+          "reason": "a coordinated floor, not a copy of a provisional classic lower part"
+        },
+        {
+          "index": 8,
+          "phrase": 2,
+          "startTick": 30720,
+          "endTick": 36480,
+          "role": "cellosBasses",
+          "duty": "support",
+          "target": 58.56011396011396,
+          "tessitura": [
+            51,
+            66
+          ],
+          "reason": "Bass carries the floor: Cello is freed into a tenor counter-layer rather than recentered on D3"
+        },
+        {
+          "index": 9,
+          "phrase": 3,
+          "startTick": 38880,
+          "endTick": 63360,
+          "role": "violas",
+          "duty": "foreground",
+          "target": 59.20598290598291,
+          "tessitura": [
+            49,
+            70
+          ],
+          "reason": "remembered delayed-arrival; tessitura follows energy and head-to-tail direction"
+        },
+        {
+          "index": 10,
+          "phrase": 3,
+          "startTick": 38880,
+          "endTick": 63360,
+          "role": "basses",
+          "duty": "motion",
+          "target": 32.38324786324787,
+          "tessitura": [
+            28,
+            38
+          ],
+          "reason": "a coordinated floor, not a copy of a provisional classic lower part"
+        },
+        {
+          "index": 11,
+          "phrase": 3,
+          "startTick": 38880,
+          "endTick": 63360,
+          "role": "cellosBasses",
+          "duty": "support",
+          "target": 57.911965811965814,
+          "tessitura": [
+            50,
+            65
+          ],
+          "reason": "Bass carries the floor: Cello is freed into a tenor counter-layer rather than recentered on D3"
+        }
+      ],
+      "withheld": [
+        {
+          "phrase": 0,
+          "role": "cellosBasses",
+          "reason": "breath cannot hold two unsqueezed head notes: planned silence, not a successful answer"
+        },
+        {
+          "phrase": 1,
+          "role": "cellosBasses",
+          "reason": "breath cannot hold two unsqueezed head notes: planned silence, not a successful answer"
+        },
+        {
+          "phrase": 2,
+          "role": "cellosBasses",
+          "reason": "breath cannot hold two unsqueezed head notes: planned silence, not a successful answer"
+        },
+        {
+          "phrase": 3,
+          "role": "cellosBasses",
+          "reason": "breath cannot hold two unsqueezed head notes: planned silence, not a successful answer"
+        }
+      ]
+    },
+    "gridByTrackId": {
+      "trk_03_violins1": [],
+      "trk_04_violins2": [
+        {
+          "pitch": 74,
+          "startTick": 3840,
+          "durationTicks": 1440,
+          "velocity": 63,
+          "articulation": "legato"
+        }
+      ],
+      "trk_05_violas": [
+        {
+          "pitch": 57,
+          "startTick": 0,
+          "durationTicks": 2880,
+          "velocity": 53,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 12000,
+          "durationTicks": 1920,
+          "velocity": 67,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 13920,
+          "durationTicks": 2880,
+          "velocity": 74,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 65,
+          "startTick": 16800,
+          "durationTicks": 1920,
+          "velocity": 70,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 60,
+          "startTick": 18720,
+          "durationTicks": 2880,
+          "velocity": 75,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 59,
+          "startTick": 21600,
+          "durationTicks": 1920,
+          "velocity": 67,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 50,
+          "startTick": 23520,
+          "durationTicks": 2400,
+          "velocity": 71,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 48,
+          "startTick": 27360,
+          "durationTicks": 480,
+          "velocity": 65,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 27840,
+          "durationTicks": 540,
+          "velocity": 65,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 28800,
+          "durationTicks": 1440,
+          "velocity": 65,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 50,
+          "startTick": 30720,
+          "durationTicks": 960,
+          "velocity": 62,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 57,
+          "startTick": 31680,
+          "durationTicks": 1080,
+          "velocity": 62,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 34560,
+          "durationTicks": 1440,
+          "velocity": 57,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 65,
+          "startTick": 38880,
+          "durationTicks": 1440,
+          "velocity": 68,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 40320,
+          "durationTicks": 960,
+          "velocity": 71,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 57,
+          "startTick": 41280,
+          "durationTicks": 1080,
+          "velocity": 71,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 52,
+          "startTick": 42720,
+          "durationTicks": 960,
+          "velocity": 69,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 59,
+          "startTick": 43680,
+          "durationTicks": 1440,
+          "velocity": 76,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 60,
+          "startTick": 45120,
+          "durationTicks": 960,
+          "velocity": 71,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 57,
+          "startTick": 46080,
+          "durationTicks": 1440,
+          "velocity": 73,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 53,
+          "startTick": 47520,
+          "durationTicks": 960,
+          "velocity": 73,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 50,
+          "startTick": 48480,
+          "durationTicks": 1080,
+          "velocity": 73,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 59,
+          "startTick": 50400,
+          "durationTicks": 1440,
+          "velocity": 71,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 51840,
+          "durationTicks": 960,
+          "velocity": 74,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 50,
+          "startTick": 52800,
+          "durationTicks": 1080,
+          "velocity": 74,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 50,
+          "startTick": 54240,
+          "durationTicks": 960,
+          "velocity": 75,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 57,
+          "startTick": 55200,
+          "durationTicks": 1080,
+          "velocity": 75,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 52,
+          "startTick": 58080,
+          "durationTicks": 480,
+          "velocity": 65,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 60,
+          "startTick": 58560,
+          "durationTicks": 720,
+          "velocity": 71,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 60,
+          "startTick": 59280,
+          "durationTicks": 360,
+          "velocity": 68,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 61440,
+          "durationTicks": 1440,
+          "velocity": 62,
+          "articulation": "legato"
+        }
+      ],
+      "trk_06_cellosBasses": [
+        {
+          "pitch": 52,
+          "startTick": 12000,
+          "durationTicks": 3360,
+          "velocity": 52,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 57,
+          "startTick": 15360,
+          "durationTicks": 3840,
+          "velocity": 57,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 19200,
+          "durationTicks": 3840,
+          "velocity": 62,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 23040,
+          "durationTicks": 3840,
+          "velocity": 61,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 60,
+          "startTick": 26880,
+          "durationTicks": 3360,
+          "velocity": 54,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 30720,
+          "durationTicks": 3840,
+          "velocity": 49,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 34560,
+          "durationTicks": 1440,
+          "velocity": 42,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 53,
+          "startTick": 38880,
+          "durationTicks": 3360,
+          "velocity": 52,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 64,
+          "startTick": 42240,
+          "durationTicks": 3840,
+          "velocity": 62,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 46080,
+          "durationTicks": 3840,
+          "velocity": 62,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 49920,
+          "durationTicks": 3840,
+          "velocity": 60,
+          "articulation": "tremolo"
+        },
+        {
+          "pitch": 62,
+          "startTick": 53760,
+          "durationTicks": 3840,
+          "velocity": 62,
+          "articulation": "tremolo"
+        },
+        {
+          "pitch": 55,
+          "startTick": 57600,
+          "durationTicks": 3840,
+          "velocity": 57,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 57,
+          "startTick": 61440,
+          "durationTicks": 1440,
+          "velocity": 47,
+          "articulation": "legato"
+        }
+      ],
+      "trk_basses": [
+        {
+          "pitch": 38,
+          "startTick": 0,
+          "durationTicks": 2880,
+          "velocity": 50,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 2880,
+          "durationTicks": 960,
+          "velocity": 53,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 31,
+          "startTick": 3840,
+          "durationTicks": 1440,
+          "velocity": 57,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 12000,
+          "durationTicks": 2400,
+          "velocity": 59,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 14400,
+          "durationTicks": 960,
+          "velocity": 60,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 15360,
+          "durationTicks": 2880,
+          "velocity": 61,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 33,
+          "startTick": 18240,
+          "durationTicks": 960,
+          "velocity": 61,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 31,
+          "startTick": 19200,
+          "durationTicks": 2880,
+          "velocity": 62,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 31,
+          "startTick": 22080,
+          "durationTicks": 960,
+          "velocity": 63,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 23040,
+          "durationTicks": 2880,
+          "velocity": 63,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 25920,
+          "durationTicks": 960,
+          "velocity": 64,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 26880,
+          "durationTicks": 2880,
+          "velocity": 59,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 29760,
+          "durationTicks": 720,
+          "velocity": 56,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 30720,
+          "durationTicks": 2880,
+          "velocity": 51,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 33,
+          "startTick": 33600,
+          "durationTicks": 960,
+          "velocity": 53,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 31,
+          "startTick": 34560,
+          "durationTicks": 1440,
+          "velocity": 51,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 38880,
+          "durationTicks": 2400,
+          "velocity": 60,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 41280,
+          "durationTicks": 960,
+          "velocity": 60,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 42240,
+          "durationTicks": 2880,
+          "velocity": 61,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 45120,
+          "durationTicks": 960,
+          "velocity": 62,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 46080,
+          "durationTicks": 2880,
+          "velocity": 63,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 48960,
+          "durationTicks": 960,
+          "velocity": 64,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 31,
+          "startTick": 49920,
+          "durationTicks": 2880,
+          "velocity": 65,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 31,
+          "startTick": 52800,
+          "durationTicks": 960,
+          "velocity": 66,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 53760,
+          "durationTicks": 2880,
+          "velocity": 67,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 33,
+          "startTick": 56640,
+          "durationTicks": 960,
+          "velocity": 68,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 57600,
+          "durationTicks": 2880,
+          "velocity": 62,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 60480,
+          "durationTicks": 960,
+          "velocity": 62,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 61440,
+          "durationTicks": 1440,
+          "velocity": 56,
+          "articulation": "legato"
+        }
+      ]
+    },
+    "notesByTrackId": {
+      "trk_03_violins1": [],
+      "trk_04_violins2": [
+        {
+          "pitch": 74,
+          "startTick": 3854,
+          "durationTicks": 1426,
+          "velocity": 59,
+          "articulation": "legato"
+        }
+      ],
+      "trk_05_violas": [
+        {
+          "pitch": 57,
+          "startTick": 19,
+          "durationTicks": 2861,
+          "velocity": 56,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 12015,
+          "durationTicks": 1957,
+          "velocity": 70,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 13942,
+          "durationTicks": 2905,
+          "velocity": 71,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 65,
+          "startTick": 16818,
+          "durationTicks": 1931,
+          "velocity": 69,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 60,
+          "startTick": 18733,
+          "durationTicks": 2927,
+          "velocity": 76,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 59,
+          "startTick": 21624,
+          "durationTicks": 1938,
+          "velocity": 64,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 50,
+          "startTick": 23539,
+          "durationTicks": 2381,
+          "velocity": 70,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 48,
+          "startTick": 27377,
+          "durationTicks": 497,
+          "velocity": 62,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 27856,
+          "durationTicks": 524,
+          "velocity": 62,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 28813,
+          "durationTicks": 1427,
+          "velocity": 66,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 50,
+          "startTick": 30737,
+          "durationTicks": 1003,
+          "velocity": 64,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 57,
+          "startTick": 31700,
+          "durationTicks": 1060,
+          "velocity": 59,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 34582,
+          "durationTicks": 1418,
+          "velocity": 59,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 65,
+          "startTick": 38900,
+          "durationTicks": 1477,
+          "velocity": 68,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 40343,
+          "durationTicks": 992,
+          "velocity": 67,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 57,
+          "startTick": 41301,
+          "durationTicks": 1059,
+          "velocity": 73,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 52,
+          "startTick": 42739,
+          "durationTicks": 990,
+          "velocity": 67,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 59,
+          "startTick": 43694,
+          "durationTicks": 1465,
+          "velocity": 74,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 60,
+          "startTick": 45141,
+          "durationTicks": 994,
+          "velocity": 67,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 57,
+          "startTick": 46092,
+          "durationTicks": 1485,
+          "velocity": 72,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 53,
+          "startTick": 47539,
+          "durationTicks": 992,
+          "velocity": 77,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 50,
+          "startTick": 48493,
+          "durationTicks": 1067,
+          "velocity": 70,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 59,
+          "startTick": 50419,
+          "durationTicks": 1477,
+          "velocity": 72,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 51854,
+          "durationTicks": 993,
+          "velocity": 77,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 50,
+          "startTick": 52819,
+          "durationTicks": 1061,
+          "velocity": 71,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 50,
+          "startTick": 54261,
+          "durationTicks": 1002,
+          "velocity": 74,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 57,
+          "startTick": 55220,
+          "durationTicks": 1060,
+          "velocity": 75,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 52,
+          "startTick": 58103,
+          "durationTicks": 507,
+          "velocity": 65,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 60,
+          "startTick": 58583,
+          "durationTicks": 697,
+          "velocity": 72,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 60,
+          "startTick": 59299,
+          "durationTicks": 341,
+          "velocity": 65,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 61455,
+          "durationTicks": 1425,
+          "velocity": 65,
+          "articulation": "legato"
+        }
+      ],
+      "trk_06_cellosBasses": [
+        {
+          "pitch": 52,
+          "startTick": 12027,
+          "durationTicks": 3333,
+          "velocity": 51,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 57,
+          "startTick": 15392,
+          "durationTicks": 3808,
+          "velocity": 60,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 19233,
+          "durationTicks": 3807,
+          "velocity": 61,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 23067,
+          "durationTicks": 3813,
+          "velocity": 62,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 60,
+          "startTick": 26916,
+          "durationTicks": 3324,
+          "velocity": 53,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 30743,
+          "durationTicks": 3817,
+          "velocity": 52,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 34592,
+          "durationTicks": 1408,
+          "velocity": 39,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 53,
+          "startTick": 38917,
+          "durationTicks": 3323,
+          "velocity": 55,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 64,
+          "startTick": 42279,
+          "durationTicks": 3801,
+          "velocity": 63,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 46112,
+          "durationTicks": 3808,
+          "velocity": 59,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 49954,
+          "durationTicks": 3806,
+          "velocity": 60,
+          "articulation": "tremolo"
+        },
+        {
+          "pitch": 62,
+          "startTick": 53794,
+          "durationTicks": 3806,
+          "velocity": 62,
+          "articulation": "tremolo"
+        },
+        {
+          "pitch": 55,
+          "startTick": 57635,
+          "durationTicks": 3805,
+          "velocity": 53,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 57,
+          "startTick": 61475,
+          "durationTicks": 1405,
+          "velocity": 50,
+          "articulation": "legato"
+        }
+      ],
+      "trk_basses": [
+        {
+          "pitch": 38,
+          "startTick": 20,
+          "durationTicks": 2860,
+          "velocity": 53,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 2896,
+          "durationTicks": 944,
+          "velocity": 51,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 31,
+          "startTick": 3860,
+          "durationTicks": 1420,
+          "velocity": 58,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 12015,
+          "durationTicks": 2385,
+          "velocity": 60,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 14415,
+          "durationTicks": 945,
+          "velocity": 58,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 15372,
+          "durationTicks": 2914,
+          "velocity": 59,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 33,
+          "startTick": 18260,
+          "durationTicks": 940,
+          "velocity": 59,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 31,
+          "startTick": 19223,
+          "durationTicks": 2857,
+          "velocity": 63,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 31,
+          "startTick": 22104,
+          "durationTicks": 936,
+          "velocity": 64,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 23061,
+          "durationTicks": 2859,
+          "velocity": 62,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 25942,
+          "durationTicks": 938,
+          "velocity": 67,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 26904,
+          "durationTicks": 2856,
+          "velocity": 57,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 29780,
+          "durationTicks": 700,
+          "velocity": 60,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 30739,
+          "durationTicks": 2925,
+          "velocity": 48,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 33,
+          "startTick": 33618,
+          "durationTicks": 942,
+          "velocity": 50,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 31,
+          "startTick": 34575,
+          "durationTicks": 1425,
+          "velocity": 51,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 38902,
+          "durationTicks": 2378,
+          "velocity": 64,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 41301,
+          "durationTicks": 939,
+          "velocity": 63,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 42255,
+          "durationTicks": 2865,
+          "velocity": 64,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 45141,
+          "durationTicks": 939,
+          "velocity": 66,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 46101,
+          "durationTicks": 2859,
+          "velocity": 65,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 48975,
+          "durationTicks": 945,
+          "velocity": 61,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 31,
+          "startTick": 49935,
+          "durationTicks": 2865,
+          "velocity": 61,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 31,
+          "startTick": 52814,
+          "durationTicks": 946,
+          "velocity": 63,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 53774,
+          "durationTicks": 2920,
+          "velocity": 70,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 33,
+          "startTick": 56657,
+          "durationTicks": 943,
+          "velocity": 66,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 57623,
+          "durationTicks": 2857,
+          "velocity": 58,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 60499,
+          "durationTicks": 941,
+          "velocity": 66,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 61452,
+          "durationTicks": 1428,
+          "velocity": 60,
+          "articulation": "legato"
+        }
+      ]
+    },
+    "ccByTrackId": {
+      "trk_04_violins2": [
+        {
+          "cc": 1,
+          "points": [
+            {
+              "tick": 0,
+              "value": 55
+            },
+            {
+              "tick": 3840,
+              "value": 75
+            },
+            {
+              "tick": 7680,
+              "value": 50
+            },
+            {
+              "tick": 11520,
+              "value": 59
+            },
+            {
+              "tick": 23040,
+              "value": 59
+            },
+            {
+              "tick": 26880,
+              "value": 57
+            },
+            {
+              "tick": 30720,
+              "value": 56
+            },
+            {
+              "tick": 34560,
+              "value": 54
+            },
+            {
+              "tick": 38400,
+              "value": 59
+            },
+            {
+              "tick": 42240,
+              "value": 60
+            },
+            {
+              "tick": 46080,
+              "value": 60
+            },
+            {
+              "tick": 49920,
+              "value": 61
+            },
+            {
+              "tick": 53760,
+              "value": 61
+            },
+            {
+              "tick": 57600,
+              "value": 58
+            },
+            {
+              "tick": 61440,
+              "value": 56
+            },
+            {
+              "tick": 65280,
+              "value": 56
+            }
+          ]
+        },
+        {
+          "cc": 11,
+          "points": [
+            {
+              "tick": 0,
+              "value": 61
+            },
+            {
+              "tick": 3840,
+              "value": 82
+            },
+            {
+              "tick": 7680,
+              "value": 53
+            },
+            {
+              "tick": 11520,
+              "value": 66
+            },
+            {
+              "tick": 15360,
+              "value": 67
+            },
+            {
+              "tick": 23040,
+              "value": 67
+            },
+            {
+              "tick": 26880,
+              "value": 63
+            },
+            {
+              "tick": 34560,
+              "value": 59
+            },
+            {
+              "tick": 38400,
+              "value": 67
+            },
+            {
+              "tick": 42240,
+              "value": 67
+            },
+            {
+              "tick": 46080,
+              "value": 68
+            },
+            {
+              "tick": 49920,
+              "value": 68
+            },
+            {
+              "tick": 53760,
+              "value": 69
+            },
+            {
+              "tick": 57600,
+              "value": 65
+            },
+            {
+              "tick": 61440,
+              "value": 62
+            },
+            {
+              "tick": 65280,
+              "value": 62
+            }
+          ]
+        },
+        {
+          "cc": 68,
+          "points": [
+            {
+              "tick": 0,
+              "value": 0
+            },
+            {
+              "tick": 3854,
+              "value": 127
+            },
+            {
+              "tick": 5280,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 7,
+          "points": [
+            {
+              "tick": 0,
+              "value": 90
+            }
+          ]
+        }
+      ],
+      "trk_05_violas": [
+        {
+          "cc": 1,
+          "points": [
+            {
+              "tick": 0,
+              "value": 38
+            },
+            {
+              "tick": 3840,
+              "value": 56
+            },
+            {
+              "tick": 7680,
+              "value": 50
+            },
+            {
+              "tick": 11520,
+              "value": 38
+            },
+            {
+              "tick": 15360,
+              "value": 81
+            },
+            {
+              "tick": 19200,
+              "value": 59
+            },
+            {
+              "tick": 23040,
+              "value": 81
+            },
+            {
+              "tick": 26880,
+              "value": 76
+            },
+            {
+              "tick": 30720,
+              "value": 74
+            },
+            {
+              "tick": 34560,
+              "value": 70
+            },
+            {
+              "tick": 38400,
+              "value": 38
+            },
+            {
+              "tick": 42240,
+              "value": 49
+            },
+            {
+              "tick": 46080,
+              "value": 71
+            },
+            {
+              "tick": 49920,
+              "value": 83
+            },
+            {
+              "tick": 53760,
+              "value": 84
+            },
+            {
+              "tick": 57600,
+              "value": 58
+            },
+            {
+              "tick": 61440,
+              "value": 74
+            },
+            {
+              "tick": 65280,
+              "value": 74
+            }
+          ]
+        },
+        {
+          "cc": 11,
+          "points": [
+            {
+              "tick": 0,
+              "value": 30
+            },
+            {
+              "tick": 3840,
+              "value": 62
+            },
+            {
+              "tick": 7680,
+              "value": 53
+            },
+            {
+              "tick": 11520,
+              "value": 30
+            },
+            {
+              "tick": 15360,
+              "value": 91
+            },
+            {
+              "tick": 19200,
+              "value": 61
+            },
+            {
+              "tick": 23040,
+              "value": 91
+            },
+            {
+              "tick": 26880,
+              "value": 85
+            },
+            {
+              "tick": 30720,
+              "value": 81
+            },
+            {
+              "tick": 34560,
+              "value": 76
+            },
+            {
+              "tick": 38400,
+              "value": 30
+            },
+            {
+              "tick": 42240,
+              "value": 46
+            },
+            {
+              "tick": 46080,
+              "value": 78
+            },
+            {
+              "tick": 49920,
+              "value": 95
+            },
+            {
+              "tick": 53760,
+              "value": 96
+            },
+            {
+              "tick": 57600,
+              "value": 59
+            },
+            {
+              "tick": 61440,
+              "value": 81
+            },
+            {
+              "tick": 65280,
+              "value": 81
+            }
+          ]
+        },
+        {
+          "cc": 68,
+          "points": [
+            {
+              "tick": 0,
+              "value": 0
+            },
+            {
+              "tick": 19,
+              "value": 127
+            },
+            {
+              "tick": 2880,
+              "value": 0
+            },
+            {
+              "tick": 12015,
+              "value": 127
+            },
+            {
+              "tick": 25920,
+              "value": 0
+            },
+            {
+              "tick": 27377,
+              "value": 127
+            },
+            {
+              "tick": 28380,
+              "value": 0
+            },
+            {
+              "tick": 28813,
+              "value": 127
+            },
+            {
+              "tick": 30240,
+              "value": 0
+            },
+            {
+              "tick": 30737,
+              "value": 127
+            },
+            {
+              "tick": 32760,
+              "value": 0
+            },
+            {
+              "tick": 34582,
+              "value": 127
+            },
+            {
+              "tick": 36000,
+              "value": 0
+            },
+            {
+              "tick": 38900,
+              "value": 127
+            },
+            {
+              "tick": 42360,
+              "value": 0
+            },
+            {
+              "tick": 42739,
+              "value": 127
+            },
+            {
+              "tick": 49560,
+              "value": 0
+            },
+            {
+              "tick": 50419,
+              "value": 127
+            },
+            {
+              "tick": 53880,
+              "value": 0
+            },
+            {
+              "tick": 54261,
+              "value": 127
+            },
+            {
+              "tick": 56280,
+              "value": 0
+            },
+            {
+              "tick": 58103,
+              "value": 127
+            },
+            {
+              "tick": 59640,
+              "value": 0
+            },
+            {
+              "tick": 61455,
+              "value": 127
+            },
+            {
+              "tick": 62880,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 74,
+          "points": [
+            {
+              "tick": 0,
+              "value": 117
+            },
+            {
+              "tick": 53,
+              "value": 0
+            },
+            {
+              "tick": 11520,
+              "value": 117
+            },
+            {
+              "tick": 11573,
+              "value": 0
+            },
+            {
+              "tick": 26880,
+              "value": 117
+            },
+            {
+              "tick": 26933,
+              "value": 0
+            },
+            {
+              "tick": 30720,
+              "value": 117
+            },
+            {
+              "tick": 30773,
+              "value": 0
+            },
+            {
+              "tick": 38400,
+              "value": 117
+            },
+            {
+              "tick": 38453,
+              "value": 0
+            },
+            {
+              "tick": 53760,
+              "value": 117
+            },
+            {
+              "tick": 53813,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 7,
+          "points": [
+            {
+              "tick": 0,
+              "value": 90
+            }
+          ]
+        }
+      ],
+      "trk_06_cellosBasses": [
+        {
+          "cc": 1,
+          "points": [
+            {
+              "tick": 0,
+              "value": 55
+            },
+            {
+              "tick": 3840,
+              "value": 56
+            },
+            {
+              "tick": 7680,
+              "value": 50
+            },
+            {
+              "tick": 11520,
+              "value": 38
+            },
+            {
+              "tick": 15360,
+              "value": 81
+            },
+            {
+              "tick": 19200,
+              "value": 59
+            },
+            {
+              "tick": 23040,
+              "value": 81
+            },
+            {
+              "tick": 26880,
+              "value": 76
+            },
+            {
+              "tick": 30720,
+              "value": 74
+            },
+            {
+              "tick": 34560,
+              "value": 70
+            },
+            {
+              "tick": 38400,
+              "value": 38
+            },
+            {
+              "tick": 42240,
+              "value": 49
+            },
+            {
+              "tick": 46080,
+              "value": 71
+            },
+            {
+              "tick": 49920,
+              "value": 61
+            },
+            {
+              "tick": 53760,
+              "value": 61
+            },
+            {
+              "tick": 57600,
+              "value": 58
+            },
+            {
+              "tick": 61440,
+              "value": 74
+            },
+            {
+              "tick": 65280,
+              "value": 74
+            }
+          ]
+        },
+        {
+          "cc": 11,
+          "points": [
+            {
+              "tick": 0,
+              "value": 61
+            },
+            {
+              "tick": 3840,
+              "value": 62
+            },
+            {
+              "tick": 7680,
+              "value": 53
+            },
+            {
+              "tick": 11520,
+              "value": 30
+            },
+            {
+              "tick": 15360,
+              "value": 91
+            },
+            {
+              "tick": 19200,
+              "value": 61
+            },
+            {
+              "tick": 23040,
+              "value": 91
+            },
+            {
+              "tick": 26880,
+              "value": 85
+            },
+            {
+              "tick": 30720,
+              "value": 81
+            },
+            {
+              "tick": 34476,
+              "value": 30
+            },
+            {
+              "tick": 34505,
+              "value": 34
+            },
+            {
+              "tick": 34534,
+              "value": 42
+            },
+            {
+              "tick": 34560,
+              "value": 76
+            },
+            {
+              "tick": 34563,
+              "value": 50
+            },
+            {
+              "tick": 34592,
+              "value": 54
+            },
+            {
+              "tick": 38400,
+              "value": 30
+            },
+            {
+              "tick": 42240,
+              "value": 46
+            },
+            {
+              "tick": 46080,
+              "value": 78
+            },
+            {
+              "tick": 49920,
+              "value": 68
+            },
+            {
+              "tick": 53760,
+              "value": 69
+            },
+            {
+              "tick": 57600,
+              "value": 59
+            },
+            {
+              "tick": 61440,
+              "value": 81
+            },
+            {
+              "tick": 65280,
+              "value": 81
+            }
+          ]
+        },
+        {
+          "cc": 68,
+          "points": [
+            {
+              "tick": 0,
+              "value": 0
+            },
+            {
+              "tick": 12027,
+              "value": 127
+            },
+            {
+              "tick": 30240,
+              "value": 0
+            },
+            {
+              "tick": 30743,
+              "value": 127
+            },
+            {
+              "tick": 36000,
+              "value": 0
+            },
+            {
+              "tick": 38917,
+              "value": 127
+            },
+            {
+              "tick": 49920,
+              "value": 0
+            },
+            {
+              "tick": 57635,
+              "value": 127
+            },
+            {
+              "tick": 62880,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 74,
+          "points": [
+            {
+              "tick": 0,
+              "value": 0
+            },
+            {
+              "tick": 11520,
+              "value": 117
+            },
+            {
+              "tick": 11573,
+              "value": 0
+            },
+            {
+              "tick": 26880,
+              "value": 117
+            },
+            {
+              "tick": 26933,
+              "value": 0
+            },
+            {
+              "tick": 30720,
+              "value": 117
+            },
+            {
+              "tick": 30773,
+              "value": 0
+            },
+            {
+              "tick": 38400,
+              "value": 117
+            },
+            {
+              "tick": 38453,
+              "value": 0
+            },
+            {
+              "tick": 49954,
+              "value": 117
+            },
+            {
+              "tick": 50007,
+              "value": 0
+            },
+            {
+              "tick": 53760,
+              "value": 117
+            },
+            {
+              "tick": 53794,
+              "value": 117
+            },
+            {
+              "tick": 53813,
+              "value": 0
+            },
+            {
+              "tick": 53847,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 7,
+          "points": [
+            {
+              "tick": 0,
+              "value": 90
+            }
+          ]
+        }
+      ],
+      "trk_basses": [
+        {
+          "cc": 1,
+          "points": [
+            {
+              "tick": 0,
+              "value": 38
+            },
+            {
+              "tick": 3840,
+              "value": 75
+            },
+            {
+              "tick": 7680,
+              "value": 50
+            },
+            {
+              "tick": 11520,
+              "value": 38
+            },
+            {
+              "tick": 15360,
+              "value": 81
+            },
+            {
+              "tick": 19200,
+              "value": 59
+            },
+            {
+              "tick": 23040,
+              "value": 81
+            },
+            {
+              "tick": 26880,
+              "value": 76
+            },
+            {
+              "tick": 30720,
+              "value": 74
+            },
+            {
+              "tick": 34560,
+              "value": 70
+            },
+            {
+              "tick": 38400,
+              "value": 38
+            },
+            {
+              "tick": 42240,
+              "value": 49
+            },
+            {
+              "tick": 46080,
+              "value": 71
+            },
+            {
+              "tick": 49920,
+              "value": 83
+            },
+            {
+              "tick": 53760,
+              "value": 84
+            },
+            {
+              "tick": 57600,
+              "value": 58
+            },
+            {
+              "tick": 61440,
+              "value": 74
+            },
+            {
+              "tick": 65280,
+              "value": 74
+            }
+          ]
+        },
+        {
+          "cc": 11,
+          "points": [
+            {
+              "tick": 0,
+              "value": 30
+            },
+            {
+              "tick": 3840,
+              "value": 82
+            },
+            {
+              "tick": 7680,
+              "value": 53
+            },
+            {
+              "tick": 11520,
+              "value": 30
+            },
+            {
+              "tick": 15360,
+              "value": 91
+            },
+            {
+              "tick": 19200,
+              "value": 61
+            },
+            {
+              "tick": 23040,
+              "value": 91
+            },
+            {
+              "tick": 26880,
+              "value": 85
+            },
+            {
+              "tick": 30623,
+              "value": 30
+            },
+            {
+              "tick": 30652,
+              "value": 34
+            },
+            {
+              "tick": 30710,
+              "value": 50
+            },
+            {
+              "tick": 30720,
+              "value": 81
+            },
+            {
+              "tick": 30739,
+              "value": 54
+            },
+            {
+              "tick": 34560,
+              "value": 76
+            },
+            {
+              "tick": 38400,
+              "value": 30
+            },
+            {
+              "tick": 42240,
+              "value": 46
+            },
+            {
+              "tick": 46080,
+              "value": 78
+            },
+            {
+              "tick": 49920,
+              "value": 95
+            },
+            {
+              "tick": 53760,
+              "value": 96
+            },
+            {
+              "tick": 57600,
+              "value": 59
+            },
+            {
+              "tick": 61440,
+              "value": 81
+            },
+            {
+              "tick": 65280,
+              "value": 81
+            }
+          ]
+        },
+        {
+          "cc": 68,
+          "points": [
+            {
+              "tick": 0,
+              "value": 0
+            },
+            {
+              "tick": 20,
+              "value": 127
+            },
+            {
+              "tick": 5280,
+              "value": 0
+            },
+            {
+              "tick": 12015,
+              "value": 127
+            },
+            {
+              "tick": 30480,
+              "value": 0
+            },
+            {
+              "tick": 30739,
+              "value": 127
+            },
+            {
+              "tick": 36000,
+              "value": 0
+            },
+            {
+              "tick": 38902,
+              "value": 127
+            },
+            {
+              "tick": 62880,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 74,
+          "points": [
+            {
+              "tick": 0,
+              "value": 117
+            },
+            {
+              "tick": 53,
+              "value": 0
+            },
+            {
+              "tick": 11520,
+              "value": 117
+            },
+            {
+              "tick": 11573,
+              "value": 0
+            },
+            {
+              "tick": 26880,
+              "value": 117
+            },
+            {
+              "tick": 26933,
+              "value": 0
+            },
+            {
+              "tick": 30720,
+              "value": 117
+            },
+            {
+              "tick": 30773,
+              "value": 0
+            },
+            {
+              "tick": 38400,
+              "value": 117
+            },
+            {
+              "tick": 38453,
+              "value": 0
+            },
+            {
+              "tick": 53760,
+              "value": 117
+            },
+            {
+              "tick": 53813,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 7,
+          "points": [
+            {
+              "tick": 0,
+              "value": 90
+            }
+          ]
+        }
+      ]
+    },
+    "contributions": [
+      {
+        "contribution": 0,
+        "status": "sparse",
+        "plannedTicks": 2400,
+        "generatedNotes": 1,
+        "generatedTicks": 1440,
+        "coverage": 0.6,
+        "realizedNotes": 1,
+        "realizedTicks": 1426,
+        "realizedCoverage": 0.5941666666666666,
+        "range": [
+          74,
+          74
+        ],
+        "octave": 0,
+        "repairs": [],
+        "reason": "bounded/sustained role met its minimum, but explicitly sparse"
+      },
+      {
+        "contribution": 1,
+        "status": "fulfilled",
+        "plannedTicks": 5760,
+        "generatedNotes": 3,
+        "generatedTicks": 5280,
+        "coverage": 0.9166666666666666,
+        "realizedNotes": 3,
+        "realizedTicks": 5224,
+        "realizedCoverage": 0.9069444444444444,
+        "range": [
+          31,
+          38
+        ],
+        "octave": null,
+        "repairs": [],
+        "reason": "role-relative duration and note material realized"
+      },
+      {
+        "contribution": 2,
+        "status": "sparse",
+        "plannedTicks": 3360,
+        "generatedNotes": 1,
+        "generatedTicks": 2880,
+        "coverage": 0.8571428571428571,
+        "realizedNotes": 1,
+        "realizedTicks": 2861,
+        "realizedCoverage": 0.8514880952380952,
+        "range": [
+          57,
+          57
+        ],
+        "octave": null,
+        "repairs": [],
+        "reason": "bounded/sustained role met its minimum, but explicitly sparse"
+      },
+      {
+        "contribution": 3,
+        "status": "fulfilled",
+        "plannedTicks": 18720,
+        "generatedNotes": 9,
+        "generatedTicks": 16380,
+        "coverage": 0.875,
+        "realizedNotes": 9,
+        "realizedTicks": 16335,
+        "realizedCoverage": 0.8725961538461539,
+        "range": [
+          48,
+          65
+        ],
+        "octave": -1,
+        "repairs": [
+          "preferred tessitura broadened to physical window to keep the complete thematic gesture"
+        ],
+        "reason": "role-relative duration and note material realized"
+      },
+      {
+        "contribution": 4,
+        "status": "fulfilled",
+        "plannedTicks": 18720,
+        "generatedNotes": 10,
+        "generatedTicks": 18480,
+        "coverage": 0.9871794871794872,
+        "realizedNotes": 10,
+        "realizedTicks": 18304,
+        "realizedCoverage": 0.9777777777777777,
+        "range": [
+          31,
+          38
+        ],
+        "octave": null,
+        "repairs": [],
+        "reason": "role-relative duration and note material realized"
+      },
+      {
+        "contribution": 5,
+        "status": "fulfilled",
+        "plannedTicks": 18720,
+        "generatedNotes": 5,
+        "generatedTicks": 18240,
+        "coverage": 0.9743589743589743,
+        "realizedNotes": 5,
+        "realizedTicks": 18085,
+        "realizedCoverage": 0.9660790598290598,
+        "range": [
+          52,
+          62
+        ],
+        "octave": null,
+        "repairs": [],
+        "reason": "role-relative duration and note material realized"
+      },
+      {
+        "contribution": 6,
+        "status": "sparse",
+        "plannedTicks": 5760,
+        "generatedNotes": 3,
+        "generatedTicks": 3480,
+        "coverage": 0.6041666666666666,
+        "realizedNotes": 3,
+        "realizedTicks": 3441,
+        "realizedCoverage": 0.5973958333333333,
+        "range": [
+          50,
+          57
+        ],
+        "octave": -1,
+        "repairs": [],
+        "reason": "bounded/sustained role met its minimum, but explicitly sparse"
+      },
+      {
+        "contribution": 7,
+        "status": "fulfilled",
+        "plannedTicks": 5760,
+        "generatedNotes": 3,
+        "generatedTicks": 5280,
+        "coverage": 0.9166666666666666,
+        "realizedNotes": 3,
+        "realizedTicks": 5246,
+        "realizedCoverage": 0.9107638888888889,
+        "range": [
+          31,
+          38
+        ],
+        "octave": null,
+        "repairs": [],
+        "reason": "role-relative duration and note material realized"
+      },
+      {
+        "contribution": 8,
+        "status": "sparse",
+        "plannedTicks": 5760,
+        "generatedNotes": 2,
+        "generatedTicks": 5280,
+        "coverage": 0.9166666666666666,
+        "realizedNotes": 2,
+        "realizedTicks": 5225,
+        "realizedCoverage": 0.9071180555555556,
+        "range": [
+          62,
+          62
+        ],
+        "octave": null,
+        "repairs": [],
+        "reason": "bounded/sustained role met its minimum, but explicitly sparse"
+      },
+      {
+        "contribution": 9,
+        "status": "fulfilled",
+        "plannedTicks": 24480,
+        "generatedNotes": 18,
+        "generatedTicks": 18840,
+        "coverage": 0.7696078431372549,
+        "realizedNotes": 18,
+        "realizedTicks": 18704,
+        "realizedCoverage": 0.7640522875816993,
+        "range": [
+          50,
+          65
+        ],
+        "octave": -1,
+        "repairs": [],
+        "reason": "role-relative duration and note material realized"
+      },
+      {
+        "contribution": 10,
+        "status": "fulfilled",
+        "plannedTicks": 24480,
+        "generatedNotes": 13,
+        "generatedTicks": 24000,
+        "coverage": 0.9803921568627451,
+        "realizedNotes": 13,
+        "realizedTicks": 23788,
+        "realizedCoverage": 0.9717320261437908,
+        "range": [
+          31,
+          38
+        ],
+        "octave": null,
+        "repairs": [],
+        "reason": "role-relative duration and note material realized"
+      },
+      {
+        "contribution": 11,
+        "status": "fulfilled",
+        "plannedTicks": 24480,
+        "generatedNotes": 7,
+        "generatedTicks": 24000,
+        "coverage": 0.9803921568627451,
+        "realizedNotes": 7,
+        "realizedTicks": 23754,
+        "realizedCoverage": 0.970343137254902,
+        "range": [
+          53,
+          64
+        ],
+        "octave": null,
+        "repairs": [],
+        "reason": "role-relative duration and note material realized"
+      }
+    ],
+    "desks": [
+      {
+        "role": "violins1",
+        "trackId": "trk_03_violins1",
+        "state": "intentional-silence",
+        "plannedContributions": 0,
+        "fulfilledContributions": 0,
+        "notes": 0,
+        "ticks": 0,
+        "occupancy": 0,
+        "phraseCoverage": 0,
+        "independentOnsets": 0,
+        "range": []
+      },
+      {
+        "role": "violins2",
+        "trackId": "trk_04_violins2",
+        "state": "intentional-sparse",
+        "plannedContributions": 1,
+        "fulfilledContributions": 1,
+        "notes": 1,
+        "ticks": 1426,
+        "occupancy": 0.021844362745098038,
+        "phraseCoverage": 1,
+        "independentOnsets": 1,
+        "range": [
+          74,
+          74
+        ]
+      },
+      {
+        "role": "violas",
+        "trackId": "trk_05_violas",
+        "state": "substantial",
+        "plannedContributions": 4,
+        "fulfilledContributions": 4,
+        "notes": 31,
+        "ticks": 41341,
+        "occupancy": 0.6332873774509804,
+        "phraseCoverage": 1,
+        "independentOnsets": 1,
+        "range": [
+          48,
+          65
+        ]
+      },
+      {
+        "role": "cellosBasses",
+        "trackId": "trk_06_cellosBasses",
+        "state": "substantial",
+        "plannedContributions": 3,
+        "fulfilledContributions": 3,
+        "notes": 14,
+        "ticks": 47064,
+        "occupancy": 0.7209558823529412,
+        "phraseCoverage": 1,
+        "independentOnsets": 1,
+        "range": [
+          52,
+          64
+        ]
+      },
+      {
+        "role": "basses",
+        "trackId": "trk_basses",
+        "state": "substantial",
+        "plannedContributions": 4,
+        "fulfilledContributions": 4,
+        "notes": 29,
+        "ticks": 52562,
+        "occupancy": 0.8051776960784314,
+        "phraseCoverage": 1,
+        "independentOnsets": 1,
+        "range": [
+          31,
+          38
+        ]
+      }
+    ],
+    "exportValidation": "not-serialized-here"
+  },
+  "tracks": [
+    {
+      "id": "trk_03_violins1",
+      "name": "Violins I",
+      "family": "Strings",
+      "color": "#e04b34",
+      "role": "violins1",
+      "lowestNote": 55,
+      "highestNote": 96,
+      "locked": false,
+      "muted": false,
+      "soloed": false,
+      "libraryGroupId": null,
+      "midiChannel": 1,
+      "frozen": false,
+      "volume": 0.8,
+      "pan": 0,
+      "notes": [],
+      "cc": []
+    },
+    {
+      "id": "trk_04_violins2",
+      "name": "Violins II",
+      "family": "Strings",
+      "color": "#e04b34",
+      "role": "violins2",
+      "lowestNote": 55,
+      "highestNote": 93,
+      "locked": false,
+      "muted": false,
+      "soloed": false,
+      "libraryGroupId": null,
+      "midiChannel": 2,
+      "frozen": false,
+      "volume": 0.8,
+      "pan": 0,
+      "notes": [
+        {
+          "pitch": 74,
+          "startTick": 3854,
+          "durationTicks": 1426,
+          "velocity": 59,
+          "articulation": "legato"
+        }
+      ],
+      "cc": [
+        {
+          "cc": 1,
+          "points": [
+            {
+              "tick": 0,
+              "value": 55
+            },
+            {
+              "tick": 3840,
+              "value": 75
+            },
+            {
+              "tick": 7680,
+              "value": 50
+            },
+            {
+              "tick": 11520,
+              "value": 59
+            },
+            {
+              "tick": 23040,
+              "value": 59
+            },
+            {
+              "tick": 26880,
+              "value": 57
+            },
+            {
+              "tick": 30720,
+              "value": 56
+            },
+            {
+              "tick": 34560,
+              "value": 54
+            },
+            {
+              "tick": 38400,
+              "value": 59
+            },
+            {
+              "tick": 42240,
+              "value": 60
+            },
+            {
+              "tick": 46080,
+              "value": 60
+            },
+            {
+              "tick": 49920,
+              "value": 61
+            },
+            {
+              "tick": 53760,
+              "value": 61
+            },
+            {
+              "tick": 57600,
+              "value": 58
+            },
+            {
+              "tick": 61440,
+              "value": 56
+            },
+            {
+              "tick": 65280,
+              "value": 56
+            }
+          ]
+        },
+        {
+          "cc": 11,
+          "points": [
+            {
+              "tick": 0,
+              "value": 61
+            },
+            {
+              "tick": 3840,
+              "value": 82
+            },
+            {
+              "tick": 7680,
+              "value": 53
+            },
+            {
+              "tick": 11520,
+              "value": 66
+            },
+            {
+              "tick": 15360,
+              "value": 67
+            },
+            {
+              "tick": 23040,
+              "value": 67
+            },
+            {
+              "tick": 26880,
+              "value": 63
+            },
+            {
+              "tick": 34560,
+              "value": 59
+            },
+            {
+              "tick": 38400,
+              "value": 67
+            },
+            {
+              "tick": 42240,
+              "value": 67
+            },
+            {
+              "tick": 46080,
+              "value": 68
+            },
+            {
+              "tick": 49920,
+              "value": 68
+            },
+            {
+              "tick": 53760,
+              "value": 69
+            },
+            {
+              "tick": 57600,
+              "value": 65
+            },
+            {
+              "tick": 61440,
+              "value": 62
+            },
+            {
+              "tick": 65280,
+              "value": 62
+            }
+          ]
+        },
+        {
+          "cc": 68,
+          "points": [
+            {
+              "tick": 0,
+              "value": 0
+            },
+            {
+              "tick": 3854,
+              "value": 127
+            },
+            {
+              "tick": 5280,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 7,
+          "points": [
+            {
+              "tick": 0,
+              "value": 90
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trk_05_violas",
+      "name": "Violas",
+      "family": "Strings",
+      "color": "#e04b34",
+      "role": "violas",
+      "lowestNote": 48,
+      "highestNote": 88,
+      "locked": false,
+      "muted": false,
+      "soloed": false,
+      "libraryGroupId": null,
+      "midiChannel": 3,
+      "frozen": false,
+      "volume": 0.8,
+      "pan": 0,
+      "notes": [
+        {
+          "pitch": 57,
+          "startTick": 19,
+          "durationTicks": 2861,
+          "velocity": 56,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 12015,
+          "durationTicks": 1957,
+          "velocity": 70,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 13942,
+          "durationTicks": 2905,
+          "velocity": 71,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 65,
+          "startTick": 16818,
+          "durationTicks": 1931,
+          "velocity": 69,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 60,
+          "startTick": 18733,
+          "durationTicks": 2927,
+          "velocity": 76,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 59,
+          "startTick": 21624,
+          "durationTicks": 1938,
+          "velocity": 64,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 50,
+          "startTick": 23539,
+          "durationTicks": 2381,
+          "velocity": 70,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 48,
+          "startTick": 27377,
+          "durationTicks": 497,
+          "velocity": 62,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 27856,
+          "durationTicks": 524,
+          "velocity": 62,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 28813,
+          "durationTicks": 1427,
+          "velocity": 66,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 50,
+          "startTick": 30737,
+          "durationTicks": 1003,
+          "velocity": 64,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 57,
+          "startTick": 31700,
+          "durationTicks": 1060,
+          "velocity": 59,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 34582,
+          "durationTicks": 1418,
+          "velocity": 59,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 65,
+          "startTick": 38900,
+          "durationTicks": 1477,
+          "velocity": 68,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 40343,
+          "durationTicks": 992,
+          "velocity": 67,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 57,
+          "startTick": 41301,
+          "durationTicks": 1059,
+          "velocity": 73,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 52,
+          "startTick": 42739,
+          "durationTicks": 990,
+          "velocity": 67,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 59,
+          "startTick": 43694,
+          "durationTicks": 1465,
+          "velocity": 74,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 60,
+          "startTick": 45141,
+          "durationTicks": 994,
+          "velocity": 67,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 57,
+          "startTick": 46092,
+          "durationTicks": 1485,
+          "velocity": 72,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 53,
+          "startTick": 47539,
+          "durationTicks": 992,
+          "velocity": 77,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 50,
+          "startTick": 48493,
+          "durationTicks": 1067,
+          "velocity": 70,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 59,
+          "startTick": 50419,
+          "durationTicks": 1477,
+          "velocity": 72,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 51854,
+          "durationTicks": 993,
+          "velocity": 77,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 50,
+          "startTick": 52819,
+          "durationTicks": 1061,
+          "velocity": 71,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 50,
+          "startTick": 54261,
+          "durationTicks": 1002,
+          "velocity": 74,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 57,
+          "startTick": 55220,
+          "durationTicks": 1060,
+          "velocity": 75,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 52,
+          "startTick": 58103,
+          "durationTicks": 507,
+          "velocity": 65,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 60,
+          "startTick": 58583,
+          "durationTicks": 697,
+          "velocity": 72,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 60,
+          "startTick": 59299,
+          "durationTicks": 341,
+          "velocity": 65,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 61455,
+          "durationTicks": 1425,
+          "velocity": 65,
+          "articulation": "legato"
+        }
+      ],
+      "cc": [
+        {
+          "cc": 1,
+          "points": [
+            {
+              "tick": 0,
+              "value": 38
+            },
+            {
+              "tick": 3840,
+              "value": 56
+            },
+            {
+              "tick": 7680,
+              "value": 50
+            },
+            {
+              "tick": 11520,
+              "value": 38
+            },
+            {
+              "tick": 15360,
+              "value": 81
+            },
+            {
+              "tick": 19200,
+              "value": 59
+            },
+            {
+              "tick": 23040,
+              "value": 81
+            },
+            {
+              "tick": 26880,
+              "value": 76
+            },
+            {
+              "tick": 30720,
+              "value": 74
+            },
+            {
+              "tick": 34560,
+              "value": 70
+            },
+            {
+              "tick": 38400,
+              "value": 38
+            },
+            {
+              "tick": 42240,
+              "value": 49
+            },
+            {
+              "tick": 46080,
+              "value": 71
+            },
+            {
+              "tick": 49920,
+              "value": 83
+            },
+            {
+              "tick": 53760,
+              "value": 84
+            },
+            {
+              "tick": 57600,
+              "value": 58
+            },
+            {
+              "tick": 61440,
+              "value": 74
+            },
+            {
+              "tick": 65280,
+              "value": 74
+            }
+          ]
+        },
+        {
+          "cc": 11,
+          "points": [
+            {
+              "tick": 0,
+              "value": 30
+            },
+            {
+              "tick": 3840,
+              "value": 62
+            },
+            {
+              "tick": 7680,
+              "value": 53
+            },
+            {
+              "tick": 11520,
+              "value": 30
+            },
+            {
+              "tick": 15360,
+              "value": 91
+            },
+            {
+              "tick": 19200,
+              "value": 61
+            },
+            {
+              "tick": 23040,
+              "value": 91
+            },
+            {
+              "tick": 26880,
+              "value": 85
+            },
+            {
+              "tick": 30720,
+              "value": 81
+            },
+            {
+              "tick": 34560,
+              "value": 76
+            },
+            {
+              "tick": 38400,
+              "value": 30
+            },
+            {
+              "tick": 42240,
+              "value": 46
+            },
+            {
+              "tick": 46080,
+              "value": 78
+            },
+            {
+              "tick": 49920,
+              "value": 95
+            },
+            {
+              "tick": 53760,
+              "value": 96
+            },
+            {
+              "tick": 57600,
+              "value": 59
+            },
+            {
+              "tick": 61440,
+              "value": 81
+            },
+            {
+              "tick": 65280,
+              "value": 81
+            }
+          ]
+        },
+        {
+          "cc": 68,
+          "points": [
+            {
+              "tick": 0,
+              "value": 0
+            },
+            {
+              "tick": 19,
+              "value": 127
+            },
+            {
+              "tick": 2880,
+              "value": 0
+            },
+            {
+              "tick": 12015,
+              "value": 127
+            },
+            {
+              "tick": 25920,
+              "value": 0
+            },
+            {
+              "tick": 27377,
+              "value": 127
+            },
+            {
+              "tick": 28380,
+              "value": 0
+            },
+            {
+              "tick": 28813,
+              "value": 127
+            },
+            {
+              "tick": 30240,
+              "value": 0
+            },
+            {
+              "tick": 30737,
+              "value": 127
+            },
+            {
+              "tick": 32760,
+              "value": 0
+            },
+            {
+              "tick": 34582,
+              "value": 127
+            },
+            {
+              "tick": 36000,
+              "value": 0
+            },
+            {
+              "tick": 38900,
+              "value": 127
+            },
+            {
+              "tick": 42360,
+              "value": 0
+            },
+            {
+              "tick": 42739,
+              "value": 127
+            },
+            {
+              "tick": 49560,
+              "value": 0
+            },
+            {
+              "tick": 50419,
+              "value": 127
+            },
+            {
+              "tick": 53880,
+              "value": 0
+            },
+            {
+              "tick": 54261,
+              "value": 127
+            },
+            {
+              "tick": 56280,
+              "value": 0
+            },
+            {
+              "tick": 58103,
+              "value": 127
+            },
+            {
+              "tick": 59640,
+              "value": 0
+            },
+            {
+              "tick": 61455,
+              "value": 127
+            },
+            {
+              "tick": 62880,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 74,
+          "points": [
+            {
+              "tick": 0,
+              "value": 117
+            },
+            {
+              "tick": 53,
+              "value": 0
+            },
+            {
+              "tick": 11520,
+              "value": 117
+            },
+            {
+              "tick": 11573,
+              "value": 0
+            },
+            {
+              "tick": 26880,
+              "value": 117
+            },
+            {
+              "tick": 26933,
+              "value": 0
+            },
+            {
+              "tick": 30720,
+              "value": 117
+            },
+            {
+              "tick": 30773,
+              "value": 0
+            },
+            {
+              "tick": 38400,
+              "value": 117
+            },
+            {
+              "tick": 38453,
+              "value": 0
+            },
+            {
+              "tick": 53760,
+              "value": 117
+            },
+            {
+              "tick": 53813,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 7,
+          "points": [
+            {
+              "tick": 0,
+              "value": 90
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trk_06_cellosBasses",
+      "name": "Cellos/Basses",
+      "family": "Strings",
+      "color": "#e04b34",
+      "role": "cellosBasses",
+      "lowestNote": 28,
+      "highestNote": 84,
+      "locked": false,
+      "muted": false,
+      "soloed": false,
+      "libraryGroupId": null,
+      "midiChannel": 4,
+      "frozen": false,
+      "volume": 0.8,
+      "pan": 0,
+      "notes": [
+        {
+          "pitch": 52,
+          "startTick": 12027,
+          "durationTicks": 3333,
+          "velocity": 51,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 57,
+          "startTick": 15392,
+          "durationTicks": 3808,
+          "velocity": 60,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 19233,
+          "durationTicks": 3807,
+          "velocity": 61,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 23067,
+          "durationTicks": 3813,
+          "velocity": 62,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 60,
+          "startTick": 26916,
+          "durationTicks": 3324,
+          "velocity": 53,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 30743,
+          "durationTicks": 3817,
+          "velocity": 52,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 34592,
+          "durationTicks": 1408,
+          "velocity": 39,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 53,
+          "startTick": 38917,
+          "durationTicks": 3323,
+          "velocity": 55,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 64,
+          "startTick": 42279,
+          "durationTicks": 3801,
+          "velocity": 63,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 46112,
+          "durationTicks": 3808,
+          "velocity": 59,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 49954,
+          "durationTicks": 3806,
+          "velocity": 60,
+          "articulation": "tremolo"
+        },
+        {
+          "pitch": 62,
+          "startTick": 53794,
+          "durationTicks": 3806,
+          "velocity": 62,
+          "articulation": "tremolo"
+        },
+        {
+          "pitch": 55,
+          "startTick": 57635,
+          "durationTicks": 3805,
+          "velocity": 53,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 57,
+          "startTick": 61475,
+          "durationTicks": 1405,
+          "velocity": 50,
+          "articulation": "legato"
+        }
+      ],
+      "cc": [
+        {
+          "cc": 1,
+          "points": [
+            {
+              "tick": 0,
+              "value": 55
+            },
+            {
+              "tick": 3840,
+              "value": 56
+            },
+            {
+              "tick": 7680,
+              "value": 50
+            },
+            {
+              "tick": 11520,
+              "value": 38
+            },
+            {
+              "tick": 15360,
+              "value": 81
+            },
+            {
+              "tick": 19200,
+              "value": 59
+            },
+            {
+              "tick": 23040,
+              "value": 81
+            },
+            {
+              "tick": 26880,
+              "value": 76
+            },
+            {
+              "tick": 30720,
+              "value": 74
+            },
+            {
+              "tick": 34560,
+              "value": 70
+            },
+            {
+              "tick": 38400,
+              "value": 38
+            },
+            {
+              "tick": 42240,
+              "value": 49
+            },
+            {
+              "tick": 46080,
+              "value": 71
+            },
+            {
+              "tick": 49920,
+              "value": 61
+            },
+            {
+              "tick": 53760,
+              "value": 61
+            },
+            {
+              "tick": 57600,
+              "value": 58
+            },
+            {
+              "tick": 61440,
+              "value": 74
+            },
+            {
+              "tick": 65280,
+              "value": 74
+            }
+          ]
+        },
+        {
+          "cc": 11,
+          "points": [
+            {
+              "tick": 0,
+              "value": 61
+            },
+            {
+              "tick": 3840,
+              "value": 62
+            },
+            {
+              "tick": 7680,
+              "value": 53
+            },
+            {
+              "tick": 11520,
+              "value": 30
+            },
+            {
+              "tick": 15360,
+              "value": 91
+            },
+            {
+              "tick": 19200,
+              "value": 61
+            },
+            {
+              "tick": 23040,
+              "value": 91
+            },
+            {
+              "tick": 26880,
+              "value": 85
+            },
+            {
+              "tick": 30720,
+              "value": 81
+            },
+            {
+              "tick": 34476,
+              "value": 30
+            },
+            {
+              "tick": 34505,
+              "value": 34
+            },
+            {
+              "tick": 34534,
+              "value": 42
+            },
+            {
+              "tick": 34560,
+              "value": 76
+            },
+            {
+              "tick": 34563,
+              "value": 50
+            },
+            {
+              "tick": 34592,
+              "value": 54
+            },
+            {
+              "tick": 38400,
+              "value": 30
+            },
+            {
+              "tick": 42240,
+              "value": 46
+            },
+            {
+              "tick": 46080,
+              "value": 78
+            },
+            {
+              "tick": 49920,
+              "value": 68
+            },
+            {
+              "tick": 53760,
+              "value": 69
+            },
+            {
+              "tick": 57600,
+              "value": 59
+            },
+            {
+              "tick": 61440,
+              "value": 81
+            },
+            {
+              "tick": 65280,
+              "value": 81
+            }
+          ]
+        },
+        {
+          "cc": 68,
+          "points": [
+            {
+              "tick": 0,
+              "value": 0
+            },
+            {
+              "tick": 12027,
+              "value": 127
+            },
+            {
+              "tick": 30240,
+              "value": 0
+            },
+            {
+              "tick": 30743,
+              "value": 127
+            },
+            {
+              "tick": 36000,
+              "value": 0
+            },
+            {
+              "tick": 38917,
+              "value": 127
+            },
+            {
+              "tick": 49920,
+              "value": 0
+            },
+            {
+              "tick": 57635,
+              "value": 127
+            },
+            {
+              "tick": 62880,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 74,
+          "points": [
+            {
+              "tick": 0,
+              "value": 0
+            },
+            {
+              "tick": 11520,
+              "value": 117
+            },
+            {
+              "tick": 11573,
+              "value": 0
+            },
+            {
+              "tick": 26880,
+              "value": 117
+            },
+            {
+              "tick": 26933,
+              "value": 0
+            },
+            {
+              "tick": 30720,
+              "value": 117
+            },
+            {
+              "tick": 30773,
+              "value": 0
+            },
+            {
+              "tick": 38400,
+              "value": 117
+            },
+            {
+              "tick": 38453,
+              "value": 0
+            },
+            {
+              "tick": 49954,
+              "value": 117
+            },
+            {
+              "tick": 50007,
+              "value": 0
+            },
+            {
+              "tick": 53760,
+              "value": 117
+            },
+            {
+              "tick": 53794,
+              "value": 117
+            },
+            {
+              "tick": 53813,
+              "value": 0
+            },
+            {
+              "tick": 53847,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 7,
+          "points": [
+            {
+              "tick": 0,
+              "value": 90
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trk_basses",
+      "name": "Double Basses",
+      "family": "Strings",
+      "color": "#e04b34",
+      "role": "basses",
+      "lowestNote": 28,
+      "highestNote": 72,
+      "locked": false,
+      "muted": false,
+      "soloed": false,
+      "libraryGroupId": null,
+      "midiChannel": 3,
+      "frozen": false,
+      "volume": 0.8,
+      "pan": 0,
+      "notes": [
+        {
+          "pitch": 38,
+          "startTick": 20,
+          "durationTicks": 2860,
+          "velocity": 53,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 2896,
+          "durationTicks": 944,
+          "velocity": 51,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 31,
+          "startTick": 3860,
+          "durationTicks": 1420,
+          "velocity": 58,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 12015,
+          "durationTicks": 2385,
+          "velocity": 60,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 14415,
+          "durationTicks": 945,
+          "velocity": 58,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 15372,
+          "durationTicks": 2914,
+          "velocity": 59,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 33,
+          "startTick": 18260,
+          "durationTicks": 940,
+          "velocity": 59,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 31,
+          "startTick": 19223,
+          "durationTicks": 2857,
+          "velocity": 63,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 31,
+          "startTick": 22104,
+          "durationTicks": 936,
+          "velocity": 64,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 23061,
+          "durationTicks": 2859,
+          "velocity": 62,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 25942,
+          "durationTicks": 938,
+          "velocity": 67,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 26904,
+          "durationTicks": 2856,
+          "velocity": 57,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 29780,
+          "durationTicks": 700,
+          "velocity": 60,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 30739,
+          "durationTicks": 2925,
+          "velocity": 48,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 33,
+          "startTick": 33618,
+          "durationTicks": 942,
+          "velocity": 50,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 31,
+          "startTick": 34575,
+          "durationTicks": 1425,
+          "velocity": 51,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 38902,
+          "durationTicks": 2378,
+          "velocity": 64,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 41301,
+          "durationTicks": 939,
+          "velocity": 63,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 42255,
+          "durationTicks": 2865,
+          "velocity": 64,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 45141,
+          "durationTicks": 939,
+          "velocity": 66,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 46101,
+          "durationTicks": 2859,
+          "velocity": 65,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 48975,
+          "durationTicks": 945,
+          "velocity": 61,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 31,
+          "startTick": 49935,
+          "durationTicks": 2865,
+          "velocity": 61,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 31,
+          "startTick": 52814,
+          "durationTicks": 946,
+          "velocity": 63,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 53774,
+          "durationTicks": 2920,
+          "velocity": 70,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 33,
+          "startTick": 56657,
+          "durationTicks": 943,
+          "velocity": 66,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 57623,
+          "durationTicks": 2857,
+          "velocity": 58,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 36,
+          "startTick": 60499,
+          "durationTicks": 941,
+          "velocity": 66,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 38,
+          "startTick": 61452,
+          "durationTicks": 1428,
+          "velocity": 60,
+          "articulation": "legato"
+        }
+      ],
+      "cc": [
+        {
+          "cc": 1,
+          "points": [
+            {
+              "tick": 0,
+              "value": 38
+            },
+            {
+              "tick": 3840,
+              "value": 75
+            },
+            {
+              "tick": 7680,
+              "value": 50
+            },
+            {
+              "tick": 11520,
+              "value": 38
+            },
+            {
+              "tick": 15360,
+              "value": 81
+            },
+            {
+              "tick": 19200,
+              "value": 59
+            },
+            {
+              "tick": 23040,
+              "value": 81
+            },
+            {
+              "tick": 26880,
+              "value": 76
+            },
+            {
+              "tick": 30720,
+              "value": 74
+            },
+            {
+              "tick": 34560,
+              "value": 70
+            },
+            {
+              "tick": 38400,
+              "value": 38
+            },
+            {
+              "tick": 42240,
+              "value": 49
+            },
+            {
+              "tick": 46080,
+              "value": 71
+            },
+            {
+              "tick": 49920,
+              "value": 83
+            },
+            {
+              "tick": 53760,
+              "value": 84
+            },
+            {
+              "tick": 57600,
+              "value": 58
+            },
+            {
+              "tick": 61440,
+              "value": 74
+            },
+            {
+              "tick": 65280,
+              "value": 74
+            }
+          ]
+        },
+        {
+          "cc": 11,
+          "points": [
+            {
+              "tick": 0,
+              "value": 30
+            },
+            {
+              "tick": 3840,
+              "value": 82
+            },
+            {
+              "tick": 7680,
+              "value": 53
+            },
+            {
+              "tick": 11520,
+              "value": 30
+            },
+            {
+              "tick": 15360,
+              "value": 91
+            },
+            {
+              "tick": 19200,
+              "value": 61
+            },
+            {
+              "tick": 23040,
+              "value": 91
+            },
+            {
+              "tick": 26880,
+              "value": 85
+            },
+            {
+              "tick": 30623,
+              "value": 30
+            },
+            {
+              "tick": 30652,
+              "value": 34
+            },
+            {
+              "tick": 30710,
+              "value": 50
+            },
+            {
+              "tick": 30720,
+              "value": 81
+            },
+            {
+              "tick": 30739,
+              "value": 54
+            },
+            {
+              "tick": 34560,
+              "value": 76
+            },
+            {
+              "tick": 38400,
+              "value": 30
+            },
+            {
+              "tick": 42240,
+              "value": 46
+            },
+            {
+              "tick": 46080,
+              "value": 78
+            },
+            {
+              "tick": 49920,
+              "value": 95
+            },
+            {
+              "tick": 53760,
+              "value": 96
+            },
+            {
+              "tick": 57600,
+              "value": 59
+            },
+            {
+              "tick": 61440,
+              "value": 81
+            },
+            {
+              "tick": 65280,
+              "value": 81
+            }
+          ]
+        },
+        {
+          "cc": 68,
+          "points": [
+            {
+              "tick": 0,
+              "value": 0
+            },
+            {
+              "tick": 20,
+              "value": 127
+            },
+            {
+              "tick": 5280,
+              "value": 0
+            },
+            {
+              "tick": 12015,
+              "value": 127
+            },
+            {
+              "tick": 30480,
+              "value": 0
+            },
+            {
+              "tick": 30739,
+              "value": 127
+            },
+            {
+              "tick": 36000,
+              "value": 0
+            },
+            {
+              "tick": 38902,
+              "value": 127
+            },
+            {
+              "tick": 62880,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 74,
+          "points": [
+            {
+              "tick": 0,
+              "value": 117
+            },
+            {
+              "tick": 53,
+              "value": 0
+            },
+            {
+              "tick": 11520,
+              "value": 117
+            },
+            {
+              "tick": 11573,
+              "value": 0
+            },
+            {
+              "tick": 26880,
+              "value": 117
+            },
+            {
+              "tick": 26933,
+              "value": 0
+            },
+            {
+              "tick": 30720,
+              "value": 117
+            },
+            {
+              "tick": 30773,
+              "value": 0
+            },
+            {
+              "tick": 38400,
+              "value": 117
+            },
+            {
+              "tick": 38453,
+              "value": 0
+            },
+            {
+              "tick": 53760,
+              "value": 117
+            },
+            {
+              "tick": 53813,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 7,
+          "points": [
+            {
+              "tick": 0,
+              "value": 90
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "checks": {
+    "repeat": true,
+    "immutableInput": true,
+    "nonstringsEqualClassic": true,
+    "pianoInputScoreEventsDiagnosticsEqualClassic": true,
+    "conductorAndConsumedStringsEqualClassic": true,
+    "rosterEqualClassic": true
+  }
+}

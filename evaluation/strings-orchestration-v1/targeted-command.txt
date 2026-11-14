@@ -1,0 +1,8 @@
+$ npm test -- tests/strings-orchestration-v1.test.ts tests/strings-identity-v2.test.ts tests/strings-v1-voice.test.ts tests/strings-v1-ensemble.test.ts tests/strings-v1-viola.test.ts tests/strings-v1-cello.test.ts tests/strings-v1-double-bass.test.ts --maxWorkers=1 --minWorkers=1
+
+> crescode@0.0.0 test
+> vitest run tests/strings-orchestration-v1.test.ts tests/strings-identity-v2.test.ts tests/strings-v1-voice.test.ts tests/strings-v1-ensemble.test.ts tests/strings-v1-viola.test.ts tests/strings-v1-cello.test.ts tests/strings-v1-double-bass.test.ts --maxWorkers=1 --minWorkers=1
+
+sh: 1: vitest: not found
+
+exit=127; timeout=False; elapsedSeconds=0.504

@@ -1,0 +1,8 @@
+{
+  "protectedFilesUnchanged": 1173,
+  "extraSourceConfigFilesUnchanged": 14,
+  "midiFilesVerified": 72,
+  "fixedMaterialPitchTimingEquality": true,
+  "nonstringAndPianoInputIsolation": "asserted per case by generator",
+  "humanListeningConfirmed": false
+}

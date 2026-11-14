@@ -18,6 +18,8 @@
  *
  * Deterministic: the seed only breaks near-ties between candidates.
  */
+import type { StringsIdentity } from '../identity';
+import { generateIdentityTheme } from './theme-v2';
 import { mulberry32 } from '../../../engine/generate';
 import { chordAt, judgeLine, metricWeight, pitchClassOf, semitonesOf, type LineNote, type NoteFunction, type TonalFrame } from './line';
 
@@ -37,6 +39,9 @@ export interface ThemeIdentity {
   /** The leap that names the theme: between note `fromIndex` and the next. */
   readonly leap: { readonly fromIndex: number; readonly steps: number; readonly semitones: number; readonly name: string };
   readonly apexIndex: number;
+  readonly direction?: string;
+  readonly harmonicRoles?: readonly NoteFunction[];
+  readonly rhythmicCharacter?: string;
   /** Dissonances and where each resolves. */
   readonly dissonances: readonly { readonly index: number; readonly kind: NoteFunction; readonly resolvesToIndex: number; readonly direction: 'down' | 'up' }[];
   /** The mode's characteristic note where the theme holds it. */
@@ -195,7 +200,7 @@ export function describeTheme(frame: TonalFrame, notes: readonly LineNote[], fun
     semitoneIntervals: semis,
     rhythm: notes.map((x) => x.duration / frame.beatTicks),
     contour: moves.map((m) => (m > 0 ? '+' : m < 0 ? '-' : '=')).join(''),
-    leap: { fromIndex: leapAt, steps: moves[leapAt] ?? 0, semitones: Math.abs(semis[leapAt] ?? 0), name: `rising ${INTERVAL_NAMES[Math.abs(semis[leapAt] ?? 0)] ?? `${Math.abs(semis[leapAt] ?? 0)} semitones`}` },
+    leap: { fromIndex: leapAt, steps: moves[leapAt] ?? 0, semitones: Math.abs(semis[leapAt] ?? 0), name: `${(moves[leapAt] ?? 0) < 0 ? 'falling' : 'rising'} ${INTERVAL_NAMES[Math.abs(semis[leapAt] ?? 0)] ?? `${Math.abs(semis[leapAt] ?? 0)} semitones`}` },
     apexIndex: steps.indexOf(Math.max(...steps)),
     dissonances,
   };
@@ -223,9 +228,17 @@ export interface ThemeInput {
   /** Where the theme is first stated: it is composed against the harmony here. */
   readonly homeTick: number;
   readonly seed: number;
+  readonly identity?: StringsIdentity;
+  readonly availableTicks?: number;
 }
 
 export function generateTheme(input: ThemeInput): ThemeResult {
+  if (input.identity) return generateIdentityTheme(input, input.identity);
+  return generateLegacyTheme(input);
+}
+
+/** Frozen reconstruction of the accepted Stage 2–6 audition material. */
+function generateLegacyTheme(input: ThemeInput): ThemeResult {
   const { frame, homeTick } = input;
   const vocabulary = THEME_RHYTHMS[frame.beatsPerBar];
   if (!vocabulary) return { ok: false, reason: `no theme rhythm vocabulary for ${frame.beatsPerBar} beats in a bar` };

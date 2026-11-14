@@ -142,7 +142,7 @@ export function planEnsemble(input: EnsemblePlanInput): EnsemblePlan {
             reason: 'rule 1 — this is the first time the theme is heard in the piece',
           });
         } else {
-          const split = Math.min(segment.endTick, segment.startTick + headTicks);
+          const split = Math.min(segment.endTick, segment.startTick + (segment.thematicHeadTicks ?? headTicks));
           push({
             startTick: segment.startTick, endTick: split, relationship: 'listening', foreground: 'primary',
             primaryActivity: ['statement'], primaryDescription: describe(['statement'], `${segment.description} — the head`),

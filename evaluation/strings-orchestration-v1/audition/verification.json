@@ -1,0 +1,14 @@
+{
+  "classicGoldenCells": 60,
+  "classicGoldenTrackExports": 270,
+  "productionCases": 30,
+  "repeats": 30,
+  "isolation": 30,
+  "immutableInputs": 30,
+  "priorV2MaterialComparisons": 9,
+  "adversarialRegisterAndSupportingRejection": true,
+  "priorV2AndLegacyHandoff": true,
+  "midiFiles": 295,
+  "codec": "audit-only encoder; NOT installed midi-file",
+  "standardVitestTypecheckBuild": "must be reported separately; not implied by this harness"
+}

@@ -1,0 +1,15 @@
+{
+  "file": "evaluation/strings-orchestration-v1/package/Strings_V1_Ensemble_Orchestration_Identity_V1_Studio_One_Audition.zip",
+  "bytes": 796043,
+  "sha256": "a90f295dadc67a81443c043a7b86d645e4ba6570d6844252098f6b9f588d1f02",
+  "md5": "6b5c6f8bd934820e4da2f1e61de65ddc",
+  "archiveEntries": 347,
+  "midiFiles": 295,
+  "productionCases": 30,
+  "acceptedEnsembles": 26,
+  "classicFallbackCases": 4,
+  "uncompressedBytes": 5912195,
+  "zipCRCAndEveryPayloadByteVerified": true,
+  "payloadSHA256ManifestVerified": true,
+  "humanListeningConfirmed": false
+}

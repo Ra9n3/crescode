@@ -1,0 +1,8 @@
+$ npm test -- tests/strings-classic-fingerprint.test.ts tests/strings-v1-mode.test.ts tests/orchestrator-compose.test.ts tests/piano-engine-production.test.ts tests/phase4a.test.ts tests/phase4b.test.ts tests/harp-regression.test.ts tests/piano-pedal.test.ts tests/export.test.ts tests/phase12.test.ts --maxWorkers=1 --minWorkers=1
+
+> crescode@0.0.0 test
+> vitest run tests/strings-classic-fingerprint.test.ts tests/strings-v1-mode.test.ts tests/orchestrator-compose.test.ts tests/piano-engine-production.test.ts tests/phase4a.test.ts tests/phase4b.test.ts tests/harp-regression.test.ts tests/piano-pedal.test.ts tests/export.test.ts tests/phase12.test.ts --maxWorkers=1 --minWorkers=1
+
+sh: 1: vitest: not found
+
+exit=127; timeout=False; elapsedSeconds=0.117

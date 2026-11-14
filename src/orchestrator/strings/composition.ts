@@ -3,8 +3,11 @@
  * voice: a theme, phrases built from it, an instrument chosen for it, and
  * the notes that instrument plays.
  *
- * What this stage does not do: the other string tracks keep their classic
- * parts untouched; there is no ensemble planning, no second voice.
+ * Historical callers receive the independent voice described below.
+ * Coordinated callers supply orchestrationTracks: this module first makes
+ * a piece plan, then returns the unchanged V2 material and a violin SOURCE
+ * PREVIEW. orchestration/realize.ts owns their final ensemble, not this
+ * preview's selection/octave/notes. The plan precedes preview placement.
  *
  * ISOLATION. The voice is composed and shaped on its own, after the whole
  * classic pipeline has finished, and then REPLACES the chosen track's
@@ -24,6 +27,7 @@ import { humanizeStrings } from '../expression/humanize';
 import { overlapLegato } from '../expression/legato';
 import { buildCcLanes } from '../expression/cc';
 import { hashString } from '../../engine/generate';
+import type { StringsIdentity } from './identity';
 import type { StringsUnderstanding } from './understanding';
 import { STRING_INSTRUMENT_IDS, STRING_INSTRUMENT_SOURCES, buildInstrumentCapabilities, triggerableArticulations } from './characters/capabilities';
 import { VOICE_CHARACTER_BY_ROLE } from './characters/voices';
@@ -32,6 +36,7 @@ import { generateTheme, THEME_BARS, type Theme } from './material/theme';
 import { planPhrases, type PhrasePlan } from './phrases/plan';
 import { selectInstrument, type Selection, type SelectionCandidate } from './writers/select';
 import { pitchAtOctave0, writeVoice, type WrittenNote } from './writers/voice';
+import { planOrchestration, type OrchestrationPlan } from './orchestration/plan';
 
 export interface StringsV1VoiceInput {
   readonly project: Project;
@@ -41,8 +46,14 @@ export interface StringsV1VoiceInput {
   readonly understanding: StringsUnderstanding;
   /** The composition seed of this take. */
   readonly seed: number;
+  readonly identity?: StringsIdentity;
   /** Unlocked string tracks of the band (the tracks the classic strings wrote). */
   readonly voiceTracks: readonly Track[];
+  /** Completed classic roster, including the materialized bass desk. Enables
+   * coordinated ensemble planning; absent for historical reconstruction. */
+  readonly orchestrationTracks?: readonly Track[];
+  /** Final immutable nonstring context, for expression caps only. */
+  readonly orchestrationOtherNotes?: readonly { readonly role: string; readonly notes: readonly Note[] }[];
   /** Tracks that must keep their classic part (e.g. a cello whose notes feed a separate bass desk). */
   readonly reservedTrackIds: readonly { readonly trackId: string; readonly reason: string }[];
   /** The classic layer per bar and track, and the classic tune carrier per bar. */
@@ -54,6 +65,10 @@ export interface StringsV1VoiceInput {
 
 export interface StringsV1Composition {
   /** False when nothing was replaced: every string track keeps its classic part. */
+  readonly identity?: StringsIdentity;
+  /** When present this composition is the thematic SOURCE, not a claim that
+   * its preview violin is the final foreground. See context.orchestration. */
+  readonly orchestrationPlan?: OrchestrationPlan;
   readonly written: boolean;
   /** Why nothing was written; null when written. */
   readonly reason: string | null;
@@ -113,15 +128,22 @@ export function composeStringsV1Voice(input: StringsV1VoiceInput): StringsV1Comp
   const frameFacts = { key: frame.key, scale: frame.scale, barTicks: bar, beatTicks: beat, beatsPerBar: frame.beatsPerBar };
 
   const windows = soundingWindows(input.sections, input.arc, bar, bars);
-  const home = windows.find((w) => w.endTick - w.startTick >= THEME_BARS * bar);
+  const home = windows.find((w) => w.endTick - w.startTick >= THEME_BARS * bar)
+    ?? (input.identity ? windows.find((w) => w.endTick - w.startTick >= bar) : undefined);
   if (!home) return nothing(`no stretch of ${THEME_BARS} sounding bars exists for a theme`, { frame: frameFacts, windows });
 
-  const themed = generateTheme({ frame, homeTick: home.startTick, seed: (input.seed ^ hashString('strings-v1:theme')) >>> 0 });
+  const themed = generateTheme({ frame, homeTick: home.startTick, seed: (input.seed ^ hashString('strings-v1:theme')) >>> 0,
+    ...(input.identity ? { identity: input.identity, availableTicks: home.endTick - home.startTick } : {}),
+  });
   if (!themed.ok) return nothing(`no theme: ${themed.reason}`, { frame: frameFacts, windows });
   const theme = themed.theme;
 
-  const planned = planPhrases({ frame, theme, structure: understanding.structure, windows });
-  const base = { theme, frame: frameFacts, windows, phrases: planned.phrases, silentWindows: planned.silentWindows };
+  const planned = planPhrases({ frame, theme, structure: understanding.structure, windows, identity: input.identity });
+  // Plan all participating desks BEFORE any primary register or final part
+  // is placed. The preview below remains a V2 thematic-source diagnostic.
+  const orchestrationPlan = input.identity && input.orchestrationTracks
+    ? planOrchestration(input, frame, theme, planned.phrases) : undefined;
+  const base = { identity: input.identity, ...(orchestrationPlan ? { orchestrationPlan } : {}), theme, frame: frameFacts, windows, phrases: planned.phrases, silentWindows: planned.silentWindows };
   if (planned.phrases.length === 0) return nothing(`no phrase could be built from the theme: ${planned.silentWindows.map((w) => w.reason).join(' | ')}`, base);
 
   // the instrument: every unlocked string track of the band is examined
@@ -142,9 +164,12 @@ export function composeStringsV1Voice(input: StringsV1VoiceInput): StringsV1Comp
       classicLayers: input.assignment.map((a) => a.byTrack[track.id] ?? 'tacet'),
     });
   }
+  // The accepted multi-voice handoff supports a violin primary only. Do not
+  // cast a new theme onto Viola and silently abandon the rest of V1.
+  const primaryCandidates = input.identity ? candidates.filter((c) => c.role === 'violins1' || c.role === 'violins2') : candidates;
   const allNotes = planned.phrases.flatMap((p) => p.notes);
   const selection = selectInstrument({
-    candidates,
+    candidates: primaryCandidates,
     line: {
       notes: allNotes.map((n) => ({ tick: n.tick, duration: n.duration, pitchAtOctave0: pitchAtOctave0(frame, n) })),
       bars: [...new Set(allNotes.flatMap((n) => { const out: number[] = []; for (let b = Math.floor(n.tick / bar); b * bar < n.tick + n.duration; b++) out.push(b + 1); return out; }))],
@@ -153,6 +178,9 @@ export function composeStringsV1Voice(input: StringsV1VoiceInput): StringsV1Comp
     classicNotesByTrackId: input.classicNotesByTrackId,
   });
   const chosen = selection.chosen;
+  if (input.identity && primaryCandidates.length === 0 && candidates.length > 0) {
+    return nothing('no unlocked violin primary: the other strings retain their foundation; the accepted ensemble handoff requires a violin', { ...base, selection });
+  }
   if (!chosen || chosen.octave === null) {
     return nothing(`${selection.reason}${skipped.length ? ` (not examined: ${skipped.join('; ')})` : ''}`, { ...base, selection });
   }

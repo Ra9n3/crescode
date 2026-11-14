@@ -1,0 +1,16 @@
+{
+  "baselineFiles": 2675,
+  "missingBaselineFiles": [],
+  "changedBaselineFiles": [
+    "src/orchestrator/compose.ts",
+    "src/orchestrator/strings/bridge/index.ts",
+    "src/orchestrator/strings/composition.ts"
+  ],
+  "allOtherBaselineFilesUnchanged": true,
+  "earlierV2PackageFilesUnchanged": 126,
+  "branch": "arena/7c78989c-crescode",
+  "HEAD": "43d393c154f1a39adbbf5b16cc0f96a035bcefc8",
+  "stagedChanges": false,
+  "dependenciesInstalled": false,
+  "commitOrPushPerformed": false
+}

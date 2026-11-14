@@ -1,0 +1,30 @@
+PASS 60 classic golden cells, 270 string exports (notes/CC/export bytes/conductor/nonstrings)
+symphony-dorian-seed1-take0 ACCEPTED violas violins1:intentional-silence/0, violins2:substantial/8, violas:substantial/41, cellosBasses:substantial/22, basses:substantial/15
+symphony-dorian-seed2-take0 ACCEPTED violas violins1:intentional-silence/0, violins2:substantial/21, violas:substantial/49, cellosBasses:substantial/17, basses:intentional-silence/0
+symphony-dorian-seed3-take0 ACCEPTED violins2 violins1:substantial/28, violins2:substantial/40, violas:substantial/12, cellosBasses:substantial/8, basses:substantial/9
+symphony-dorian-seed4-take0 ACCEPTED violins1 violins1:substantial/21, violins2:substantial/36, violas:substantial/11, cellosBasses:intentional-sparse/2, basses:substantial/9
+symphony-dorian-seed5-take0 ACCEPTED no thematic opening violins1:intentional-silence/0, violins2:substantial/27, violas:substantial/22, cellosBasses:substantial/12, basses:substantial/15
+symphony-dorian-seed6-take0 ACCEPTED violins2 violins1:intentional-silence/0, violins2:substantial/13, violas:substantial/30, cellosBasses:substantial/11, basses:substantial/26
+symphony-dorian-seed7-take0 ACCEPTED cellosBasses violins1:intentional-silence/0, violins2:substantial/11, violas:substantial/40, cellosBasses:substantial/31, basses:substantial/12
+symphony-dorian-seed8-take0 ACCEPTED violins1 violins1:substantial/15, violins2:substantial/33, violas:substantial/15, cellosBasses:substantial/16, basses:substantial/14
+symphony-dorian-seed11-take0 ACCEPTED violins1 violins1:substantial/50, violins2:substantial/17, violas:intentional-sparse/6, cellosBasses:intentional-silence/0, basses:substantial/28
+symphony-dorian-seed1-take1 ACCEPTED no thematic opening violins1:intentional-silence/0, violins2:intentional-silence/0, violas:substantial/15, cellosBasses:substantial/35, basses:substantial/27
+symphony-dorian-seed1-take2 ACCEPTED violins2 violins1:intentional-silence/0, violins2:substantial/37, violas:substantial/17, cellosBasses:substantial/12, basses:substantial/15
+symphony-dorian-seed1-take3 ACCEPTED violins2 violins1:substantial/33, violins2:substantial/21, violas:intentional-silence/0, cellosBasses:substantial/12, basses:substantial/15
+chamber-dorian-seed1 ACCEPTED violins1 violins1:substantial/66, violins2:substantial/17, violas:intentional-sparse/6, cellosBasses:substantial/17, basses:unavailable/0
+cinematic-dorian-seed1 ACCEPTED violins2 violins1:substantial/9, violins2:substantial/53, violas:intentional-sparse/3, cellosBasses:intentional-sparse/3, basses:substantial/9
+hybridstudio-dorian-seed1 ACCEPTED cellosBasses violins1:intentional-silence/0, violins2:intentional-silence/0, violas:substantial/17, cellosBasses:substantial/25, basses:substantial/28
+long-40bars ACCEPTED violas violins1:intentional-silence/0, violins2:substantial/53, violas:substantial/151, cellosBasses:substantial/39, basses:intentional-silence/0
+short-2bars ACCEPTED violins2 violins1:intentional-silence/0, violins2:substantial/6, violas:substantial/4, cellosBasses:intentional-sparse/2, basses:intentional-silence/0
+unequal-repeated-17bars ACCEPTED no thematic opening violins1:intentional-silence/0, violins2:intentional-sparse/1, violas:substantial/31, cellosBasses:substantial/14, basses:substantial/29
+meter-3-4 ACCEPTED violins2 violins1:intentional-silence/0, violins2:substantial/39, violas:substantial/17, cellosBasses:substantial/12, basses:substantial/14
+meter-6-8 CLASSIC FALLBACK no thematic opening violins1:unavailable/0, violins2:unavailable/0, violas:unavailable/0, cellosBasses:unavailable/0, basses:unavailable/0
+meter-12-8 ACCEPTED violas violins1:intentional-silence/0, violins2:substantial/37, violas:substantial/59, cellosBasses:substantial/17, basses:intentional-silence/0
+static-pedal ACCEPTED no thematic opening violins1:substantial/25, violins2:substantial/18, violas:intentional-sparse/1, cellosBasses:substantial/7, basses:substantial/8
+borrowed-chromatic ACCEPTED violins2 violins1:intentional-silence/0, violins2:substantial/47, violas:substantial/28, cellosBasses:substantial/17, basses:substantial/8
+generated-dorian ACCEPTED violas violins1:intentional-silence/0, violins2:substantial/7, violas:substantial/32, cellosBasses:substantial/21, basses:substantial/14
+generated-aeolian ACCEPTED violins2 violins1:intentional-silence/0, violins2:substantial/47, violas:substantial/21, cellosBasses:substantial/16, basses:substantial/10
+fallback-unsupported-mode CLASSIC FALLBACK no thematic opening violins1:unavailable/0, violins2:unavailable/0, violas:unavailable/0, cellosBasses:unavailable/0, basses:unavailable/0
+locked-violin1 ACCEPTED violas violins1:unavailable/0, violins2:substantial/8, violas:substantial/41, cellosBasses:substantial/22, basses:substantial/15
+fallback-no-chords CLASSIC FALLBACK no thematic opening violins1:unavailable/0, violins2:unavailable/0, violas:unavailable/0, cellosBasses:unavailable/0, basses:unavailable/0
+PASS 28 production cases + exact repeats + adjacent protection; 277 MIDI files. Run independent Python measurements next.

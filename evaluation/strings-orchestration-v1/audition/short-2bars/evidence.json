@@ -1,0 +1,1715 @@
+{
+  "tag": "short-2bars",
+  "seed": 1,
+  "storedTake": 0,
+  "producedTake": 1,
+  "mode": "Dorian",
+  "key": 2,
+  "meter": {
+    "numerator": 4,
+    "denominator": 4
+  },
+  "endTick": 7680,
+  "codec": "audit-only SMF encoder; actual compose/export/profile functions; classic golden byte equality checked",
+  "sections": [
+    {
+      "id": "short",
+      "name": "Verse",
+      "startBar": 1,
+      "lengthBars": 2
+    }
+  ],
+  "chords": [
+    {
+      "id": "c01",
+      "symbol": "Dm7",
+      "startTick": 0,
+      "durationTicks": 3840
+    },
+    {
+      "id": "c02",
+      "symbol": "G7",
+      "startTick": 3840,
+      "durationTicks": 3840
+    }
+  ],
+  "sourceSelection": {
+    "chosen": {
+      "trackId": "trk_03_violins1",
+      "role": "violins1",
+      "name": "Violin I",
+      "suitable": true,
+      "unsuitable": [],
+      "octave": 1,
+      "range": [
+        77,
+        83
+      ],
+      "registerFit": 1,
+      "competition": 1,
+      "masking": 0,
+      "score": 0,
+      "replaces": "classic layers by bar: pad ×2",
+      "character": "bright and carrying; at its best above the staff"
+    },
+    "evaluations": [
+      {
+        "trackId": "trk_04_violins2",
+        "role": "violins2",
+        "name": "Violin II",
+        "suitable": true,
+        "unsuitable": [],
+        "octave": 0,
+        "range": [
+          65,
+          71
+        ],
+        "registerFit": 1,
+        "competition": 1,
+        "masking": 0,
+        "score": 0,
+        "replaces": "classic layers by bar: pad ×2",
+        "character": "warm, in the middle of the violin; close to a singing voice"
+      },
+      {
+        "trackId": "trk_03_violins1",
+        "role": "violins1",
+        "name": "Violin I",
+        "suitable": true,
+        "unsuitable": [],
+        "octave": 1,
+        "range": [
+          77,
+          83
+        ],
+        "registerFit": 1,
+        "competition": 1,
+        "masking": 0,
+        "score": 0,
+        "replaces": "classic layers by bar: pad ×2",
+        "character": "bright and carrying; at its best above the staff"
+      }
+    ],
+    "reason": "Violin I: 100% of the line inside its singing register, a competing classic tune in 100% of the line's bars, another string voice within a third for 0% of its sounding time (score 0; next: Violin II 0)"
+  },
+  "theme": {
+    "id": "strings-theme-v2-89ce316f-0",
+    "notes": [
+      {
+        "tick": 0,
+        "duration": 960,
+        "step": 2,
+        "alter": 0,
+        "function": "chord-tone",
+        "inHead": true
+      },
+      {
+        "tick": 960,
+        "duration": 480,
+        "step": 3,
+        "alter": 0,
+        "function": "passing",
+        "inHead": true
+      },
+      {
+        "tick": 1440,
+        "duration": 1440,
+        "step": 4,
+        "alter": 0,
+        "function": "chord-tone",
+        "inHead": true
+      },
+      {
+        "tick": 2880,
+        "duration": 480,
+        "step": 6,
+        "alter": 0,
+        "function": "chord-tone",
+        "inHead": true
+      },
+      {
+        "tick": 3360,
+        "duration": 480,
+        "step": 7,
+        "alter": 0,
+        "function": "chord-tone",
+        "inHead": true
+      },
+      {
+        "tick": 3840,
+        "duration": 960,
+        "step": 6,
+        "alter": 0,
+        "function": "appoggiatura",
+        "inHead": false
+      },
+      {
+        "tick": 4800,
+        "duration": 480,
+        "step": 5,
+        "alter": 0,
+        "function": "chord-tone",
+        "inHead": false
+      },
+      {
+        "tick": 5280,
+        "duration": 480,
+        "step": 5,
+        "alter": 0,
+        "function": "chord-tone",
+        "inHead": false
+      },
+      {
+        "tick": 5760,
+        "duration": 960,
+        "step": 4,
+        "alter": 0,
+        "function": "appoggiatura",
+        "inHead": false
+      },
+      {
+        "tick": 6720,
+        "duration": 960,
+        "step": 3,
+        "alter": 0,
+        "function": "chord-tone",
+        "inHead": false
+      }
+    ],
+    "lengthTicks": 7680,
+    "headCount": 5,
+    "identity": {
+      "intervals": [
+        1,
+        1,
+        2,
+        1,
+        -1,
+        -1,
+        0,
+        -1,
+        -1
+      ],
+      "semitoneIntervals": [
+        2,
+        2,
+        3,
+        2,
+        -2,
+        -1,
+        0,
+        -2,
+        -2
+      ],
+      "rhythm": [
+        1,
+        0.5,
+        1.5,
+        0.5,
+        0.5,
+        1,
+        0.5,
+        0.5,
+        1,
+        1
+      ],
+      "contour": "++++--=--",
+      "leap": {
+        "fromIndex": -1,
+        "steps": 0,
+        "semitones": 0,
+        "name": "stepwise gesture (no defining leap)"
+      },
+      "apexIndex": 4,
+      "dissonances": [
+        {
+          "kind": "passing",
+          "index": 1,
+          "resolvesToIndex": 2,
+          "direction": "up"
+        },
+        {
+          "kind": "appoggiatura",
+          "index": 5,
+          "resolvesToIndex": 6,
+          "direction": "down"
+        },
+        {
+          "kind": "appoggiatura",
+          "index": 8,
+          "resolvesToIndex": 9,
+          "direction": "down"
+        }
+      ],
+      "colourTone": {
+        "index": 6,
+        "pitchClass": 11,
+        "reason": "the scale degree that tells this mode from plain major or minor"
+      },
+      "chromatic": [],
+      "character": "active, grounded; leaning and resolving",
+      "protectedFeatures": [
+        "the head rhythm",
+        "the head interval directions",
+        "the stepwise/repeated-note opening"
+      ],
+      "preferredFeatures": [
+        "the rhythm of the tail",
+        "the direction of every move in the tail",
+        "the dissonance on note 2 and its resolution up by step",
+        "the mode's colour note on note 7"
+      ],
+      "direction": "opening outward",
+      "harmonicRoles": [
+        "chord-tone",
+        "passing",
+        "chord-tone",
+        "chord-tone",
+        "chord-tone",
+        "appoggiatura",
+        "chord-tone",
+        "chord-tone",
+        "appoggiatura",
+        "chord-tone"
+      ],
+      "rhythmicCharacter": "active, grounded"
+    },
+    "home": {
+      "startTick": 0,
+      "endTick": 7680,
+      "chords": [
+        "Dm7",
+        "G7"
+      ]
+    },
+    "score": -5.329198505670247,
+    "scoreParts": {
+      "line": 0.3223067661877207,
+      "rhythm": 5.006891739482526,
+      "breadth": 0
+    },
+    "candidatesJudged": 758
+  },
+  "phrases": [
+    {
+      "index": 0,
+      "window": {
+        "startTick": 0,
+        "endTick": 7680
+      },
+      "lifted": false,
+      "startTick": 0,
+      "endTick": 5760,
+      "development": {
+        "strategy": "tail-led-connection",
+        "relationship": "introduction",
+        "evidence": [
+          "remaining sounding window"
+        ]
+      },
+      "goal": {
+        "tick": 3840,
+        "chord": "G7",
+        "evidence": "root falls a fifth onto a chord that is not the tonic",
+        "ending": "open"
+      },
+      "climax": {
+        "tick": 0,
+        "step": 5
+      },
+      "segments": [
+        {
+          "kind": "approach",
+          "startTick": 0,
+          "endTick": 3840,
+          "noteCount": 5,
+          "adaptation": {
+            "ok": true,
+            "notes": [
+              {
+                "tick": 0,
+                "duration": 960,
+                "step": 5,
+                "alter": 0
+              },
+              {
+                "tick": 960,
+                "duration": 480,
+                "step": 4,
+                "alter": 0
+              },
+              {
+                "tick": 1440,
+                "duration": 480,
+                "step": 4,
+                "alter": 0
+              },
+              {
+                "tick": 1920,
+                "duration": 960,
+                "step": 3,
+                "alter": 0
+              },
+              {
+                "tick": 2880,
+                "duration": 960,
+                "step": 2,
+                "alter": 0
+              }
+            ],
+            "functions": [
+              "appoggiatura",
+              "chord-tone",
+              "chord-tone",
+              "appoggiatura",
+              "chord-tone"
+            ],
+            "strategy": "transposition",
+            "shift": -1,
+            "moved": [],
+            "preferredLost": [],
+            "tried": [
+              "transposed -2 steps: dissonance over Dm7 does not resolve by step; the line ends on a dissonance over Dm7",
+              "at pitch: dissonance over Dm7 does not resolve by step; the line ends on a dissonance over Dm7",
+              "transposed -4 steps: dissonance over Dm7 does not resolve by step",
+              "transposed +3 steps: dissonance over Dm7 does not resolve by step",
+              "transposed +5 steps: dissonance over Dm7 does not resolve by step; the line ends on a dissonance over Dm7",
+              "transposed -5 steps: the line ends on a dissonance over Dm7",
+              "transposed +7 steps: dissonance over Dm7 does not resolve by step; the line ends on a dissonance over Dm7",
+              "transposed -7 steps: dissonance over Dm7 does not resolve by step; the line ends on a dissonance over Dm7"
+            ]
+          },
+          "operation": "tail",
+          "description": "tail, rhythm ×1, transposition, shift -1",
+          "rhythmScale": 1,
+          "thematicHeadTicks": 0
+        },
+        {
+          "kind": "ending",
+          "startTick": 3840,
+          "endTick": 5760,
+          "noteCount": 1,
+          "adaptation": null,
+          "operation": "arrival",
+          "description": "fifth-fall: root falls a fifth onto a chord that is not the tonic"
+        }
+      ],
+      "notes": [
+        {
+          "tick": 0,
+          "duration": 960,
+          "step": 5,
+          "alter": 0,
+          "segment": "approach",
+          "breathAfter": false,
+          "function": "appoggiatura",
+          "intensity": 0.45
+        },
+        {
+          "tick": 960,
+          "duration": 480,
+          "step": 4,
+          "alter": 0,
+          "segment": "approach",
+          "breathAfter": false,
+          "function": "chord-tone",
+          "intensity": 0.825
+        },
+        {
+          "tick": 1440,
+          "duration": 480,
+          "step": 4,
+          "alter": 0,
+          "segment": "approach",
+          "breathAfter": false,
+          "function": "chord-tone",
+          "intensity": 0.7375
+        },
+        {
+          "tick": 1920,
+          "duration": 960,
+          "step": 3,
+          "alter": 0,
+          "segment": "approach",
+          "breathAfter": false,
+          "function": "appoggiatura",
+          "intensity": 0.65
+        },
+        {
+          "tick": 2880,
+          "duration": 960,
+          "step": 2,
+          "alter": 0,
+          "segment": "approach",
+          "breathAfter": true,
+          "function": "chord-tone",
+          "intensity": 0.4750000000000001
+        },
+        {
+          "tick": 3840,
+          "duration": 1920,
+          "step": 2,
+          "alter": 0,
+          "segment": "ending",
+          "breathAfter": true,
+          "function": "chord-tone",
+          "intensity": 0.30000000000000004
+        }
+      ],
+      "landmarks": [
+        {
+          "tick": 0,
+          "label": "delayed-arrival: phrase begins"
+        },
+        {
+          "tick": 0,
+          "label": "tail, rhythm ×1, transposition, shift -1"
+        },
+        {
+          "tick": 3840,
+          "label": "fifth-fall: root falls a fifth onto a chord that is not the tonic"
+        },
+        {
+          "tick": 0,
+          "label": "high point"
+        },
+        {
+          "tick": 5760,
+          "label": "phrase ends"
+        }
+      ],
+      "breathTicks": 1920
+    }
+  ],
+  "orchestration": {
+    "version": "ensemble-v1",
+    "accepted": true,
+    "reason": "foreground accepted; supporting rejections/sparsity remain explicit, not relabelled as full realization",
+    "plan": {
+      "version": "ensemble-v1",
+      "facts": {
+        "brightness": 0.5369230769230768,
+        "openness": 0.3,
+        "density": 1.25,
+        "slope": 0.033333333333333215,
+        "harmonicMotion": 1,
+        "chromaticShare": 0
+      },
+      "capabilities": [
+        {
+          "role": "violins1",
+          "trackId": "trk_03_violins1",
+          "range": [
+            55,
+            88
+          ],
+          "triggerable": [
+            "legato",
+            "marcato",
+            "spiccato",
+            "pizz",
+            "tremolo",
+            "sustain"
+          ]
+        },
+        {
+          "role": "violins2",
+          "trackId": "trk_04_violins2",
+          "range": [
+            55,
+            86
+          ],
+          "triggerable": [
+            "legato",
+            "marcato",
+            "spiccato",
+            "pizz",
+            "tremolo",
+            "sustain"
+          ]
+        },
+        {
+          "role": "violas",
+          "trackId": "trk_05_violas",
+          "range": [
+            48,
+            79
+          ],
+          "triggerable": [
+            "legato",
+            "marcato",
+            "spiccato",
+            "pizz",
+            "tremolo",
+            "sustain"
+          ]
+        },
+        {
+          "role": "cellosBasses",
+          "trackId": "trk_06_cellosBasses",
+          "range": [
+            36,
+            69
+          ],
+          "triggerable": [
+            "legato",
+            "marcato",
+            "pizz",
+            "tremolo",
+            "sustain"
+          ]
+        },
+        {
+          "role": "basses",
+          "trackId": "trk_basses",
+          "range": [
+            28,
+            48
+          ],
+          "triggerable": [
+            "legato",
+            "marcato",
+            "pizz",
+            "tremolo",
+            "sustain"
+          ]
+        }
+      ],
+      "unavailable": [],
+      "opening": {
+        "foreground": "violins2",
+        "untilTick": 3840,
+        "reason": "theme centroid 4.50, density 1.25, register direction 0.03: violins2 can establish the idea"
+      },
+      "contributions": [
+        {
+          "index": 0,
+          "phrase": 0,
+          "startTick": 0,
+          "endTick": 5760,
+          "role": "violins2",
+          "duty": "foreground",
+          "target": 70.18461538461538,
+          "tessitura": [
+            60,
+            81
+          ],
+          "reason": "remembered tail-led-connection; tessitura follows energy and head-to-tail direction"
+        },
+        {
+          "index": 1,
+          "phrase": 0,
+          "startTick": 0,
+          "endTick": 5760,
+          "role": "cellosBasses",
+          "duty": "foundation",
+          "target": 50.51692307692308,
+          "tessitura": [
+            43,
+            58
+          ],
+          "reason": "a coordinated floor, not a copy of a provisional classic lower part"
+        },
+        {
+          "index": 2,
+          "phrase": 0,
+          "startTick": 0,
+          "endTick": 5760,
+          "role": "violas",
+          "duty": "support",
+          "target": 58.684615384615384,
+          "tessitura": [
+            51,
+            66
+          ],
+          "reason": "complementary harmonic layer; centre allocated before foreground placement"
+        },
+        {
+          "index": 3,
+          "phrase": 0,
+          "startTick": 5760,
+          "endTick": 7680,
+          "role": "violas",
+          "duty": "answer",
+          "target": 59,
+          "tessitura": [
+            52,
+            66
+          ],
+          "reason": "answer in the written breath; theme fragment must still fit its new harmony"
+        }
+      ],
+      "withheld": []
+    },
+    "gridByTrackId": {
+      "trk_03_violins1": [],
+      "trk_04_violins2": [
+        {
+          "pitch": 71,
+          "startTick": 0,
+          "durationTicks": 960,
+          "velocity": 79,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 69,
+          "startTick": 960,
+          "durationTicks": 480,
+          "velocity": 71,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 69,
+          "startTick": 1440,
+          "durationTicks": 480,
+          "velocity": 75,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 67,
+          "startTick": 1920,
+          "durationTicks": 960,
+          "velocity": 79,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 65,
+          "startTick": 2880,
+          "durationTicks": 720,
+          "velocity": 71,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 65,
+          "startTick": 3840,
+          "durationTicks": 1440,
+          "velocity": 62,
+          "articulation": "legato"
+        }
+      ],
+      "trk_05_violas": [
+        {
+          "pitch": 60,
+          "startTick": 0,
+          "durationTicks": 3840,
+          "velocity": 67,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 3840,
+          "durationTicks": 1440,
+          "velocity": 51,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 53,
+          "startTick": 5760,
+          "durationTicks": 960,
+          "velocity": 62,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 6720,
+          "durationTicks": 360,
+          "velocity": 62,
+          "articulation": "legato"
+        }
+      ],
+      "trk_06_cellosBasses": [
+        {
+          "pitch": 50,
+          "startTick": 0,
+          "durationTicks": 3840,
+          "velocity": 65,
+          "articulation": "tremolo"
+        },
+        {
+          "pitch": 55,
+          "startTick": 3840,
+          "durationTicks": 1440,
+          "velocity": 49,
+          "articulation": "legato"
+        }
+      ],
+      "trk_basses": []
+    },
+    "notesByTrackId": {
+      "trk_03_violins1": [],
+      "trk_04_violins2": [
+        {
+          "pitch": 71,
+          "startTick": 22,
+          "durationTicks": 989,
+          "velocity": 79,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 69,
+          "startTick": 978,
+          "durationTicks": 462,
+          "velocity": 69,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 69,
+          "startTick": 1464,
+          "durationTicks": 502,
+          "velocity": 79,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 67,
+          "startTick": 1937,
+          "durationTicks": 1002,
+          "velocity": 79,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 65,
+          "startTick": 2906,
+          "durationTicks": 694,
+          "velocity": 72,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 65,
+          "startTick": 3862,
+          "durationTicks": 1418,
+          "velocity": 59,
+          "articulation": "legato"
+        }
+      ],
+      "trk_05_violas": [
+        {
+          "pitch": 60,
+          "startTick": 17,
+          "durationTicks": 3823,
+          "velocity": 69,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 3864,
+          "durationTicks": 1416,
+          "velocity": 54,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 53,
+          "startTick": 5778,
+          "durationTicks": 977,
+          "velocity": 58,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 6735,
+          "durationTicks": 345,
+          "velocity": 60,
+          "articulation": "legato"
+        }
+      ],
+      "trk_06_cellosBasses": [
+        {
+          "pitch": 50,
+          "startTick": 35,
+          "durationTicks": 3805,
+          "velocity": 65,
+          "articulation": "tremolo"
+        },
+        {
+          "pitch": 55,
+          "startTick": 3869,
+          "durationTicks": 1411,
+          "velocity": 45,
+          "articulation": "legato"
+        }
+      ],
+      "trk_basses": []
+    },
+    "ccByTrackId": {
+      "trk_04_violins2": [
+        {
+          "cc": 1,
+          "points": [
+            {
+              "tick": 0,
+              "value": 84
+            },
+            {
+              "tick": 3840,
+              "value": 74
+            },
+            {
+              "tick": 7680,
+              "value": 74
+            }
+          ]
+        },
+        {
+          "cc": 11,
+          "points": [
+            {
+              "tick": 0,
+              "value": 96
+            },
+            {
+              "tick": 3840,
+              "value": 81
+            },
+            {
+              "tick": 7680,
+              "value": 81
+            }
+          ]
+        },
+        {
+          "cc": 68,
+          "points": [
+            {
+              "tick": 0,
+              "value": 0
+            },
+            {
+              "tick": 22,
+              "value": 127
+            },
+            {
+              "tick": 3600,
+              "value": 0
+            },
+            {
+              "tick": 3862,
+              "value": 127
+            },
+            {
+              "tick": 5280,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 74,
+          "points": [
+            {
+              "tick": 0,
+              "value": 106
+            },
+            {
+              "tick": 92,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 7,
+          "points": [
+            {
+              "tick": 0,
+              "value": 90
+            }
+          ]
+        }
+      ],
+      "trk_05_violas": [
+        {
+          "cc": 1,
+          "points": [
+            {
+              "tick": 0,
+              "value": 84
+            },
+            {
+              "tick": 3840,
+              "value": 74
+            },
+            {
+              "tick": 7680,
+              "value": 74
+            }
+          ]
+        },
+        {
+          "cc": 11,
+          "points": [
+            {
+              "tick": 0,
+              "value": 96
+            },
+            {
+              "tick": 3840,
+              "value": 81
+            },
+            {
+              "tick": 7680,
+              "value": 81
+            }
+          ]
+        },
+        {
+          "cc": 68,
+          "points": [
+            {
+              "tick": 0,
+              "value": 0
+            },
+            {
+              "tick": 17,
+              "value": 127
+            },
+            {
+              "tick": 5280,
+              "value": 0
+            },
+            {
+              "tick": 5778,
+              "value": 127
+            },
+            {
+              "tick": 7080,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 74,
+          "points": [
+            {
+              "tick": 0,
+              "value": 106
+            },
+            {
+              "tick": 92,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 7,
+          "points": [
+            {
+              "tick": 0,
+              "value": 90
+            }
+          ]
+        }
+      ],
+      "trk_06_cellosBasses": [
+        {
+          "cc": 1,
+          "points": [
+            {
+              "tick": 0,
+              "value": 61
+            },
+            {
+              "tick": 3840,
+              "value": 74
+            },
+            {
+              "tick": 7680,
+              "value": 74
+            }
+          ]
+        },
+        {
+          "cc": 11,
+          "points": [
+            {
+              "tick": 0,
+              "value": 69
+            },
+            {
+              "tick": 3760,
+              "value": 30
+            },
+            {
+              "tick": 3787,
+              "value": 34
+            },
+            {
+              "tick": 3815,
+              "value": 42
+            },
+            {
+              "tick": 3840,
+              "value": 81
+            },
+            {
+              "tick": 3842,
+              "value": 50
+            },
+            {
+              "tick": 3869,
+              "value": 54
+            },
+            {
+              "tick": 7680,
+              "value": 81
+            }
+          ]
+        },
+        {
+          "cc": 68,
+          "points": [
+            {
+              "tick": 0,
+              "value": 0
+            },
+            {
+              "tick": 3869,
+              "value": 127
+            },
+            {
+              "tick": 5280,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 74,
+          "points": [
+            {
+              "tick": 0,
+              "value": 106
+            },
+            {
+              "tick": 35,
+              "value": 106
+            },
+            {
+              "tick": 92,
+              "value": 0
+            },
+            {
+              "tick": 127,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 7,
+          "points": [
+            {
+              "tick": 0,
+              "value": 90
+            }
+          ]
+        }
+      ]
+    },
+    "contributions": [
+      {
+        "contribution": 0,
+        "status": "fulfilled",
+        "plannedTicks": 5760,
+        "generatedNotes": 6,
+        "generatedTicks": 5040,
+        "coverage": 0.875,
+        "realizedNotes": 6,
+        "realizedTicks": 4972,
+        "realizedCoverage": 0.8631944444444445,
+        "range": [
+          65,
+          71
+        ],
+        "octave": 0,
+        "repairs": [],
+        "reason": "role-relative duration and note material realized"
+      },
+      {
+        "contribution": 1,
+        "status": "sparse",
+        "plannedTicks": 5760,
+        "generatedNotes": 2,
+        "generatedTicks": 5280,
+        "coverage": 0.9166666666666666,
+        "realizedNotes": 2,
+        "realizedTicks": 5216,
+        "realizedCoverage": 0.9055555555555556,
+        "range": [
+          50,
+          55
+        ],
+        "octave": null,
+        "repairs": [],
+        "reason": "bounded/sustained role met its minimum, but explicitly sparse"
+      },
+      {
+        "contribution": 2,
+        "status": "sparse",
+        "plannedTicks": 5760,
+        "generatedNotes": 2,
+        "generatedTicks": 5280,
+        "coverage": 0.9166666666666666,
+        "realizedNotes": 2,
+        "realizedTicks": 5239,
+        "realizedCoverage": 0.9095486111111111,
+        "range": [
+          60,
+          62
+        ],
+        "octave": null,
+        "repairs": [],
+        "reason": "bounded/sustained role met its minimum, but explicitly sparse"
+      },
+      {
+        "contribution": 3,
+        "status": "sparse",
+        "plannedTicks": 1920,
+        "generatedNotes": 2,
+        "generatedTicks": 1320,
+        "coverage": 0.6875,
+        "realizedNotes": 2,
+        "realizedTicks": 1302,
+        "realizedCoverage": 0.678125,
+        "range": [
+          53,
+          55
+        ],
+        "octave": -1,
+        "repairs": [
+          "answer reinterpretation; 2/5 head notes, duration factor 1"
+        ],
+        "reason": "bounded/sustained role met its minimum, but explicitly sparse"
+      }
+    ],
+    "desks": [
+      {
+        "role": "violins1",
+        "trackId": "trk_03_violins1",
+        "state": "intentional-silence",
+        "plannedContributions": 0,
+        "fulfilledContributions": 0,
+        "notes": 0,
+        "ticks": 0,
+        "occupancy": 0,
+        "phraseCoverage": 0,
+        "independentOnsets": 0,
+        "range": []
+      },
+      {
+        "role": "violins2",
+        "trackId": "trk_04_violins2",
+        "state": "substantial",
+        "plannedContributions": 1,
+        "fulfilledContributions": 1,
+        "notes": 6,
+        "ticks": 4972,
+        "occupancy": 0.6473958333333333,
+        "phraseCoverage": 1,
+        "independentOnsets": 1,
+        "range": [
+          65,
+          71
+        ]
+      },
+      {
+        "role": "violas",
+        "trackId": "trk_05_violas",
+        "state": "substantial",
+        "plannedContributions": 2,
+        "fulfilledContributions": 2,
+        "notes": 4,
+        "ticks": 6541,
+        "occupancy": 0.8516927083333333,
+        "phraseCoverage": 1,
+        "independentOnsets": 1,
+        "range": [
+          53,
+          62
+        ]
+      },
+      {
+        "role": "cellosBasses",
+        "trackId": "trk_06_cellosBasses",
+        "state": "intentional-sparse",
+        "plannedContributions": 1,
+        "fulfilledContributions": 1,
+        "notes": 2,
+        "ticks": 5216,
+        "occupancy": 0.6791666666666667,
+        "phraseCoverage": 1,
+        "independentOnsets": 1,
+        "range": [
+          50,
+          55
+        ]
+      },
+      {
+        "role": "basses",
+        "trackId": "trk_basses",
+        "state": "intentional-silence",
+        "plannedContributions": 0,
+        "fulfilledContributions": 0,
+        "notes": 0,
+        "ticks": 0,
+        "occupancy": 0,
+        "phraseCoverage": 0,
+        "independentOnsets": 0,
+        "range": []
+      }
+    ],
+    "exportValidation": "not-serialized-here"
+  },
+  "tracks": [
+    {
+      "id": "trk_03_violins1",
+      "name": "Violins I",
+      "family": "Strings",
+      "color": "#e04b34",
+      "role": "violins1",
+      "lowestNote": 55,
+      "highestNote": 96,
+      "locked": false,
+      "muted": false,
+      "soloed": false,
+      "libraryGroupId": null,
+      "midiChannel": 1,
+      "frozen": false,
+      "volume": 0.8,
+      "pan": 0,
+      "notes": [],
+      "cc": []
+    },
+    {
+      "id": "trk_04_violins2",
+      "name": "Violins II",
+      "family": "Strings",
+      "color": "#e04b34",
+      "role": "violins2",
+      "lowestNote": 55,
+      "highestNote": 93,
+      "locked": false,
+      "muted": false,
+      "soloed": false,
+      "libraryGroupId": null,
+      "midiChannel": 2,
+      "frozen": false,
+      "volume": 0.8,
+      "pan": 0,
+      "notes": [
+        {
+          "pitch": 71,
+          "startTick": 22,
+          "durationTicks": 989,
+          "velocity": 79,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 69,
+          "startTick": 978,
+          "durationTicks": 462,
+          "velocity": 69,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 69,
+          "startTick": 1464,
+          "durationTicks": 502,
+          "velocity": 79,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 67,
+          "startTick": 1937,
+          "durationTicks": 1002,
+          "velocity": 79,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 65,
+          "startTick": 2906,
+          "durationTicks": 694,
+          "velocity": 72,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 65,
+          "startTick": 3862,
+          "durationTicks": 1418,
+          "velocity": 59,
+          "articulation": "legato"
+        }
+      ],
+      "cc": [
+        {
+          "cc": 1,
+          "points": [
+            {
+              "tick": 0,
+              "value": 84
+            },
+            {
+              "tick": 3840,
+              "value": 74
+            },
+            {
+              "tick": 7680,
+              "value": 74
+            }
+          ]
+        },
+        {
+          "cc": 11,
+          "points": [
+            {
+              "tick": 0,
+              "value": 96
+            },
+            {
+              "tick": 3840,
+              "value": 81
+            },
+            {
+              "tick": 7680,
+              "value": 81
+            }
+          ]
+        },
+        {
+          "cc": 68,
+          "points": [
+            {
+              "tick": 0,
+              "value": 0
+            },
+            {
+              "tick": 22,
+              "value": 127
+            },
+            {
+              "tick": 3600,
+              "value": 0
+            },
+            {
+              "tick": 3862,
+              "value": 127
+            },
+            {
+              "tick": 5280,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 74,
+          "points": [
+            {
+              "tick": 0,
+              "value": 106
+            },
+            {
+              "tick": 92,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 7,
+          "points": [
+            {
+              "tick": 0,
+              "value": 90
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trk_05_violas",
+      "name": "Violas",
+      "family": "Strings",
+      "color": "#e04b34",
+      "role": "violas",
+      "lowestNote": 48,
+      "highestNote": 88,
+      "locked": false,
+      "muted": false,
+      "soloed": false,
+      "libraryGroupId": null,
+      "midiChannel": 3,
+      "frozen": false,
+      "volume": 0.8,
+      "pan": 0,
+      "notes": [
+        {
+          "pitch": 60,
+          "startTick": 17,
+          "durationTicks": 3823,
+          "velocity": 69,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 62,
+          "startTick": 3864,
+          "durationTicks": 1416,
+          "velocity": 54,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 53,
+          "startTick": 5778,
+          "durationTicks": 977,
+          "velocity": 58,
+          "articulation": "legato"
+        },
+        {
+          "pitch": 55,
+          "startTick": 6735,
+          "durationTicks": 345,
+          "velocity": 60,
+          "articulation": "legato"
+        }
+      ],
+      "cc": [
+        {
+          "cc": 1,
+          "points": [
+            {
+              "tick": 0,
+              "value": 84
+            },
+            {
+              "tick": 3840,
+              "value": 74
+            },
+            {
+              "tick": 7680,
+              "value": 74
+            }
+          ]
+        },
+        {
+          "cc": 11,
+          "points": [
+            {
+              "tick": 0,
+              "value": 96
+            },
+            {
+              "tick": 3840,
+              "value": 81
+            },
+            {
+              "tick": 7680,
+              "value": 81
+            }
+          ]
+        },
+        {
+          "cc": 68,
+          "points": [
+            {
+              "tick": 0,
+              "value": 0
+            },
+            {
+              "tick": 17,
+              "value": 127
+            },
+            {
+              "tick": 5280,
+              "value": 0
+            },
+            {
+              "tick": 5778,
+              "value": 127
+            },
+            {
+              "tick": 7080,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 74,
+          "points": [
+            {
+              "tick": 0,
+              "value": 106
+            },
+            {
+              "tick": 92,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 7,
+          "points": [
+            {
+              "tick": 0,
+              "value": 90
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trk_06_cellosBasses",
+      "name": "Cellos/Basses",
+      "family": "Strings",
+      "color": "#e04b34",
+      "role": "cellosBasses",
+      "lowestNote": 28,
+      "highestNote": 84,
+      "locked": false,
+      "muted": false,
+      "soloed": false,
+      "libraryGroupId": null,
+      "midiChannel": 4,
+      "frozen": false,
+      "volume": 0.8,
+      "pan": 0,
+      "notes": [
+        {
+          "pitch": 50,
+          "startTick": 35,
+          "durationTicks": 3805,
+          "velocity": 65,
+          "articulation": "tremolo"
+        },
+        {
+          "pitch": 55,
+          "startTick": 3869,
+          "durationTicks": 1411,
+          "velocity": 45,
+          "articulation": "legato"
+        }
+      ],
+      "cc": [
+        {
+          "cc": 1,
+          "points": [
+            {
+              "tick": 0,
+              "value": 61
+            },
+            {
+              "tick": 3840,
+              "value": 74
+            },
+            {
+              "tick": 7680,
+              "value": 74
+            }
+          ]
+        },
+        {
+          "cc": 11,
+          "points": [
+            {
+              "tick": 0,
+              "value": 69
+            },
+            {
+              "tick": 3760,
+              "value": 30
+            },
+            {
+              "tick": 3787,
+              "value": 34
+            },
+            {
+              "tick": 3815,
+              "value": 42
+            },
+            {
+              "tick": 3840,
+              "value": 81
+            },
+            {
+              "tick": 3842,
+              "value": 50
+            },
+            {
+              "tick": 3869,
+              "value": 54
+            },
+            {
+              "tick": 7680,
+              "value": 81
+            }
+          ]
+        },
+        {
+          "cc": 68,
+          "points": [
+            {
+              "tick": 0,
+              "value": 0
+            },
+            {
+              "tick": 3869,
+              "value": 127
+            },
+            {
+              "tick": 5280,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 74,
+          "points": [
+            {
+              "tick": 0,
+              "value": 106
+            },
+            {
+              "tick": 35,
+              "value": 106
+            },
+            {
+              "tick": 92,
+              "value": 0
+            },
+            {
+              "tick": 127,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "cc": 7,
+          "points": [
+            {
+              "tick": 0,
+              "value": 90
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trk_basses",
+      "name": "Double Basses",
+      "family": "Strings",
+      "color": "#e04b34",
+      "role": "basses",
+      "lowestNote": 28,
+      "highestNote": 72,
+      "locked": false,
+      "muted": false,
+      "soloed": false,
+      "libraryGroupId": null,
+      "midiChannel": 3,
+      "frozen": false,
+      "volume": 0.8,
+      "pan": 0,
+      "notes": [],
+      "cc": []
+    }
+  ],
+  "checks": {
+    "repeat": true,
+    "immutableInput": true,
+    "nonstringsEqualClassic": true,
+    "pianoInputScoreEventsDiagnosticsEqualClassic": true,
+    "conductorAndConsumedStringsEqualClassic": true,
+    "rosterEqualClassic": true
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "matrixCases": 30,
+  "openingPoliciesRealized": [
+    "violas",
+    "violins2",
+    "violins1",
+    null,
+    "cellosBasses"
+  ],
+  "fixedSeedTakeMaterialAndTrackUniqueness": 4,
+  "sourceAndRealizedViolinII": true,
+  "actualGeneratedModeChordsDiffer": true,
+  "explicitOldV2AndLegacySeed6": true,
+  "archivedStringMidiFullByteEqualitySeeds": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    11
+  ],
+  "implicitDefaultClassic": true,
+  "explicitEnsembleEqualsV1Default": true,
+  "frozenMaterialContextResponse": true,
+  "allSilentWindows": {
+    "reason": "no stretch of 2 sounding bars exists for a theme",
+    "windows": 0
+  },
+  "clippedPickupWindows": {
+    "phrases": 2,
+    "rejected": 0
+  },
+  "lowerOnlyEnsembleWithUnavailablePreview": {
+    "accepted": true,
+    "sourcePreviewWritten": false,
+    "desks": [
+      {
+        "role": "violins1",
+        "trackId": null,
+        "state": "unavailable",
+        "plannedContributions": 0,
+        "fulfilledContributions": 0,
+        "notes": 0,
+        "ticks": 0,
+        "occupancy": 0,
+        "phraseCoverage": 0,
+        "independentOnsets": 0,
+        "range": []
+      },
+      {
+        "role": "violins2",
+        "trackId": null,
+        "state": "unavailable",
+        "plannedContributions": 0,
+        "fulfilledContributions": 0,
+        "notes": 0,
+        "ticks": 0,
+        "occupancy": 0,
+        "phraseCoverage": 0,
+        "independentOnsets": 0,
+        "range": []
+      },
+      {
+        "role": "violas",
+        "trackId": "trk_05_violas",
+        "state": "substantial",
+        "plannedContributions": 2,
+        "fulfilledContributions": 2,
+        "notes": 41,
+        "ticks": 43865,
+        "occupancy": 0.7139485677083334,
+        "phraseCoverage": 1,
+        "independentOnsets": 1,
+        "range": [
+          59,
+          72
+        ]
+      },
+      {
+        "role": "cellosBasses",
+        "trackId": "trk_06_cellosBasses",
+        "state": "substantial",
+        "plannedContributions": 2,
+        "fulfilledContributions": 2,
+        "notes": 22,
+        "ticks": 51231,
+        "occupancy": 0.833837890625,
+        "phraseCoverage": 1,
+        "independentOnsets": 1,
+        "range": [
+          45,
+          57
+        ]
+      },
+      {
+        "role": "basses",
+        "trackId": "trk_basses",
+        "state": "substantial",
+        "plannedContributions": 1,
+        "fulfilledContributions": 1,
+        "notes": 15,
+        "ticks": 27561,
+        "occupancy": 0.448583984375,
+        "phraseCoverage": 1,
+        "independentOnsets": 1,
+        "range": [
+          29,
+          38
+        ]
+      }
+    ]
+  },
+  "expectedEdgeFallbackPolicy": true,
+  "humanListeningConfirmed": false
+}

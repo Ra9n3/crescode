@@ -1,0 +1,8 @@
+$ npm run typecheck
+
+> crescode@0.0.0 typecheck
+> tsc --noEmit && tsc -p tsconfig.tests.json
+
+sh: 1: tsc: not found
+
+exit=127; timeout=False; elapsedSeconds=0.107

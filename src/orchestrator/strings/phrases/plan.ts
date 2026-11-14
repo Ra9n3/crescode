@@ -23,6 +23,8 @@
  * adapted soundly is left silent, with the reason.
  */
 import type { StructuralProposal } from '../understanding/structure';
+import type { StringsIdentity } from '../identity';
+import { planIdentityPhrases } from './plan-v2';
 import { adaptMaterial, type Adaptation } from '../material/adapt';
 import { chordAt, judgeLine, pitchClassOf, type LineNote, type NoteFunction, type TonalFrame } from '../material/line';
 import { THEME_BARS, type Theme } from '../material/theme';
@@ -46,10 +48,15 @@ export interface PhraseSegment {
   /** How the material was fitted; null for approach and ending notes (composed, not adapted). */
   readonly adaptation: Pick<Adaptation, 'strategy' | 'shift' | 'moved' | 'preferredLost' | 'tried'> | null;
   readonly description: string;
+  readonly operation?: string;
+  /** Actual power-of-two metrical scaling, not the size of the allocated slot. */
+  readonly rhythmScale?: number;
+  readonly thematicHeadTicks?: number;
 }
 
 export interface PhrasePlan {
   readonly index: number;
+  readonly development?: { readonly strategy: string; readonly relationship: string; readonly evidence: readonly string[] };
   readonly window: { readonly startTick: number; readonly endTick: number };
   /** Stated above the theme's home position because the stretch is more energetic. */
   readonly lifted: boolean;
@@ -71,6 +78,7 @@ export interface PhrasePlanningResult {
 }
 
 export interface PhraseInput {
+  readonly identity?: StringsIdentity;
   readonly frame: TonalFrame;
   readonly theme: Theme;
   readonly structure: StructuralProposal;
@@ -143,6 +151,12 @@ function approach(frame: TonalFrame, fromTick: number, toTick: number, before: r
 }
 
 export function planPhrases(input: PhraseInput): PhrasePlanningResult {
+  if (input.identity) return planIdentityPhrases(input, input.identity);
+  return planLegacyPhrases(input);
+}
+
+/** Historical audition reconstruction; not the default V1 production path. */
+function planLegacyPhrases(input: PhraseInput): PhrasePlanningResult {
   const { frame, theme, structure } = input;
   const bar = frame.barTicks;
   const themeTicks = THEME_BARS * bar;

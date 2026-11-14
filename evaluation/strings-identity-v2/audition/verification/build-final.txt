@@ -1,0 +1,15 @@
+
+> crescode@0.0.0 build
+> vite build
+
+vite v7.3.2 building client environment for production...
+transforming...
+✓ 251 modules transformed.
+rendering chunks...
+[plugin vite:singlefile] 
+
+[plugin vite:singlefile] Inlining: index-D5P06NvH.js
+[plugin vite:singlefile] Inlining: style-B-ZPg5To.css
+computing gzip size...
+dist/index.html  2,083.51 kB │ gzip: 1,003.44 kB
+✓ built in 5.81s

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { composeAllTracks, type ComposeResult } from '../src/orchestrator/compose';
-import { isInstrumentTrack, type Project, type ModeName } from '../src/shared/schema';
+import { isInstrumentTrack, type Project, type ModeName, type Note } from '../src/shared/schema';
 import { barTicks, projectEndTick } from '../src/shared/schema/meter';
 import { resolveTemplate } from '../src/config/ensembles';
 import { sectionMap, energyCurve } from '../src/orchestrator/spine';
@@ -74,9 +74,9 @@ export function assertRealized(p: Project, r: ComposeResult): void {
   for (const c of o.plan.contributions.filter((c) => c.duty === 'foreground')) {
     const review = o.contributions.find((r) => r.contribution === c.index)!;
     assert.notEqual(review.status, 'rejected'); assert(review.realizedCoverage >= 0.55);
-    const id = o.plan.capabilities.find((cap) => cap.role === c.role)!.trackId;
+    const id: string = o.plan.capabilities.find((cap) => cap.role === c.role)!.trackId;
     const expected = r.stringsDiagnostics.v1!.composition!.phrases[c.phrase].notes.filter((n) => n.tick >= c.startTick && n.tick + n.duration <= c.endTick);
-    const actual = o.gridByTrackId[id].filter((n) => n.startTick >= c.startTick && n.startTick < c.endTick);
+    const actual: readonly Note[] = o.gridByTrackId[id].filter((n) => n.startTick >= c.startTick && n.startTick < c.endTick);
     assert.deepEqual(actual.map((n) => [n.startTick, n.pitch]), expected.map((n) => [n.tick, pitchAtOctave0(frame, n) + 12 * review.octave!]), 'exact V2 fragment/inversion/sequence contour retained under whole-gesture octave');
   }
   for (const a of realizationInput(p, r).arc.filter((a) => a.nearSilence)) for (const notes of Object.values(o.notesByTrackId)) assert.equal(occupiedTicks(notes, a.startTick, a.endTick), 0, 'near-silence boundary');

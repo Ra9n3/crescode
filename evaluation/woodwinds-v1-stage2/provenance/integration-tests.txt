@@ -1,0 +1,225 @@
+
+> crescode@0.0.0 test
+> vitest run tests/winds-musical-slice.test.ts tests/winds-production-truth.test.ts tests/phase9.test.ts tests/phase12.test.ts tests/orchestrator-compose.test.ts tests/piano-engine-production.test.ts tests/strings-v1-mode.test.ts tests/export.test.ts tests/mode-transform.test.ts tests/band.test.ts tests/strings-orchestration-v1.test.ts tests/strings-identity-v2.test.ts --maxWorkers=1 --minWorkers=1 --testTimeout=30000
+
+
+ RUN  v3.2.7 /home/user/crescode
+
+ ✓ tests/strings-v1-mode.test.ts (9 tests | 2 skipped) 63854ms
+   ✓ strings composition mode switch > selects classic when the option is omitted, and explicit classic is identical  5426ms
+   ✓ strings composition mode switch > V1 replaces at most the two violin tracks, the Viola track, the Cello track and the Double Bass desk and leaves everything else equal to classic  24636ms
+   ✓ strings composition mode switch > keeps the diagnostics off the persisted shape of the result  2963ms
+   ✓ strings composition mode switch > leaves the Piano mode selection unaffected  15950ms
+   ✓ strings V1 is not exposed and nothing else moved > documents Double Bass hand-off points that still exist in compose.ts; the classic split itself is not rewired  14860ms
+ ✓ tests/strings-orchestration-v1.test.ts (33 tests) 47388ms
+   ✓ ensemble orchestration identity V1 > seed 1: real production, immutable V2 material, exact repetition and adjacent isolation  829ms
+   ✓ ensemble orchestration identity V1 > seed 2: real production, immutable V2 material, exact repetition and adjacent isolation  1226ms
+   ✓ ensemble orchestration identity V1 > seed 3: real production, immutable V2 material, exact repetition and adjacent isolation  1517ms
+   ✓ ensemble orchestration identity V1 > seed 4: real production, immutable V2 material, exact repetition and adjacent isolation  1546ms
+   ✓ ensemble orchestration identity V1 > seed 5: real production, immutable V2 material, exact repetition and adjacent isolation  778ms
+   ✓ ensemble orchestration identity V1 > seed 6: real production, immutable V2 material, exact repetition and adjacent isolation  849ms
+   ✓ ensemble orchestration identity V1 > seed 7: real production, immutable V2 material, exact repetition and adjacent isolation  1066ms
+   ✓ ensemble orchestration identity V1 > seed 8: real production, immutable V2 material, exact repetition and adjacent isolation  1031ms
+   ✓ ensemble orchestration identity V1 > preserves explicit prior V2 and legacy writer handoffs, not just classic  6111ms
+   ✓ ensemble orchestration identity V1 > fixed displayed seed, stored take 1: deterministic but independently changing score  1424ms
+   ✓ ensemble orchestration identity V1 > fixed displayed seed, stored take 2: deterministic but independently changing score  1389ms
+   ✓ ensemble orchestration identity V1 > fixed displayed seed, stored take 3: deterministic but independently changing score  1783ms
+   ✓ ensemble orchestration identity V1 > template chamber: actual roster and capabilities, no created desk  1476ms
+   ✓ ensemble orchestration identity V1 > template cinematic: actual roster and capabilities, no created desk  1409ms
+   ✓ ensemble orchestration identity V1 > template hybridstudio: actual roster and capabilities, no created desk  506ms
+   ✓ ensemble orchestration identity V1 > long 40-bar production form retains local silence and phrase coverage  2188ms
+   ✓ ensemble orchestration identity V1 > short-2bars  1071ms
+   ✓ ensemble orchestration identity V1 > unequal-repeated-17bars  717ms
+   ✓ ensemble orchestration identity V1 > meter-3-4  856ms
+   ✓ ensemble orchestration identity V1 > meter-12-8  1944ms
+   ✓ ensemble orchestration identity V1 > static-pedal  517ms
+   ✓ ensemble orchestration identity V1 > borrowed-chromatic  3159ms
+   ✓ ensemble orchestration identity V1 > generated-dorian  510ms
+   ✓ ensemble orchestration identity V1 > generated-aeolian  2971ms
+   ✓ ensemble orchestration identity V1 > locked-violin1  743ms
+   ✓ ensemble orchestration identity V1 > fallback-restricted-ranges  584ms
+   ✓ ensemble orchestration identity V1 > out-of-band-cello  515ms
+stdout | tests/phase9.test.ts > Phase 9: the chorus-aware gate > the chorus mean energy never drops below the baseline (per template, takes 1–10 aggregated, three-chorus)
+PHASE9 chorus mean symphony (captures): pre-winds 0.457 -> with winds 0.486
+PHASE9 chorus mean cinematic (captures): pre-winds 0.508 -> with winds 0.536
+PHASE9 chorus mean hybridstudio (captures): pre-winds 0.481 -> with winds 0.524
+
+ ✓ tests/phase9.test.ts (19 tests) 24927ms
+   ✓ Phase 9: roster, ranges, zones > wind notes appear only on rostered wind tracks, inside the hard ranges and the writing windows; templates without winds stay silent  373ms
+   ✓ Phase 9: the hard clamp > energy never exceeds the clamp max across six templates × takes 1–10 × both fixtures  335ms
+   ✓ Phase 9: the moments-on baseline pins (golden90, captured at the post-8.3 HEAD) > chamber, sonata and vocalbacking are byte-identical to the baseline (3 templates × 2 fixtures × takes 1–10)  6967ms
+   ✓ Phase 9: the moments-on baseline pins (golden90, captured at the post-8.3 HEAD) > symphony, cinematic, hybridstudio: every non-wind, non-percussion track matches the baseline outside the sanctioned bars (wind leads, wind solis, moments, brass leads)  15198ms
+   ✓ Phase 9: locks and band > locked and out-of-band wind tracks are never written  344ms
+   ✓ Phase 9: hygiene > sanitizeNotes is a no-op on wind output; the preview plans every wind note; determinism holds; hard findings are 0  757ms
+   ✓ Phase 9: the chorus-aware gate > the chorus mean energy never drops below the baseline (per template, takes 1–10 aggregated, three-chorus)  400ms
+ ✓ tests/strings-identity-v2.test.ts (12 tests) 19906ms
+   ✓ actual default production material, not identifiers > repeats the full result exactly and leaves classic/nonstring handoffs unchanged  1073ms
+   ✓ actual default production material, not identifiers > separates template-induced composition from roster/energy effects; no mood claim  2470ms
+   ✓ coherence, memory, bounded transformations and failure policy > can compose a genuine repeated-note opening without enharmonic interval tricks  457ms
+   ✓ coherence, memory, bounded transformations and failure policy > fits material to changed harmony, rather than changing only labels  921ms
+   ✓ coherence, memory, bounded transformations and failure policy > supports three-beat material and one-bar homes; rejects unsupported meter/insufficient room  367ms
+   ✓ coherence, memory, bounded transformations and failure policy > composes coherent major/minor/modal and static/pedal/chromatic harmonic homes  4872ms
+   ✓ coherence, memory, bounded transformations and failure policy > uses an available violin primary and reports an unavailable violin handoff  1015ms
+ ✓ tests/winds-production-truth.test.ts (24 tests) 12319ms
+   ✓ Woodwinds V1 production truth > ordinary clarinet counter contributions reach actual final notes  2373ms
+   ✓ Woodwinds V1 production truth > preserves the complete non-wind output and reservations without replanning any family  492ms
+   ✓ Woodwinds V1 production truth > protects accepted Strings v1, including final Piano and all CC  2040ms
+   ✓ Woodwinds V1 production truth > protects accepted Strings classic, including final Piano and all CC  422ms
+   ✓ Woodwinds V1 production truth > symphony: final V1 tracks remain bounded/monophonic and do not violate the energy ceiling  1215ms
+   ✓ Woodwinds V1 production truth > cinematic: final V1 tracks remain bounded/monophonic and do not violate the energy ceiling  772ms
+   ✓ Woodwinds V1 production truth > hybridstudio: final V1 tracks remain bounded/monophonic and do not violate the energy ceiling  462ms
+   ✓ Woodwinds V1 production truth > sparse and rejected contributions retain truthful quantitative states, not automatic musical success  492ms
+   ✓ Woodwinds V1 production truth > reports the explicit no-template legacy route without claiming final-context ownership  684ms
+stdout | tests/orchestrator-compose.test.ts > Compose All through the orchestrator: property sweep > D11 take variety: ≥40% of spans differ in PITCHES between neighbouring takes, hard rules intact
+D11 take variety 0→1: 17/17 spans differ (100.0%)
+D11 take variety 1→2: 17/17 spans differ (100.0%)
+D11 take variety 2→3: 17/17 spans differ (100.0%)
+D11 take variety 3→4: 17/17 spans differ (100.0%)
+D11 take variety 4→5: 17/17 spans differ (100.0%)
+
+stdout | tests/orchestrator-compose.test.ts > golden: fixtures/dorian-16bars.json (half-bar chords, C/E and G/B bass) > per-template listening map (notes per track) lands in a sane band
+PHASE2 listening map: {
+ "Symphony Orchestra": {
+  "Violins I": 31,
+  "Violins II": 27,
+  "Violas": 40,
+  "Cellos/Basses": 25,
+  "Double Basses": 22,
+  "French Horns": 22,
+  "Trumpets": 8,
+  "Trombones": 20,
+  "Tuba": 8,
+  "Flutes": 30,
+  "Oboes": 1,
+  "Clarinets": 10,
+  "Bassoons": 16,
+  "Timpani": 17,
+  "Snare": 16,
+  "Cymbals": 1,
+  "Aux": 32,
+  "Harp": 92
+ },
+ "Chamber": {
+  "Violins I": 27,
+  "Violins II": 38,
+  "Violas": 27,
+  "Cellos/Basses": 27,
+  "Piano": 144
+ },
+ "Cinematic": {
+  "Violins I": 136,
+  "Violins II": 174,
+  "Violas": 131,
+  "Cellos/Basses": 27,
+  "Double Basses": 17,
+  "French Horns": 218,
+  "Trumpets": 104,
+  "Trombones": 10,
+  "Tuba": 7,
+  "Flutes": 52,
+  "Clarinets": 56,
+  "Bassoons": 15,
+  "Timpani": 21,
+  "Cymbals": 1,
+  "Aux": 52,
+  "Piano": 97,
+  "Harp": 76
+ },
+ "Sonata": {
+  "Violins I": 40,
+  "Cellos/Basses": 27,
+  "Piano": 206
+ },
+ "Vocal Backing": {
+  "Violins II": 27,
+  "Violas": 27,
+  "Cellos/Basses": 27,
+  "Piano": 98,
+  "Harp": 66
+ },
+ "Hybrid Studio": {
+  "Violins I": 44,
+  "Violins II": 36,
+  "Violas": 27,
+  "Cellos/Basses": 27,
+  "Double Basses": 19,
+  "French Horns": 19,
+  "Trumpets": 6,
+  "Trombones": 19,
+  "Flutes": 23,
+  "Clarinets": 11,
+  "Snare": 32,
+  "Cymbals": 1,
+  "Aux": 32,
+  "Piano": 188,
+  "Harp": 52
+ }
+}
+
+ ✓ tests/orchestrator-compose.test.ts (66 tests) 9440ms
+   ✓ Compose All through the orchestrator: property sweep > Symphony Orchestra · key 2 · Dorian: green end to end  314ms
+   ✓ Compose All through the orchestrator: property sweep > Symphony Orchestra · key 9 · Dorian: green end to end  360ms
+   ✓ Compose All through the orchestrator: property sweep > Cinematic · key 9 · Dorian: green end to end  373ms
+   ✓ Compose All through the orchestrator: property sweep > Hybrid Studio · key 9 · Ionian: green end to end  301ms
+   ✓ Compose All through the orchestrator: property sweep > a different take yields a different score  448ms
+   ✓ Compose All through the orchestrator: property sweep > D11 take variety: ≥40% of spans differ in PITCHES between neighbouring takes, hard rules intact  535ms
+   ✓ Compose All through the orchestrator: property sweep > non-string family tracks are composed by the orchestrator pipeline  506ms
+   ✓ golden: fixtures/dorian-16bars.json (half-bar chords, C/E and G/B bass) > per-template listening map (notes per track) lands in a sane band  700ms
+   ✓ Compose All in the store: one edit, take inside it > composing increments the take and one undo restores the whole picture  350ms
+ ✓ tests/winds-musical-slice.test.ts (11 tests) 11671ms
+   ✓ Woodwinds Stage 2 first musical slice — production path > seed and produced take change actual assignments/rhythms/contours; complete identity repeats exactly  2818ms
+   ✓ Woodwinds Stage 2 first musical slice — production path > preserves exact non-wind tracks/CC and early reservations in all four audition contexts  3596ms
+   ✓ Woodwinds Stage 2 first musical slice — production path > designs within meter and a slow/changing tempo map: 3/4  1007ms
+stdout | tests/phase12.test.ts > Phase 12: the snare rotation and the cymbal key > the snare rotation is deterministic, stays inside snareHitKeys (48–62), never repeats a key immediately and keeps every note
+PHASE12 snare rotation: 40 runs, 15 distinct keys realised of the 15-key pool (48,49,50,51,52,53,54,55,56,57,58,59,60,61,62)
+
+stdout | tests/phase12.test.ts > Phase 12: the snare rotation and the cymbal key > the cymbal output contains only the long-crash key 48 (and could only ever hold 55–59 beside it); every hit survives
+PHASE12 cymbals: 56 runs, realised pitches 48 (55–59 never fired: no non-crash/swell cymbal note exists)
+
+stdout | tests/phase12.test.ts > Phase 12: aux stays unmapped > aux is left out of every exported file, keeps its notes in the project and is warned about in the dialog
+PHASE12 aux: 60 runs with aux notes — all left out of the export, warned in the dialog, kept in the project
+
+stdout | tests/phase12.test.ts > Phase 12: the fold and remap report > the Phase 12 patches fold and drop nothing across the corpus; the remap counts equal the engine note counts
+PHASE12 report totals: the Phase 12 patches folded 0 and dropped 0; snare keys rotated 1846, cymbal keys remapped 100
+
+ ✓ tests/phase12.test.ts (16 tests) 8790ms
+   ✓ Phase 12: the byte pins > the no-profile per-track export preserves non-Piano note events from historical golden105 (120 runs)  445ms
+   ✓ Phase 12: the byte pins > the string and brass profile output is byte-identical to the pre-change reference (merged slice + per-track files, 120 runs)  1135ms
+   ✓ Phase 12: playability and keyswitch confinement > every exported note sits at or above the patch’s first playable key, or is a keyswitch (merged + per-track, 120 runs)  2083ms
+   ✓ Phase 12: playability and keyswitch confinement > keyswitches exist only in the exported file: the project is untouched by the exports and still validates  1089ms
+   ✓ Phase 12: the snare rotation and the cymbal key > the snare rotation is deterministic, stays inside snareHitKeys (48–62), never repeats a key immediately and keeps every note  489ms
+   ✓ Phase 12: aux stays unmapped > aux is left out of every exported file, keeps its notes in the project and is warned about in the dialog  599ms
+   ✓ Phase 12: the channel map > the merged file carries channels 1–9 + 11–16, never 10, and no percussion part (120 runs)  542ms
+   ✓ Phase 12: the channel map > the percussion parts export as their own files on the documented channels 10, 11 and 12  470ms
+   ✓ Phase 12: the CC rules > exports well-formed generated Piano CC64 when a pedal gesture is planned; harp and percussion stay CC-free (120 runs)  540ms
+   ✓ Phase 12: the CC rules > the wind CC lanes follow the brass convention: 1/7/11 exported, 68/74 dropped  554ms
+   ✓ Phase 12: the fold and remap report > the Phase 12 patches fold and drop nothing across the corpus; the remap counts equal the engine note counts  434ms
+ ✓ tests/piano-engine-production.test.ts (5 tests) 5394ms
+   ✓ Piano Engine V5 production path > is the only Piano-track note producer for all five eligible templates  2955ms
+   ✓ Piano Engine V5 production path > revoices Piano in forbidden-policy templates without leaving hard Piano octave findings  341ms
+   ✓ Piano Engine V5 production path > replays identical notes and CC64 for the same project, take, user seed, and density  1451ms
+   ✓ Piano Engine V5 production path > keeps Symphony Piano-free even when a pin admits Piano to the generic band  434ms
+ ✓ tests/export.test.ts (10 tests) 117ms
+ ✓ tests/band.test.ts (42 tests) 33ms
+ ✓ tests/mode-transform.test.ts (38 tests) 17ms
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: [vitest-worker]: Timeout calling "onTaskUpdate"
+ ❯ Object.onTimeoutError node_modules/vitest/dist/chunks/rpc.-pEldfrD.js:53:10
+ ❯ Timeout._onTimeout node_modules/vitest/dist/chunks/index.B521nVV-.js:59:62
+ ❯ listOnTimeout node:internal/timers:585:17
+ ❯ processTimers node:internal/timers:521:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  12 passed (12)
+      Tests  283 passed | 2 skipped (285)
+     Errors  1 error
+   Start at  20:52:22
+   Duration  263.31s (transform 3.07s, setup 0ms, collect 56.16s, tests 203.86s, environment 2ms, prepare 976ms)
+

@@ -1,0 +1,722 @@
+--- stage1/src/orchestrator/winds/plan.ts
++++ stage2/src/orchestrator/winds/plan.ts
+@@ -25,6 +25,7 @@
+  * ordinary winds. Moment kinds (tutti/unison/soli) and the wind lead are
+  * exempt: each carries its own placement contract from its planner.
+  */
++import type { WindEnsembleScore } from './ensemble';
+ import { mulberry32, hashString } from '../../engine/generate';
+ import { orchestrationSeedFor, ticksToSeconds, type ArcBar, type SpineSection } from '../spine';
+ import { barTicks, beatTicks, projectBars } from '../../shared/schema/meter';
+@@ -44,7 +45,7 @@
+ } from './profile';
+ 
+ export type WindVoiceKind =
+-  | 'colour' | 'leadDouble' | 'counter' | 'bassDouble' | 'harmony' | 'ostinato'
++  | 'phrase' | 'colour' | 'leadDouble' | 'counter' | 'bassDouble' | 'harmony' | 'ostinato'
+   | 'lead' | 'tutti' | 'unison' | 'soli';
+ 
+ export interface WindBarPlan {
+@@ -89,6 +90,8 @@
+ }
+ 
+ export interface WindPlan {
++  /** Present only on the final V1 path; Classic reservations remain unchanged. */
++  ensemble?: WindEnsembleScore;
+   bars: WindBarPlan[];
+   leads: WindLeadSpan[];
+   /** The drawn lead double per section-type key. */
+--- stage1/src/orchestrator/winds/render.ts
++++ stage2/src/orchestrator/winds/render.ts
+@@ -334,6 +334,7 @@
+         for (const job of origins ?? [activeJob]) input.trace?.({ part, job, stage, reason, ...(note ? { note: { pitch: note.pitch, startTick: note.startTick, durationTicks: note.durationTicks } } : {}) });
+       }
+     };
++    const allocatedEnd = (tick: number): number => plan.ensemble?.windows.find((w) => w.part === part && w.bar === Math.floor(tick / btBar) + 1)?.endTick ?? endTick;
+     let ghosting = false; // ghost mode: advance the state, emit nothing
+     // fresh: the gesture starts a new phrase (the wind lead, the pickup run).
+     // exempt: the moment gestures (tutti/unison/soli) neither consult nor
+@@ -345,7 +346,10 @@
+       if (ltPc !== null && (((pitch % 12) + 12) % 12) === ltPc) { trace('rejected', 'leading-tone exclusion'); return; }
+       const st = groups[group];
+       const s = Math.max(0, Math.round(start));
+-      const e = Math.min(endTick, Math.round(start + dur));
++      const rawEnd = Math.min(endTick, Math.round(start + dur));
++      const e = Math.min(rawEnd, allocatedEnd(s));
++      if (plan.ensemble && s >= allocatedEnd(s)) { trace('not-generated', 'planned ensemble breath window; source gesture leaves air'); return; }
++      if (e < rawEnd) trace('adjusted', 'source gate shaped to planned ensemble breath', { pitch, startTick: s, durationTicks: e - s });
+       if (e - s < 1) { trace('rejected', 'outside piece or zero duration'); return; }
+       if (input.finalNonWindNotes && part === 'bassoons' && input.finalNonWindNotes.some((n) => {
+         if (n.startTick >= e || n.startTick + n.durationTicks <= s || Math.min(pitch, n.pitch) >= 48) return false;
+@@ -383,7 +387,13 @@
+     const susWindow = (): [number, number] => [colourLo, Math.min(sweetHi, softHi)];
+ 
+     const writeKind = (kind: WindVoiceKind, bar: number, barStart: number, barEnd: number, norm: number) => {
+-      if (kind === 'colour' || kind === 'harmony') {
++      if (kind === 'phrase') {
++        const phrases = plan.ensemble?.phrases.filter((p) => p.part === part && p.bar === bar) ?? [];
++        if (!phrases.length) trace('not-generated', 'ensemble phrase has no allocated material');
++        for (const phrase of phrases) for (const [i, n] of phrase.notes.entries()) {
++          push('line', n.pitch, n.startTick, n.durationTicks, n.articulation, false, i === 0 ? 'fresh' : 'run');
++        }
++      } else if (kind === 'colour' || kind === 'harmony') {
+         // one sustained chord tone per span piece; harmony reads the
+         // per-(bar, span) spread pre-pass; the ceiling holds (§14.5)
+         const ceiling = ceilingAtBar(bar);
+@@ -622,7 +632,7 @@
+       // voice-leading group) so the ordinary line's state — and therefore
+       // every later bar — stays byte-identical with and without the moments.
+       const brassActive = brassActiveAtBar(bar);
+-      if (brassActive && !planBar.moment && part === 'flutes' && kind !== undefined) {
++      if (brassActive && !planBar.moment && part === 'flutes' && kind !== 'phrase') {
+         // the ordinary line's state advances exactly as the moment-driven
+         // ghost would (the two runs stay byte-identical outside moment bars)
+         const ord = planBar.ordinary[part];
+@@ -638,8 +648,8 @@
+         const capHi = norm >= 0.72 ? Math.min(sweetHi, 91) : Math.min(sweetHi, softHi);
+         for (const n of tuneAtBar(bar)) {
+           const s = Math.max(n.startTick, barStart);
+-          const e = Math.min(n.startTick + n.durationTicks, barEnd);
+-          if (e - s < 1) continue;
++          const e = Math.min(n.startTick + n.durationTicks, barEnd, allocatedEnd(s));
++          if (e - s < 1) { trace('not-generated', 'planned ensemble breath window; cut-over leaves air'); continue; }
+           const pitch = fitOctave(n.pitch + 12, sweetLo, capHi);
+           if (ltPc !== null && (((pitch % 12) + 12) % 12) === ltPc) continue;
+           const candidate = { pitch, startTick: s, durationTicks: e - s, articulation: artFor(pitch, 'legato', 'marcato'), ...(input.trace ? { origins: [activeJob] } : {}) };
+--- stage1/src/orchestrator/winds/identity.ts
++++ stage2/src/orchestrator/winds/identity.ts
+@@ -4,7 +4,7 @@
+ import type { Project } from '../../shared/schema/types';
+ 
+ export interface WindIdentity {
+-  readonly version: 'winds-v1-stage1';
++  readonly version: 'winds-v1-stage2';
+   readonly musicalInputs: string;
+   readonly userSeed: number;
+   readonly producedTake: number;
+@@ -14,7 +14,7 @@
+ export function createWindIdentity(project: Project, userSeed: number, producedTake: number): WindIdentity {
+   if (!Number.isFinite(userSeed) || !Number.isInteger(producedTake) || producedTake < 1) throw new Error('Invalid wind generation identity');
+   const musicalInputs = orchestrationInputs(project);
+-  const identity = { version: 'winds-v1-stage1' as const, musicalInputs, userSeed: Math.trunc(userSeed), producedTake };
++  const identity = { version: 'winds-v1-stage2' as const, musicalInputs, userSeed: Math.trunc(userSeed), producedTake };
+   return Object.freeze({ ...identity, seed: hashString(JSON.stringify(identity)) });
+ }
+ /** Fresh keyed streams: consumption in one decision/instrument cannot advance any other. */
+--- stage1/src/orchestrator/winds/production.ts
++++ stage2/src/orchestrator/winds/production.ts
+@@ -10,6 +10,7 @@
+ import type { OrchestratorContext } from '../module';
+ import { buildCcLanes } from '../expression/cc';
+ import { createWindIdentity, windStream, type WindIdentity } from './identity';
++import { arrangeWindEnsemble } from './ensemble';
+ import { planWinds, type WindPlan, type WindVoiceKind } from './plan';
+ import { governWindsVelocities, renderWinds } from './render';
+ import { WIND_PARTS, WIND_PROFILES, windTrackOf, type WindPart } from './profile';
+@@ -134,8 +135,8 @@
+     const notes = t?.notes.filter((n) => lines.assignment[Math.floor(n.startTick / bt)]?.byTrack[t.id] === 'counterline') ?? [];
+     lines.counter = t && notes.length ? { trackId: t.id, notes } : null;
+   }
+-  const plan = planWinds(local, { reservedLeads: ctx.windPlan.leads,
+-    rngFor: (category, key) => windStream(identity, category, key) });
++  const plan = arrangeWindEnsemble(local, planWinds(local, { reservedLeads: ctx.windPlan.leads,
++    rngFor: (category, key) => windStream(identity, category, key) }), identity);
+   local.windPlan = plan;
+   // Soli is a reservation, not permission to reuse an intermediate melody.
+   lines.soliLineByTrackId = {};
+--- stage1/tests/winds-production-truth.test.ts
++++ stage2/tests/winds-production-truth.test.ts
+@@ -204,7 +204,10 @@
+     for (const part of sparse) expect(part.retainedNotes < 4 || part.soundingTicks < 1920).toBe(true);
+     const rejected = seeds.flatMap((r) => r.windDiagnostics.events.filter((e) => e.stage === 'rejected'));
+     expect(rejected.length).toBeGreaterThan(0); expect(rejected.every((e) => e.reason.length > 8)).toBe(true);
+-    const lost = seeds.flatMap((r) => r.windDiagnostics.jobs.filter((j) => j.state === 'generated-not-retained'));
++    // Stage 2 allocates ordinary dialogue around brass instead of losing it.
++    // The existing long fixture still exercises real source-double loss at
++    // the reserved bridge boundary; preserve the lifecycle assertion there.
++    const lost = [...seeds, run(make(true))].flatMap((r) => r.windDiagnostics.jobs.filter((j) => j.state === 'generated-not-retained'));
+     expect(lost.length).toBeGreaterThan(0); expect(lost.every((j) => j.generated > 0 && j.retainedAssociations === 0)).toBe(true);
+   });
+ 
+--- /dev/null
++++ stage2/src/orchestrator/winds/ensemble.ts
+@@ -0,0 +1,236 @@
++/** Stage 2 first slice: ONE dialogue score, not four independent generators.
++ * Only called across the Stage 1 finalized-context boundary. A small idea is
++ * passed between players; density and source occupancy decide its placement.
++ * This is deliberately a listening-gate vocabulary, not a thematic engine.
++ */
++import { PPQ, isInstrumentTrack, type Note } from '../../shared/schema/types';
++import { scalePitchClasses } from '../../shared/schema/modes';
++import { barTicks, beatTicks } from '../../shared/schema/meter';
++import { ticksToMs, msToTicks } from '../spine';
++import { chordTones } from '../voicing/chordTones';
++import { leadingTonePcOf } from '../voicing/voiceLead';
++import type { OrchestratorContext } from '../module';
++import type { WindPlan } from './plan';
++import { WIND_PARTS, WIND_PROFILES, windTrackOf, type WindPart } from './profile';
++import { windStream, type WindIdentity } from './identity';
++
++export type PhraseDuty = 'statement' | 'answer' | 'continuation' | 'support' | 'arrival';
++export interface WindPhrase {
++  id: string;
++  bar: number;
++  part: WindPart;
++  duty: PhraseDuty;
++  idea: string;
++  relatedTo: string | null;
++  transformation: 'original' | 'inverted-answer' | 'extended-ending' | 'rhythmic-support' | 'cadential-ending';
++  reason: string;
++  notes: Note[];
++}
++export interface WindEnsembleScore {
++  version: 'dialogue-slice-1';
++  phrases: WindPhrase[];
++  /** Allocated before writing, also for reserved source gestures. */
++  windows: { part: WindPart; bar: number; startTick: number; endTick: number }[];
++  decisions: { bar: number; foreground: string | null; reason: string; resting: WindPart[] }[];
++}
++
++const closest = (pool: number[], target: number) => pool.reduce((a, b) => Math.abs(b - target) < Math.abs(a - target) ? b : a);
++const pc = (p: number) => (p % 12 + 12) % 12;
++
++/** Write within allocated windows, before the renderer's safety validation.
++ * Strong attacks/ends use current chord tones (including borrowed harmony);
++ * weak movement uses the existing mode. No harmony-system replacement.
++ */
++export function arrangeWindEnsemble(ctx: OrchestratorContext, base: WindPlan, identity: WindIdentity): WindPlan {
++  const plan: WindPlan = structuredClone(base);
++  const score: WindEnsembleScore = { version: 'dialogue-slice-1', phrases: [], windows: [], decisions: [] };
++  plan.ensemble = score;
++  // Keep pending jobs visible when realization cannot begin. Missing harmony
++  // is planned-empty, not a claim that the ensemble chose musical silence.
++  if (!ctx.spans.length) {
++    score.decisions = plan.bars.map((b) => ({ bar: b.bar, foreground: null, reason: 'normalized harmony unavailable; existing jobs remain pending/empty', resting: [...WIND_PARTS] }));
++    return plan;
++  }
++  const bt = barTicks(ctx.project.timeSignature), beat = beatTicks(ctx.project.timeSignature);
++  const roster = WIND_PARTS.filter((p) => windTrackOf(ctx, p));
++  score.windows = plan.bars.flatMap((b) => roster.map((part) => {
++    const startTick = (b.bar - 1) * bt;
++    const byTime = msToTicks(ticksToMs(startTick, ctx.project.tempoMap) + WIND_PROFILES[part].phraseCapSec * 850, ctx.project.tempoMap);
++    return { part, bar: b.bar, startTick, endTick: Math.floor(Math.min(b.bar * bt - beat, byTime)) };
++  }));
++  const scale = scalePitchClasses(ctx.project.key, ctx.project.mode), leading = leadingTonePcOf(ctx.project.key, scale);
++  const phraseRng = windStream(identity, 'phrase-design', 'ensemble-idea');
++  const shape = phraseRng() < 0.5 ? [0, 1, 3, 2] : [0, -1, -2, 1];
++  const ideaId = `idea:${shape.join('/')}`;
++  const previousPitch: Partial<Record<WindPart, number>> = {};
++  const eligibleIds = new Set(roster.map((p) => windTrackOf(ctx, p)!.id));
++  const external = ctx.project.tracks.filter((t) => isInstrumentTrack(t) && !eligibleIds.has(t.id));
++  const soundingAt = (notes: readonly Note[], s: number, e: number) => notes.filter((n) => n.startTick < e && n.startTick + n.durationTicks > s);
++  const sourceLine = (bar: number) => ctx.lines?.leads.find((l) => l.trackId === ctx.lines?.carrierByBar[bar - 1]);
++  const sourceNotes = (bar: number) => soundingAt(sourceLine(bar)?.notes ?? [], (bar - 1) * bt, bar * bt);
++  const protectedBar = (bar: number) => !!plan.bars[bar - 1]?.moment || plan.leads.some((l) => bar >= l.startBar && bar <= l.endBar);
++  const usedAnchors = new Set<string>();
++  let last: WindPhrase | null = null;
++  let phraseIndex = 0;
++  let sectionId: string | undefined;
++  let nextDuty: 'statement' | 'answer' | 'continuation' = 'statement';
++
++  const makePhrase = (bar: number, part: WindPart, duty: PhraseDuty, related: WindPhrase | null): WindPhrase | null => {
++    const t = windTrackOf(ctx, part)!, prof = WIND_PROFILES[part];
++    const norm = plan.bars[bar - 1].norm;
++    const rng = windStream(identity, 'instrument-variation', `${part}:${bar}:${duty}`);
++    const variant = rng() < 0.5;
++    const isAnswer = duty === 'answer', isSupport = duty === 'support', arrival = duty === 'arrival';
++    // At least a felt beat of air in EVERY designed bar. At slow tempi the
++    // whole gesture is shortened, not truncated after generating a long line.
++    const s = (bar - 1) * bt;
++    const capEnd = msToTicks(ticksToMs(s, ctx.project.tempoMap) + prof.phraseCapSec * 1000 * 0.85, ctx.project.tempoMap);
++    const available = Math.min(bt - beat, capEnd - s);
++    if (available < beat * 0.5) return null;
++    // Positions/durations are proportions of the phrase window. These four
++    // compact inflections share contour but differ in weight and articulation.
++    let rhythm: [number, number][];
++    if (arrival) rhythm = [[0, 0.28], [0.34, 0.62]];
++    else if (isSupport) rhythm = variant ? [[0.12, 0.16], [0.58, 0.25]] : [[0.32, 0.18], [0.76, 0.19]];
++    else if (part === 'flutes') rhythm = variant ? [[0, 0.14], [0.18, 0.14], [0.36, 0.2], [0.6, 0.34]] : [[0, 0.25], [0.3, 0.13], [0.48, 0.13], [0.66, 0.29]];
++    else if (part === 'oboes') rhythm = variant ? [[0, 0.43], [0.5, 0.13], [0.7, 0.27]] : [[0, 0.27], [0.34, 0.2], [0.61, 0.36]];
++    else if (part === 'clarinets') rhythm = variant ? [[0, 0.22], [0.26, 0.22], [0.53, 0.17], [0.75, 0.22]] : [[0, 0.35], [0.4, 0.16], [0.61, 0.16], [0.81, 0.16]];
++    else rhythm = variant ? [[0, 0.15], [0.32, 0.15], [0.68, 0.27]] : [[0.12, 0.18], [0.43, 0.18], [0.72, 0.23]];
++    // Busy external foregrounds receive late wind responses rather than a
++    // competing downbeat. Brass attack windows are avoided by design.
++    const line = sourceNotes(bar);
++    const busy = line.length >= 4;
++    const delay = isSupport ? beat * 0.25 : (isAnswer || busy ? Math.min(beat * 0.5, (bt - available) * 0.5) : 0);
++    const spanLength = Math.max(beat * 0.5, available - delay);
++    const centers: Record<WindPart, number> = { flutes: 77, oboes: 71, clarinets: 73, bassoons: isSupport ? 53 : 58 };
++    let lo = Math.max(t.lowestNote, prof.sweet[0], part === 'clarinets' ? 69 : 0);
++    let hi = Math.min(t.highestNote, prof.sweet[1], part === 'flutes' && norm < 0.9 ? 84 : 127);
++    if (part === 'oboes') hi = Math.min(hi, 81);
++    if (part === 'bassoons') lo = Math.max(lo, 48); // tenor replies clear the crowded orchestral bass
++    if (lo > hi) return null;
++    // Register follows a bounded energy arch, not a random walk that gets
++    // stuck at the top of the instrument after several returning motifs.
++    let center = centers[part] + Math.round((norm - 0.55) * (part === 'bassoons' ? 3 : 6));
++    const ref = related?.notes.at(-1) ?? line.at(-1);
++    if (ref && previousPitch[part] === undefined) {
++      const matches = Array.from({ length: hi - lo + 1 }, (_, i) => i + lo).filter((p) => pc(p) === pc(ref.pitch));
++      if (matches.length) center = closest(matches, center);
++    }
++    // A related answer reverses the same small contour, then lands anew.
++    const contour = rhythm.map((_, i) => {
++      const d = shape[i % shape.length];
++      return isSupport ? (i ? 2 : 0) : isAnswer ? -d : duty === 'continuation' ? d + (i === rhythm.length - 1 ? 1 : 0) : d;
++    });
++    const notes: Note[] = [];
++    let prev = previousPitch[part] ?? center;
++    const brassBar = ctx.brassPlan?.bars[bar - 1];
++    const brassActive = !!brassBar && Object.values(brassBar.ordinary).some((k) => k === 'fanfare' || k === 'stab') || !!ctx.brassPlan?.leads.some((l) => bar >= l.startBar && bar <= l.endBar);
++    const attacks = brassActive ? external.filter((t) => t.family === 'Brass').flatMap((t) => t.notes.filter((n) => n.startTick >= s && n.startTick < s + bt).map((n) => n.startTick)).sort((a, b) => a - b) : [];
++    const grid = beat / 2; // felt-eighth onset grid; gates may be shorter
++    const phraseEnd = Math.min(s + bt - beat, capEnd);
++    // Allocate the complete rhythm BEFORE pitches. Shorten a note's gate to
++    // its next slot, not by pushing that next slot until the cadence vanishes.
++    const timing: { startTick: number; durationTicks: number; short: boolean; degree: number }[] = [];
++    for (let i = 0; i < rhythm.length; i++) {
++      let startTick = Math.round((s + delay + rhythm[i][0] * spanLength) / grid) * grid;
++      startTick = Math.max(startTick, (timing.at(-1)?.startTick ?? -Infinity) + grid);
++      for (const onset of attacks) if (startTick >= onset && startTick < onset + PPQ / 2) startTick = Math.ceil((onset + PPQ / 2) / grid) * grid;
++      if (startTick + beat * 0.12 > phraseEnd) continue;
++      const short = part === 'bassoons' || isSupport || (part === 'clarinets' && variant && norm > 0.72 && i % 2 === 0);
++      const durationTicks = Math.min(Math.round(rhythm[i][1] * spanLength), short ? Math.round(beat * 0.65) : Infinity);
++      timing.push({ startTick, durationTicks, short, degree: contour[i] });
++    }
++    for (let i = 0; i < timing.length; i++) {
++      const { startTick, short, degree } = timing[i];
++      let durationTicks = Math.max(1, Math.min(timing[i].durationTicks, Math.round(phraseEnd - startTick), (timing[i + 1]?.startTick ?? Infinity) - startTick - Math.round(beat * 0.04)));
++      const sp = ctx.spans.find((sp) => sp.startTick <= startTick && startTick < sp.endTick);
++      if (!sp) continue;
++      const tones = new Set(chordTones(sp.parsed).tones.map((t) => t.pc));
++      const strong = i === 0 || i === timing.length - 1 || arrival || isSupport;
++      const pcs = strong ? tones : new Set([...scale, ...tones]);
++      durationTicks = Math.min(durationTicks, sp.endTick - startTick);
++      const pool = Array.from({ length: hi - lo + 1 }, (_, j) => lo + j).filter((p) => {
++        if (!pcs.has(pc(p)) || pc(p) === leading || Math.abs(p - prev) > 7) return false;
++        if (part === 'bassoons' && external.some((t) => soundingAt(t.notes, startTick, startTick + durationTicks).some((n) => Math.min(n.pitch, p) < 48 && Math.abs(n.pitch - p) < 7 && pc(n.pitch) !== pc(p)))) return false;
++        // Keep simultaneous wind lines apart: support never occupies the
++        // current foreground's register slot at the same time.
++        return !score.phrases.filter((ph) => ph.bar === bar).some((ph) => soundingAt(ph.notes, startTick, startTick + durationTicks).some((n) => Math.abs(n.pitch - p) < 3));
++      });
++      if (!pool.length) continue;
++      const target = center + degree * 2 + (norm >= 0.9 && part === 'flutes' && i === 2 ? 3 : 0);
++      const pitch = pool.reduce((a, b) => {
++        const cost = (p: number) => Math.abs(p - target) + 0.35 * Math.abs(p - prev);
++        return cost(b) < cost(a) ? b : a;
++      });
++      // Existing UVI sustain/staccato vocabulary only. Flute above its soft
++      // ceiling uses an existing hard attack, never an unsupported new art.
++      const articulation: Note['articulation'] = short ? 'staccato' : prof.softCeiling !== null && pitch > prof.softCeiling ? 'marcato' : 'legato';
++      notes.push({ pitch, startTick, durationTicks, velocity: 64, articulation });
++      prev = pitch;
++    }
++    if (!notes.length) return null;
++    previousPitch[part] = prev;
++    return { id: `phrase:${bar}:${part}`, bar, part, duty, idea: ideaId, relatedTo: related?.id ?? null,
++      transformation: arrival ? 'cadential-ending' : isSupport ? 'rhythmic-support' : isAnswer ? 'inverted-answer' : duty === 'continuation' ? 'extended-ending' : 'original',
++      reason: `${duty}; ${line.length ? 'responds around finalized foreground' : 'wind foreground in final carrier space'}; ${part === 'bassoons' ? 'independent tenor/offbeat gesture' : 'shared contour, instrument-specific pacing'}; final felt beat reserved for air`, notes };
++  };
++
++  for (const pb of plan.bars) {
++    const sec = ctx.sections.find((s) => pb.bar >= s.startBar && pb.bar < s.startBar + s.lengthBars);
++    if (sectionId !== sec?.id) { sectionId = sec?.id; nextDuty = 'statement'; last = null; }
++    const s = (pb.bar - 1) * bt;
++    if (protectedBar(pb.bar)) {
++      score.decisions.push({ bar: pb.bar, foreground: 'early-reserved gesture', reason: 'preserve conductor moment/lead contract; no competing dialogue', resting: roster.filter((p) => !pb.voices[p]) });
++      nextDuty = 'statement'; last = null; continue;
++    }
++    const original = { ...pb.voices };
++    pb.voices = {}; pb.ordinary = {};
++    const rest = (reason: string) => score.decisions.push({ bar: pb.bar, foreground: null, reason, resting: [...roster] });
++    if (pb.bar === 1 || pb.level === 'off' || ctx.arc?.[pb.bar - 1]?.nearSilence || !ctx.spans.some((sp) => sp.startTick < s + bt && sp.endTick > s)) {
++      rest('opening/energy breath or unavailable normalized harmony; no forced entrance'); nextDuty = 'statement'; last = null; continue;
++    }
++    // Retain a selective source connection, not an all-piece doubling rule.
++    // One real source double and counter per section are enough to establish
++    // the relationship; subsequent bars develop our shared wind idea.
++    const anchor = roster.find((p) => {
++      const k = original[p], key = `${sec?.id}:${k}`;
++      return !usedAnchors.has(key) && (k === 'leadDouble' && sourceNotes(pb.bar).length > 0 || k === 'counter' && soundingAt(ctx.lines?.counter?.notes ?? [], s, s + bt).length > 0);
++    });
++    if (anchor && nextDuty === 'statement') {
++      const k = original[anchor]!; usedAnchors.add(`${sec?.id}:${k}`);
++      pb.voices[anchor] = k; pb.ordinary[anchor] = k;
++      score.decisions.push({ bar: pb.bar, foreground: sourceLine(pb.bar)?.trackId ?? 'final counter source', reason: `selective ${anchor} ${k} establishes source relationship; other winds leave space`, resting: roster.filter((p) => p !== anchor) });
++      continue;
++    }
++    if (!roster.length) { rest('no writable wind players'); continue; }
++    const casting = windStream(identity, 'casting', `dialogue:${sec?.id}:${pb.bar}`);
++    const cadence = !!sec && pb.bar === sec.startBar + sec.lengthBars - 1;
++    // Answers move to a different player; continuations sometimes remain.
++    let choices = roster.filter((p) => nextDuty === 'continuation' || p !== last?.part);
++    if (!choices.length) choices = roster;
++    // Bassoon may take a tenor reply, but does not monopolize the foreground.
++    const weights = choices.map((p) => p === 'bassoons' ? nextDuty === 'answer' ? 0.8 : 0.25 : p === 'oboes' && pb.norm < 0.72 ? 1.5 : 1);
++    let draw = casting() * weights.reduce((a, b) => a + b, 0), selected = choices[0];
++    for (let i = 0; i < choices.length; i++) { draw -= weights[i]; if (draw < 0) { selected = choices[i]; break; } }
++    const duty = cadence ? 'arrival' : nextDuty;
++    const phrase = makePhrase(pb.bar, selected, duty, last);
++    if (!phrase) { rest('no legal phrase window/register; preserve air rather than force notes'); continue; }
++    score.phrases.push(phrase); pb.voices[selected] = 'phrase'; pb.ordinary[selected] = 'phrase';
++    // A second player fills late space while the first takes air. No more
++    // than two designed voices, and low energy remains a single line.
++    if (pb.norm >= 0.5 && !cadence) {
++      const support = roster.includes('bassoons') && selected !== 'bassoons' ? 'bassoons' : roster.find((p) => p === 'clarinets' && p !== selected);
++      if (support && (phraseIndex % 3 !== 1 || pb.norm >= 0.72)) {
++        const supporting = makePhrase(pb.bar, support, 'support', phrase);
++        if (supporting) { score.phrases.push(supporting); pb.voices[support] = 'phrase'; pb.ordinary[support] = 'phrase'; }
++      }
++    }
++    score.decisions.push({ bar: pb.bar, foreground: phrase.id, reason: phrase.reason, resting: roster.filter((p) => !pb.voices[p]) });
++    last = phrase; phraseIndex++;
++    nextDuty = nextDuty === 'statement' ? 'answer' : nextDuty === 'answer' && casting() < 0.4 ? 'continuation' : 'statement';
++  }
++  // Legacy pickup replacement must not erase a planned conversation.
++  plan.pickupRuns = plan.pickupRuns.filter((r) => !score.phrases.some((p) => p.bar === r.bar || p.bar === r.downbeatBar));
++  plan.reports.push(`winds dialogue slice: ${score.phrases.length} phrase contributions; explicit source anchors, transformed answers, tenor support and air`);
++  return plan;
++}
+--- /dev/null
++++ stage2/tests/winds-musical-slice.test.ts
+@@ -0,0 +1,206 @@
++import { beforeAll, describe, expect, it } from 'vitest';
++import { parseMidi } from 'midi-file';
++import dorian from '../fixtures/dorian-16bars.json';
++import long from '../fixtures/three-chorus-40bars.json';
++import multi from '../fixtures/multi-chorus-16bars.json';
++import { projectFromFixture, type Project, type Note } from '../src/shared/schema';
++import { composeAllTracks, type ComposeResult } from '../src/orchestrator/compose';
++import { transformProjectMode } from '../src/engine/suggestion/transpose';
++import { chordSpans } from '../src/engine/generate';
++import { chordTones } from '../src/orchestrator/voicing/chordTones';
++import { barTicks, beatTicks, projectEndTick } from '../src/shared/schema/meter';
++import { ticksToMs } from '../src/orchestrator/spine';
++import { WIND_PARTS, WIND_PROFILES } from '../src/orchestrator/winds/profile';
++import { buildMergedMidi, buildPerTrackMidi } from '../src/export/midi';
++import { EXPORT_PROFILES } from '../src/export/profiles';
++import type { FoldStats } from '../src/export/profile';
++import { reconcileWindExport } from '../src/orchestrator/winds/production';
++
++const make = (template = 'symphony', fixture = dorian, mode: Project['mode'] = 'Dorian') => {
++  let p = projectFromFixture(structuredClone(fixture) as Partial<Project>);
++  if (mode !== p.mode) p = transformProjectMode(p, mode).project;
++  p.ensemble = { templateId: `ensemble.${template}`, overrides: {}, pins: {} };
++  p.orchestration = { take: 0 }; return p;
++};
++const run = (p: Project, seed = 1) => composeAllTracks(p, { seed, windsComposition: 'v1', stringsComposition: 'v1' });
++const stats = (): FoldStats => ({ folded: {}, droppedHardRange: {}, droppedDoubling: {}, winds: [] });
++const score = (r: ComposeResult) => r.windDiagnostics.plan!.ensemble!;
++const structure = (r: ComposeResult) => score(r).phrases.map((ph) => [ph.part, ph.bar, ph.duty, ph.notes.map((n) => [n.pitch, n.startTick, n.durationTicks])]);
++let projects: Project[], results: ComposeResult[];
++beforeAll(() => {
++  projects = [make(), make('hybridstudio', long), make('cinematic', multi), make('symphony', dorian, 'Aeolian')];
++  results = projects.map((p, i) => run(p, i === 2 ? 3 : 1));
++}, 90000);
++
++describe('Woodwinds Stage 2 first musical slice — production path', () => {
++  it('plans one shared conversation with linked transformed answers and bounded two-player density', () => {
++    for (const r of results) {
++      const sc = score(r);
++      expect(sc.version).toBe('dialogue-slice-1');
++      expect(sc.decisions).toHaveLength(r.windDiagnostics.plan!.bars.length);
++      const answers = sc.phrases.filter((ph) => ph.duty === 'answer');
++      expect(answers.length).toBeGreaterThan(0);
++      for (const answer of answers) {
++        const original = sc.phrases.find((p) => p.id === answer.relatedTo)!;
++        expect(original).toBeDefined(); expect(answer.part).not.toBe(original.part);
++        expect(answer.bar).toBe(original.bar + 1); expect(answer.idea).toBe(original.idea);
++        expect(answer.transformation).toBe('inverted-answer');
++      }
++      for (const d of sc.decisions) {
++        expect(d.reason.length).toBeGreaterThan(15);
++        const phrases = sc.phrases.filter((ph) => ph.bar === d.bar);
++        expect(phrases.length).toBeLessThanOrEqual(2);
++        expect(phrases.filter((p) => p.duty !== 'support').length).toBeLessThanOrEqual(1);
++        for (const part of d.resting) expect(phrases.some((p) => p.part === part)).toBe(false);
++      }
++      expect(sc.decisions[0].reason).toMatch(/opening|reserved/);
++    }
++    const dialogue = score(results[1]);
++    expect(dialogue.phrases.some((ph) => ph.duty === 'continuation' && ph.relatedTo)).toBe(true);
++    expect(dialogue.phrases.some((ph) => ph.duty === 'arrival')).toBe(true);
++  });
++
++  it('all four players have instrument-specific pacing, and bassoon actually answers independently of cello', () => {
++    const rhythmSignatures = WIND_PARTS.map((part) => {
++      const phrases = results.flatMap((r) => score(r).phrases.filter((p) => p.part === part && p.duty !== 'support' && p.duty !== 'arrival'));
++      expect(phrases.length, part).toBeGreaterThan(0);
++      return [...new Set(phrases.map((ph) => JSON.stringify(ph.notes.map((n) => [n.startTick - ph.notes[0].startTick, n.durationTicks]))))].sort();
++    });
++    expect(new Set(rhythmSignatures.map((s) => JSON.stringify(s))).size).toBe(4);
++    const r = results[2], bassoon = r.tracks.find((t) => t.role === 'bassoons')!, cello = r.tracks.find((t) => t.role === 'cellosBasses')!;
++    const answer = score(r).phrases.find((p) => p.part === 'bassoons' && p.duty === 'answer')!;
++    expect(answer).toBeDefined(); expect(new Set(answer.notes.map((n) => n.pitch)).size).toBeGreaterThan(1);
++    for (const n of answer.notes) {
++      expect(bassoon.notes.some((m) => m.pitch === n.pitch && m.startTick === n.startTick)).toBe(true);
++      expect(cello.notes.some((m) => m.startTick === n.startTick && m.durationTicks === n.durationTicks && (m.pitch - n.pitch) % 12 === 0)).toBe(false);
++    }
++    expect(bassoon.notes.some((n) => n.articulation === 'staccato')).toBe(true);
++  });
++
++  it('support fills a real internal rest in the foreground without continuous four-part doubling', () => {
++    let fills = 0;
++    for (const r of results) for (const ph of score(r).phrases.filter((p) => p.duty === 'support')) {
++      const foreground = score(r).phrases.find((p) => p.id === ph.relatedTo)!;
++      for (const n of ph.notes) {
++        const midpoint = n.startTick + n.durationTicks / 2;
++        if (!foreground.notes.some((m) => m.startTick <= midpoint && m.startTick + m.durationTicks > midpoint)) fills++;
++      }
++    }
++    expect(fills).toBeGreaterThan(0);
++  });
++
++  it('designed phrases survive validation intact, with grid, monophony, breath, range and bounded register trajectories', () => {
++    for (const [i, r] of results.entries()) {
++      const p = projects[i], bt = barTicks(p.timeSignature), beat = beatTicks(p.timeSignature);
++      const lasts = new Map<string, number>();
++      for (const ph of score(r).phrases) {
++        const t = r.tracks.find((t) => t.role === ph.part)!, prof = WIND_PROFILES[ph.part];
++        expect(ph.notes.length).toBeGreaterThan(0);
++        for (const n of ph.notes) {
++          expect(n.startTick % (beat / 2)).toBe(0);
++          expect(n.pitch).toBeGreaterThanOrEqual(t.lowestNote); expect(n.pitch).toBeLessThanOrEqual(t.highestNote);
++          expect(n.durationTicks).toBeGreaterThan(0);
++          expect(t.notes.some((m) => m.pitch === n.pitch && m.startTick === n.startTick && m.durationTicks === n.durationTicks), ph.id).toBe(true);
++          expect(n.startTick + n.durationTicks).toBeLessThanOrEqual(ph.bar * bt - beat);
++          const prev = lasts.get(ph.part); if (prev !== undefined) expect(Math.abs(n.pitch - prev), ph.id).toBeLessThanOrEqual(7);
++          lasts.set(ph.part, n.pitch);
++        }
++        const start = ph.notes[0].startTick, end = ph.notes.at(-1)!.startTick + ph.notes.at(-1)!.durationTicks;
++        expect((ticksToMs(end, p.tempoMap) - ticksToMs(start, p.tempoMap)) / 1000).toBeLessThanOrEqual(prof.phraseCapSec);
++      }
++      for (const part of WIND_PARTS) {
++        const notes = r.tracks.find((t) => t.role === part)!.notes;
++        for (let j = 1; j < notes.length; j++) expect(notes[j - 1].startTick + notes[j - 1].durationTicks).toBeLessThanOrEqual(notes[j].startTick);
++      }
++    }
++  });
++
++  it('reserved source gestures also leave planned air; complete wind runs obey time caps, not just new phrases', () => {
++    for (const [i, r] of results.entries()) {
++      const p = projects[i], beat = beatTicks(p.timeSignature);
++      for (const part of WIND_PARTS) {
++        const ns = r.tracks.find((t) => t.role === part)!.notes;
++        let runStart = 0, previousEnd = -Infinity;
++        for (const n of ns) {
++          if (n.startTick - previousEnd >= beat) runStart = n.startTick;
++          const end = n.startTick + n.durationTicks;
++          expect(ticksToMs(end, p.tempoMap) - ticksToMs(runStart, p.tempoMap), `${i}:${part}`).toBeLessThanOrEqual(WIND_PROFILES[part].phraseCapSec * 1000);
++          const window = score(r).windows.find((w) => w.part === part && w.startTick <= n.startTick && n.startTick < w.startTick + barTicks(p.timeSignature))!;
++          expect(window).toBeDefined(); expect(end).toBeLessThanOrEqual(window.endTick);
++          previousEnd = end;
++        }
++      }
++    }
++  });
++
++  it('resolves phrase attacks and endings against real normalized chords, including existing Aeolian/borrowed harmony', () => {
++    for (const [i, r] of results.entries()) {
++      const spans = chordSpans(projects[i]);
++      for (const ph of score(r).phrases) {
++        for (const n of [ph.notes[0], ph.notes.at(-1)!]) {
++          const sp = spans.find((s) => s.startTick <= n.startTick && n.startTick < s.endTick)!;
++          expect(chordTones(sp.parsed).tones.map((t) => t.pc)).toContain(n.pitch % 12);
++        }
++      }
++    }
++    expect(projects[3].mode).toBe('Aeolian');
++    expect(projects[3].chords.map((c) => c.symbol)).toEqual(transformProjectMode(make(), 'Aeolian').project.chords.map((c) => c.symbol));
++  });
++
++  it('seed and produced take change actual assignments/rhythms/contours; complete identity repeats exactly', () => {
++    expect(structure(run(projects[0]))).toEqual(structure(results[0]));
++    const seed = run(projects[0], 7), next = run({ ...projects[1], orchestration: { take: 1 } });
++    expect(structure(seed)).not.toEqual(structure(results[0])); expect(structure(next)).not.toEqual(structure(results[1]));
++    expect(next.windDiagnostics.identity!.producedTake).toBe(2); expect(next.windDiagnostics.identity!.version).toBe('winds-v1-stage2');
++    expect(score(seed).phrases.map((p) => [p.part, p.bar])).not.toEqual(score(results[0]).phrases.map((p) => [p.part, p.bar]));
++  }, 30000);
++
++  it('preserves exact non-wind tracks/CC and early reservations in all four audition contexts', () => {
++    for (const [i, r] of results.entries()) {
++      const classic = composeAllTracks(projects[i], { seed: i === 2 ? 3 : 1, stringsComposition: 'v1' });
++      expect(r.tracks.filter((t) => t.family !== 'Woodwinds')).toEqual(classic.tracks.filter((t) => t.family !== 'Woodwinds'));
++      expect(r.plan).toEqual(classic.plan);
++      expect(r.windDiagnostics.context!.reservations.leads).toEqual(classic.plan.winds.leads);
++    }
++  }, 30000);
++
++  it('parsed sounding pitches/onsets/durations match retained material in plain and UVI, not only note counts', () => {
++    const r = results[0], p = { ...projects[0], tracks: r.tracks, orchestration: r.orchestration };
++    for (const profile of [null, EXPORT_PROFILES[0].profile]) {
++      const audit = stats(), merged = buildMergedMidi(p, r.tracks, profile, audit), parsed = parseMidi(merged);
++      for (const row of audit.winds!) {
++        const t = r.tracks.find((t) => t.id === row.trackId)!, part = profile?.parts.find((p) => p.source.role === t.role);
++        const tr = parsed.tracks.find((tr) => tr.some((e) => e.type === 'trackName' && e.text === (part?.patch ?? t.name)))!;
++        let tick = 0; const active = new Map<number, number>(), notes: Pick<Note, 'pitch' | 'startTick' | 'durationTicks'>[] = [];
++        for (const e of tr) {
++          tick += e.deltaTime;
++          if ((e.type === 'noteOn' || e.type === 'noteOff') && e.noteNumber >= (part?.playableLow ?? 0)) {
++            if (e.type === 'noteOn' && e.velocity > 0) active.set(e.noteNumber, tick);
++            else if (active.has(e.noteNumber)) { const startTick = active.get(e.noteNumber)!; notes.push({ pitch: e.noteNumber, startTick, durationTicks: tick - startTick }); active.delete(e.noteNumber); }
++          }
++        }
++        const sorted = (ns: typeof notes) => [...ns].sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
++        expect(sorted(notes)).toEqual(sorted([...row.soundingEvents]));
++        expect(sorted(notes)).toEqual(sorted(t.notes.map(({ pitch, startTick, durationTicks }) => ({ pitch, startTick, durationTicks }))));
++      }
++      const per = stats(); buildPerTrackMidi(p, r.tracks, profile, per);
++      for (const row of reconcileWindExport(r.windDiagnostics, [...audit.winds!, ...per.winds!])) {
++        expect(row.state).toBe('observed');
++        for (const job of row.jobs) for (const scope of job.scopes) expect(['exported', 'not-retained']).toContain(scope.state);
++      }
++    }
++  });
++
++  it.each([{ numerator: 3, denominator: 4 }, { numerator: 6, denominator: 8 }])('designs within meter and a slow/changing tempo map: $numerator/$denominator', (ts) => {
++    const p = make(); p.timeSignature = ts;
++    p.tempoMap = [{ tick: 0, bpm: 44 }, { tick: 6 * barTicks(ts), bpm: 72 }];
++    const r = run(p), beat = beatTicks(ts), bt = barTicks(ts);
++    expect(score(r).phrases.length).toBeGreaterThan(0);
++    for (const ph of score(r).phrases) {
++      const end = ph.notes.at(-1)!.startTick + ph.notes.at(-1)!.durationTicks;
++      expect(end).toBeLessThanOrEqual(ph.bar * bt - beat);
++      expect(ticksToMs(end, p.tempoMap) - ticksToMs(ph.notes[0].startTick, p.tempoMap)).toBeLessThanOrEqual(WIND_PROFILES[ph.part].phraseCapSec * 1000);
++    }
++    for (const t of r.tracks.filter((t) => t.family === 'Woodwinds')) for (const n of t.notes) expect(n.startTick + n.durationTicks).toBeLessThanOrEqual(projectEndTick(p));
++  });
++});
+--- /dev/null
++++ stage2/scripts/winds-stage2-audition.mjs
+@@ -0,0 +1,131 @@
++/** Early listening gate. Run with the installed serializer, never a substitute:
++ * node --no-warnings --experimental-loader ./scripts/strings-orchestration-native-loader.mjs scripts/winds-stage2-audition.mjs
++ */
++import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from 'node:fs';
++import { join, relative } from 'node:path';
++import { createHash } from 'node:crypto';
++import assert from 'node:assert/strict';
++import { parseMidi } from 'midi-file';
++import { projectFromFixture } from '../src/shared/schema/index.ts';
++import { isInstrumentTrack } from '../src/shared/schema/types.ts';
++import { transformProjectMode } from '../src/engine/suggestion/transpose.ts';
++import { composeAllTracks } from '../src/orchestrator/compose.ts';
++import { buildMergedMidi, buildPerTrackMidi } from '../src/export/midi.ts';
++import { EXPORT_PROFILES } from '../src/export/profiles/index.ts';
++import { reconcileWindExport } from '../src/orchestrator/winds/production.ts';
++import { WIND_PARTS } from '../src/orchestrator/winds/profile.ts';
++
++const root = 'evaluation/woodwinds-v1-stage2/early-audition';
++const specs = [
++  { id: '01-lyrical-dorian', fixture: 'dorian-16bars', template: 'symphony', seed: 1, take: 1, purpose: 'Lyrical foreground, reed answers and four-player contrast' },
++  { id: '02-dialogue-dorian', fixture: 'three-chorus-40bars', template: 'hybridstudio', seed: 1, take: 1, purpose: 'Longer repeated sections, flute/clarinet dialogue and continuation; oboe/bassoon out of template band' },
++  { id: '03-low-support', fixture: 'multi-chorus-16bars', template: 'cinematic', seed: 3, take: 1, purpose: 'Independent bassoon tenor gestures and rhythmic support against orchestral bass' },
++  { id: '04-lyrical-aeolian', fixture: 'dorian-16bars', template: 'symphony', mode: 'Aeolian', seed: 1, take: 1, purpose: 'Existing mode-to-chord transformation to Aeolian, borrowed harmony retained' },
++  { id: '01-lyrical-dorian', fixture: 'dorian-16bars', template: 'symphony', seed: 7, take: 1, purpose: 'Alternative displayed seed; compare assignments, contour and rhythmic placement' },
++  { id: '02-dialogue-dorian', fixture: 'three-chorus-40bars', template: 'hybridstudio', seed: 1, take: 2, purpose: 'Alternative produced take with unchanged displayed seed' },
++];
++const sha = (b) => createHash('sha256').update(b).digest('hex');
++const put = (path, bytes) => { mkdirSync(join(path, '..'), { recursive: true }); writeFileSync(path, bytes); };
++const json = (path, x) => put(path, JSON.stringify(x, null, 2) + '\n');
++const stats = () => ({ folded: {}, droppedHardRange: {}, droppedDoubling: {}, winds: [] });
++const catalog = [];
++for (const spec of specs) {
++  let p = projectFromFixture(JSON.parse(readFileSync(`fixtures/${spec.fixture}.json`, 'utf8')));
++  if (spec.mode) p = transformProjectMode(p, spec.mode).project;
++  p.name = spec.id;
++  p.ensemble = { templateId: `ensemble.${spec.template}`, overrides: {}, pins: {} };
++  p.orchestration = { take: spec.take - 1 };
++  const opts = { seed: spec.seed, stringsComposition: 'v1', windsComposition: 'v1' };
++  const r = composeAllTracks(p, opts), baseline = composeAllTracks(p, { ...opts, windsComposition: 'classic' });
++  const nonwinds = r.tracks.filter((t) => t.family !== 'Woodwinds');
++  assert.deepEqual(nonwinds, baseline.tracks.filter((t) => t.family !== 'Woodwinds'), 'non-wind output/CC changed');
++  assert.equal(r.windDiagnostics.route, 'v1-final');
++  assert.equal(r.orchestration.take, spec.take);
++  const produced = { ...p, tracks: r.tracks, orchestration: r.orchestration };
++  const slug = `${spec.id}__seed-${spec.seed}__take-${spec.take}`;
++  const dir = join(root, slug);
++  json(join(dir, 'input-project.json'), p);
++  json(join(dir, 'produced-project.json'), produced);
++  const winds = r.tracks.filter((t) => r.windDiagnostics.ownership.ownedTrackIds.includes(t.id));
++  const scopeEvidence = {};
++  const mapping = r.tracks.filter(isInstrumentTrack).map((t) => ({ id: t.id, role: t.role, name: t.name, plainChannel: t.midiChannel, notes: t.notes.length,
++    profileParts: EXPORT_PROFILES[0].profile.parts.filter((part) => part.source.role === t.role).map((part) => ({ patch: part.patch, channel: part.channel, fileScope: part.fileScope ?? 'merged-and-per-track' })) }));
++  for (const [label, profile] of [['plain', null], ['uvi', EXPORT_PROFILES[0].profile]]) {
++    const prefix = join(dir, label, `${slug}__${label}`), mergedStats = stats(), partStats = stats();
++    const full = buildMergedMidi(produced, r.tracks.filter(isInstrumentTrack), profile, mergedStats);
++    assert.equal(parseMidi(full).header.ticksPerBeat, 960);
++    put(`${prefix}__full-orchestra.mid`, full);
++    put(`${prefix}__winds-only.mid`, buildMergedMidi(produced, winds, profile));
++    put(`${prefix}__nonwind-reference.mid`, buildMergedMidi(produced, nonwinds.filter(isInstrumentTrack), profile));
++    for (const part of WIND_PARTS) {
++      const track = r.tracks.find((t) => t.role === part);
++      // Empty/out-of-band players intentionally get valid conductor-only or
++      // empty-track MIDI, not substitute material or a legacy fallback.
++      put(`${prefix}__${part}.mid`, buildMergedMidi(produced, track ? [track] : [], profile));
++    }
++    const files = buildPerTrackMidi(produced, r.tracks.filter(isInstrumentTrack), profile, partStats);
++    for (const [i, f] of files.entries()) {
++      parseMidi(f.data);
++      put(join(dir, label, 'orchestral-parts', `${slug}__${label}__${String(i + 1).padStart(2, '0')}__${f.fileName}`), f.data);
++    }
++    const reconciled = reconcileWindExport(r.windDiagnostics, [...mergedStats.winds, ...partStats.winds]);
++    for (const row of reconciled.filter((j) => r.windDiagnostics.ownership.ownedTrackIds.includes(j.trackId))) {
++      assert.equal(row.state, 'observed');
++      for (const job of row.jobs) for (const scope of job.scopes) assert.ok(['exported', 'not-retained'].includes(scope.state), JSON.stringify({ slug, label, job }));
++    }
++    for (const row of mergedStats.winds) {
++      const parsed = parseMidi(full);
++      const track = r.tracks.find((t) => t.id === row.trackId);
++      const patch = profile?.parts.find((p) => p.source.role === track.role)?.patch ?? track.name;
++      const midiTrack = parsed.tracks.find((tr) => tr.some((e) => e.type === 'trackName' && e.text === patch));
++      const ons = midiTrack?.filter((e) => e.type === 'noteOn' && e.velocity > 0).length ?? 0;
++      assert.equal(ons, row.serializedSoundingNotes + row.serializedKeyswitches);
++      assert.equal(row.serializedSoundingNotes, track.notes.length);
++    }
++    scopeEvidence[label] = { merged: mergedStats, perTrack: partStats, reconciled, perTrackFiles: files.length };
++  }
++  const ensemble = r.windDiagnostics.plan.ensemble;
++  let designed = 0, retainedDesigned = 0;
++  for (const phrase of ensemble.phrases) {
++    const t = winds.find((t) => t.role === phrase.part);
++    designed += phrase.notes.length;
++    retainedDesigned += phrase.notes.filter((n) => t.notes.some((m) => m.pitch === n.pitch && m.startTick === n.startTick && m.durationTicks === n.durationTicks)).length;
++  }
++  const bassoon = winds.find((t) => t.role === 'bassoons');
++  const cello = r.tracks.find((t) => t.role === 'cellosBasses');
++  const independentBassoon = bassoon?.notes.filter((n) => !cello?.notes.some((m) => m.startTick === n.startTick && m.durationTicks === n.durationTicks && (m.pitch - n.pitch) % 12 === 0)).length ?? 0;
++  const item = { ...spec, slug, mode: p.mode, bars: Math.max(...p.sections.map((s) => s.startBar + s.lengthBars - 1)),
++    stringsComposition: 'v1', windVersion: r.windDiagnostics.identity.version,
++    nonWindExact: true, nonWindSha256: sha(JSON.stringify(nonwinds)), designedNotes: designed, retainedDesignedNotes: retainedDesigned,
++    independentBassoonNotesNotExactCelloCopies: independentBassoon,
++    windParts: r.windDiagnostics.parts.map((part) => ({ part: part.part, state: part.state, retainedNotes: part.retainedNotes, reason: part.reason })),
++    phraseEntries: ensemble.phrases.map((ph) => ({ bar: ph.bar, part: ph.part, duty: ph.duty, relatedTo: ph.relatedTo, notes: ph.notes.length })), mapping };
++  json(join(dir, 'evidence.json'), { ...item, diagnostics: r.windDiagnostics, exports: scopeEvidence });
++  catalog.push(item);
++  console.log(slug, `designed/retained ${designed}/${retainedDesigned}`, item.windParts.map((p) => `${p.part}:${p.retainedNotes}`).join(' '), `independent bassoon ${independentBassoon}`);
++}
++json(join(root, 'catalog.json'), catalog);
++json(join(root, 'BUILD.json'), {
++  path: 'actual production Compose All; installed midi-file; no alternate codec',
++  sourceSha256: Object.fromEntries([
++    'src/orchestrator/winds/ensemble.ts', 'src/orchestrator/winds/identity.ts',
++    'src/orchestrator/winds/production.ts', 'src/orchestrator/winds/plan.ts',
++    'src/orchestrator/winds/render.ts', 'src/orchestrator/compose.ts',
++    'src/export/midi.ts', 'src/export/profile.ts', 'src/export/wind-audit.ts',
++    'src/export/profiles/uvi-orchestral-suite.json', 'scripts/winds-stage2-audition.mjs',
++    ...[...new Set(specs.map((s) => `fixtures/${s.fixture}.json`))],
++  ].map((path) => [path, sha(readFileSync(path))])),
++});
++const readmePath = join(root, 'README.md');
++if (existsSync(readmePath)) {
++  const total = catalog.reduce((n, c) => n + c.designedNotes, 0);
++  const bassoonCounts = catalog.filter((c) => c.independentBassoonNotesNotExactCelloCopies > 0).map((c) => c.independentBassoonNotesNotExactCelloCopies);
++  put(readmePath, readFileSync(readmePath, 'utf8')
++    .replace(/All \*\*\d+ designed phrase notes\*\*/, `All **${total} designed phrase notes**`)
++    .replace(/Bassoon has \d+, \d+, \d+ and \d+ retained notes/, `Bassoon has ${bassoonCounts.slice(0, -1).join(', ')} and ${bassoonCounts.at(-1)} retained notes`));
++}
++json(join(root, 'uvi-profile-reference.json'), EXPORT_PROFILES[0].profile);
++const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? walk(join(dir, e.name)) : [join(dir, e.name)]);
++const rows = walk(root).filter((p) => !p.endsWith('/SHA256SUMS')).sort().map((p) => `${sha(readFileSync(p))}  ${relative(root, p)}`);
++put(join(root, 'SHA256SUMS'), rows.join('\n') + '\n');
++console.log(`Wrote ${rows.length + 1} package files; ${walk(root).filter((p) => p.endsWith('.mid')).length} MIDI files. README is maintained alongside generated evidence.`);

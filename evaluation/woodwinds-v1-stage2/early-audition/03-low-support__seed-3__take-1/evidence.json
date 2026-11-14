@@ -1,0 +1,6066 @@
+{
+  "id": "03-low-support",
+  "fixture": "multi-chorus-16bars",
+  "template": "cinematic",
+  "seed": 3,
+  "take": 1,
+  "purpose": "Independent bassoon tenor gestures and rhythmic support against orchestral bass",
+  "slug": "03-low-support__seed-3__take-1",
+  "mode": "Dorian",
+  "bars": 16,
+  "stringsComposition": "v1",
+  "windVersion": "winds-v1-stage2",
+  "nonWindExact": true,
+  "nonWindSha256": "a4a65dbbb220f073d0a4beec436b2d1b651c51d565c29ae7e60e7d84bfc077d2",
+  "designedNotes": 30,
+  "retainedDesignedNotes": 30,
+  "independentBassoonNotesNotExactCelloCopies": 9,
+  "windParts": [
+    {
+      "part": "flutes",
+      "state": "retained",
+      "retainedNotes": 24,
+      "reason": "see per-job states and trace; counts are not musical quality"
+    },
+    {
+      "part": "oboes",
+      "state": "ineligible",
+      "retainedNotes": 0,
+      "reason": "out of band (pins and overrides applied)"
+    },
+    {
+      "part": "clarinets",
+      "state": "retained",
+      "retainedNotes": 8,
+      "reason": "see per-job states and trace; counts are not musical quality"
+    },
+    {
+      "part": "bassoons",
+      "state": "retained",
+      "retainedNotes": 9,
+      "reason": "see per-job states and trace; counts are not musical quality"
+    }
+  ],
+  "phraseEntries": [
+    {
+      "bar": 3,
+      "part": "flutes",
+      "duty": "statement",
+      "relatedTo": null,
+      "notes": 4
+    },
+    {
+      "bar": 3,
+      "part": "bassoons",
+      "duty": "support",
+      "relatedTo": "phrase:3:flutes",
+      "notes": 2
+    },
+    {
+      "bar": 9,
+      "part": "flutes",
+      "duty": "statement",
+      "relatedTo": null,
+      "notes": 4
+    },
+    {
+      "bar": 10,
+      "part": "bassoons",
+      "duty": "answer",
+      "relatedTo": "phrase:9:flutes",
+      "notes": 3
+    },
+    {
+      "bar": 10,
+      "part": "clarinets",
+      "duty": "support",
+      "relatedTo": "phrase:10:bassoons",
+      "notes": 2
+    },
+    {
+      "bar": 11,
+      "part": "flutes",
+      "duty": "continuation",
+      "relatedTo": "phrase:10:bassoons",
+      "notes": 4
+    },
+    {
+      "bar": 11,
+      "part": "bassoons",
+      "duty": "support",
+      "relatedTo": "phrase:11:flutes",
+      "notes": 2
+    },
+    {
+      "bar": 12,
+      "part": "clarinets",
+      "duty": "arrival",
+      "relatedTo": "phrase:11:flutes",
+      "notes": 2
+    },
+    {
+      "bar": 15,
+      "part": "clarinets",
+      "duty": "statement",
+      "relatedTo": null,
+      "notes": 3
+    },
+    {
+      "bar": 15,
+      "part": "bassoons",
+      "duty": "support",
+      "relatedTo": "phrase:15:clarinets",
+      "notes": 2
+    },
+    {
+      "bar": 16,
+      "part": "flutes",
+      "duty": "arrival",
+      "relatedTo": "phrase:15:clarinets",
+      "notes": 2
+    }
+  ],
+  "mapping": [
+    {
+      "id": "trk_03_violins1",
+      "role": "violins1",
+      "name": "Violins I",
+      "plainChannel": 1,
+      "notes": 0,
+      "profileParts": [
+        {
+          "patch": "Violins 1 Ensemble",
+          "channel": 1,
+          "fileScope": "merged-and-per-track"
+        }
+      ]
+    },
+    {
+      "id": "trk_04_violins2",
+      "role": "violins2",
+      "name": "Violins II",
+      "plainChannel": 2,
+      "notes": 0,
+      "profileParts": [
+        {
+          "patch": "Violins 2 Ensemble",
+          "channel": 2,
+          "fileScope": "merged-and-per-track"
+        }
+      ]
+    },
+    {
+      "id": "trk_05_violas",
+      "role": "violas",
+      "name": "Violas",
+      "plainChannel": 3,
+      "notes": 35,
+      "profileParts": [
+        {
+          "patch": "Viola Ensemble",
+          "channel": 3,
+          "fileScope": "merged-and-per-track"
+        }
+      ]
+    },
+    {
+      "id": "trk_06_cellosBasses",
+      "role": "cellosBasses",
+      "name": "Cellos/Basses",
+      "plainChannel": 4,
+      "notes": 37,
+      "profileParts": [
+        {
+          "patch": "Cello Ensemble",
+          "channel": 4,
+          "fileScope": "merged-and-per-track"
+        }
+      ]
+    },
+    {
+      "id": "trk_basses",
+      "role": "basses",
+      "name": "Double Basses",
+      "plainChannel": 3,
+      "notes": 28,
+      "profileParts": [
+        {
+          "patch": "Bass Ensemble",
+          "channel": 5,
+          "fileScope": "merged-and-per-track"
+        }
+      ]
+    },
+    {
+      "id": "trk_07_horns",
+      "role": "horns",
+      "name": "French Horns",
+      "plainChannel": 5,
+      "notes": 23,
+      "profileParts": [
+        {
+          "patch": "French Horn Ensemble",
+          "channel": 6,
+          "fileScope": "merged-and-per-track"
+        }
+      ]
+    },
+    {
+      "id": "trk_08_trumpets",
+      "role": "trumpets",
+      "name": "Trumpets",
+      "plainChannel": 6,
+      "notes": 19,
+      "profileParts": [
+        {
+          "patch": "Trumpet Ensemble",
+          "channel": 8,
+          "fileScope": "merged-and-per-track"
+        }
+      ]
+    },
+    {
+      "id": "trk_09_trombones",
+      "role": "trombones",
+      "name": "Trombones",
+      "plainChannel": 7,
+      "notes": 16,
+      "profileParts": [
+        {
+          "patch": "Trombone Ensemble",
+          "channel": 7,
+          "fileScope": "merged-and-per-track"
+        }
+      ]
+    },
+    {
+      "id": "trk_10_tuba",
+      "role": "tuba",
+      "name": "Tuba",
+      "plainChannel": 8,
+      "notes": 6,
+      "profileParts": [
+        {
+          "patch": "Tuba solo",
+          "channel": 9,
+          "fileScope": "merged-and-per-track"
+        }
+      ]
+    },
+    {
+      "id": "trk_11_flutes",
+      "role": "flutes",
+      "name": "Flutes",
+      "plainChannel": 9,
+      "notes": 24,
+      "profileParts": [
+        {
+          "patch": "Flute Solo",
+          "channel": 11,
+          "fileScope": "merged-and-per-track"
+        }
+      ]
+    },
+    {
+      "id": "trk_12_oboes",
+      "role": "oboes",
+      "name": "Oboes",
+      "plainChannel": 10,
+      "notes": 0,
+      "profileParts": [
+        {
+          "patch": "Oboe Solo",
+          "channel": 12,
+          "fileScope": "merged-and-per-track"
+        }
+      ]
+    },
+    {
+      "id": "trk_13_clarinets",
+      "role": "clarinets",
+      "name": "Clarinets",
+      "plainChannel": 11,
+      "notes": 8,
+      "profileParts": [
+        {
+          "patch": "Clarinet Solo",
+          "channel": 13,
+          "fileScope": "merged-and-per-track"
+        }
+      ]
+    },
+    {
+      "id": "trk_14_bassoons",
+      "role": "bassoons",
+      "name": "Bassoons",
+      "plainChannel": 12,
+      "notes": 9,
+      "profileParts": [
+        {
+          "patch": "Bassoon Solo",
+          "channel": 14,
+          "fileScope": "merged-and-per-track"
+        }
+      ]
+    },
+    {
+      "id": "trk_15_timpani",
+      "role": "timpani",
+      "name": "Timpani",
+      "plainChannel": 13,
+      "notes": 46,
+      "profileParts": [
+        {
+          "patch": "Timpani",
+          "channel": 10,
+          "fileScope": "fileOnly"
+        }
+      ]
+    },
+    {
+      "id": "trk_16_snare",
+      "role": "snare",
+      "name": "Snare",
+      "plainChannel": 14,
+      "notes": 0,
+      "profileParts": [
+        {
+          "patch": "Snare",
+          "channel": 11,
+          "fileScope": "fileOnly"
+        }
+      ]
+    },
+    {
+      "id": "trk_17_cymbals",
+      "role": "cymbals",
+      "name": "Cymbals",
+      "plainChannel": 15,
+      "notes": 3,
+      "profileParts": [
+        {
+          "patch": "Cymbals",
+          "channel": 12,
+          "fileScope": "fileOnly"
+        }
+      ]
+    },
+    {
+      "id": "trk_18_aux",
+      "role": "aux",
+      "name": "Aux",
+      "plainChannel": 16,
+      "notes": 44,
+      "profileParts": []
+    },
+    {
+      "id": "trk_19_piano",
+      "role": "piano",
+      "name": "Piano",
+      "plainChannel": 1,
+      "notes": 102,
+      "profileParts": [
+        {
+          "patch": "UVI Grand Model D",
+          "channel": 16,
+          "fileScope": "merged-and-per-track"
+        }
+      ]
+    },
+    {
+      "id": "trk_20_harp",
+      "role": "harp",
+      "name": "Harp",
+      "plainChannel": 2,
+      "notes": 42,
+      "profileParts": [
+        {
+          "patch": "Harp",
+          "channel": 15,
+          "fileScope": "merged-and-per-track"
+        }
+      ]
+    }
+  ],
+  "diagnostics": {
+    "mode": "v1",
+    "route": "v1-final",
+    "identity": {
+      "version": "winds-v1-stage2",
+      "musicalInputs": "orchestration:v2\nchords:Dm7@0-3840,G7@3840-7680,Dm7@7680-11520,Em7@11520-13440,Fmaj7@13440-15360,Dm9@15360-19200,C/E@19200-23040,Am7@23040-26880,G@26880-30720,Dm@30720-34560,Fmaj7@34560-38400,C@38400-42240,G/B@42240-46080,Dm7@46080-49920,Bbmaj7@49920-53760,C@53760-55680,A7sus4@55680-57600,Dm7@57600-61440\nstructure:Verse:1+4,Chorus:5+4,Verse:9+4,Chorus:13+4\nkey:2\nmode:Dorian\ntempo:100|0:100\nband:ensemble.cinematic;o:.;p:.",
+      "userSeed": 3,
+      "producedTake": 1,
+      "seed": 3188288727
+    },
+    "ownership": {
+      "ownedTrackIds": [
+        "trk_11_flutes",
+        "trk_13_clarinets",
+        "trk_14_bassoons"
+      ],
+      "preservedTrackIds": [
+        "trk_00_structure",
+        "trk_01_chords",
+        "trk_02_reference",
+        "trk_03_violins1",
+        "trk_04_violins2",
+        "trk_05_violas",
+        "trk_06_cellosBasses",
+        "trk_basses",
+        "trk_07_horns",
+        "trk_08_trumpets",
+        "trk_09_trombones",
+        "trk_10_tuba",
+        "trk_12_oboes",
+        "trk_15_timpani",
+        "trk_16_snare",
+        "trk_17_cymbals",
+        "trk_18_aux",
+        "trk_19_piano",
+        "trk_20_harp"
+      ]
+    },
+    "plan": {
+      "bars": [
+        {
+          "bar": 1,
+          "level": "low",
+          "norm": 0.3949861656678351,
+          "voices": {},
+          "ordinary": {}
+        },
+        {
+          "bar": 2,
+          "level": "mid",
+          "norm": 0.5154547620107208,
+          "voices": {
+            "flutes": "leadDouble"
+          },
+          "ordinary": {
+            "flutes": "leadDouble"
+          }
+        },
+        {
+          "bar": 3,
+          "level": "mid",
+          "norm": 0.5371768169366478,
+          "voices": {
+            "flutes": "phrase",
+            "bassoons": "phrase"
+          },
+          "ordinary": {
+            "flutes": "phrase",
+            "bassoons": "phrase"
+          }
+        },
+        {
+          "bar": 4,
+          "level": "off",
+          "norm": 0,
+          "voices": {},
+          "ordinary": {}
+        },
+        {
+          "bar": 5,
+          "level": "mid",
+          "norm": 0.691664930236967,
+          "voices": {
+            "flutes": "unison",
+            "bassoons": "unison"
+          },
+          "ordinary": {
+            "flutes": "leadDouble",
+            "clarinets": "ostinato",
+            "bassoons": "bassDouble"
+          },
+          "moment": "unison"
+        },
+        {
+          "bar": 6,
+          "level": "high",
+          "norm": 0.7568707662193399,
+          "voices": {
+            "flutes": "unison",
+            "bassoons": "unison"
+          },
+          "ordinary": {
+            "flutes": "leadDouble",
+            "clarinets": "harmony",
+            "bassoons": "bassDouble"
+          },
+          "moment": "unison"
+        },
+        {
+          "bar": 7,
+          "level": "high",
+          "norm": 0.8220766022017127,
+          "voices": {
+            "flutes": "unison",
+            "bassoons": "unison"
+          },
+          "ordinary": {
+            "flutes": "leadDouble",
+            "clarinets": "harmony",
+            "bassoons": "bassDouble"
+          },
+          "moment": "unison"
+        },
+        {
+          "bar": 8,
+          "level": "mid",
+          "norm": 0.6555452274839488,
+          "voices": {
+            "flutes": "unison",
+            "bassoons": "unison"
+          },
+          "ordinary": {
+            "flutes": "leadDouble",
+            "clarinets": "ostinato",
+            "bassoons": "bassDouble"
+          },
+          "moment": "unison"
+        },
+        {
+          "bar": 9,
+          "level": "low",
+          "norm": 0.45376733293462745,
+          "voices": {
+            "flutes": "phrase"
+          },
+          "ordinary": {
+            "flutes": "phrase"
+          }
+        },
+        {
+          "bar": 10,
+          "level": "mid",
+          "norm": 0.502132970627332,
+          "voices": {
+            "bassoons": "phrase",
+            "clarinets": "phrase"
+          },
+          "ordinary": {
+            "bassoons": "phrase",
+            "clarinets": "phrase"
+          }
+        },
+        {
+          "bar": 11,
+          "level": "mid",
+          "norm": 0.5504986083200366,
+          "voices": {
+            "flutes": "phrase",
+            "bassoons": "phrase"
+          },
+          "ordinary": {
+            "flutes": "phrase",
+            "bassoons": "phrase"
+          }
+        },
+        {
+          "bar": 12,
+          "level": "low",
+          "norm": 0.36487824283826403,
+          "voices": {
+            "clarinets": "phrase"
+          },
+          "ordinary": {
+            "clarinets": "phrase"
+          }
+        },
+        {
+          "bar": 13,
+          "level": "high",
+          "norm": 0.8500000000000001,
+          "voices": {
+            "flutes": "tutti",
+            "clarinets": "tutti",
+            "bassoons": "tutti"
+          },
+          "ordinary": {
+            "flutes": "leadDouble",
+            "clarinets": "harmony",
+            "bassoons": "bassDouble"
+          },
+          "moment": "tutti"
+        },
+        {
+          "bar": 14,
+          "level": "peak",
+          "norm": 0.925,
+          "voices": {
+            "flutes": "leadDouble"
+          },
+          "ordinary": {
+            "flutes": "leadDouble"
+          }
+        },
+        {
+          "bar": 15,
+          "level": "peak",
+          "norm": 1,
+          "voices": {
+            "clarinets": "phrase",
+            "bassoons": "phrase"
+          },
+          "ordinary": {
+            "clarinets": "phrase",
+            "bassoons": "phrase"
+          }
+        },
+        {
+          "bar": 16,
+          "level": "mid",
+          "norm": 0.5499999999999999,
+          "voices": {
+            "flutes": "phrase"
+          },
+          "ordinary": {
+            "flutes": "phrase"
+          }
+        }
+      ],
+      "leads": [],
+      "leadDoubleByType": {
+        "verse": {
+          "mode": "octaveAbove",
+          "part": "flutes"
+        },
+        "chorus": {
+          "mode": "unison",
+          "part": "flutes"
+        }
+      },
+      "pickupRuns": [],
+      "flutterBars": {},
+      "reports": [
+        "winds (take 1): gates 0.30/0.50/0.72/0.90 of clamp 0.95, chorus relief upper winds ≥0.30 + bassoon follows cellos; lead none; doubles verse=flutes/octaveAbove chorus=flutes/unison; pickup runs b12:clarinets; flutter none",
+        "winds plan (take 1): b2[mid] flutes:leadDouble,clarinets:ostinato,bassoons:bassDouble | b3[mid] flutes:leadDouble,clarinets:ostinato,bassoons:bassDouble | b5[mid] flutes:unison,bassoons:unison | b6[high] flutes:unison,bassoons:unison | b7[high] flutes:unison,bassoons:unison | b8[mid] flutes:unison,bassoons:unison | b9[low] clarinets:colour | b10[mid] flutes:leadDouble,clarinets:ostinato,bassoons:bassDouble | b11[mid] flutes:leadDouble,clarinets:ostinato,bassoons:bassDouble | b12[low] clarinets:colour | b13[high] flutes:tutti,clarinets:tutti,bassoons:tutti | b14[peak] flutes:leadDouble,clarinets:harmony,bassoons:bassDouble",
+        "winds dialogue slice: 11 phrase contributions; explicit source anchors, transformed answers, tenor support and air"
+      ],
+      "ensemble": {
+        "version": "dialogue-slice-1",
+        "phrases": [
+          {
+            "id": "phrase:3:flutes",
+            "bar": 3,
+            "part": "flutes",
+            "duty": "statement",
+            "idea": "idea:0/1/3/2",
+            "relatedTo": null,
+            "transformation": "original",
+            "reason": "statement; responds around finalized foreground; shared contour, instrument-specific pacing; final felt beat reserved for air",
+            "notes": [
+              {
+                "pitch": 74,
+                "startTick": 7680,
+                "durationTicks": 720,
+                "velocity": 64,
+                "articulation": "legato"
+              },
+              {
+                "pitch": 76,
+                "startTick": 8640,
+                "durationTicks": 374,
+                "velocity": 64,
+                "articulation": "legato"
+              },
+              {
+                "pitch": 79,
+                "startTick": 9120,
+                "durationTicks": 374,
+                "velocity": 64,
+                "articulation": "legato"
+              },
+              {
+                "pitch": 77,
+                "startTick": 9600,
+                "durationTicks": 835,
+                "velocity": 64,
+                "articulation": "legato"
+              }
+            ]
+          },
+          {
+            "id": "phrase:3:bassoons",
+            "bar": 3,
+            "part": "bassoons",
+            "duty": "support",
+            "idea": "idea:0/1/3/2",
+            "relatedTo": "phrase:3:flutes",
+            "transformation": "rhythmic-support",
+            "reason": "support; responds around finalized foreground; independent tenor/offbeat gesture; final felt beat reserved for air",
+            "notes": [
+              {
+                "pitch": 53,
+                "startTick": 8640,
+                "durationTicks": 475,
+                "velocity": 64,
+                "articulation": "staccato"
+              },
+              {
+                "pitch": 57,
+                "startTick": 10080,
+                "durationTicks": 480,
+                "velocity": 64,
+                "articulation": "staccato"
+              }
+            ]
+          },
+          {
+            "id": "phrase:9:flutes",
+            "bar": 9,
+            "part": "flutes",
+            "duty": "statement",
+            "idea": "idea:0/1/3/2",
+            "relatedTo": null,
+            "transformation": "original",
+            "reason": "statement; responds around finalized foreground; shared contour, instrument-specific pacing; final felt beat reserved for air",
+            "notes": [
+              {
+                "pitch": 77,
+                "startTick": 31200,
+                "durationTicks": 336,
+                "velocity": 64,
+                "articulation": "legato"
+              },
+              {
+                "pitch": 77,
+                "startTick": 31680,
+                "durationTicks": 336,
+                "velocity": 64,
+                "articulation": "legato"
+              },
+              {
+                "pitch": 81,
+                "startTick": 32160,
+                "durationTicks": 442,
+                "velocity": 64,
+                "articulation": "legato"
+              },
+              {
+                "pitch": 81,
+                "startTick": 32640,
+                "durationTicks": 816,
+                "velocity": 64,
+                "articulation": "legato"
+              }
+            ]
+          },
+          {
+            "id": "phrase:10:bassoons",
+            "bar": 10,
+            "part": "bassoons",
+            "duty": "answer",
+            "idea": "idea:0/1/3/2",
+            "relatedTo": "phrase:9:flutes",
+            "transformation": "inverted-answer",
+            "reason": "answer; responds around finalized foreground; independent tenor/offbeat gesture; final felt beat reserved for air",
+            "notes": [
+              {
+                "pitch": 57,
+                "startTick": 35040,
+                "durationTicks": 360,
+                "velocity": 64,
+                "articulation": "staccato"
+              },
+              {
+                "pitch": 57,
+                "startTick": 36000,
+                "durationTicks": 360,
+                "velocity": 64,
+                "articulation": "staccato"
+              },
+              {
+                "pitch": 52,
+                "startTick": 36480,
+                "durationTicks": 624,
+                "velocity": 64,
+                "articulation": "staccato"
+              }
+            ]
+          },
+          {
+            "id": "phrase:10:clarinets",
+            "bar": 10,
+            "part": "clarinets",
+            "duty": "support",
+            "idea": "idea:0/1/3/2",
+            "relatedTo": "phrase:10:bassoons",
+            "transformation": "rhythmic-support",
+            "reason": "support; responds around finalized foreground; shared contour, instrument-specific pacing; final felt beat reserved for air",
+            "notes": [
+              {
+                "pitch": 76,
+                "startTick": 35520,
+                "durationTicks": 475,
+                "velocity": 64,
+                "articulation": "staccato"
+              },
+              {
+                "pitch": 81,
+                "startTick": 36960,
+                "durationTicks": 480,
+                "velocity": 64,
+                "articulation": "staccato"
+              }
+            ]
+          },
+          {
+            "id": "phrase:11:flutes",
+            "bar": 11,
+            "part": "flutes",
+            "duty": "continuation",
+            "idea": "idea:0/1/3/2",
+            "relatedTo": "phrase:10:bassoons",
+            "transformation": "extended-ending",
+            "reason": "continuation; responds around finalized foreground; shared contour, instrument-specific pacing; final felt beat reserved for air",
+            "notes": [
+              {
+                "pitch": 79,
+                "startTick": 38880,
+                "durationTicks": 336,
+                "velocity": 64,
+                "articulation": "legato"
+              },
+              {
+                "pitch": 79,
+                "startTick": 39360,
+                "durationTicks": 336,
+                "velocity": 64,
+                "articulation": "legato"
+              },
+              {
+                "pitch": 83,
+                "startTick": 39840,
+                "durationTicks": 442,
+                "velocity": 64,
+                "articulation": "legato"
+              },
+              {
+                "pitch": 84,
+                "startTick": 40320,
+                "durationTicks": 816,
+                "velocity": 64,
+                "articulation": "legato"
+              }
+            ]
+          },
+          {
+            "id": "phrase:11:bassoons",
+            "bar": 11,
+            "part": "bassoons",
+            "duty": "support",
+            "idea": "idea:0/1/3/2",
+            "relatedTo": "phrase:11:flutes",
+            "transformation": "rhythmic-support",
+            "reason": "support; responds around finalized foreground; independent tenor/offbeat gesture; final felt beat reserved for air",
+            "notes": [
+              {
+                "pitch": 52,
+                "startTick": 39360,
+                "durationTicks": 475,
+                "velocity": 64,
+                "articulation": "staccato"
+              },
+              {
+                "pitch": 55,
+                "startTick": 40800,
+                "durationTicks": 480,
+                "velocity": 64,
+                "articulation": "staccato"
+              }
+            ]
+          },
+          {
+            "id": "phrase:12:clarinets",
+            "bar": 12,
+            "part": "clarinets",
+            "duty": "arrival",
+            "idea": "idea:0/1/3/2",
+            "relatedTo": "phrase:11:flutes",
+            "transformation": "cadential-ending",
+            "reason": "arrival; responds around finalized foreground; shared contour, instrument-specific pacing; final felt beat reserved for air",
+            "notes": [
+              {
+                "pitch": 74,
+                "startTick": 42240,
+                "durationTicks": 806,
+                "velocity": 64,
+                "articulation": "legato"
+              },
+              {
+                "pitch": 74,
+                "startTick": 43200,
+                "durationTicks": 1786,
+                "velocity": 64,
+                "articulation": "legato"
+              }
+            ]
+          },
+          {
+            "id": "phrase:15:clarinets",
+            "bar": 15,
+            "part": "clarinets",
+            "duty": "statement",
+            "idea": "idea:0/1/3/2",
+            "relatedTo": null,
+            "transformation": "original",
+            "reason": "statement; responds around finalized foreground; shared contour, instrument-specific pacing; final felt beat reserved for air",
+            "notes": [
+              {
+                "pitch": 76,
+                "startTick": 54240,
+                "durationTicks": 528,
+                "velocity": 64,
+                "articulation": "staccato"
+              },
+              {
+                "pitch": 77,
+                "startTick": 55200,
+                "durationTicks": 480,
+                "velocity": 64,
+                "articulation": "legato"
+              },
+              {
+                "pitch": 81,
+                "startTick": 56160,
+                "durationTicks": 408,
+                "velocity": 64,
+                "articulation": "staccato"
+              }
+            ]
+          },
+          {
+            "id": "phrase:15:bassoons",
+            "bar": 15,
+            "part": "bassoons",
+            "duty": "support",
+            "idea": "idea:0/1/3/2",
+            "relatedTo": "phrase:15:clarinets",
+            "transformation": "rhythmic-support",
+            "reason": "support; responds around finalized foreground; independent tenor/offbeat gesture; final felt beat reserved for air",
+            "notes": [
+              {
+                "pitch": 55,
+                "startTick": 55200,
+                "durationTicks": 475,
+                "velocity": 64,
+                "articulation": "staccato"
+              },
+              {
+                "pitch": 57,
+                "startTick": 56160,
+                "durationTicks": 480,
+                "velocity": 64,
+                "articulation": "staccato"
+              }
+            ]
+          },
+          {
+            "id": "phrase:16:flutes",
+            "bar": 16,
+            "part": "flutes",
+            "duty": "arrival",
+            "idea": "idea:0/1/3/2",
+            "relatedTo": "phrase:15:clarinets",
+            "transformation": "cadential-ending",
+            "reason": "arrival; responds around finalized foreground; shared contour, instrument-specific pacing; final felt beat reserved for air",
+            "notes": [
+              {
+                "pitch": 77,
+                "startTick": 57600,
+                "durationTicks": 806,
+                "velocity": 64,
+                "articulation": "legato"
+              },
+              {
+                "pitch": 77,
+                "startTick": 58560,
+                "durationTicks": 1786,
+                "velocity": 64,
+                "articulation": "legato"
+              }
+            ]
+          }
+        ],
+        "windows": [
+          {
+            "part": "flutes",
+            "bar": 1,
+            "startTick": 0,
+            "endTick": 2880
+          },
+          {
+            "part": "clarinets",
+            "bar": 1,
+            "startTick": 0,
+            "endTick": 2880
+          },
+          {
+            "part": "bassoons",
+            "bar": 1,
+            "startTick": 0,
+            "endTick": 2880
+          },
+          {
+            "part": "flutes",
+            "bar": 2,
+            "startTick": 3840,
+            "endTick": 6720
+          },
+          {
+            "part": "clarinets",
+            "bar": 2,
+            "startTick": 3840,
+            "endTick": 6720
+          },
+          {
+            "part": "bassoons",
+            "bar": 2,
+            "startTick": 3840,
+            "endTick": 6720
+          },
+          {
+            "part": "flutes",
+            "bar": 3,
+            "startTick": 7680,
+            "endTick": 10560
+          },
+          {
+            "part": "clarinets",
+            "bar": 3,
+            "startTick": 7680,
+            "endTick": 10560
+          },
+          {
+            "part": "bassoons",
+            "bar": 3,
+            "startTick": 7680,
+            "endTick": 10560
+          },
+          {
+            "part": "flutes",
+            "bar": 4,
+            "startTick": 11520,
+            "endTick": 14400
+          },
+          {
+            "part": "clarinets",
+            "bar": 4,
+            "startTick": 11520,
+            "endTick": 14400
+          },
+          {
+            "part": "bassoons",
+            "bar": 4,
+            "startTick": 11520,
+            "endTick": 14400
+          },
+          {
+            "part": "flutes",
+            "bar": 5,
+            "startTick": 15360,
+            "endTick": 18240
+          },
+          {
+            "part": "clarinets",
+            "bar": 5,
+            "startTick": 15360,
+            "endTick": 18240
+          },
+          {
+            "part": "bassoons",
+            "bar": 5,
+            "startTick": 15360,
+            "endTick": 18240
+          },
+          {
+            "part": "flutes",
+            "bar": 6,
+            "startTick": 19200,
+            "endTick": 22080
+          },
+          {
+            "part": "clarinets",
+            "bar": 6,
+            "startTick": 19200,
+            "endTick": 22080
+          },
+          {
+            "part": "bassoons",
+            "bar": 6,
+            "startTick": 19200,
+            "endTick": 22080
+          },
+          {
+            "part": "flutes",
+            "bar": 7,
+            "startTick": 23040,
+            "endTick": 25920
+          },
+          {
+            "part": "clarinets",
+            "bar": 7,
+            "startTick": 23040,
+            "endTick": 25920
+          },
+          {
+            "part": "bassoons",
+            "bar": 7,
+            "startTick": 23040,
+            "endTick": 25920
+          },
+          {
+            "part": "flutes",
+            "bar": 8,
+            "startTick": 26880,
+            "endTick": 29760
+          },
+          {
+            "part": "clarinets",
+            "bar": 8,
+            "startTick": 26880,
+            "endTick": 29760
+          },
+          {
+            "part": "bassoons",
+            "bar": 8,
+            "startTick": 26880,
+            "endTick": 29760
+          },
+          {
+            "part": "flutes",
+            "bar": 9,
+            "startTick": 30720,
+            "endTick": 33600
+          },
+          {
+            "part": "clarinets",
+            "bar": 9,
+            "startTick": 30720,
+            "endTick": 33600
+          },
+          {
+            "part": "bassoons",
+            "bar": 9,
+            "startTick": 30720,
+            "endTick": 33600
+          },
+          {
+            "part": "flutes",
+            "bar": 10,
+            "startTick": 34560,
+            "endTick": 37440
+          },
+          {
+            "part": "clarinets",
+            "bar": 10,
+            "startTick": 34560,
+            "endTick": 37440
+          },
+          {
+            "part": "bassoons",
+            "bar": 10,
+            "startTick": 34560,
+            "endTick": 37440
+          },
+          {
+            "part": "flutes",
+            "bar": 11,
+            "startTick": 38400,
+            "endTick": 41280
+          },
+          {
+            "part": "clarinets",
+            "bar": 11,
+            "startTick": 38400,
+            "endTick": 41280
+          },
+          {
+            "part": "bassoons",
+            "bar": 11,
+            "startTick": 38400,
+            "endTick": 41280
+          },
+          {
+            "part": "flutes",
+            "bar": 12,
+            "startTick": 42240,
+            "endTick": 45120
+          },
+          {
+            "part": "clarinets",
+            "bar": 12,
+            "startTick": 42240,
+            "endTick": 45120
+          },
+          {
+            "part": "bassoons",
+            "bar": 12,
+            "startTick": 42240,
+            "endTick": 45120
+          },
+          {
+            "part": "flutes",
+            "bar": 13,
+            "startTick": 46080,
+            "endTick": 48960
+          },
+          {
+            "part": "clarinets",
+            "bar": 13,
+            "startTick": 46080,
+            "endTick": 48960
+          },
+          {
+            "part": "bassoons",
+            "bar": 13,
+            "startTick": 46080,
+            "endTick": 48960
+          },
+          {
+            "part": "flutes",
+            "bar": 14,
+            "startTick": 49920,
+            "endTick": 52800
+          },
+          {
+            "part": "clarinets",
+            "bar": 14,
+            "startTick": 49920,
+            "endTick": 52800
+          },
+          {
+            "part": "bassoons",
+            "bar": 14,
+            "startTick": 49920,
+            "endTick": 52800
+          },
+          {
+            "part": "flutes",
+            "bar": 15,
+            "startTick": 53760,
+            "endTick": 56640
+          },
+          {
+            "part": "clarinets",
+            "bar": 15,
+            "startTick": 53760,
+            "endTick": 56640
+          },
+          {
+            "part": "bassoons",
+            "bar": 15,
+            "startTick": 53760,
+            "endTick": 56640
+          },
+          {
+            "part": "flutes",
+            "bar": 16,
+            "startTick": 57600,
+            "endTick": 60480
+          },
+          {
+            "part": "clarinets",
+            "bar": 16,
+            "startTick": 57600,
+            "endTick": 60480
+          },
+          {
+            "part": "bassoons",
+            "bar": 16,
+            "startTick": 57600,
+            "endTick": 60480
+          }
+        ],
+        "decisions": [
+          {
+            "bar": 1,
+            "foreground": null,
+            "reason": "opening/energy breath or unavailable normalized harmony; no forced entrance",
+            "resting": [
+              "flutes",
+              "clarinets",
+              "bassoons"
+            ]
+          },
+          {
+            "bar": 2,
+            "foreground": "trk_05_violas",
+            "reason": "selective flutes leadDouble establishes source relationship; other winds leave space",
+            "resting": [
+              "clarinets",
+              "bassoons"
+            ]
+          },
+          {
+            "bar": 3,
+            "foreground": "phrase:3:flutes",
+            "reason": "statement; responds around finalized foreground; shared contour, instrument-specific pacing; final felt beat reserved for air",
+            "resting": [
+              "clarinets"
+            ]
+          },
+          {
+            "bar": 4,
+            "foreground": null,
+            "reason": "opening/energy breath or unavailable normalized harmony; no forced entrance",
+            "resting": [
+              "flutes",
+              "clarinets",
+              "bassoons"
+            ]
+          },
+          {
+            "bar": 5,
+            "foreground": "early-reserved gesture",
+            "reason": "preserve conductor moment/lead contract; no competing dialogue",
+            "resting": [
+              "clarinets"
+            ]
+          },
+          {
+            "bar": 6,
+            "foreground": "early-reserved gesture",
+            "reason": "preserve conductor moment/lead contract; no competing dialogue",
+            "resting": [
+              "clarinets"
+            ]
+          },
+          {
+            "bar": 7,
+            "foreground": "early-reserved gesture",
+            "reason": "preserve conductor moment/lead contract; no competing dialogue",
+            "resting": [
+              "clarinets"
+            ]
+          },
+          {
+            "bar": 8,
+            "foreground": "early-reserved gesture",
+            "reason": "preserve conductor moment/lead contract; no competing dialogue",
+            "resting": [
+              "clarinets"
+            ]
+          },
+          {
+            "bar": 9,
+            "foreground": "phrase:9:flutes",
+            "reason": "statement; responds around finalized foreground; shared contour, instrument-specific pacing; final felt beat reserved for air",
+            "resting": [
+              "clarinets",
+              "bassoons"
+            ]
+          },
+          {
+            "bar": 10,
+            "foreground": "phrase:10:bassoons",
+            "reason": "answer; responds around finalized foreground; independent tenor/offbeat gesture; final felt beat reserved for air",
+            "resting": [
+              "flutes"
+            ]
+          },
+          {
+            "bar": 11,
+            "foreground": "phrase:11:flutes",
+            "reason": "continuation; responds around finalized foreground; shared contour, instrument-specific pacing; final felt beat reserved for air",
+            "resting": [
+              "clarinets"
+            ]
+          },
+          {
+            "bar": 12,
+            "foreground": "phrase:12:clarinets",
+            "reason": "arrival; responds around finalized foreground; shared contour, instrument-specific pacing; final felt beat reserved for air",
+            "resting": [
+              "flutes",
+              "bassoons"
+            ]
+          },
+          {
+            "bar": 13,
+            "foreground": "early-reserved gesture",
+            "reason": "preserve conductor moment/lead contract; no competing dialogue",
+            "resting": []
+          },
+          {
+            "bar": 14,
+            "foreground": "trk_06_cellosBasses",
+            "reason": "selective flutes leadDouble establishes source relationship; other winds leave space",
+            "resting": [
+              "clarinets",
+              "bassoons"
+            ]
+          },
+          {
+            "bar": 15,
+            "foreground": "phrase:15:clarinets",
+            "reason": "statement; responds around finalized foreground; shared contour, instrument-specific pacing; final felt beat reserved for air",
+            "resting": [
+              "flutes"
+            ]
+          },
+          {
+            "bar": 16,
+            "foreground": "phrase:16:flutes",
+            "reason": "arrival; responds around finalized foreground; shared contour, instrument-specific pacing; final felt beat reserved for air",
+            "resting": [
+              "clarinets",
+              "bassoons"
+            ]
+          }
+        ]
+      }
+    },
+    "parts": [
+      {
+        "part": "flutes",
+        "trackId": "trk_11_flutes",
+        "eligibility": "eligible",
+        "reason": "see per-job states and trace; counts are not musical quality",
+        "state": "retained",
+        "generatedCandidates": 24,
+        "retainedNotes": 24,
+        "soundingTicks": 16335,
+        "retainedFingerprint": "d9154758"
+      },
+      {
+        "part": "oboes",
+        "trackId": "trk_12_oboes",
+        "eligibility": "ineligible",
+        "reason": "out of band (pins and overrides applied)",
+        "state": "ineligible",
+        "generatedCandidates": 0,
+        "retainedNotes": 0,
+        "soundingTicks": 0,
+        "retainedFingerprint": null
+      },
+      {
+        "part": "clarinets",
+        "trackId": "trk_13_clarinets",
+        "eligibility": "eligible",
+        "reason": "see per-job states and trace; counts are not musical quality",
+        "state": "retained",
+        "generatedCandidates": 8,
+        "retainedNotes": 8,
+        "soundingTicks": 6883,
+        "retainedFingerprint": "9f71b57f"
+      },
+      {
+        "part": "bassoons",
+        "trackId": "trk_14_bassoons",
+        "eligibility": "eligible",
+        "reason": "see per-job states and trace; counts are not musical quality",
+        "state": "retained",
+        "generatedCandidates": 9,
+        "retainedNotes": 9,
+        "soundingTicks": 4209,
+        "retainedFingerprint": "482cce64"
+      }
+    ],
+    "jobs": [
+      {
+        "id": "flutes:2:leadDouble",
+        "part": "flutes",
+        "bar": 2,
+        "kind": "leadDouble",
+        "reasons": [
+          "writer candidate",
+          "source gate shaped to planned ensemble breath",
+          "final single-voice guard: source legato tail shortened",
+          "associated with retained note (merged/deduplicated jobs are not additive)"
+        ],
+        "generated": 5,
+        "rejected": 0,
+        "retainedAssociations": 5,
+        "state": "retained"
+      },
+      {
+        "id": "flutes:3:phrase",
+        "part": "flutes",
+        "bar": 3,
+        "kind": "phrase",
+        "reasons": [
+          "writer candidate",
+          "associated with retained note (merged/deduplicated jobs are not additive)"
+        ],
+        "generated": 4,
+        "rejected": 0,
+        "retainedAssociations": 4,
+        "state": "retained"
+      },
+      {
+        "id": "bassoons:3:phrase",
+        "part": "bassoons",
+        "bar": 3,
+        "kind": "phrase",
+        "reasons": [
+          "writer candidate",
+          "associated with retained note (merged/deduplicated jobs are not additive)"
+        ],
+        "generated": 2,
+        "rejected": 0,
+        "retainedAssociations": 2,
+        "state": "retained"
+      },
+      {
+        "id": "flutes:5:unison",
+        "part": "flutes",
+        "bar": 5,
+        "kind": "unison",
+        "reasons": [
+          "selected role emitted no candidates in this window"
+        ],
+        "generated": 0,
+        "rejected": 0,
+        "retainedAssociations": 0,
+        "state": "planned-no-notes"
+      },
+      {
+        "id": "bassoons:5:unison",
+        "part": "bassoons",
+        "bar": 5,
+        "kind": "unison",
+        "reasons": [
+          "selected role emitted no candidates in this window"
+        ],
+        "generated": 0,
+        "rejected": 0,
+        "retainedAssociations": 0,
+        "state": "planned-no-notes"
+      },
+      {
+        "id": "flutes:6:unison",
+        "part": "flutes",
+        "bar": 6,
+        "kind": "unison",
+        "reasons": [
+          "selected role emitted no candidates in this window"
+        ],
+        "generated": 0,
+        "rejected": 0,
+        "retainedAssociations": 0,
+        "state": "planned-no-notes"
+      },
+      {
+        "id": "bassoons:6:unison",
+        "part": "bassoons",
+        "bar": 6,
+        "kind": "unison",
+        "reasons": [
+          "selected role emitted no candidates in this window"
+        ],
+        "generated": 0,
+        "rejected": 0,
+        "retainedAssociations": 0,
+        "state": "planned-no-notes"
+      },
+      {
+        "id": "flutes:7:unison",
+        "part": "flutes",
+        "bar": 7,
+        "kind": "unison",
+        "reasons": [
+          "selected role emitted no candidates in this window"
+        ],
+        "generated": 0,
+        "rejected": 0,
+        "retainedAssociations": 0,
+        "state": "planned-no-notes"
+      },
+      {
+        "id": "bassoons:7:unison",
+        "part": "bassoons",
+        "bar": 7,
+        "kind": "unison",
+        "reasons": [
+          "selected role emitted no candidates in this window"
+        ],
+        "generated": 0,
+        "rejected": 0,
+        "retainedAssociations": 0,
+        "state": "planned-no-notes"
+      },
+      {
+        "id": "flutes:8:unison",
+        "part": "flutes",
+        "bar": 8,
+        "kind": "unison",
+        "reasons": [
+          "selected role emitted no candidates in this window"
+        ],
+        "generated": 0,
+        "rejected": 0,
+        "retainedAssociations": 0,
+        "state": "planned-no-notes"
+      },
+      {
+        "id": "bassoons:8:unison",
+        "part": "bassoons",
+        "bar": 8,
+        "kind": "unison",
+        "reasons": [
+          "selected role emitted no candidates in this window"
+        ],
+        "generated": 0,
+        "rejected": 0,
+        "retainedAssociations": 0,
+        "state": "planned-no-notes"
+      },
+      {
+        "id": "flutes:9:phrase",
+        "part": "flutes",
+        "bar": 9,
+        "kind": "phrase",
+        "reasons": [
+          "writer candidate",
+          "associated with retained note (merged/deduplicated jobs are not additive)"
+        ],
+        "generated": 4,
+        "rejected": 0,
+        "retainedAssociations": 4,
+        "state": "retained"
+      },
+      {
+        "id": "clarinets:10:phrase",
+        "part": "clarinets",
+        "bar": 10,
+        "kind": "phrase",
+        "reasons": [
+          "writer candidate",
+          "associated with retained note (merged/deduplicated jobs are not additive)"
+        ],
+        "generated": 2,
+        "rejected": 0,
+        "retainedAssociations": 2,
+        "state": "retained"
+      },
+      {
+        "id": "bassoons:10:phrase",
+        "part": "bassoons",
+        "bar": 10,
+        "kind": "phrase",
+        "reasons": [
+          "writer candidate",
+          "associated with retained note (merged/deduplicated jobs are not additive)"
+        ],
+        "generated": 3,
+        "rejected": 0,
+        "retainedAssociations": 3,
+        "state": "retained"
+      },
+      {
+        "id": "flutes:11:phrase",
+        "part": "flutes",
+        "bar": 11,
+        "kind": "phrase",
+        "reasons": [
+          "writer candidate",
+          "associated with retained note (merged/deduplicated jobs are not additive)"
+        ],
+        "generated": 4,
+        "rejected": 0,
+        "retainedAssociations": 4,
+        "state": "retained"
+      },
+      {
+        "id": "bassoons:11:phrase",
+        "part": "bassoons",
+        "bar": 11,
+        "kind": "phrase",
+        "reasons": [
+          "writer candidate",
+          "associated with retained note (merged/deduplicated jobs are not additive)"
+        ],
+        "generated": 2,
+        "rejected": 0,
+        "retainedAssociations": 2,
+        "state": "retained"
+      },
+      {
+        "id": "clarinets:12:phrase",
+        "part": "clarinets",
+        "bar": 12,
+        "kind": "phrase",
+        "reasons": [
+          "writer candidate",
+          "associated with retained note (merged/deduplicated jobs are not additive)"
+        ],
+        "generated": 2,
+        "rejected": 0,
+        "retainedAssociations": 2,
+        "state": "retained"
+      },
+      {
+        "id": "flutes:13:tutti",
+        "part": "flutes",
+        "bar": 13,
+        "kind": "tutti",
+        "reasons": [
+          "writer candidate",
+          "associated with retained note (merged/deduplicated jobs are not additive)"
+        ],
+        "generated": 1,
+        "rejected": 0,
+        "retainedAssociations": 1,
+        "state": "retained"
+      },
+      {
+        "id": "clarinets:13:tutti",
+        "part": "clarinets",
+        "bar": 13,
+        "kind": "tutti",
+        "reasons": [
+          "writer candidate",
+          "associated with retained note (merged/deduplicated jobs are not additive)"
+        ],
+        "generated": 1,
+        "rejected": 0,
+        "retainedAssociations": 1,
+        "state": "retained"
+      },
+      {
+        "id": "bassoons:13:tutti",
+        "part": "bassoons",
+        "bar": 13,
+        "kind": "tutti",
+        "reasons": [
+          "bassoon final low-interval clash"
+        ],
+        "generated": 0,
+        "rejected": 1,
+        "retainedAssociations": 0,
+        "state": "candidate-rejected"
+      },
+      {
+        "id": "flutes:14:leadDouble",
+        "part": "flutes",
+        "bar": 14,
+        "kind": "leadDouble",
+        "reasons": [
+          "brass cut-over candidate",
+          "final single-voice guard: source legato tail shortened",
+          "associated with retained note (merged/deduplicated jobs are not additive)"
+        ],
+        "generated": 4,
+        "rejected": 0,
+        "retainedAssociations": 4,
+        "state": "retained"
+      },
+      {
+        "id": "clarinets:15:phrase",
+        "part": "clarinets",
+        "bar": 15,
+        "kind": "phrase",
+        "reasons": [
+          "writer candidate",
+          "associated with retained note (merged/deduplicated jobs are not additive)"
+        ],
+        "generated": 3,
+        "rejected": 0,
+        "retainedAssociations": 3,
+        "state": "retained"
+      },
+      {
+        "id": "bassoons:15:phrase",
+        "part": "bassoons",
+        "bar": 15,
+        "kind": "phrase",
+        "reasons": [
+          "writer candidate",
+          "associated with retained note (merged/deduplicated jobs are not additive)"
+        ],
+        "generated": 2,
+        "rejected": 0,
+        "retainedAssociations": 2,
+        "state": "retained"
+      },
+      {
+        "id": "flutes:16:phrase",
+        "part": "flutes",
+        "bar": 16,
+        "kind": "phrase",
+        "reasons": [
+          "writer candidate",
+          "associated with retained note (merged/deduplicated jobs are not additive)"
+        ],
+        "generated": 2,
+        "rejected": 0,
+        "retainedAssociations": 2,
+        "state": "retained"
+      }
+    ],
+    "events": [
+      {
+        "part": "flutes",
+        "job": "flutes:2:leadDouble",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 81,
+          "startTick": 3840,
+          "durationTicks": 56
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:2:leadDouble",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 74,
+          "startTick": 3862,
+          "durationTicks": 978
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:2:leadDouble",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 83,
+          "startTick": 4815,
+          "durationTicks": 465
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:2:leadDouble",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 83,
+          "startTick": 5303,
+          "durationTicks": 1003
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:2:leadDouble",
+        "stage": "adjusted",
+        "reason": "source gate shaped to planned ensemble breath",
+        "note": {
+          "pitch": 74,
+          "startTick": 6263,
+          "durationTicks": 457
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:2:leadDouble",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 74,
+          "startTick": 6263,
+          "durationTicks": 457
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:3:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 74,
+          "startTick": 7680,
+          "durationTicks": 720
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:3:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 76,
+          "startTick": 8640,
+          "durationTicks": 374
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:3:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 79,
+          "startTick": 9120,
+          "durationTicks": 374
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:3:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 77,
+          "startTick": 9600,
+          "durationTicks": 835
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:9:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 77,
+          "startTick": 31200,
+          "durationTicks": 336
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:9:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 77,
+          "startTick": 31680,
+          "durationTicks": 336
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:9:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 81,
+          "startTick": 32160,
+          "durationTicks": 442
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:9:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 81,
+          "startTick": 32640,
+          "durationTicks": 816
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:11:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 79,
+          "startTick": 38880,
+          "durationTicks": 336
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:11:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 79,
+          "startTick": 39360,
+          "durationTicks": 336
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:11:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 83,
+          "startTick": 39840,
+          "durationTicks": 442
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:11:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 84,
+          "startTick": 40320,
+          "durationTicks": 816
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:13:tutti",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 74,
+          "startTick": 46080,
+          "durationTicks": 1920
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:14:leadDouble",
+        "stage": "generated",
+        "reason": "brass cut-over candidate",
+        "note": {
+          "pitch": 81,
+          "startTick": 49958,
+          "durationTicks": 989
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:14:leadDouble",
+        "stage": "generated",
+        "reason": "brass cut-over candidate",
+        "note": {
+          "pitch": 77,
+          "startTick": 50920,
+          "durationTicks": 440
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:14:leadDouble",
+        "stage": "generated",
+        "reason": "brass cut-over candidate",
+        "note": {
+          "pitch": 77,
+          "startTick": 51399,
+          "durationTicks": 976
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:14:leadDouble",
+        "stage": "generated",
+        "reason": "brass cut-over candidate",
+        "note": {
+          "pitch": 81,
+          "startTick": 52356,
+          "durationTicks": 444
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:16:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 77,
+          "startTick": 57600,
+          "durationTicks": 806
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:16:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 77,
+          "startTick": 58560,
+          "durationTicks": 1786
+        }
+      },
+      {
+        "part": "clarinets",
+        "job": "clarinets:10:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 76,
+          "startTick": 35520,
+          "durationTicks": 475
+        }
+      },
+      {
+        "part": "clarinets",
+        "job": "clarinets:10:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 81,
+          "startTick": 36960,
+          "durationTicks": 480
+        }
+      },
+      {
+        "part": "clarinets",
+        "job": "clarinets:12:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 74,
+          "startTick": 42240,
+          "durationTicks": 806
+        }
+      },
+      {
+        "part": "clarinets",
+        "job": "clarinets:12:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 74,
+          "startTick": 43200,
+          "durationTicks": 1786
+        }
+      },
+      {
+        "part": "clarinets",
+        "job": "clarinets:13:tutti",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 74,
+          "startTick": 46080,
+          "durationTicks": 1920
+        }
+      },
+      {
+        "part": "clarinets",
+        "job": "clarinets:15:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 76,
+          "startTick": 54240,
+          "durationTicks": 528
+        }
+      },
+      {
+        "part": "clarinets",
+        "job": "clarinets:15:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 77,
+          "startTick": 55200,
+          "durationTicks": 480
+        }
+      },
+      {
+        "part": "clarinets",
+        "job": "clarinets:15:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 81,
+          "startTick": 56160,
+          "durationTicks": 408
+        }
+      },
+      {
+        "part": "bassoons",
+        "job": "bassoons:3:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 53,
+          "startTick": 8640,
+          "durationTicks": 475
+        }
+      },
+      {
+        "part": "bassoons",
+        "job": "bassoons:3:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 57,
+          "startTick": 10080,
+          "durationTicks": 480
+        }
+      },
+      {
+        "part": "bassoons",
+        "job": "bassoons:10:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 57,
+          "startTick": 35040,
+          "durationTicks": 360
+        }
+      },
+      {
+        "part": "bassoons",
+        "job": "bassoons:10:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 57,
+          "startTick": 36000,
+          "durationTicks": 360
+        }
+      },
+      {
+        "part": "bassoons",
+        "job": "bassoons:10:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 52,
+          "startTick": 36480,
+          "durationTicks": 624
+        }
+      },
+      {
+        "part": "bassoons",
+        "job": "bassoons:11:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 52,
+          "startTick": 39360,
+          "durationTicks": 475
+        }
+      },
+      {
+        "part": "bassoons",
+        "job": "bassoons:11:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 55,
+          "startTick": 40800,
+          "durationTicks": 480
+        }
+      },
+      {
+        "part": "bassoons",
+        "job": "bassoons:13:tutti",
+        "stage": "rejected",
+        "reason": "bassoon final low-interval clash"
+      },
+      {
+        "part": "bassoons",
+        "job": "bassoons:15:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 55,
+          "startTick": 55200,
+          "durationTicks": 475
+        }
+      },
+      {
+        "part": "bassoons",
+        "job": "bassoons:15:phrase",
+        "stage": "generated",
+        "reason": "writer candidate",
+        "note": {
+          "pitch": 57,
+          "startTick": 56160,
+          "durationTicks": 480
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:2:leadDouble",
+        "stage": "adjusted",
+        "reason": "final single-voice guard: source legato tail shortened",
+        "note": {
+          "pitch": 81,
+          "startTick": 3840,
+          "durationTicks": 22,
+          "articulation": "legato",
+          "origins": [
+            "flutes:2:leadDouble"
+          ]
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:2:leadDouble",
+        "stage": "adjusted",
+        "reason": "final single-voice guard: source legato tail shortened",
+        "note": {
+          "pitch": 74,
+          "startTick": 3862,
+          "durationTicks": 953,
+          "articulation": "legato",
+          "origins": [
+            "flutes:2:leadDouble"
+          ]
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:2:leadDouble",
+        "stage": "adjusted",
+        "reason": "final single-voice guard: source legato tail shortened",
+        "note": {
+          "pitch": 83,
+          "startTick": 5303,
+          "durationTicks": 960,
+          "articulation": "legato",
+          "origins": [
+            "flutes:2:leadDouble"
+          ]
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:14:leadDouble",
+        "stage": "adjusted",
+        "reason": "final single-voice guard: source legato tail shortened",
+        "note": {
+          "pitch": 81,
+          "startTick": 49958,
+          "durationTicks": 962,
+          "articulation": "legato",
+          "origins": [
+            "flutes:14:leadDouble"
+          ]
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:14:leadDouble",
+        "stage": "adjusted",
+        "reason": "final single-voice guard: source legato tail shortened",
+        "note": {
+          "pitch": 77,
+          "startTick": 51399,
+          "durationTicks": 957,
+          "articulation": "legato",
+          "origins": [
+            "flutes:14:leadDouble"
+          ]
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:2:leadDouble",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 81,
+          "startTick": 3840,
+          "durationTicks": 22,
+          "velocity": 66,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:2:leadDouble",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 74,
+          "startTick": 3862,
+          "durationTicks": 953,
+          "velocity": 66,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:2:leadDouble",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 83,
+          "startTick": 4815,
+          "durationTicks": 465,
+          "velocity": 66,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:2:leadDouble",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 83,
+          "startTick": 5303,
+          "durationTicks": 960,
+          "velocity": 66,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:2:leadDouble",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 74,
+          "startTick": 6263,
+          "durationTicks": 457,
+          "velocity": 66,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:3:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 74,
+          "startTick": 7680,
+          "durationTicks": 720,
+          "velocity": 69,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:3:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 76,
+          "startTick": 8640,
+          "durationTicks": 374,
+          "velocity": 69,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:3:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 79,
+          "startTick": 9120,
+          "durationTicks": 374,
+          "velocity": 69,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:3:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 77,
+          "startTick": 9600,
+          "durationTicks": 835,
+          "velocity": 69,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:9:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 77,
+          "startTick": 31200,
+          "durationTicks": 336,
+          "velocity": 58,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:9:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 77,
+          "startTick": 31680,
+          "durationTicks": 336,
+          "velocity": 58,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:9:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 81,
+          "startTick": 32160,
+          "durationTicks": 442,
+          "velocity": 58,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:9:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 81,
+          "startTick": 32640,
+          "durationTicks": 816,
+          "velocity": 58,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:11:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 79,
+          "startTick": 38880,
+          "durationTicks": 336,
+          "velocity": 70,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:11:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 79,
+          "startTick": 39360,
+          "durationTicks": 336,
+          "velocity": 70,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:11:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 83,
+          "startTick": 39840,
+          "durationTicks": 442,
+          "velocity": 70,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:11:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 84,
+          "startTick": 40320,
+          "durationTicks": 816,
+          "velocity": 70,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:13:tutti",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 74,
+          "startTick": 46080,
+          "durationTicks": 1920,
+          "velocity": 97,
+          "articulation": "marcato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:14:leadDouble",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 81,
+          "startTick": 49958,
+          "durationTicks": 962,
+          "velocity": 118,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:14:leadDouble",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 77,
+          "startTick": 50920,
+          "durationTicks": 440,
+          "velocity": 118,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:14:leadDouble",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 77,
+          "startTick": 51399,
+          "durationTicks": 957,
+          "velocity": 118,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:14:leadDouble",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 81,
+          "startTick": 52356,
+          "durationTicks": 444,
+          "velocity": 118,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:16:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 77,
+          "startTick": 57600,
+          "durationTicks": 806,
+          "velocity": 70,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "flutes",
+        "job": "flutes:16:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 77,
+          "startTick": 58560,
+          "durationTicks": 1786,
+          "velocity": 70,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "clarinets",
+        "job": "clarinets:10:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 76,
+          "startTick": 35520,
+          "durationTicks": 475,
+          "velocity": 64,
+          "articulation": "staccato"
+        }
+      },
+      {
+        "part": "clarinets",
+        "job": "clarinets:10:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 81,
+          "startTick": 36960,
+          "durationTicks": 480,
+          "velocity": 64,
+          "articulation": "staccato"
+        }
+      },
+      {
+        "part": "clarinets",
+        "job": "clarinets:12:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 74,
+          "startTick": 42240,
+          "durationTicks": 806,
+          "velocity": 47,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "clarinets",
+        "job": "clarinets:12:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 74,
+          "startTick": 43200,
+          "durationTicks": 1786,
+          "velocity": 47,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "clarinets",
+        "job": "clarinets:13:tutti",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 74,
+          "startTick": 46080,
+          "durationTicks": 1920,
+          "velocity": 97,
+          "articulation": "marcato"
+        }
+      },
+      {
+        "part": "clarinets",
+        "job": "clarinets:15:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 76,
+          "startTick": 54240,
+          "durationTicks": 528,
+          "velocity": 127,
+          "articulation": "staccato"
+        }
+      },
+      {
+        "part": "clarinets",
+        "job": "clarinets:15:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 77,
+          "startTick": 55200,
+          "durationTicks": 480,
+          "velocity": 127,
+          "articulation": "legato"
+        }
+      },
+      {
+        "part": "clarinets",
+        "job": "clarinets:15:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 81,
+          "startTick": 56160,
+          "durationTicks": 408,
+          "velocity": 127,
+          "articulation": "staccato"
+        }
+      },
+      {
+        "part": "bassoons",
+        "job": "bassoons:3:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 53,
+          "startTick": 8640,
+          "durationTicks": 475,
+          "velocity": 69,
+          "articulation": "staccato"
+        }
+      },
+      {
+        "part": "bassoons",
+        "job": "bassoons:3:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 57,
+          "startTick": 10080,
+          "durationTicks": 480,
+          "velocity": 69,
+          "articulation": "staccato"
+        }
+      },
+      {
+        "part": "bassoons",
+        "job": "bassoons:10:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 57,
+          "startTick": 35040,
+          "durationTicks": 360,
+          "velocity": 64,
+          "articulation": "staccato"
+        }
+      },
+      {
+        "part": "bassoons",
+        "job": "bassoons:10:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 57,
+          "startTick": 36000,
+          "durationTicks": 360,
+          "velocity": 64,
+          "articulation": "staccato"
+        }
+      },
+      {
+        "part": "bassoons",
+        "job": "bassoons:10:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 52,
+          "startTick": 36480,
+          "durationTicks": 624,
+          "velocity": 64,
+          "articulation": "staccato"
+        }
+      },
+      {
+        "part": "bassoons",
+        "job": "bassoons:11:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 52,
+          "startTick": 39360,
+          "durationTicks": 475,
+          "velocity": 70,
+          "articulation": "staccato"
+        }
+      },
+      {
+        "part": "bassoons",
+        "job": "bassoons:11:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 55,
+          "startTick": 40800,
+          "durationTicks": 480,
+          "velocity": 70,
+          "articulation": "staccato"
+        }
+      },
+      {
+        "part": "bassoons",
+        "job": "bassoons:15:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 55,
+          "startTick": 55200,
+          "durationTicks": 475,
+          "velocity": 127,
+          "articulation": "staccato"
+        }
+      },
+      {
+        "part": "bassoons",
+        "job": "bassoons:15:phrase",
+        "stage": "retained",
+        "reason": "associated with retained note (merged/deduplicated jobs are not additive)",
+        "note": {
+          "pitch": 57,
+          "startTick": 56160,
+          "durationTicks": 480,
+          "velocity": 127,
+          "articulation": "staccato"
+        }
+      }
+    ],
+    "context": {
+      "boundary": "after-piano-and-strings",
+      "finalNonWindFingerprint": "43e97e91",
+      "finalExternalFingerprint": "a4b01e70",
+      "finalTrackFingerprints": [
+        {
+          "id": "trk_03_violins1",
+          "fingerprint": "0d4c6793"
+        },
+        {
+          "id": "trk_04_violins2",
+          "fingerprint": "f0670343"
+        },
+        {
+          "id": "trk_05_violas",
+          "fingerprint": "3f0361fd"
+        },
+        {
+          "id": "trk_06_cellosBasses",
+          "fingerprint": "a972b22f"
+        },
+        {
+          "id": "trk_basses",
+          "fingerprint": "bd4634d6"
+        },
+        {
+          "id": "trk_07_horns",
+          "fingerprint": "187df804"
+        },
+        {
+          "id": "trk_08_trumpets",
+          "fingerprint": "a635bf88"
+        },
+        {
+          "id": "trk_09_trombones",
+          "fingerprint": "ce97e5c4"
+        },
+        {
+          "id": "trk_10_tuba",
+          "fingerprint": "fce6748e"
+        },
+        {
+          "id": "trk_15_timpani",
+          "fingerprint": "598f926e"
+        },
+        {
+          "id": "trk_16_snare",
+          "fingerprint": "c2324484"
+        },
+        {
+          "id": "trk_17_cymbals",
+          "fingerprint": "94b04ca4"
+        },
+        {
+          "id": "trk_18_aux",
+          "fingerprint": "8c41bb42"
+        },
+        {
+          "id": "trk_19_piano",
+          "fingerprint": "ad589825"
+        },
+        {
+          "id": "trk_20_harp",
+          "fingerprint": "80d28996"
+        }
+      ],
+      "carriers": [
+        "trk_05_violas",
+        "trk_05_violas",
+        "trk_05_violas",
+        null,
+        "trk_05_violas",
+        "trk_05_violas",
+        "trk_05_violas",
+        "trk_05_violas",
+        "trk_06_cellosBasses",
+        "trk_06_cellosBasses",
+        "trk_06_cellosBasses",
+        "trk_06_cellosBasses",
+        "trk_06_cellosBasses",
+        "trk_06_cellosBasses",
+        "trk_06_cellosBasses",
+        "trk_06_cellosBasses"
+      ],
+      "counterSource": {
+        "trackId": "final-strings-answers",
+        "notes": 4,
+        "fingerprint": "787780e0"
+      },
+      "preparedMaterial": "carrier/role hints only; notes replaced by final tracks",
+      "legacyMaterial": "compatibility wind pass excluded from final note context",
+      "reservations": {
+        "source": "early-classic-conductor",
+        "leads": [],
+        "momentsFingerprint": "691dbd60"
+      }
+    },
+    "sparsePolicy": "fewer than 4 retained notes OR less than 2 felt beats of union coverage; not a musical quality verdict",
+    "export": "not-observed; pass an audit sink to the MIDI builder"
+  },
+  "exports": {
+    "plain": {
+      "merged": {
+        "folded": {},
+        "droppedHardRange": {},
+        "droppedDoubling": {},
+        "winds": [
+          {
+            "trackId": "trk_11_flutes",
+            "role": "flutes",
+            "scope": "merged",
+            "retainedFingerprint": "d9154758",
+            "retainedNotes": 24,
+            "serializedSoundingNotes": 24,
+            "serializedKeyswitches": 0,
+            "soundingEvents": [
+              {
+                "pitch": 81,
+                "startTick": 3840,
+                "durationTicks": 22
+              },
+              {
+                "pitch": 74,
+                "startTick": 3862,
+                "durationTicks": 953
+              },
+              {
+                "pitch": 83,
+                "startTick": 4815,
+                "durationTicks": 465
+              },
+              {
+                "pitch": 83,
+                "startTick": 5303,
+                "durationTicks": 960
+              },
+              {
+                "pitch": 74,
+                "startTick": 6263,
+                "durationTicks": 457
+              },
+              {
+                "pitch": 74,
+                "startTick": 7680,
+                "durationTicks": 720
+              },
+              {
+                "pitch": 76,
+                "startTick": 8640,
+                "durationTicks": 374
+              },
+              {
+                "pitch": 79,
+                "startTick": 9120,
+                "durationTicks": 374
+              },
+              {
+                "pitch": 77,
+                "startTick": 9600,
+                "durationTicks": 835
+              },
+              {
+                "pitch": 77,
+                "startTick": 31200,
+                "durationTicks": 336
+              },
+              {
+                "pitch": 77,
+                "startTick": 31680,
+                "durationTicks": 336
+              },
+              {
+                "pitch": 81,
+                "startTick": 32160,
+                "durationTicks": 442
+              },
+              {
+                "pitch": 81,
+                "startTick": 32640,
+                "durationTicks": 816
+              },
+              {
+                "pitch": 79,
+                "startTick": 38880,
+                "durationTicks": 336
+              },
+              {
+                "pitch": 79,
+                "startTick": 39360,
+                "durationTicks": 336
+              },
+              {
+                "pitch": 83,
+                "startTick": 39840,
+                "durationTicks": 442
+              },
+              {
+                "pitch": 84,
+                "startTick": 40320,
+                "durationTicks": 816
+              },
+              {
+                "pitch": 74,
+                "startTick": 46080,
+                "durationTicks": 1920
+              },
+              {
+                "pitch": 81,
+                "startTick": 49958,
+                "durationTicks": 962
+              },
+              {
+                "pitch": 77,
+                "startTick": 50920,
+                "durationTicks": 440
+              },
+              {
+                "pitch": 77,
+                "startTick": 51399,
+                "durationTicks": 957
+              },
+              {
+                "pitch": 81,
+                "startTick": 52356,
+                "durationTicks": 444
+              },
+              {
+                "pitch": 77,
+                "startTick": 57600,
+                "durationTicks": 806
+              },
+              {
+                "pitch": 77,
+                "startTick": 58560,
+                "durationTicks": 1786
+              }
+            ],
+            "folded": 0,
+            "dropped": 0,
+            "omittedChunks": 0,
+            "articulationFallbacks": {},
+            "unresolvedArticulations": 0,
+            "state": "exported",
+            "reason": "sounding note-ons serialized; not a musical-substance verdict"
+          },
+          {
+            "trackId": "trk_12_oboes",
+            "role": "oboes",
+            "scope": "merged",
+            "retainedFingerprint": "741638a5",
+            "retainedNotes": 0,
+            "serializedSoundingNotes": 0,
+            "serializedKeyswitches": 0,
+            "soundingEvents": [],
+            "folded": 0,
+            "dropped": 0,
+            "omittedChunks": 0,
+            "articulationFallbacks": {},
+            "unresolvedArticulations": 0,
+            "state": "silent",
+            "reason": "no retained sounding notes"
+          },
+          {
+            "trackId": "trk_13_clarinets",
+            "role": "clarinets",
+            "scope": "merged",
+            "retainedFingerprint": "9f71b57f",
+            "retainedNotes": 8,
+            "serializedSoundingNotes": 8,
+            "serializedKeyswitches": 0,
+            "soundingEvents": [
+              {
+                "pitch": 76,
+                "startTick": 35520,
+                "durationTicks": 475
+              },
+              {
+                "pitch": 81,
+                "startTick": 36960,
+                "durationTicks": 480
+              },
+              {
+                "pitch": 74,
+                "startTick": 42240,
+                "durationTicks": 806
+              },
+              {
+                "pitch": 74,
+                "startTick": 43200,
+                "durationTicks": 1786
+              },
+              {
+                "pitch": 74,
+                "startTick": 46080,
+                "durationTicks": 1920
+              },
+              {
+                "pitch": 76,
+                "startTick": 54240,
+                "durationTicks": 528
+              },
+              {
+                "pitch": 77,
+                "startTick": 55200,
+                "durationTicks": 480
+              },
+              {
+                "pitch": 81,
+                "startTick": 56160,
+                "durationTicks": 408
+              }
+            ],
+            "folded": 0,
+            "dropped": 0,
+            "omittedChunks": 0,
+            "articulationFallbacks": {},
+            "unresolvedArticulations": 0,
+            "state": "exported",
+            "reason": "sounding note-ons serialized; not a musical-substance verdict"
+          },
+          {
+            "trackId": "trk_14_bassoons",
+            "role": "bassoons",
+            "scope": "merged",
+            "retainedFingerprint": "482cce64",
+            "retainedNotes": 9,
+            "serializedSoundingNotes": 9,
+            "serializedKeyswitches": 0,
+            "soundingEvents": [
+              {
+                "pitch": 53,
+                "startTick": 8640,
+                "durationTicks": 475
+              },
+              {
+                "pitch": 57,
+                "startTick": 10080,
+                "durationTicks": 480
+              },
+              {
+                "pitch": 57,
+                "startTick": 35040,
+                "durationTicks": 360
+              },
+              {
+                "pitch": 57,
+                "startTick": 36000,
+                "durationTicks": 360
+              },
+              {
+                "pitch": 52,
+                "startTick": 36480,
+                "durationTicks": 624
+              },
+              {
+                "pitch": 52,
+                "startTick": 39360,
+                "durationTicks": 475
+              },
+              {
+                "pitch": 55,
+                "startTick": 40800,
+                "durationTicks": 480
+              },
+              {
+                "pitch": 55,
+                "startTick": 55200,
+                "durationTicks": 475
+              },
+              {
+                "pitch": 57,
+                "startTick": 56160,
+                "durationTicks": 480
+              }
+            ],
+            "folded": 0,
+            "dropped": 0,
+            "omittedChunks": 0,
+            "articulationFallbacks": {},
+            "unresolvedArticulations": 0,
+            "state": "exported",
+            "reason": "sounding note-ons serialized; not a musical-substance verdict"
+          }
+        ]
+      },
+      "perTrack": {
+        "folded": {},
+        "droppedHardRange": {},
+        "droppedDoubling": {},
+        "winds": [
+          {
+            "trackId": "trk_11_flutes",
+            "role": "flutes",
+            "scope": "per-track",
+            "retainedFingerprint": "d9154758",
+            "retainedNotes": 24,
+            "serializedSoundingNotes": 24,
+            "serializedKeyswitches": 0,
+            "soundingEvents": [
+              {
+                "pitch": 81,
+                "startTick": 3840,
+                "durationTicks": 22
+              },
+              {
+                "pitch": 74,
+                "startTick": 3862,
+                "durationTicks": 953
+              },
+              {
+                "pitch": 83,
+                "startTick": 4815,
+                "durationTicks": 465
+              },
+              {
+                "pitch": 83,
+                "startTick": 5303,
+                "durationTicks": 960
+              },
+              {
+                "pitch": 74,
+                "startTick": 6263,
+                "durationTicks": 457
+              },
+              {
+                "pitch": 74,
+                "startTick": 7680,
+                "durationTicks": 720
+              },
+              {
+                "pitch": 76,
+                "startTick": 8640,
+                "durationTicks": 374
+              },
+              {
+                "pitch": 79,
+                "startTick": 9120,
+                "durationTicks": 374
+              },
+              {
+                "pitch": 77,
+                "startTick": 9600,
+                "durationTicks": 835
+              },
+              {
+                "pitch": 77,
+                "startTick": 31200,
+                "durationTicks": 336
+              },
+              {
+                "pitch": 77,
+                "startTick": 31680,
+                "durationTicks": 336
+              },
+              {
+                "pitch": 81,
+                "startTick": 32160,
+                "durationTicks": 442
+              },
+              {
+                "pitch": 81,
+                "startTick": 32640,
+                "durationTicks": 816
+              },
+              {
+                "pitch": 79,
+                "startTick": 38880,
+                "durationTicks": 336
+              },
+              {
+                "pitch": 79,
+                "startTick": 39360,
+                "durationTicks": 336
+              },
+              {
+                "pitch": 83,
+                "startTick": 39840,
+                "durationTicks": 442
+              },
+              {
+                "pitch": 84,
+                "startTick": 40320,
+                "durationTicks": 816
+              },
+              {
+                "pitch": 74,
+                "startTick": 46080,
+                "durationTicks": 1920
+              },
+              {
+                "pitch": 81,
+                "startTick": 49958,
+                "durationTicks": 962
+              },
+              {
+                "pitch": 77,
+                "startTick": 50920,
+                "durationTicks": 440
+              },
+              {
+                "pitch": 77,
+                "startTick": 51399,
+                "durationTicks": 957
+              },
+              {
+                "pitch": 81,
+                "startTick": 52356,
+                "durationTicks": 444
+              },
+              {
+                "pitch": 77,
+                "startTick": 57600,
+                "durationTicks": 806
+              },
+              {
+                "pitch": 77,
+                "startTick": 58560,
+                "durationTicks": 1786
+              }
+            ],
+            "folded": 0,
+            "dropped": 0,
+            "omittedChunks": 0,
+            "articulationFallbacks": {},
+            "unresolvedArticulations": 0,
+            "state": "exported",
+            "reason": "sounding note-ons serialized; not a musical-substance verdict"
+          },
+          {
+            "trackId": "trk_12_oboes",
+            "role": "oboes",
+            "scope": "per-track",
+            "retainedFingerprint": "741638a5",
+            "retainedNotes": 0,
+            "serializedSoundingNotes": 0,
+            "serializedKeyswitches": 0,
+            "soundingEvents": [],
+            "folded": 0,
+            "dropped": 0,
+            "omittedChunks": 0,
+            "articulationFallbacks": {},
+            "unresolvedArticulations": 0,
+            "state": "silent",
+            "reason": "no retained sounding notes"
+          },
+          {
+            "trackId": "trk_13_clarinets",
+            "role": "clarinets",
+            "scope": "per-track",
+            "retainedFingerprint": "9f71b57f",
+            "retainedNotes": 8,
+            "serializedSoundingNotes": 8,
+            "serializedKeyswitches": 0,
+            "soundingEvents": [
+              {
+                "pitch": 76,
+                "startTick": 35520,
+                "durationTicks": 475
+              },
+              {
+                "pitch": 81,
+                "startTick": 36960,
+                "durationTicks": 480
+              },
+              {
+                "pitch": 74,
+                "startTick": 42240,
+                "durationTicks": 806
+              },
+              {
+                "pitch": 74,
+                "startTick": 43200,
+                "durationTicks": 1786
+              },
+              {
+                "pitch": 74,
+                "startTick": 46080,
+                "durationTicks": 1920
+              },
+              {
+                "pitch": 76,
+                "startTick": 54240,
+                "durationTicks": 528
+              },
+              {
+                "pitch": 77,
+                "startTick": 55200,
+                "durationTicks": 480
+              },
+              {
+                "pitch": 81,
+                "startTick": 56160,
+                "durationTicks": 408
+              }
+            ],
+            "folded": 0,
+            "dropped": 0,
+            "omittedChunks": 0,
+            "articulationFallbacks": {},
+            "unresolvedArticulations": 0,
+            "state": "exported",
+            "reason": "sounding note-ons serialized; not a musical-substance verdict"
+          },
+          {
+            "trackId": "trk_14_bassoons",
+            "role": "bassoons",
+            "scope": "per-track",
+            "retainedFingerprint": "482cce64",
+            "retainedNotes": 9,
+            "serializedSoundingNotes": 9,
+            "serializedKeyswitches": 0,
+            "soundingEvents": [
+              {
+                "pitch": 53,
+                "startTick": 8640,
+                "durationTicks": 475
+              },
+              {
+                "pitch": 57,
+                "startTick": 10080,
+                "durationTicks": 480
+              },
+              {
+                "pitch": 57,
+                "startTick": 35040,
+                "durationTicks": 360
+              },
+              {
+                "pitch": 57,
+                "startTick": 36000,
+                "durationTicks": 360
+              },
+              {
+                "pitch": 52,
+                "startTick": 36480,
+                "durationTicks": 624
+              },
+              {
+                "pitch": 52,
+                "startTick": 39360,
+                "durationTicks": 475
+              },
+              {
+                "pitch": 55,
+                "startTick": 40800,
+                "durationTicks": 480
+              },
+              {
+                "pitch": 55,
+                "startTick": 55200,
+                "durationTicks": 475
+              },
+              {
+                "pitch": 57,
+                "startTick": 56160,
+                "durationTicks": 480
+              }
+            ],
+            "folded": 0,
+            "dropped": 0,
+            "omittedChunks": 0,
+            "articulationFallbacks": {},
+            "unresolvedArticulations": 0,
+            "state": "exported",
+            "reason": "sounding note-ons serialized; not a musical-substance verdict"
+          }
+        ]
+      },
+      "reconciled": [
+        {
+          "part": "flutes",
+          "trackId": "trk_11_flutes",
+          "state": "observed",
+          "exports": [
+            {
+              "trackId": "trk_11_flutes",
+              "role": "flutes",
+              "scope": "merged",
+              "retainedFingerprint": "d9154758",
+              "retainedNotes": 24,
+              "serializedSoundingNotes": 24,
+              "serializedKeyswitches": 0,
+              "soundingEvents": [
+                {
+                  "pitch": 81,
+                  "startTick": 3840,
+                  "durationTicks": 22
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 3862,
+                  "durationTicks": 953
+                },
+                {
+                  "pitch": 83,
+                  "startTick": 4815,
+                  "durationTicks": 465
+                },
+                {
+                  "pitch": 83,
+                  "startTick": 5303,
+                  "durationTicks": 960
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 6263,
+                  "durationTicks": 457
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 7680,
+                  "durationTicks": 720
+                },
+                {
+                  "pitch": 76,
+                  "startTick": 8640,
+                  "durationTicks": 374
+                },
+                {
+                  "pitch": 79,
+                  "startTick": 9120,
+                  "durationTicks": 374
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 9600,
+                  "durationTicks": 835
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 31200,
+                  "durationTicks": 336
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 31680,
+                  "durationTicks": 336
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 32160,
+                  "durationTicks": 442
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 32640,
+                  "durationTicks": 816
+                },
+                {
+                  "pitch": 79,
+                  "startTick": 38880,
+                  "durationTicks": 336
+                },
+                {
+                  "pitch": 79,
+                  "startTick": 39360,
+                  "durationTicks": 336
+                },
+                {
+                  "pitch": 83,
+                  "startTick": 39840,
+                  "durationTicks": 442
+                },
+                {
+                  "pitch": 84,
+                  "startTick": 40320,
+                  "durationTicks": 816
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 46080,
+                  "durationTicks": 1920
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 49958,
+                  "durationTicks": 962
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 50920,
+                  "durationTicks": 440
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 51399,
+                  "durationTicks": 957
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 52356,
+                  "durationTicks": 444
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 57600,
+                  "durationTicks": 806
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 58560,
+                  "durationTicks": 1786
+                }
+              ],
+              "folded": 0,
+              "dropped": 0,
+              "omittedChunks": 0,
+              "articulationFallbacks": {},
+              "unresolvedArticulations": 0,
+              "state": "exported",
+              "reason": "sounding note-ons serialized; not a musical-substance verdict"
+            },
+            {
+              "trackId": "trk_11_flutes",
+              "role": "flutes",
+              "scope": "per-track",
+              "retainedFingerprint": "d9154758",
+              "retainedNotes": 24,
+              "serializedSoundingNotes": 24,
+              "serializedKeyswitches": 0,
+              "soundingEvents": [
+                {
+                  "pitch": 81,
+                  "startTick": 3840,
+                  "durationTicks": 22
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 3862,
+                  "durationTicks": 953
+                },
+                {
+                  "pitch": 83,
+                  "startTick": 4815,
+                  "durationTicks": 465
+                },
+                {
+                  "pitch": 83,
+                  "startTick": 5303,
+                  "durationTicks": 960
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 6263,
+                  "durationTicks": 457
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 7680,
+                  "durationTicks": 720
+                },
+                {
+                  "pitch": 76,
+                  "startTick": 8640,
+                  "durationTicks": 374
+                },
+                {
+                  "pitch": 79,
+                  "startTick": 9120,
+                  "durationTicks": 374
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 9600,
+                  "durationTicks": 835
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 31200,
+                  "durationTicks": 336
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 31680,
+                  "durationTicks": 336
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 32160,
+                  "durationTicks": 442
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 32640,
+                  "durationTicks": 816
+                },
+                {
+                  "pitch": 79,
+                  "startTick": 38880,
+                  "durationTicks": 336
+                },
+                {
+                  "pitch": 79,
+                  "startTick": 39360,
+                  "durationTicks": 336
+                },
+                {
+                  "pitch": 83,
+                  "startTick": 39840,
+                  "durationTicks": 442
+                },
+                {
+                  "pitch": 84,
+                  "startTick": 40320,
+                  "durationTicks": 816
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 46080,
+                  "durationTicks": 1920
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 49958,
+                  "durationTicks": 962
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 50920,
+                  "durationTicks": 440
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 51399,
+                  "durationTicks": 957
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 52356,
+                  "durationTicks": 444
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 57600,
+                  "durationTicks": 806
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 58560,
+                  "durationTicks": 1786
+                }
+              ],
+              "folded": 0,
+              "dropped": 0,
+              "omittedChunks": 0,
+              "articulationFallbacks": {},
+              "unresolvedArticulations": 0,
+              "state": "exported",
+              "reason": "sounding note-ons serialized; not a musical-substance verdict"
+            }
+          ],
+          "jobs": [
+            {
+              "id": "flutes:2:leadDouble",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 5,
+                  "matched": 5,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 5,
+                  "matched": 5,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "flutes:3:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 4,
+                  "matched": 4,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 4,
+                  "matched": 4,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "flutes:5:unison",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                }
+              ]
+            },
+            {
+              "id": "flutes:6:unison",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                }
+              ]
+            },
+            {
+              "id": "flutes:7:unison",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                }
+              ]
+            },
+            {
+              "id": "flutes:8:unison",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                }
+              ]
+            },
+            {
+              "id": "flutes:9:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 4,
+                  "matched": 4,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 4,
+                  "matched": 4,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "flutes:11:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 4,
+                  "matched": 4,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 4,
+                  "matched": 4,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "flutes:13:tutti",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 1,
+                  "matched": 1,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 1,
+                  "matched": 1,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "flutes:14:leadDouble",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 4,
+                  "matched": 4,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 4,
+                  "matched": 4,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "flutes:16:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "part": "oboes",
+          "trackId": "trk_12_oboes",
+          "state": "stale-export-evidence",
+          "exports": [],
+          "jobs": []
+        },
+        {
+          "part": "clarinets",
+          "trackId": "trk_13_clarinets",
+          "state": "observed",
+          "exports": [
+            {
+              "trackId": "trk_13_clarinets",
+              "role": "clarinets",
+              "scope": "merged",
+              "retainedFingerprint": "9f71b57f",
+              "retainedNotes": 8,
+              "serializedSoundingNotes": 8,
+              "serializedKeyswitches": 0,
+              "soundingEvents": [
+                {
+                  "pitch": 76,
+                  "startTick": 35520,
+                  "durationTicks": 475
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 36960,
+                  "durationTicks": 480
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 42240,
+                  "durationTicks": 806
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 43200,
+                  "durationTicks": 1786
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 46080,
+                  "durationTicks": 1920
+                },
+                {
+                  "pitch": 76,
+                  "startTick": 54240,
+                  "durationTicks": 528
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 55200,
+                  "durationTicks": 480
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 56160,
+                  "durationTicks": 408
+                }
+              ],
+              "folded": 0,
+              "dropped": 0,
+              "omittedChunks": 0,
+              "articulationFallbacks": {},
+              "unresolvedArticulations": 0,
+              "state": "exported",
+              "reason": "sounding note-ons serialized; not a musical-substance verdict"
+            },
+            {
+              "trackId": "trk_13_clarinets",
+              "role": "clarinets",
+              "scope": "per-track",
+              "retainedFingerprint": "9f71b57f",
+              "retainedNotes": 8,
+              "serializedSoundingNotes": 8,
+              "serializedKeyswitches": 0,
+              "soundingEvents": [
+                {
+                  "pitch": 76,
+                  "startTick": 35520,
+                  "durationTicks": 475
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 36960,
+                  "durationTicks": 480
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 42240,
+                  "durationTicks": 806
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 43200,
+                  "durationTicks": 1786
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 46080,
+                  "durationTicks": 1920
+                },
+                {
+                  "pitch": 76,
+                  "startTick": 54240,
+                  "durationTicks": 528
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 55200,
+                  "durationTicks": 480
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 56160,
+                  "durationTicks": 408
+                }
+              ],
+              "folded": 0,
+              "dropped": 0,
+              "omittedChunks": 0,
+              "articulationFallbacks": {},
+              "unresolvedArticulations": 0,
+              "state": "exported",
+              "reason": "sounding note-ons serialized; not a musical-substance verdict"
+            }
+          ],
+          "jobs": [
+            {
+              "id": "clarinets:10:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "clarinets:12:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "clarinets:13:tutti",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 1,
+                  "matched": 1,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 1,
+                  "matched": 1,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "clarinets:15:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 3,
+                  "matched": 3,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 3,
+                  "matched": 3,
+                  "state": "exported"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "part": "bassoons",
+          "trackId": "trk_14_bassoons",
+          "state": "observed",
+          "exports": [
+            {
+              "trackId": "trk_14_bassoons",
+              "role": "bassoons",
+              "scope": "merged",
+              "retainedFingerprint": "482cce64",
+              "retainedNotes": 9,
+              "serializedSoundingNotes": 9,
+              "serializedKeyswitches": 0,
+              "soundingEvents": [
+                {
+                  "pitch": 53,
+                  "startTick": 8640,
+                  "durationTicks": 475
+                },
+                {
+                  "pitch": 57,
+                  "startTick": 10080,
+                  "durationTicks": 480
+                },
+                {
+                  "pitch": 57,
+                  "startTick": 35040,
+                  "durationTicks": 360
+                },
+                {
+                  "pitch": 57,
+                  "startTick": 36000,
+                  "durationTicks": 360
+                },
+                {
+                  "pitch": 52,
+                  "startTick": 36480,
+                  "durationTicks": 624
+                },
+                {
+                  "pitch": 52,
+                  "startTick": 39360,
+                  "durationTicks": 475
+                },
+                {
+                  "pitch": 55,
+                  "startTick": 40800,
+                  "durationTicks": 480
+                },
+                {
+                  "pitch": 55,
+                  "startTick": 55200,
+                  "durationTicks": 475
+                },
+                {
+                  "pitch": 57,
+                  "startTick": 56160,
+                  "durationTicks": 480
+                }
+              ],
+              "folded": 0,
+              "dropped": 0,
+              "omittedChunks": 0,
+              "articulationFallbacks": {},
+              "unresolvedArticulations": 0,
+              "state": "exported",
+              "reason": "sounding note-ons serialized; not a musical-substance verdict"
+            },
+            {
+              "trackId": "trk_14_bassoons",
+              "role": "bassoons",
+              "scope": "per-track",
+              "retainedFingerprint": "482cce64",
+              "retainedNotes": 9,
+              "serializedSoundingNotes": 9,
+              "serializedKeyswitches": 0,
+              "soundingEvents": [
+                {
+                  "pitch": 53,
+                  "startTick": 8640,
+                  "durationTicks": 475
+                },
+                {
+                  "pitch": 57,
+                  "startTick": 10080,
+                  "durationTicks": 480
+                },
+                {
+                  "pitch": 57,
+                  "startTick": 35040,
+                  "durationTicks": 360
+                },
+                {
+                  "pitch": 57,
+                  "startTick": 36000,
+                  "durationTicks": 360
+                },
+                {
+                  "pitch": 52,
+                  "startTick": 36480,
+                  "durationTicks": 624
+                },
+                {
+                  "pitch": 52,
+                  "startTick": 39360,
+                  "durationTicks": 475
+                },
+                {
+                  "pitch": 55,
+                  "startTick": 40800,
+                  "durationTicks": 480
+                },
+                {
+                  "pitch": 55,
+                  "startTick": 55200,
+                  "durationTicks": 475
+                },
+                {
+                  "pitch": 57,
+                  "startTick": 56160,
+                  "durationTicks": 480
+                }
+              ],
+              "folded": 0,
+              "dropped": 0,
+              "omittedChunks": 0,
+              "articulationFallbacks": {},
+              "unresolvedArticulations": 0,
+              "state": "exported",
+              "reason": "sounding note-ons serialized; not a musical-substance verdict"
+            }
+          ],
+          "jobs": [
+            {
+              "id": "bassoons:3:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "bassoons:5:unison",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                }
+              ]
+            },
+            {
+              "id": "bassoons:6:unison",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                }
+              ]
+            },
+            {
+              "id": "bassoons:7:unison",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                }
+              ]
+            },
+            {
+              "id": "bassoons:8:unison",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                }
+              ]
+            },
+            {
+              "id": "bassoons:10:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 3,
+                  "matched": 3,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 3,
+                  "matched": 3,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "bassoons:11:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "bassoons:13:tutti",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                }
+              ]
+            },
+            {
+              "id": "bassoons:15:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "perTrackFiles": 19
+    },
+    "uvi": {
+      "merged": {
+        "folded": {},
+        "droppedHardRange": {},
+        "droppedDoubling": {},
+        "winds": [
+          {
+            "trackId": "trk_11_flutes",
+            "role": "flutes",
+            "scope": "merged",
+            "retainedFingerprint": "d9154758",
+            "retainedNotes": 24,
+            "serializedSoundingNotes": 24,
+            "serializedKeyswitches": 1,
+            "soundingEvents": [
+              {
+                "pitch": 81,
+                "startTick": 3840,
+                "durationTicks": 22
+              },
+              {
+                "pitch": 74,
+                "startTick": 3862,
+                "durationTicks": 953
+              },
+              {
+                "pitch": 83,
+                "startTick": 4815,
+                "durationTicks": 465
+              },
+              {
+                "pitch": 83,
+                "startTick": 5303,
+                "durationTicks": 960
+              },
+              {
+                "pitch": 74,
+                "startTick": 6263,
+                "durationTicks": 457
+              },
+              {
+                "pitch": 74,
+                "startTick": 7680,
+                "durationTicks": 720
+              },
+              {
+                "pitch": 76,
+                "startTick": 8640,
+                "durationTicks": 374
+              },
+              {
+                "pitch": 79,
+                "startTick": 9120,
+                "durationTicks": 374
+              },
+              {
+                "pitch": 77,
+                "startTick": 9600,
+                "durationTicks": 835
+              },
+              {
+                "pitch": 77,
+                "startTick": 31200,
+                "durationTicks": 336
+              },
+              {
+                "pitch": 77,
+                "startTick": 31680,
+                "durationTicks": 336
+              },
+              {
+                "pitch": 81,
+                "startTick": 32160,
+                "durationTicks": 442
+              },
+              {
+                "pitch": 81,
+                "startTick": 32640,
+                "durationTicks": 816
+              },
+              {
+                "pitch": 79,
+                "startTick": 38880,
+                "durationTicks": 336
+              },
+              {
+                "pitch": 79,
+                "startTick": 39360,
+                "durationTicks": 336
+              },
+              {
+                "pitch": 83,
+                "startTick": 39840,
+                "durationTicks": 442
+              },
+              {
+                "pitch": 84,
+                "startTick": 40320,
+                "durationTicks": 816
+              },
+              {
+                "pitch": 74,
+                "startTick": 46080,
+                "durationTicks": 1920
+              },
+              {
+                "pitch": 81,
+                "startTick": 49958,
+                "durationTicks": 962
+              },
+              {
+                "pitch": 77,
+                "startTick": 50920,
+                "durationTicks": 440
+              },
+              {
+                "pitch": 77,
+                "startTick": 51399,
+                "durationTicks": 957
+              },
+              {
+                "pitch": 81,
+                "startTick": 52356,
+                "durationTicks": 444
+              },
+              {
+                "pitch": 77,
+                "startTick": 57600,
+                "durationTicks": 806
+              },
+              {
+                "pitch": 77,
+                "startTick": 58560,
+                "durationTicks": 1786
+              }
+            ],
+            "folded": 0,
+            "dropped": 0,
+            "omittedChunks": 0,
+            "articulationFallbacks": {
+              "legato": 23,
+              "marcato": 1
+            },
+            "unresolvedArticulations": 0,
+            "state": "exported",
+            "reason": "sounding note-ons serialized; not a musical-substance verdict"
+          },
+          {
+            "trackId": "trk_12_oboes",
+            "role": "oboes",
+            "scope": "merged",
+            "retainedFingerprint": "741638a5",
+            "retainedNotes": 0,
+            "serializedSoundingNotes": 0,
+            "serializedKeyswitches": 0,
+            "soundingEvents": [],
+            "folded": 0,
+            "dropped": 0,
+            "omittedChunks": 0,
+            "articulationFallbacks": {},
+            "unresolvedArticulations": 0,
+            "state": "silent",
+            "reason": "no retained sounding notes"
+          },
+          {
+            "trackId": "trk_13_clarinets",
+            "role": "clarinets",
+            "scope": "merged",
+            "retainedFingerprint": "9f71b57f",
+            "retainedNotes": 8,
+            "serializedSoundingNotes": 8,
+            "serializedKeyswitches": 5,
+            "soundingEvents": [
+              {
+                "pitch": 76,
+                "startTick": 35520,
+                "durationTicks": 475
+              },
+              {
+                "pitch": 81,
+                "startTick": 36960,
+                "durationTicks": 480
+              },
+              {
+                "pitch": 74,
+                "startTick": 42240,
+                "durationTicks": 806
+              },
+              {
+                "pitch": 74,
+                "startTick": 43200,
+                "durationTicks": 1786
+              },
+              {
+                "pitch": 74,
+                "startTick": 46080,
+                "durationTicks": 1920
+              },
+              {
+                "pitch": 76,
+                "startTick": 54240,
+                "durationTicks": 528
+              },
+              {
+                "pitch": 77,
+                "startTick": 55200,
+                "durationTicks": 480
+              },
+              {
+                "pitch": 81,
+                "startTick": 56160,
+                "durationTicks": 408
+              }
+            ],
+            "folded": 0,
+            "dropped": 0,
+            "omittedChunks": 0,
+            "articulationFallbacks": {
+              "legato": 3,
+              "marcato": 1
+            },
+            "unresolvedArticulations": 0,
+            "state": "exported",
+            "reason": "sounding note-ons serialized; not a musical-substance verdict"
+          },
+          {
+            "trackId": "trk_14_bassoons",
+            "role": "bassoons",
+            "scope": "merged",
+            "retainedFingerprint": "482cce64",
+            "retainedNotes": 9,
+            "serializedSoundingNotes": 9,
+            "serializedKeyswitches": 1,
+            "soundingEvents": [
+              {
+                "pitch": 53,
+                "startTick": 8640,
+                "durationTicks": 475
+              },
+              {
+                "pitch": 57,
+                "startTick": 10080,
+                "durationTicks": 480
+              },
+              {
+                "pitch": 57,
+                "startTick": 35040,
+                "durationTicks": 360
+              },
+              {
+                "pitch": 57,
+                "startTick": 36000,
+                "durationTicks": 360
+              },
+              {
+                "pitch": 52,
+                "startTick": 36480,
+                "durationTicks": 624
+              },
+              {
+                "pitch": 52,
+                "startTick": 39360,
+                "durationTicks": 475
+              },
+              {
+                "pitch": 55,
+                "startTick": 40800,
+                "durationTicks": 480
+              },
+              {
+                "pitch": 55,
+                "startTick": 55200,
+                "durationTicks": 475
+              },
+              {
+                "pitch": 57,
+                "startTick": 56160,
+                "durationTicks": 480
+              }
+            ],
+            "folded": 0,
+            "dropped": 0,
+            "omittedChunks": 0,
+            "articulationFallbacks": {},
+            "unresolvedArticulations": 0,
+            "state": "exported",
+            "reason": "sounding note-ons serialized; not a musical-substance verdict"
+          }
+        ],
+        "remapped": {
+          "cymbals": 3
+        }
+      },
+      "perTrack": {
+        "folded": {},
+        "droppedHardRange": {},
+        "droppedDoubling": {},
+        "winds": [
+          {
+            "trackId": "trk_11_flutes",
+            "role": "flutes",
+            "scope": "per-track",
+            "retainedFingerprint": "d9154758",
+            "retainedNotes": 24,
+            "serializedSoundingNotes": 24,
+            "serializedKeyswitches": 1,
+            "soundingEvents": [
+              {
+                "pitch": 81,
+                "startTick": 3840,
+                "durationTicks": 22
+              },
+              {
+                "pitch": 74,
+                "startTick": 3862,
+                "durationTicks": 953
+              },
+              {
+                "pitch": 83,
+                "startTick": 4815,
+                "durationTicks": 465
+              },
+              {
+                "pitch": 83,
+                "startTick": 5303,
+                "durationTicks": 960
+              },
+              {
+                "pitch": 74,
+                "startTick": 6263,
+                "durationTicks": 457
+              },
+              {
+                "pitch": 74,
+                "startTick": 7680,
+                "durationTicks": 720
+              },
+              {
+                "pitch": 76,
+                "startTick": 8640,
+                "durationTicks": 374
+              },
+              {
+                "pitch": 79,
+                "startTick": 9120,
+                "durationTicks": 374
+              },
+              {
+                "pitch": 77,
+                "startTick": 9600,
+                "durationTicks": 835
+              },
+              {
+                "pitch": 77,
+                "startTick": 31200,
+                "durationTicks": 336
+              },
+              {
+                "pitch": 77,
+                "startTick": 31680,
+                "durationTicks": 336
+              },
+              {
+                "pitch": 81,
+                "startTick": 32160,
+                "durationTicks": 442
+              },
+              {
+                "pitch": 81,
+                "startTick": 32640,
+                "durationTicks": 816
+              },
+              {
+                "pitch": 79,
+                "startTick": 38880,
+                "durationTicks": 336
+              },
+              {
+                "pitch": 79,
+                "startTick": 39360,
+                "durationTicks": 336
+              },
+              {
+                "pitch": 83,
+                "startTick": 39840,
+                "durationTicks": 442
+              },
+              {
+                "pitch": 84,
+                "startTick": 40320,
+                "durationTicks": 816
+              },
+              {
+                "pitch": 74,
+                "startTick": 46080,
+                "durationTicks": 1920
+              },
+              {
+                "pitch": 81,
+                "startTick": 49958,
+                "durationTicks": 962
+              },
+              {
+                "pitch": 77,
+                "startTick": 50920,
+                "durationTicks": 440
+              },
+              {
+                "pitch": 77,
+                "startTick": 51399,
+                "durationTicks": 957
+              },
+              {
+                "pitch": 81,
+                "startTick": 52356,
+                "durationTicks": 444
+              },
+              {
+                "pitch": 77,
+                "startTick": 57600,
+                "durationTicks": 806
+              },
+              {
+                "pitch": 77,
+                "startTick": 58560,
+                "durationTicks": 1786
+              }
+            ],
+            "folded": 0,
+            "dropped": 0,
+            "omittedChunks": 0,
+            "articulationFallbacks": {
+              "legato": 23,
+              "marcato": 1
+            },
+            "unresolvedArticulations": 0,
+            "state": "exported",
+            "reason": "sounding note-ons serialized; not a musical-substance verdict"
+          },
+          {
+            "trackId": "trk_12_oboes",
+            "role": "oboes",
+            "scope": "per-track",
+            "retainedFingerprint": "741638a5",
+            "retainedNotes": 0,
+            "serializedSoundingNotes": 0,
+            "serializedKeyswitches": 0,
+            "soundingEvents": [],
+            "folded": 0,
+            "dropped": 0,
+            "omittedChunks": 0,
+            "articulationFallbacks": {},
+            "unresolvedArticulations": 0,
+            "state": "silent",
+            "reason": "no retained sounding notes"
+          },
+          {
+            "trackId": "trk_13_clarinets",
+            "role": "clarinets",
+            "scope": "per-track",
+            "retainedFingerprint": "9f71b57f",
+            "retainedNotes": 8,
+            "serializedSoundingNotes": 8,
+            "serializedKeyswitches": 5,
+            "soundingEvents": [
+              {
+                "pitch": 76,
+                "startTick": 35520,
+                "durationTicks": 475
+              },
+              {
+                "pitch": 81,
+                "startTick": 36960,
+                "durationTicks": 480
+              },
+              {
+                "pitch": 74,
+                "startTick": 42240,
+                "durationTicks": 806
+              },
+              {
+                "pitch": 74,
+                "startTick": 43200,
+                "durationTicks": 1786
+              },
+              {
+                "pitch": 74,
+                "startTick": 46080,
+                "durationTicks": 1920
+              },
+              {
+                "pitch": 76,
+                "startTick": 54240,
+                "durationTicks": 528
+              },
+              {
+                "pitch": 77,
+                "startTick": 55200,
+                "durationTicks": 480
+              },
+              {
+                "pitch": 81,
+                "startTick": 56160,
+                "durationTicks": 408
+              }
+            ],
+            "folded": 0,
+            "dropped": 0,
+            "omittedChunks": 0,
+            "articulationFallbacks": {
+              "legato": 3,
+              "marcato": 1
+            },
+            "unresolvedArticulations": 0,
+            "state": "exported",
+            "reason": "sounding note-ons serialized; not a musical-substance verdict"
+          },
+          {
+            "trackId": "trk_14_bassoons",
+            "role": "bassoons",
+            "scope": "per-track",
+            "retainedFingerprint": "482cce64",
+            "retainedNotes": 9,
+            "serializedSoundingNotes": 9,
+            "serializedKeyswitches": 1,
+            "soundingEvents": [
+              {
+                "pitch": 53,
+                "startTick": 8640,
+                "durationTicks": 475
+              },
+              {
+                "pitch": 57,
+                "startTick": 10080,
+                "durationTicks": 480
+              },
+              {
+                "pitch": 57,
+                "startTick": 35040,
+                "durationTicks": 360
+              },
+              {
+                "pitch": 57,
+                "startTick": 36000,
+                "durationTicks": 360
+              },
+              {
+                "pitch": 52,
+                "startTick": 36480,
+                "durationTicks": 624
+              },
+              {
+                "pitch": 52,
+                "startTick": 39360,
+                "durationTicks": 475
+              },
+              {
+                "pitch": 55,
+                "startTick": 40800,
+                "durationTicks": 480
+              },
+              {
+                "pitch": 55,
+                "startTick": 55200,
+                "durationTicks": 475
+              },
+              {
+                "pitch": 57,
+                "startTick": 56160,
+                "durationTicks": 480
+              }
+            ],
+            "folded": 0,
+            "dropped": 0,
+            "omittedChunks": 0,
+            "articulationFallbacks": {},
+            "unresolvedArticulations": 0,
+            "state": "exported",
+            "reason": "sounding note-ons serialized; not a musical-substance verdict"
+          }
+        ],
+        "remapped": {
+          "cymbals": 3
+        }
+      },
+      "reconciled": [
+        {
+          "part": "flutes",
+          "trackId": "trk_11_flutes",
+          "state": "observed",
+          "exports": [
+            {
+              "trackId": "trk_11_flutes",
+              "role": "flutes",
+              "scope": "merged",
+              "retainedFingerprint": "d9154758",
+              "retainedNotes": 24,
+              "serializedSoundingNotes": 24,
+              "serializedKeyswitches": 1,
+              "soundingEvents": [
+                {
+                  "pitch": 81,
+                  "startTick": 3840,
+                  "durationTicks": 22
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 3862,
+                  "durationTicks": 953
+                },
+                {
+                  "pitch": 83,
+                  "startTick": 4815,
+                  "durationTicks": 465
+                },
+                {
+                  "pitch": 83,
+                  "startTick": 5303,
+                  "durationTicks": 960
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 6263,
+                  "durationTicks": 457
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 7680,
+                  "durationTicks": 720
+                },
+                {
+                  "pitch": 76,
+                  "startTick": 8640,
+                  "durationTicks": 374
+                },
+                {
+                  "pitch": 79,
+                  "startTick": 9120,
+                  "durationTicks": 374
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 9600,
+                  "durationTicks": 835
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 31200,
+                  "durationTicks": 336
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 31680,
+                  "durationTicks": 336
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 32160,
+                  "durationTicks": 442
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 32640,
+                  "durationTicks": 816
+                },
+                {
+                  "pitch": 79,
+                  "startTick": 38880,
+                  "durationTicks": 336
+                },
+                {
+                  "pitch": 79,
+                  "startTick": 39360,
+                  "durationTicks": 336
+                },
+                {
+                  "pitch": 83,
+                  "startTick": 39840,
+                  "durationTicks": 442
+                },
+                {
+                  "pitch": 84,
+                  "startTick": 40320,
+                  "durationTicks": 816
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 46080,
+                  "durationTicks": 1920
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 49958,
+                  "durationTicks": 962
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 50920,
+                  "durationTicks": 440
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 51399,
+                  "durationTicks": 957
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 52356,
+                  "durationTicks": 444
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 57600,
+                  "durationTicks": 806
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 58560,
+                  "durationTicks": 1786
+                }
+              ],
+              "folded": 0,
+              "dropped": 0,
+              "omittedChunks": 0,
+              "articulationFallbacks": {
+                "legato": 23,
+                "marcato": 1
+              },
+              "unresolvedArticulations": 0,
+              "state": "exported",
+              "reason": "sounding note-ons serialized; not a musical-substance verdict"
+            },
+            {
+              "trackId": "trk_11_flutes",
+              "role": "flutes",
+              "scope": "per-track",
+              "retainedFingerprint": "d9154758",
+              "retainedNotes": 24,
+              "serializedSoundingNotes": 24,
+              "serializedKeyswitches": 1,
+              "soundingEvents": [
+                {
+                  "pitch": 81,
+                  "startTick": 3840,
+                  "durationTicks": 22
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 3862,
+                  "durationTicks": 953
+                },
+                {
+                  "pitch": 83,
+                  "startTick": 4815,
+                  "durationTicks": 465
+                },
+                {
+                  "pitch": 83,
+                  "startTick": 5303,
+                  "durationTicks": 960
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 6263,
+                  "durationTicks": 457
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 7680,
+                  "durationTicks": 720
+                },
+                {
+                  "pitch": 76,
+                  "startTick": 8640,
+                  "durationTicks": 374
+                },
+                {
+                  "pitch": 79,
+                  "startTick": 9120,
+                  "durationTicks": 374
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 9600,
+                  "durationTicks": 835
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 31200,
+                  "durationTicks": 336
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 31680,
+                  "durationTicks": 336
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 32160,
+                  "durationTicks": 442
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 32640,
+                  "durationTicks": 816
+                },
+                {
+                  "pitch": 79,
+                  "startTick": 38880,
+                  "durationTicks": 336
+                },
+                {
+                  "pitch": 79,
+                  "startTick": 39360,
+                  "durationTicks": 336
+                },
+                {
+                  "pitch": 83,
+                  "startTick": 39840,
+                  "durationTicks": 442
+                },
+                {
+                  "pitch": 84,
+                  "startTick": 40320,
+                  "durationTicks": 816
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 46080,
+                  "durationTicks": 1920
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 49958,
+                  "durationTicks": 962
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 50920,
+                  "durationTicks": 440
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 51399,
+                  "durationTicks": 957
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 52356,
+                  "durationTicks": 444
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 57600,
+                  "durationTicks": 806
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 58560,
+                  "durationTicks": 1786
+                }
+              ],
+              "folded": 0,
+              "dropped": 0,
+              "omittedChunks": 0,
+              "articulationFallbacks": {
+                "legato": 23,
+                "marcato": 1
+              },
+              "unresolvedArticulations": 0,
+              "state": "exported",
+              "reason": "sounding note-ons serialized; not a musical-substance verdict"
+            }
+          ],
+          "jobs": [
+            {
+              "id": "flutes:2:leadDouble",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 5,
+                  "matched": 5,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 5,
+                  "matched": 5,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "flutes:3:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 4,
+                  "matched": 4,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 4,
+                  "matched": 4,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "flutes:5:unison",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                }
+              ]
+            },
+            {
+              "id": "flutes:6:unison",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                }
+              ]
+            },
+            {
+              "id": "flutes:7:unison",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                }
+              ]
+            },
+            {
+              "id": "flutes:8:unison",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                }
+              ]
+            },
+            {
+              "id": "flutes:9:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 4,
+                  "matched": 4,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 4,
+                  "matched": 4,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "flutes:11:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 4,
+                  "matched": 4,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 4,
+                  "matched": 4,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "flutes:13:tutti",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 1,
+                  "matched": 1,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 1,
+                  "matched": 1,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "flutes:14:leadDouble",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 4,
+                  "matched": 4,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 4,
+                  "matched": 4,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "flutes:16:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "part": "oboes",
+          "trackId": "trk_12_oboes",
+          "state": "stale-export-evidence",
+          "exports": [],
+          "jobs": []
+        },
+        {
+          "part": "clarinets",
+          "trackId": "trk_13_clarinets",
+          "state": "observed",
+          "exports": [
+            {
+              "trackId": "trk_13_clarinets",
+              "role": "clarinets",
+              "scope": "merged",
+              "retainedFingerprint": "9f71b57f",
+              "retainedNotes": 8,
+              "serializedSoundingNotes": 8,
+              "serializedKeyswitches": 5,
+              "soundingEvents": [
+                {
+                  "pitch": 76,
+                  "startTick": 35520,
+                  "durationTicks": 475
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 36960,
+                  "durationTicks": 480
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 42240,
+                  "durationTicks": 806
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 43200,
+                  "durationTicks": 1786
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 46080,
+                  "durationTicks": 1920
+                },
+                {
+                  "pitch": 76,
+                  "startTick": 54240,
+                  "durationTicks": 528
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 55200,
+                  "durationTicks": 480
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 56160,
+                  "durationTicks": 408
+                }
+              ],
+              "folded": 0,
+              "dropped": 0,
+              "omittedChunks": 0,
+              "articulationFallbacks": {
+                "legato": 3,
+                "marcato": 1
+              },
+              "unresolvedArticulations": 0,
+              "state": "exported",
+              "reason": "sounding note-ons serialized; not a musical-substance verdict"
+            },
+            {
+              "trackId": "trk_13_clarinets",
+              "role": "clarinets",
+              "scope": "per-track",
+              "retainedFingerprint": "9f71b57f",
+              "retainedNotes": 8,
+              "serializedSoundingNotes": 8,
+              "serializedKeyswitches": 5,
+              "soundingEvents": [
+                {
+                  "pitch": 76,
+                  "startTick": 35520,
+                  "durationTicks": 475
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 36960,
+                  "durationTicks": 480
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 42240,
+                  "durationTicks": 806
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 43200,
+                  "durationTicks": 1786
+                },
+                {
+                  "pitch": 74,
+                  "startTick": 46080,
+                  "durationTicks": 1920
+                },
+                {
+                  "pitch": 76,
+                  "startTick": 54240,
+                  "durationTicks": 528
+                },
+                {
+                  "pitch": 77,
+                  "startTick": 55200,
+                  "durationTicks": 480
+                },
+                {
+                  "pitch": 81,
+                  "startTick": 56160,
+                  "durationTicks": 408
+                }
+              ],
+              "folded": 0,
+              "dropped": 0,
+              "omittedChunks": 0,
+              "articulationFallbacks": {
+                "legato": 3,
+                "marcato": 1
+              },
+              "unresolvedArticulations": 0,
+              "state": "exported",
+              "reason": "sounding note-ons serialized; not a musical-substance verdict"
+            }
+          ],
+          "jobs": [
+            {
+              "id": "clarinets:10:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "clarinets:12:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "clarinets:13:tutti",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 1,
+                  "matched": 1,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 1,
+                  "matched": 1,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "clarinets:15:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 3,
+                  "matched": 3,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 3,
+                  "matched": 3,
+                  "state": "exported"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "part": "bassoons",
+          "trackId": "trk_14_bassoons",
+          "state": "observed",
+          "exports": [
+            {
+              "trackId": "trk_14_bassoons",
+              "role": "bassoons",
+              "scope": "merged",
+              "retainedFingerprint": "482cce64",
+              "retainedNotes": 9,
+              "serializedSoundingNotes": 9,
+              "serializedKeyswitches": 1,
+              "soundingEvents": [
+                {
+                  "pitch": 53,
+                  "startTick": 8640,
+                  "durationTicks": 475
+                },
+                {
+                  "pitch": 57,
+                  "startTick": 10080,
+                  "durationTicks": 480
+                },
+                {
+                  "pitch": 57,
+                  "startTick": 35040,
+                  "durationTicks": 360
+                },
+                {
+                  "pitch": 57,
+                  "startTick": 36000,
+                  "durationTicks": 360
+                },
+                {
+                  "pitch": 52,
+                  "startTick": 36480,
+                  "durationTicks": 624
+                },
+                {
+                  "pitch": 52,
+                  "startTick": 39360,
+                  "durationTicks": 475
+                },
+                {
+                  "pitch": 55,
+                  "startTick": 40800,
+                  "durationTicks": 480
+                },
+                {
+                  "pitch": 55,
+                  "startTick": 55200,
+                  "durationTicks": 475
+                },
+                {
+                  "pitch": 57,
+                  "startTick": 56160,
+                  "durationTicks": 480
+                }
+              ],
+              "folded": 0,
+              "dropped": 0,
+              "omittedChunks": 0,
+              "articulationFallbacks": {},
+              "unresolvedArticulations": 0,
+              "state": "exported",
+              "reason": "sounding note-ons serialized; not a musical-substance verdict"
+            },
+            {
+              "trackId": "trk_14_bassoons",
+              "role": "bassoons",
+              "scope": "per-track",
+              "retainedFingerprint": "482cce64",
+              "retainedNotes": 9,
+              "serializedSoundingNotes": 9,
+              "serializedKeyswitches": 1,
+              "soundingEvents": [
+                {
+                  "pitch": 53,
+                  "startTick": 8640,
+                  "durationTicks": 475
+                },
+                {
+                  "pitch": 57,
+                  "startTick": 10080,
+                  "durationTicks": 480
+                },
+                {
+                  "pitch": 57,
+                  "startTick": 35040,
+                  "durationTicks": 360
+                },
+                {
+                  "pitch": 57,
+                  "startTick": 36000,
+                  "durationTicks": 360
+                },
+                {
+                  "pitch": 52,
+                  "startTick": 36480,
+                  "durationTicks": 624
+                },
+                {
+                  "pitch": 52,
+                  "startTick": 39360,
+                  "durationTicks": 475
+                },
+                {
+                  "pitch": 55,
+                  "startTick": 40800,
+                  "durationTicks": 480
+                },
+                {
+                  "pitch": 55,
+                  "startTick": 55200,
+                  "durationTicks": 475
+                },
+                {
+                  "pitch": 57,
+                  "startTick": 56160,
+                  "durationTicks": 480
+                }
+              ],
+              "folded": 0,
+              "dropped": 0,
+              "omittedChunks": 0,
+              "articulationFallbacks": {},
+              "unresolvedArticulations": 0,
+              "state": "exported",
+              "reason": "sounding note-ons serialized; not a musical-substance verdict"
+            }
+          ],
+          "jobs": [
+            {
+              "id": "bassoons:3:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "bassoons:5:unison",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                }
+              ]
+            },
+            {
+              "id": "bassoons:6:unison",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                }
+              ]
+            },
+            {
+              "id": "bassoons:7:unison",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                }
+              ]
+            },
+            {
+              "id": "bassoons:8:unison",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                }
+              ]
+            },
+            {
+              "id": "bassoons:10:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 3,
+                  "matched": 3,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 3,
+                  "matched": 3,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "bassoons:11:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                }
+              ]
+            },
+            {
+              "id": "bassoons:13:tutti",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 0,
+                  "matched": 0,
+                  "state": "not-retained"
+                }
+              ]
+            },
+            {
+              "id": "bassoons:15:phrase",
+              "scopes": [
+                {
+                  "scope": "merged",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                },
+                {
+                  "scope": "per-track",
+                  "retainedAssociations": 2,
+                  "matched": 2,
+                  "state": "exported"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "perTrackFiles": 18
+    }
+  }
+}

@@ -66,7 +66,11 @@ const loadSettings = (): Settings => {
   try { return { ...d, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') }; } catch { return d; }
 };
 
-export interface ComposeOptions { seed: number; density: number; humanize: boolean }
+export interface ComposeOptions {
+  seed: number; density: number; humanize: boolean;
+  /** API-only test/development selection; no control, persistence or default enablement. */
+  windsComposition?: 'classic' | 'v1';
+}
 
 interface State {
   project: Project;

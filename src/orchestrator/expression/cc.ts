@@ -155,6 +155,8 @@ function phraseArc(from: number, to: number, btBar: number, arc: ArcBar[], clamp
 /* ---------------- the builder ---------------- */
 
 export interface CcBuildInput {
+  /** Optional isolated caller stream; classic uses the unchanged D8 stream. */
+  rng?: () => number;
   project: Project;
   template: EnsembleTemplate | null;
   sections: SpineSection[];
@@ -177,7 +179,7 @@ export function buildCcLanes(input: CcBuildInput): Record<string, CcLane[]> {
   const clampMax = template?.budget.energyClamp[1] ?? 1;
 
   // one seeded draw per take (D8): the spike shape and the S-curve length
-  const rng = mulberry32((orchestrationSeedFor(project, project.orchestration) ^ Math.imul(hashString('cc'), 0x85ebca6b)) >>> 0);
+  const rng = input.rng ?? mulberry32((orchestrationSeedFor(project, project.orchestration) ^ Math.imul(hashString('cc'), 0x85ebca6b)) >>> 0);
   const spikeValue = Math.round(CC74_SPIKE_VALUE[0] + rng() * (CC74_SPIKE_VALUE[1] - CC74_SPIKE_VALUE[0]));
   const spikeTicks = Math.round(CC74_SPIKE_TICKS[0] + rng() * (CC74_SPIKE_TICKS[1] - CC74_SPIKE_TICKS[0]));
   const rampMs = S_CURVE_MS[0] + rng() * (S_CURVE_MS[1] - S_CURVE_MS[0]);

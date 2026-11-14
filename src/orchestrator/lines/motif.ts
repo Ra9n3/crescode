@@ -48,6 +48,8 @@ export interface MotifInput {
   comfortable: [number, number];
   /** The take counter (D8): same inputs + take → identical motif. */
   take: number;
+  /** Optional caller-owned stream; omitted by all historical paths. */
+  rng?: () => number;
 }
 
 /** The chord sounding at a tick (spans are normalized and non-overlapping). */
@@ -145,7 +147,7 @@ export function motifLine(input: MotifInput): Note[] {
 
   // D8: the motif stream is the (inputs, take) seed salted away from the
   // voicing and arc streams — same take, same motif; new take, new motif.
-  const rng = mulberry32((orchestrationSeedFor(project, { take }) ^ Math.imul(hashString('motif'), 0x85ebca6b)) >>> 0);
+  const rng = input.rng ?? mulberry32((orchestrationSeedFor(project, { take }) ^ Math.imul(hashString('motif'), 0x85ebca6b)) >>> 0);
 
   const sorted = [...sections].sort((a, b) => a.startBar - b.startBar);
   const finalSection = sorted[sorted.length - 1];

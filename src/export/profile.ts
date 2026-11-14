@@ -35,6 +35,7 @@ import { ARTICULATIONS, isInstrumentTrack, type CcLane, type Note, type Project,
 import { msToTicks, ticksToMs } from '../orchestrator/spine';
 import { resolveTemplate } from '../config/ensembles';
 import { hashString } from '../engine/generate';
+import { windChunkEvidence, type WindExportObservation } from './wind-audit';
 
 /* ---------------- pitch convention ---------------- */
 
@@ -614,6 +615,8 @@ export function keyswitchNotesFor(part: ProfilePart, notes: Note[], project: Pro
  *  tests and the phase report read. Dropped = fold exceeds the hard range or
  *  (forbidden policy) would create a new unison/octave doubling. */
 export interface FoldStats {
+  /** Optional observations populated by actual MIDI builders, not by chunk generation alone. */
+  winds?: WindExportObservation[];
   folded: Record<string, number>;
   droppedHardRange: Record<string, number>;
   droppedDoubling: Record<string, number>;
@@ -801,8 +804,9 @@ export function chunksForTrack(project: Project, track: Track, profile: ExportPr
     }
     if (!guarded.length) continue; // everything dropped: no part file at all
     const merged = part.tremoloMode === 'sampled' ? mergeTremoloGroups(guarded) : guarded;
-    const notes = [...keyswitchNotesFor(part, merged, project, profile), ...merged].sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
-    chunks.push({
+    const switches = keyswitchNotesFor(part, merged, project, profile);
+    const notes = [...switches, ...merged].sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
+    const chunk: ExportChunk = {
       trackId: track.id,
       name: part.exportName ?? part.patch,
       ...(part.exportName ? { fileName: `${part.exportName}.mid` } : {}),
@@ -810,7 +814,19 @@ export function chunksForTrack(project: Project, track: Track, profile: ExportPr
       notes,
       ...(part.fileScope === 'fileOnly' ? { fileOnly: true } : {}),
       ...(ccForPart(track.cc, part.ccEnabled) !== undefined ? { cc: ccForPart(track.cc, part.ccEnabled)! } : {}),
-    });
+    };
+    if (stats?.winds && ['flutes', 'oboes', 'clarinets', 'bassoons'].includes(track.role)) {
+      const articulationFallbacks: Record<string, number> = {};
+      let unresolvedArticulations = 0;
+      if (part.keyswitchMode !== 'none') for (const n of merged) {
+        const art = n.articulation ?? PROFILE_SUSTAIN;
+        const key = resolveArticulationKeyFor(part, art, profile.pitchConvention);
+        if (key === null) unresolvedArticulations++;
+        else if (!part.keyswitches[art]) articulationFallbacks[art] = (articulationFallbacks[art] ?? 0) + 1;
+      }
+      windChunkEvidence.set(chunk, { keyswitches: switches, articulationFallbacks, unresolvedArticulations });
+    }
+    chunks.push(chunk);
   }
   const rest = visible.filter((n) => !claimed.has(n));
   if (rest.length) chunks.push({ trackId: track.id, name: track.name, channel: track.midiChannel, notes: rest, ...(track.cc !== undefined ? { cc: track.cc } : {}) });

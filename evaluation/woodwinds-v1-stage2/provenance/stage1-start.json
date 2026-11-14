@@ -1,0 +1,92 @@
+{
+  "branch": "arena/7c78989c-crescode",
+  "HEAD": "96c7756c6484f85d3937d20a070818fa568d4d80",
+  "status": " M src/export/midi.ts\n M src/export/profile.ts\n M src/orchestrator/compose.ts\n M src/orchestrator/expression/cc.ts\n M src/orchestrator/lines/motif.ts\n M src/orchestrator/winds/plan.ts\n M src/orchestrator/winds/render.ts\n M src/store/store.ts\n?? evaluation/woodwinds-v1-stage1/\n?? scripts/winds-stage1-baseline-loader.mjs\n?? scripts/winds-stage1-baseline.mjs\n?? src/export/wind-audit.ts\n?? src/orchestrator/winds/identity.ts\n?? src/orchestrator/winds/production.ts\n?? src/orchestrator/winds/trace.ts\n?? tests/winds-production-truth.test.ts\n",
+  "files": [
+    {
+      "path": "src/export/midi.ts",
+      "sha256": "0c923688de38df1518e653b00a37d943d02e8cba501e1f25f2b852a9bbb22fab",
+      "bytes": 11079
+    },
+    {
+      "path": "src/export/profile.ts",
+      "sha256": "196c8ae11e2aa3f579326ad4dd1ae4cc6dd63f463385878ead93e4ec838a97d0",
+      "bytes": 49354
+    },
+    {
+      "path": "src/orchestrator/compose.ts",
+      "sha256": "3fc3dab32e54ca19506508c35e8577d8d2e643b0e7e963896982a5d1e0d7da2f",
+      "bytes": 58419
+    },
+    {
+      "path": "src/orchestrator/expression/cc.ts",
+      "sha256": "38ee0743e4cacd42c3f303b0084fae78c3a7006e15578f58046bff795b97eab3",
+      "bytes": 15223
+    },
+    {
+      "path": "src/orchestrator/lines/motif.ts",
+      "sha256": "d98a55b5fdd9a15c5c05f348754edeb60694f9c1dc5869c6a1bfdadf12d9f6ce",
+      "bytes": 13119
+    },
+    {
+      "path": "src/orchestrator/winds/plan.ts",
+      "sha256": "3ec19ed40f822c075ce2ca5d7e348937fb5f7fcc0b2275d4de4d5f064cc8ecbd",
+      "bytes": 22080
+    },
+    {
+      "path": "src/orchestrator/winds/render.ts",
+      "sha256": "d059988f999b60c6c922fc86655c821269392571e0aecea1f2cba3df2cafca10",
+      "bytes": 49073
+    },
+    {
+      "path": "src/store/store.ts",
+      "sha256": "6e7cf3e575f7c76435a655b496c738d2d44e4afe8e6bd37905dc44db85317896",
+      "bytes": 23276
+    },
+    {
+      "path": "evaluation/woodwinds-v1-stage1/REPORT.md",
+      "sha256": "3f39acc80c190b8918bb949f6e9f6d059dcba537a7b9c262cc9e77f979cbddaa",
+      "bytes": 14005
+    },
+    {
+      "path": "evaluation/woodwinds-v1-stage1/audited-head-comparison.json",
+      "sha256": "0c14dd8b69e78e477a079fd343fea1833451a665e84b403770d94df95e4f1641",
+      "bytes": 7206
+    },
+    {
+      "path": "scripts/winds-stage1-baseline-loader.mjs",
+      "sha256": "97b44dcf848ad7cc4691ce3460122be4e11da112ef6b6f7c16c5bb0a4d1d97c9",
+      "bytes": 1186
+    },
+    {
+      "path": "scripts/winds-stage1-baseline.mjs",
+      "sha256": "dc5d8d0f32b61f035fbbe899fe5a1e6c0f08a75f3a89f8e75c2c3e75d13ca9a8",
+      "bytes": 2480
+    },
+    {
+      "path": "src/export/wind-audit.ts",
+      "sha256": "690f1adbd3f58b9b31e3bfbcc18ec8dd4eaca1d4f986c67f91694be694be2962",
+      "bytes": 3878
+    },
+    {
+      "path": "src/orchestrator/winds/identity.ts",
+      "sha256": "52c474ad3639c82e5c4f0e100ceabdb1e63876e171f706e6cede750b7c2be104",
+      "bytes": 1348
+    },
+    {
+      "path": "src/orchestrator/winds/production.ts",
+      "sha256": "ab4093a9815e8f458176c8fd20b92665b9b3c8ffb8519915aa1cebcb059efe4c",
+      "bytes": 17605
+    },
+    {
+      "path": "src/orchestrator/winds/trace.ts",
+      "sha256": "05cc4a1120b43ba38111d3c954239ca3b9b5121a5a10da7ef037a92f79e79905",
+      "bytes": 534
+    },
+    {
+      "path": "tests/winds-production-truth.test.ts",
+      "sha256": "953feef6d652e9610db1fe2933b9a0f23bd01dd2da63dc52c30e7d3288fb5e2e",
+      "bytes": 20558
+    }
+  ]
+}

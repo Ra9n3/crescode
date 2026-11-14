@@ -1,0 +1,14 @@
+{
+  "package": "evaluation/woodwinds-v1-stage2/woodwinds-v1-stage2-early-audition.zip",
+  "sha256": "75d896ea8edbfe89b21107a52054a3f07f9c672279a541167404e83e48dd75a5",
+  "bytes": 511730,
+  "files": 329,
+  "midiFiles": 306,
+  "plainMidiFiles": 156,
+  "uviMidiFiles": 150,
+  "shaManifestExact": true,
+  "zipMembersExact": true,
+  "zipCRCChecked": true,
+  "sourceHashesCurrent": true,
+  "assembly": "Python stdlib zipfile ZIP_DEFLATED; all early-audition files under woodwinds-v1-stage2-early-audition/"
+}

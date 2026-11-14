@@ -14,6 +14,7 @@ import type { BrassPlan } from './brass/plan';
 import type { WindPlan } from './winds/plan';
 import type { PercPlan } from './percussion/plan';
 import type { KeysPlan } from './keys/plan';
+import type { StringsV1Context } from './strings/bridge';
 
 export interface OrchestratorContext {
   project: Project;
@@ -27,6 +28,9 @@ export interface OrchestratorContext {
   /** The prepared lines (Phase 4b): motif, counterline, constrained voicing.
    *  An in-memory annotation of the compose run — never persisted. */
   lines?: StringLines;
+  /** Strings V1 annotation (mode-guarded): present only when the compose runs
+   *  with stringsComposition 'v1'. In memory only; never persisted. */
+  stringsV1?: StringsV1Context;
   /** The take's moments (Phase 7), planned by the conductor before rendering.
    *  An in-memory annotation — never persisted; only the bars a moment
    *  covers may deviate from the texture plan. */

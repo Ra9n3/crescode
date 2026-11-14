@@ -4,6 +4,7 @@ import { composeAllTracks } from '../src/orchestrator/compose';
 import { analyzePianoInput } from '../src/orchestrator/keys/piano-analyzer';
 import {
   composePianoPlan,
+  composePianoFoundationScore,
   composePianoScore,
   type PianoComposerPlan,
   type PianoPhraseIntention,
@@ -168,7 +169,10 @@ function scoreForPlan(
   plan: PianoComposerPlan,
   input = sample.input,
 ): PianoScore {
-  return composePianoScore(input, plan, sample.piano, projectEndTick(sample.project));
+  // These cases pin the retained legacy per-chord foundation writer. Production notes come from the
+  // Texture-and-Theme composition (see tests/piano-texture-theme.test.ts); the context gates asserted
+  // here no longer decide production output.
+  return composePianoFoundationScore(input, plan, sample.piano, projectEndTick(sample.project));
 }
 
 function byChord(events: readonly PianoScore['events'][number][]) {
@@ -247,7 +251,7 @@ function expectedQuantizedMotifTick(phrase: PianoPhraseIntention, position: 0 | 
   return Math.max(first, Math.min(last, Math.round(raw / grid) * grid));
 }
 
-describe('Piano Stage 4 contextual score techniques', () => {
+describe('Piano Stage 4 contextual score techniques (legacy foundation writer, not the production score)', () => {
   it('writes Alberti, walking-bass, and repeated-note ostinato events only in compatible open contexts', () => {
     const cases: Array<{
       readonly templateId: string;

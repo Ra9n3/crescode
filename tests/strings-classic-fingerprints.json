@@ -1,0 +1,6136 @@
+{
+ "description": "Classic string output fingerprints: six templates x three fixtures x takes 1 and 4 (seed 1, engine defaults), plus four configurations per template on dorian-16bars (seed 7 take 2, density 0.9, humanize off, moments off). Written by scripts/strings-classic-fingerprint.ts from the default (classic) path.",
+ "stringsComposition": "classic",
+ "cells": {
+  "chamber__dorian-16bars__seed1__take0": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 29,
+     "noteHash": "74aa2be67f4da2875a01",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 69,
+     "ccHash": "9c7f2d441babe130474f",
+     "pitchLow": 65,
+     "pitchHigh": 96,
+     "velocitySum": 1752,
+     "durationSum": 57648,
+     "articulations": {
+      "legato": 29
+     },
+     "exportHash": "9cfd85d43569b46912d9"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 30,
+     "noteHash": "c3d96e6527ee074f1b5e",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 46,
+     "ccHash": "1e1a3682fb99c2c79293",
+     "pitchLow": 55,
+     "pitchHigh": 72,
+     "velocitySum": 1822,
+     "durationSum": 42635,
+     "articulations": {
+      "legato": 30
+     },
+     "exportHash": "8fff524c598d3c2d0bd5"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 21,
+     "noteHash": "8adf3089295ec74fe520",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 50,
+     "ccHash": "efbf8b3fb28ce96ba6fe",
+     "pitchLow": 52,
+     "pitchHigh": 65,
+     "velocitySum": 1272,
+     "durationSum": 42123,
+     "articulations": {
+      "legato": 21
+     },
+     "exportHash": "a5fe34e603d28603fe1b"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 21,
+     "noteHash": "be4d210ac3b097f61a8f",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 55,
+     "ccHash": "1f787b9857d7f1fdca41",
+     "pitchLow": 38,
+     "pitchHigh": 62,
+     "velocitySum": 1288,
+     "durationSum": 41982,
+     "articulations": {
+      "legato": 21
+     },
+     "exportHash": "de6faf954341649affee"
+    }
+   },
+   "otherFamiliesHash": "5d2f606d109748fe4f34",
+   "conductorHash": "d4c90d84bbac0b7e2840"
+  },
+  "chamber__dorian-16bars__seed1__take3": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 23,
+     "noteHash": "041a8d0b236144f42edc",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 42,
+     "ccHash": "fceaab8106897568bc02",
+     "pitchLow": 64,
+     "pitchHigh": 96,
+     "velocitySum": 1515,
+     "durationSum": 42497,
+     "articulations": {
+      "legato": 23
+     },
+     "exportHash": "49abf744d38acd2ec6d7"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 40,
+     "noteHash": "028eb30507cbf743af1b",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 80,
+     "ccHash": "3512877550d184195b60",
+     "pitchLow": 55,
+     "pitchHigh": 62,
+     "velocitySum": 2368,
+     "durationSum": 39035,
+     "articulations": {
+      "legato": 40
+     },
+     "exportHash": "555a4d1222f422fb4153"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 28,
+     "noteHash": "45a7a10b3e1f682e693c",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 56,
+     "ccHash": "b8c8c5d4ee7dec996016",
+     "pitchLow": 48,
+     "pitchHigh": 88,
+     "velocitySum": 1760,
+     "durationSum": 57658,
+     "articulations": {
+      "legato": 28
+     },
+     "exportHash": "ad16cb527f4c2eae0196"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 20,
+     "noteHash": "4455247baba8aff1e1d2",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 52,
+     "ccHash": "c6f67bcab5367426570e",
+     "pitchLow": 38,
+     "pitchHigh": 81,
+     "velocitySum": 1273,
+     "durationSum": 42031,
+     "articulations": {
+      "legato": 20
+     },
+     "exportHash": "b01451853afa2fabe3d3"
+    }
+   },
+   "otherFamiliesHash": "5b10a294570897c6eec6",
+   "conductorHash": "b013c397d40c8c37ec9d"
+  },
+  "chamber__multi-chorus-16bars__seed1__take0": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 30,
+     "noteHash": "35cc327a27d9230f5cbb",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 51,
+     "ccHash": "03ce725467ba6a589144",
+     "pitchLow": 62,
+     "pitchHigh": 84,
+     "velocitySum": 1811,
+     "durationSum": 50367,
+     "articulations": {
+      "legato": 30
+     },
+     "exportHash": "abc3407349aa16156739"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 21,
+     "noteHash": "8c99bb1a14ab61b48866",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 56,
+     "ccHash": "77efd806f2a3dfedf5b8",
+     "pitchLow": 55,
+     "pitchHigh": 62,
+     "velocitySum": 1310,
+     "durationSum": 38409,
+     "articulations": {
+      "legato": 21
+     },
+     "exportHash": "c38fb41ce72425c03881"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 18,
+     "noteHash": "2a6259ebd0a3f9edad3b",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 56,
+     "ccHash": "262903cd981c76c58e51",
+     "pitchLow": 50,
+     "pitchHigh": 60,
+     "velocitySum": 1167,
+     "durationSum": 38195,
+     "articulations": {
+      "legato": 18
+     },
+     "exportHash": "f2830502af3e641124a7"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 18,
+     "noteHash": "d76190443089c397d888",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 56,
+     "ccHash": "b4ecca705eb90730f697",
+     "pitchLow": 38,
+     "pitchHigh": 50,
+     "velocitySum": 1153,
+     "durationSum": 38071,
+     "articulations": {
+      "legato": 18
+     },
+     "exportHash": "449d0eadec4dba0ee4a4"
+    }
+   },
+   "otherFamiliesHash": "3f3d82213e81ff86798a",
+   "conductorHash": "1a59dfd33821349f68ba"
+  },
+  "chamber__multi-chorus-16bars__seed1__take3": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 28,
+     "noteHash": "99c8262f65f77716400b",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 71,
+     "ccHash": "438917594a675b0ec4da",
+     "pitchLow": 69,
+     "pitchHigh": 91,
+     "velocitySum": 1696,
+     "durationSum": 49752,
+     "articulations": {
+      "legato": 28
+     },
+     "exportHash": "dc97e984496b6b6a3190"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 38,
+     "noteHash": "2bf905200613beb74634",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 101,
+     "ccHash": "8d3224bea702e6152908",
+     "pitchLow": 55,
+     "pitchHigh": 72,
+     "velocitySum": 2351,
+     "durationSum": 43498,
+     "articulations": {
+      "legato": 38
+     },
+     "exportHash": "c6d3fe6c7bd497b14e08"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 23,
+     "noteHash": "ba2b823c3b025da603ae",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 56,
+     "ccHash": "175b7ee7a878b575632c",
+     "pitchLow": 48,
+     "pitchHigh": 60,
+     "velocitySum": 1450,
+     "durationSum": 49712,
+     "articulations": {
+      "legato": 23
+     },
+     "exportHash": "c9d263c33f1f8494159b"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 23,
+     "noteHash": "faa59ed179b193e453a8",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 65,
+     "ccHash": "1a32ae2e726ecc85ce14",
+     "pitchLow": 38,
+     "pitchHigh": 60,
+     "velocitySum": 1449,
+     "durationSum": 49609,
+     "articulations": {
+      "legato": 23
+     },
+     "exportHash": "efacedb5b551c1124a65"
+    }
+   },
+   "otherFamiliesHash": "ca5d5d22362c32a2d9f1",
+   "conductorHash": "db9c0c556c28c1c1a14c"
+  },
+  "chamber__three-chorus-40bars__seed1__take0": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 48,
+     "noteHash": "0b0aeaaaf62af587e980",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 127,
+     "ccHash": "38ebf7f15cf5e8bf21ec",
+     "pitchLow": 64,
+     "pitchHigh": 96,
+     "velocitySum": 2726,
+     "durationSum": 104129,
+     "articulations": {
+      "legato": 48
+     },
+     "exportHash": "8f1fb3af279684d1c7bb"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 62,
+     "noteHash": "469734760c809dc1176c",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 159,
+     "ccHash": "2b85e0d59ec315de02d0",
+     "pitchLow": 55,
+     "pitchHigh": 88,
+     "velocitySum": 3483,
+     "durationSum": 99698,
+     "articulations": {
+      "legato": 62
+     },
+     "exportHash": "92988b967430461d5598"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 50,
+     "noteHash": "09a5d691238658f465e2",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 137,
+     "ccHash": "85d758e077679e31980a",
+     "pitchLow": 48,
+     "pitchHigh": 86,
+     "velocitySum": 2847,
+     "durationSum": 134506,
+     "articulations": {
+      "legato": 50
+     },
+     "exportHash": "bbef7fb1b86ee0b11abe"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 54,
+     "noteHash": "f66cd2809a8c9b4ea99b",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 156,
+     "ccHash": "83a36f251a1796f99f38",
+     "pitchLow": 38,
+     "pitchHigh": 79,
+     "velocitySum": 3033,
+     "durationSum": 130064,
+     "articulations": {
+      "legato": 54
+     },
+     "exportHash": "17fccf8ead6d68d46471"
+    }
+   },
+   "otherFamiliesHash": "6991137aa77a9c11643f",
+   "conductorHash": "6f546b6d41aa439ae461"
+  },
+  "chamber__three-chorus-40bars__seed1__take3": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 48,
+     "noteHash": "3e830048fb7aeb8bcf8f",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 127,
+     "ccHash": "9019456ad06894605c88",
+     "pitchLow": 64,
+     "pitchHigh": 96,
+     "velocitySum": 2919,
+     "durationSum": 103963,
+     "articulations": {
+      "legato": 48
+     },
+     "exportHash": "71e343931c896ff7566a"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 63,
+     "noteHash": "6f8c14df6a7687e261fa",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 139,
+     "ccHash": "2bac5e5847fdd28b395d",
+     "pitchLow": 55,
+     "pitchHigh": 93,
+     "velocitySum": 3789,
+     "durationSum": 98935,
+     "articulations": {
+      "legato": 63
+     },
+     "exportHash": "933a4fddb80b26a3a730"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 47,
+     "noteHash": "f7a1097e009f9803e575",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 118,
+     "ccHash": "6602b372bd25dde2692e",
+     "pitchLow": 48,
+     "pitchHigh": 88,
+     "velocitySum": 2858,
+     "durationSum": 119070,
+     "articulations": {
+      "legato": 47
+     },
+     "exportHash": "4d90f0a11a4ad92c7851"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 54,
+     "noteHash": "d5a8b31cafe4e7d6e48e",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 150,
+     "ccHash": "f00d41af9888fe1fe98a",
+     "pitchLow": 38,
+     "pitchHigh": 82,
+     "velocitySum": 3154,
+     "durationSum": 130164,
+     "articulations": {
+      "legato": 54
+     },
+     "exportHash": "46fdddfae5274e83b396"
+    }
+   },
+   "otherFamiliesHash": "e0d5e656fb33da7de801",
+   "conductorHash": "13ce4fece28ce7b84ee9"
+  },
+  "chamber__dorian-16bars__seed7__take1": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 26,
+     "noteHash": "16081e34c0d4d4cee89f",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 52,
+     "ccHash": "7fcbe6968cf3af527614",
+     "pitchLow": 65,
+     "pitchHigh": 86,
+     "velocitySum": 1553,
+     "durationSum": 42442,
+     "articulations": {
+      "legato": 26
+     },
+     "exportHash": "0c59e949238c33e2555b"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 31,
+     "noteHash": "cf23ccf8f9cd2377fba2",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 80,
+     "ccHash": "a5ac72e06dfc5994d96c",
+     "pitchLow": 55,
+     "pitchHigh": 67,
+     "velocitySum": 1891,
+     "durationSum": 35200,
+     "articulations": {
+      "legato": 31
+     },
+     "exportHash": "4819ead5ce13fcb9f096"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 20,
+     "noteHash": "2a613996b5c2fc8ab943",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 47,
+     "ccHash": "aeadb6f4bff2635b7280",
+     "pitchLow": 50,
+     "pitchHigh": 64,
+     "velocitySum": 1238,
+     "durationSum": 42222,
+     "articulations": {
+      "legato": 20
+     },
+     "exportHash": "1b0c800af62159af5cf5"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 26,
+     "noteHash": "c246c881cacc7d04a721",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 66,
+     "ccHash": "1db4c90c1c0fec19c134",
+     "pitchLow": 33,
+     "pitchHigh": 45,
+     "velocitySum": 1586,
+     "durationSum": 57088,
+     "articulations": {
+      "legato": 26
+     },
+     "exportHash": "3f59ba7f45bfabc79d5f"
+    }
+   },
+   "otherFamiliesHash": "f3cdcf0a24dceada3d86",
+   "conductorHash": "de358475768f5bd2b9fc"
+  },
+  "chamber__dorian-16bars__seed1__take0__d0.9": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 29,
+     "noteHash": "aa62768a9788100cafd0",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 69,
+     "ccHash": "9c7f2d441babe130474f",
+     "pitchLow": 65,
+     "pitchHigh": 96,
+     "velocitySum": 1760,
+     "durationSum": 57648,
+     "articulations": {
+      "legato": 29
+     },
+     "exportHash": "ccdf711c6b07d129bf0a"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 30,
+     "noteHash": "c3d96e6527ee074f1b5e",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 46,
+     "ccHash": "1e1a3682fb99c2c79293",
+     "pitchLow": 55,
+     "pitchHigh": 72,
+     "velocitySum": 1822,
+     "durationSum": 42635,
+     "articulations": {
+      "legato": 30
+     },
+     "exportHash": "8fff524c598d3c2d0bd5"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 21,
+     "noteHash": "8adf3089295ec74fe520",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 50,
+     "ccHash": "efbf8b3fb28ce96ba6fe",
+     "pitchLow": 52,
+     "pitchHigh": 65,
+     "velocitySum": 1272,
+     "durationSum": 42123,
+     "articulations": {
+      "legato": 21
+     },
+     "exportHash": "a5fe34e603d28603fe1b"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 21,
+     "noteHash": "be4d210ac3b097f61a8f",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 55,
+     "ccHash": "1f787b9857d7f1fdca41",
+     "pitchLow": 38,
+     "pitchHigh": 62,
+     "velocitySum": 1288,
+     "durationSum": 41982,
+     "articulations": {
+      "legato": 21
+     },
+     "exportHash": "de6faf954341649affee"
+    }
+   },
+   "otherFamiliesHash": "ec2eea4173debdf21191",
+   "conductorHash": "d4c90d84bbac0b7e2840"
+  },
+  "chamber__dorian-16bars__seed1__take0__humanize-false": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 29,
+     "noteHash": "74aa2be67f4da2875a01",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 69,
+     "ccHash": "9c7f2d441babe130474f",
+     "pitchLow": 65,
+     "pitchHigh": 96,
+     "velocitySum": 1752,
+     "durationSum": 57648,
+     "articulations": {
+      "legato": 29
+     },
+     "exportHash": "9cfd85d43569b46912d9"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 30,
+     "noteHash": "c3d96e6527ee074f1b5e",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 46,
+     "ccHash": "1e1a3682fb99c2c79293",
+     "pitchLow": 55,
+     "pitchHigh": 72,
+     "velocitySum": 1822,
+     "durationSum": 42635,
+     "articulations": {
+      "legato": 30
+     },
+     "exportHash": "8fff524c598d3c2d0bd5"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 21,
+     "noteHash": "8adf3089295ec74fe520",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 50,
+     "ccHash": "efbf8b3fb28ce96ba6fe",
+     "pitchLow": 52,
+     "pitchHigh": 65,
+     "velocitySum": 1272,
+     "durationSum": 42123,
+     "articulations": {
+      "legato": 21
+     },
+     "exportHash": "a5fe34e603d28603fe1b"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 21,
+     "noteHash": "be4d210ac3b097f61a8f",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 55,
+     "ccHash": "1f787b9857d7f1fdca41",
+     "pitchLow": 38,
+     "pitchHigh": 62,
+     "velocitySum": 1288,
+     "durationSum": 41982,
+     "articulations": {
+      "legato": 21
+     },
+     "exportHash": "de6faf954341649affee"
+    }
+   },
+   "otherFamiliesHash": "5d2f606d109748fe4f34",
+   "conductorHash": "d4c90d84bbac0b7e2840"
+  },
+  "chamber__dorian-16bars__seed1__take0__moments-false": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 27,
+     "noteHash": "26e3e184bc7d71069973",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 59,
+     "ccHash": "ea1c33850e0d8a9b68e3",
+     "pitchLow": 88,
+     "pitchHigh": 96,
+     "velocitySum": 1701,
+     "durationSum": 57532,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "9793a6cca0d98bec4192"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 38,
+     "noteHash": "e70153bd19f32b4017d6",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 50,
+     "ccHash": "e63cfb9b92186d555669",
+     "pitchLow": 55,
+     "pitchHigh": 72,
+     "velocitySum": 2389,
+     "durationSum": 57992,
+     "articulations": {
+      "legato": 38
+     },
+     "exportHash": "ee9a05fbbac057f978d2"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 27,
+     "noteHash": "867f1d41b5b768c82c1a",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 54,
+     "ccHash": "60e37e524ace074be52e",
+     "pitchLow": 52,
+     "pitchHigh": 65,
+     "velocitySum": 1693,
+     "durationSum": 57514,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "d4475eeb870153a57d60"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 27,
+     "noteHash": "0b0378c4b9b8efa27cd6",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 59,
+     "ccHash": "20aeb01d301caab37c38",
+     "pitchLow": 35,
+     "pitchHigh": 62,
+     "velocitySum": 1703,
+     "durationSum": 57431,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "ff08c6d760e9a6f2464b"
+    }
+   },
+   "otherFamiliesHash": "5a3ce403656a358b632c",
+   "conductorHash": "9db34673b513d51460d0"
+  },
+  "sonata__dorian-16bars__seed1__take0": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 40,
+     "noteHash": "800317515fffcae7e070",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 59,
+     "ccHash": "ce61e0a7ca36552ef818",
+     "pitchLow": 67,
+     "pitchHigh": 88,
+     "velocitySum": 2513,
+     "durationSum": 58206,
+     "articulations": {
+      "legato": 40
+     },
+     "exportHash": "02b15017e624e22ed303"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "c08c5b7b5c9b4b4766af"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "4c4e83813a3a8c05251c"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 27,
+     "noteHash": "28cd43ac6a3713f87f54",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 64,
+     "ccHash": "cd690d216c2a2d769151",
+     "pitchLow": 62,
+     "pitchHigh": 84,
+     "velocitySum": 1659,
+     "durationSum": 57626,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "d4670286a1ea1b49330a"
+    }
+   },
+   "otherFamiliesHash": "8ea420e3f2a8f2af1682",
+   "conductorHash": "2f07dca274f013c1e69d"
+  },
+  "sonata__dorian-16bars__seed1__take3": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 40,
+     "noteHash": "ba05709b13228e80183f",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 57,
+     "ccHash": "ae924df901521559fe38",
+     "pitchLow": 67,
+     "pitchHigh": 88,
+     "velocitySum": 2328,
+     "durationSum": 58231,
+     "articulations": {
+      "legato": 40
+     },
+     "exportHash": "261981e8fce475eef576"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "c08c5b7b5c9b4b4766af"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "4c4e83813a3a8c05251c"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 20,
+     "noteHash": "fb2c6bd8fd46c9b0810c",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 49,
+     "ccHash": "b277cdc5bec79e5c0a0b",
+     "pitchLow": 50,
+     "pitchHigh": 81,
+     "velocitySum": 1266,
+     "durationSum": 42281,
+     "articulations": {
+      "legato": 20
+     },
+     "exportHash": "3203389550b34f4622db"
+    }
+   },
+   "otherFamiliesHash": "27192b29f7de43fdf128",
+   "conductorHash": "15f1141219874cc92a44"
+  },
+  "sonata__multi-chorus-16bars__seed1__take0": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 24,
+     "noteHash": "9dc8bb9573d0fe6529ea",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 56,
+     "ccHash": "5dab1030e3c1634438ad",
+     "pitchLow": 57,
+     "pitchHigh": 69,
+     "velocitySum": 1419,
+     "durationSum": 50287,
+     "articulations": {
+      "legato": 24
+     },
+     "exportHash": "c331f1b9319c5b7d4756"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "f058985711445f45c969"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "877b972d9e9598954916"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 29,
+     "noteHash": "6434691e4db58ef8f735",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 61,
+     "ccHash": "8b220018f0c9edbc0bec",
+     "pitchLow": 33,
+     "pitchHigh": 48,
+     "velocitySum": 1662,
+     "durationSum": 57532,
+     "articulations": {
+      "legato": 29
+     },
+     "exportHash": "ee47a2e3bde3e0469c0d"
+    }
+   },
+   "otherFamiliesHash": "c81bead82329a9930375",
+   "conductorHash": "55c010e26f0a99243158"
+  },
+  "sonata__multi-chorus-16bars__seed1__take3": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 31,
+     "noteHash": "02196ff6ca7484d48e67",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 57,
+     "ccHash": "a2621bfcf976cfd65d8e",
+     "pitchLow": 65,
+     "pitchHigh": 84,
+     "velocitySum": 1826,
+     "durationSum": 50431,
+     "articulations": {
+      "legato": 31
+     },
+     "exportHash": "c8fcbe8920c3bd0582ce"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "f058985711445f45c969"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "877b972d9e9598954916"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 19,
+     "noteHash": "670c4e55b417284d35c0",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 58,
+     "ccHash": "79e7fb32ed1fe7d2b6bc",
+     "pitchLow": 62,
+     "pitchHigh": 81,
+     "velocitySum": 1106,
+     "durationSum": 42214,
+     "articulations": {
+      "legato": 19
+     },
+     "exportHash": "d9d2c3d56cdd39a10ce7"
+    }
+   },
+   "otherFamiliesHash": "2f9fbf905ff8ccf5eac0",
+   "conductorHash": "15f1141219874cc92a44"
+  },
+  "sonata__three-chorus-40bars__seed1__take0": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 65,
+     "noteHash": "882dbecd22e27892333d",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 141,
+     "ccHash": "d63202ba773ff82427f7",
+     "pitchLow": 65,
+     "pitchHigh": 94,
+     "velocitySum": 3638,
+     "durationSum": 137838,
+     "articulations": {
+      "legato": 65
+     },
+     "exportHash": "2fe22cbba06a8df4a3b2"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "8c885f68c09d277b2d27"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "88e8df3f093d0292e835"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 63,
+     "noteHash": "ff286e34e1145aa5b132",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 147,
+     "ccHash": "c11c8148fdbeeb7fd436",
+     "pitchLow": 40,
+     "pitchHigh": 79,
+     "velocitySum": 3338,
+     "durationSum": 149812,
+     "articulations": {
+      "legato": 63
+     },
+     "exportHash": "cafdfe39e5fce8345425"
+    }
+   },
+   "otherFamiliesHash": "704531beca64926a42b6",
+   "conductorHash": "4edb8673022260d2a20f"
+  },
+  "sonata__three-chorus-40bars__seed1__take3": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 51,
+     "noteHash": "48069a70ec81f7123811",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 125,
+     "ccHash": "09ff50d31fa1216545f6",
+     "pitchLow": 62,
+     "pitchHigh": 83,
+     "velocitySum": 2949,
+     "durationSum": 100245,
+     "articulations": {
+      "legato": 51
+     },
+     "exportHash": "f8c868cbece90456176a"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "8c885f68c09d277b2d27"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "88e8df3f093d0292e835"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 63,
+     "noteHash": "5360728c56cd0b33010e",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 140,
+     "ccHash": "ff9191b6e69243bd6523",
+     "pitchLow": 38,
+     "pitchHigh": 79,
+     "velocitySum": 3041,
+     "durationSum": 149976,
+     "articulations": {
+      "legato": 63
+     },
+     "exportHash": "a8b3ee8d9ff1303a59ce"
+    }
+   },
+   "otherFamiliesHash": "280de2485936ec8fa486",
+   "conductorHash": "d79f79c25f2ab9f0d8e7"
+  },
+  "sonata__dorian-16bars__seed7__take1": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 32,
+     "noteHash": "d040de16f15dc70530dd",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 58,
+     "ccHash": "138b424292eec57749f3",
+     "pitchLow": 64,
+     "pitchHigh": 88,
+     "velocitySum": 1901,
+     "durationSum": 42453,
+     "articulations": {
+      "legato": 32
+     },
+     "exportHash": "33d7f3147bea0ad649b2"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "c08c5b7b5c9b4b4766af"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "4c4e83813a3a8c05251c"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 32,
+     "noteHash": "3f2e267169d8cb91acf1",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 51,
+     "ccHash": "b9aff640ab48251e1b0c",
+     "pitchLow": 43,
+     "pitchHigh": 67,
+     "velocitySum": 1825,
+     "durationSum": 58086,
+     "articulations": {
+      "legato": 32
+     },
+     "exportHash": "3869dcc9fecd218447f4"
+    }
+   },
+   "otherFamiliesHash": "7e2118f9a388eb67b8ba",
+   "conductorHash": "81a490a3e443780792e8"
+  },
+  "sonata__dorian-16bars__seed1__take0__d0.9": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 40,
+     "noteHash": "009d496449029004b4eb",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 59,
+     "ccHash": "ce61e0a7ca36552ef818",
+     "pitchLow": 67,
+     "pitchHigh": 88,
+     "velocitySum": 2521,
+     "durationSum": 58206,
+     "articulations": {
+      "legato": 40
+     },
+     "exportHash": "ae0d1ac61712c0147473"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "c08c5b7b5c9b4b4766af"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "4c4e83813a3a8c05251c"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 27,
+     "noteHash": "1e22abfd03a6da766311",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 64,
+     "ccHash": "cd690d216c2a2d769151",
+     "pitchLow": 62,
+     "pitchHigh": 84,
+     "velocitySum": 1661,
+     "durationSum": 57626,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "e2dbbce39043b5adb1ff"
+    }
+   },
+   "otherFamiliesHash": "496fab6f16df0be63d1e",
+   "conductorHash": "2f07dca274f013c1e69d"
+  },
+  "sonata__dorian-16bars__seed1__take0__humanize-false": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 40,
+     "noteHash": "800317515fffcae7e070",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 59,
+     "ccHash": "ce61e0a7ca36552ef818",
+     "pitchLow": 67,
+     "pitchHigh": 88,
+     "velocitySum": 2513,
+     "durationSum": 58206,
+     "articulations": {
+      "legato": 40
+     },
+     "exportHash": "02b15017e624e22ed303"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "c08c5b7b5c9b4b4766af"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "4c4e83813a3a8c05251c"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 27,
+     "noteHash": "28cd43ac6a3713f87f54",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 64,
+     "ccHash": "cd690d216c2a2d769151",
+     "pitchLow": 62,
+     "pitchHigh": 84,
+     "velocitySum": 1659,
+     "durationSum": 57626,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "d4670286a1ea1b49330a"
+    }
+   },
+   "otherFamiliesHash": "8ea420e3f2a8f2af1682",
+   "conductorHash": "2f07dca274f013c1e69d"
+  },
+  "sonata__dorian-16bars__seed1__take0__moments-false": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 40,
+     "noteHash": "800317515fffcae7e070",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 59,
+     "ccHash": "ce61e0a7ca36552ef818",
+     "pitchLow": 67,
+     "pitchHigh": 88,
+     "velocitySum": 2513,
+     "durationSum": 58206,
+     "articulations": {
+      "legato": 40
+     },
+     "exportHash": "02b15017e624e22ed303"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "c08c5b7b5c9b4b4766af"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "4c4e83813a3a8c05251c"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 27,
+     "noteHash": "28cd43ac6a3713f87f54",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 64,
+     "ccHash": "cd690d216c2a2d769151",
+     "pitchLow": 62,
+     "pitchHigh": 84,
+     "velocitySum": 1659,
+     "durationSum": 57626,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "d4670286a1ea1b49330a"
+    }
+   },
+   "otherFamiliesHash": "8ea420e3f2a8f2af1682",
+   "conductorHash": "2f07dca274f013c1e69d"
+  },
+  "vocalbacking__dorian-16bars__seed1__take0": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "18da7036a6c8344830e3"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 27,
+     "noteHash": "a434b42c1f137fef384f",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 52,
+     "ccHash": "ce736a95af82c08f1bf1",
+     "pitchLow": 89,
+     "pitchHigh": 93,
+     "velocitySum": 1776,
+     "durationSum": 57597,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "e3bc02b3021ff3e0b71d"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 27,
+     "noteHash": "405bc87ae89f75826848",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 57,
+     "ccHash": "956959b8bce3cfc14d19",
+     "pitchLow": 48,
+     "pitchHigh": 88,
+     "velocitySum": 1796,
+     "durationSum": 57612,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "6879123518405a190282"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 27,
+     "noteHash": "57f7bd6516ddcb8e15fb",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 52,
+     "ccHash": "298befc9842672f5af6f",
+     "pitchLow": 33,
+     "pitchHigh": 45,
+     "velocitySum": 1791,
+     "durationSum": 57388,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "304df5eb96765ee85bd4"
+    }
+   },
+   "otherFamiliesHash": "47b1709f8ff60b403093",
+   "conductorHash": "9ee49ce27b491fe29f42"
+  },
+  "vocalbacking__dorian-16bars__seed1__take3": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "18da7036a6c8344830e3"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 26,
+     "noteHash": "904730758458b85a085c",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 46,
+     "ccHash": "afa577efdf553086712c",
+     "pitchLow": 83,
+     "pitchHigh": 93,
+     "velocitySum": 1776,
+     "durationSum": 57617,
+     "articulations": {
+      "legato": 26
+     },
+     "exportHash": "d606224cd2b1ab403bdf"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 26,
+     "noteHash": "0edcb82f25373f7e1f32",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 51,
+     "ccHash": "eb65d864d38c883b0509",
+     "pitchLow": 48,
+     "pitchHigh": 55,
+     "velocitySum": 1797,
+     "durationSum": 57555,
+     "articulations": {
+      "legato": 26
+     },
+     "exportHash": "90d431fcfebf99c36319"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 26,
+     "noteHash": "0d131f7282f54ad08abe",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 46,
+     "ccHash": "ffcb47b9f1b21ab6eb06",
+     "pitchLow": 31,
+     "pitchHigh": 45,
+     "velocitySum": 1797,
+     "durationSum": 57432,
+     "articulations": {
+      "legato": 26
+     },
+     "exportHash": "57cefad7ba3cd73c9832"
+    }
+   },
+   "otherFamiliesHash": "58911a77b240a7f9813a",
+   "conductorHash": "9ee49ce27b491fe29f42"
+  },
+  "vocalbacking__multi-chorus-16bars__seed1__take0": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "f364a6f621265e34cc1d"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 26,
+     "noteHash": "d19c07bd3f58d3d555b3",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 64,
+     "ccHash": "569e89131aea4fbfb00d",
+     "pitchLow": 83,
+     "pitchHigh": 93,
+     "velocitySum": 1576,
+     "durationSum": 57507,
+     "articulations": {
+      "legato": 26
+     },
+     "exportHash": "91df4bd01f66ab25e49d"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 26,
+     "noteHash": "eb93e607554a5dbbc7c7",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 63,
+     "ccHash": "2781811c8ae90862e8ed",
+     "pitchLow": 48,
+     "pitchHigh": 55,
+     "velocitySum": 1595,
+     "durationSum": 57363,
+     "articulations": {
+      "legato": 26
+     },
+     "exportHash": "d0da2280f3e43a08f6a1"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 26,
+     "noteHash": "6ba0888e8e03240ec2bb",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 60,
+     "ccHash": "a2c9cb7c4a546eab3a69",
+     "pitchLow": 33,
+     "pitchHigh": 45,
+     "velocitySum": 1581,
+     "durationSum": 57460,
+     "articulations": {
+      "legato": 26
+     },
+     "exportHash": "3635d0bcc07cc1c1c7f3"
+    }
+   },
+   "otherFamiliesHash": "c0cf7c320115120a23f1",
+   "conductorHash": "9ee49ce27b491fe29f42"
+  },
+  "vocalbacking__multi-chorus-16bars__seed1__take3": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "f364a6f621265e34cc1d"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 25,
+     "noteHash": "bdc4facadd5b046d9ca4",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 48,
+     "ccHash": "95a4ecd83e993cf338ba",
+     "pitchLow": 83,
+     "pitchHigh": 93,
+     "velocitySum": 1586,
+     "durationSum": 57501,
+     "articulations": {
+      "legato": 25
+     },
+     "exportHash": "545a474406ab80f7f0d2"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 25,
+     "noteHash": "aafbd0189961c7e310dd",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 53,
+     "ccHash": "acaf96c6ab545e900343",
+     "pitchLow": 48,
+     "pitchHigh": 55,
+     "velocitySum": 1606,
+     "durationSum": 57390,
+     "articulations": {
+      "legato": 25
+     },
+     "exportHash": "e9a58de106abd0fde5b3"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 25,
+     "noteHash": "b6266616e23ba9f4d0a1",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 48,
+     "ccHash": "2445f590372c4a009f1c",
+     "pitchLow": 31,
+     "pitchHigh": 45,
+     "velocitySum": 1604,
+     "durationSum": 57494,
+     "articulations": {
+      "legato": 25
+     },
+     "exportHash": "d10f364d1c088f179209"
+    }
+   },
+   "otherFamiliesHash": "38f68783e3b6b3c3c3b9",
+   "conductorHash": "9ee49ce27b491fe29f42"
+  },
+  "vocalbacking__three-chorus-40bars__seed1__take0": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "f78c3919240649802917"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 62,
+     "noteHash": "f176098263205bdb91e0",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 136,
+     "ccHash": "baa9b849fcef7c8abefb",
+     "pitchLow": 86,
+     "pitchHigh": 93,
+     "velocitySum": 3708,
+     "durationSum": 149573,
+     "articulations": {
+      "legato": 62
+     },
+     "exportHash": "2eb46313b152e46672a9"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 62,
+     "noteHash": "9ac2aa6b9143b2511baa",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 131,
+     "ccHash": "e9277403cbe0154e3e17",
+     "pitchLow": 82,
+     "pitchHigh": 88,
+     "velocitySum": 3714,
+     "durationSum": 150017,
+     "articulations": {
+      "legato": 62
+     },
+     "exportHash": "923380af6184c14b5f32"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 62,
+     "noteHash": "f6b4e8585b9b883795b6",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 146,
+     "ccHash": "40b3dfe0be7388686a86",
+     "pitchLow": 29,
+     "pitchHigh": 48,
+     "velocitySum": 3729,
+     "durationSum": 149326,
+     "articulations": {
+      "legato": 62
+     },
+     "exportHash": "54f0982a6747b7a27edc"
+    }
+   },
+   "otherFamiliesHash": "7a63c60fb4d0dd51ad5c",
+   "conductorHash": "9087eef6793c2af15b93"
+  },
+  "vocalbacking__three-chorus-40bars__seed1__take3": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "f78c3919240649802917"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 60,
+     "noteHash": "87f00d51604a397ef918",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 119,
+     "ccHash": "8eb6c9162a81fa550282",
+     "pitchLow": 86,
+     "pitchHigh": 93,
+     "velocitySum": 3659,
+     "durationSum": 149629,
+     "articulations": {
+      "legato": 60
+     },
+     "exportHash": "587655086a012ca73c6e"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 60,
+     "noteHash": "3bbd50b0c644f892147e",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 118,
+     "ccHash": "2e088b288ec658cd0fde",
+     "pitchLow": 82,
+     "pitchHigh": 88,
+     "velocitySum": 3672,
+     "durationSum": 150089,
+     "articulations": {
+      "legato": 60
+     },
+     "exportHash": "c572f8a90674d2090cc5"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 60,
+     "noteHash": "95de3a8f6d5ca5ff670a",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 129,
+     "ccHash": "b1cfd854ccda39dbe14c",
+     "pitchLow": 29,
+     "pitchHigh": 50,
+     "velocitySum": 3676,
+     "durationSum": 149323,
+     "articulations": {
+      "legato": 60
+     },
+     "exportHash": "4183c53389e236cd7460"
+    }
+   },
+   "otherFamiliesHash": "eccece639f6b63b9dc17",
+   "conductorHash": "9087eef6793c2af15b93"
+  },
+  "vocalbacking__dorian-16bars__seed7__take1": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "18da7036a6c8344830e3"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 26,
+     "noteHash": "e8570114040d11016bec",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 50,
+     "ccHash": "de789e7dafb3d122520f",
+     "pitchLow": 89,
+     "pitchHigh": 93,
+     "velocitySum": 1684,
+     "durationSum": 57654,
+     "articulations": {
+      "legato": 26
+     },
+     "exportHash": "b67a6b1f903f76eb708c"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 26,
+     "noteHash": "58ac3fc5f1d5adc15ebd",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 55,
+     "ccHash": "883d7672ebc908841758",
+     "pitchLow": 48,
+     "pitchHigh": 88,
+     "velocitySum": 1703,
+     "durationSum": 57634,
+     "articulations": {
+      "legato": 26
+     },
+     "exportHash": "066eee20f2ef91544644"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 26,
+     "noteHash": "55ec05f8735d90799b86",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 50,
+     "ccHash": "2dda1cabbfd54c42fd27",
+     "pitchLow": 33,
+     "pitchHigh": 50,
+     "velocitySum": 1710,
+     "durationSum": 57510,
+     "articulations": {
+      "legato": 26
+     },
+     "exportHash": "46de456e4ff3daea3c53"
+    }
+   },
+   "otherFamiliesHash": "d99a72996b4b1bd092f2",
+   "conductorHash": "9ee49ce27b491fe29f42"
+  },
+  "vocalbacking__dorian-16bars__seed1__take0__d0.9": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "18da7036a6c8344830e3"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 27,
+     "noteHash": "48e4a869d1ebf25c7028",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 52,
+     "ccHash": "ce736a95af82c08f1bf1",
+     "pitchLow": 89,
+     "pitchHigh": 93,
+     "velocitySum": 1774,
+     "durationSum": 57597,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "c932f9e99c01af4da2a7"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 27,
+     "noteHash": "c85efba43aed58373925",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 57,
+     "ccHash": "956959b8bce3cfc14d19",
+     "pitchLow": 48,
+     "pitchHigh": 88,
+     "velocitySum": 1796,
+     "durationSum": 57612,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "59961e6144f573a685c7"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 27,
+     "noteHash": "d8ed652961ee2edb6ca4",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 52,
+     "ccHash": "298befc9842672f5af6f",
+     "pitchLow": 33,
+     "pitchHigh": 45,
+     "velocitySum": 1791,
+     "durationSum": 57388,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "c631ee790c24cd8607d0"
+    }
+   },
+   "otherFamiliesHash": "975282f6f44e9f1a0bcd",
+   "conductorHash": "9ee49ce27b491fe29f42"
+  },
+  "vocalbacking__dorian-16bars__seed1__take0__humanize-false": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "18da7036a6c8344830e3"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 27,
+     "noteHash": "a434b42c1f137fef384f",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 52,
+     "ccHash": "ce736a95af82c08f1bf1",
+     "pitchLow": 89,
+     "pitchHigh": 93,
+     "velocitySum": 1776,
+     "durationSum": 57597,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "e3bc02b3021ff3e0b71d"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 27,
+     "noteHash": "405bc87ae89f75826848",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 57,
+     "ccHash": "956959b8bce3cfc14d19",
+     "pitchLow": 48,
+     "pitchHigh": 88,
+     "velocitySum": 1796,
+     "durationSum": 57612,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "6879123518405a190282"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 27,
+     "noteHash": "57f7bd6516ddcb8e15fb",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 52,
+     "ccHash": "298befc9842672f5af6f",
+     "pitchLow": 33,
+     "pitchHigh": 45,
+     "velocitySum": 1791,
+     "durationSum": 57388,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "304df5eb96765ee85bd4"
+    }
+   },
+   "otherFamiliesHash": "47b1709f8ff60b403093",
+   "conductorHash": "9ee49ce27b491fe29f42"
+  },
+  "vocalbacking__dorian-16bars__seed1__take0__moments-false": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 0,
+     "noteHash": "e3b0c44298fc1c149afb",
+     "ccLanes": [],
+     "ccPoints": 0,
+     "ccHash": "e3b0c44298fc1c149afb",
+     "pitchLow": null,
+     "pitchHigh": null,
+     "velocitySum": 0,
+     "durationSum": 0,
+     "articulations": {},
+     "exportHash": "18da7036a6c8344830e3"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 27,
+     "noteHash": "a434b42c1f137fef384f",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 52,
+     "ccHash": "ce736a95af82c08f1bf1",
+     "pitchLow": 89,
+     "pitchHigh": 93,
+     "velocitySum": 1776,
+     "durationSum": 57597,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "e3bc02b3021ff3e0b71d"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 27,
+     "noteHash": "405bc87ae89f75826848",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 57,
+     "ccHash": "956959b8bce3cfc14d19",
+     "pitchLow": 48,
+     "pitchHigh": 88,
+     "velocitySum": 1796,
+     "durationSum": 57612,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "6879123518405a190282"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 27,
+     "noteHash": "57f7bd6516ddcb8e15fb",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 52,
+     "ccHash": "298befc9842672f5af6f",
+     "pitchLow": 33,
+     "pitchHigh": 45,
+     "velocitySum": 1791,
+     "durationSum": 57388,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "304df5eb96765ee85bd4"
+    }
+   },
+   "otherFamiliesHash": "47b1709f8ff60b403093",
+   "conductorHash": "9ee49ce27b491fe29f42"
+  },
+  "cinematic__dorian-16bars__seed1__take0": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 84,
+     "noteHash": "e44077686c3f5046330d",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 55,
+     "ccHash": "29f47929251be6755851",
+     "pitchLow": 65,
+     "pitchHigh": 86,
+     "velocitySum": 8385,
+     "durationSum": 57149,
+     "articulations": {
+      "legato": 36,
+      "tremolo": 48
+     },
+     "exportHash": "5c314eb1041e38fa40b5"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 158,
+     "noteHash": "ff0bf36ead24a0aaef1c",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 60,
+     "ccHash": "585106213492accfa06e",
+     "pitchLow": 55,
+     "pitchHigh": 86,
+     "velocitySum": 13327,
+     "durationSum": 30129,
+     "articulations": {
+      "legato": 12,
+      "spiccato": 146
+     },
+     "exportHash": "6533449f77482138d2c8"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 125,
+     "noteHash": "7e98ab16f1bd8e696671",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 58,
+     "ccHash": "931e50fcc09fccbeabdc",
+     "pitchLow": 48,
+     "pitchHigh": 74,
+     "velocitySum": 10752,
+     "durationSum": 26747,
+     "articulations": {
+      "legato": 12,
+      "spiccato": 113
+     },
+     "exportHash": "30aba6fedc11dfdd665a"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 21,
+     "noteHash": "9c6959174542e78d087a",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 46,
+     "ccHash": "933ecd189c45b0150ca1",
+     "pitchLow": 38,
+     "pitchHigh": 50,
+     "velocitySum": 1720,
+     "durationSum": 42200,
+     "articulations": {
+      "legato": 21
+     },
+     "exportHash": "b69fa60ce555f685bc79"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 38,
+     "noteHash": "4da24d657a2df6e83b41",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 56,
+     "ccHash": "bbab4ec2efbeb86cbb78",
+     "pitchLow": 28,
+     "pitchHigh": 62,
+     "velocitySum": 3597,
+     "durationSum": 57924,
+     "articulations": {
+      "legato": 38
+     },
+     "exportHash": "1abfcf5dc0c6604ccb4c"
+    }
+   },
+   "otherFamiliesHash": "6a23788d97dbfa604e23",
+   "conductorHash": "068fe52c81359b9e5b16"
+  },
+  "cinematic__dorian-16bars__seed1__take3": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 67,
+     "noteHash": "b989fe43fd1fad90eaa6",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 48,
+     "ccHash": "6d0e8c57c0310371c853",
+     "pitchLow": 59,
+     "pitchHigh": 96,
+     "velocitySum": 6870,
+     "durationSum": 41675,
+     "articulations": {
+      "legato": 19,
+      "tremolo": 48
+     },
+     "exportHash": "f22cb5e5d23c1e9cfa60"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 18,
+     "noteHash": "d046269bc9a66339ce0a",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 40,
+     "ccHash": "4c2575089bd96ed2e3d2",
+     "pitchLow": 57,
+     "pitchHigh": 76,
+     "velocitySum": 1629,
+     "durationSum": 18419,
+     "articulations": {
+      "legato": 9,
+      "spiccato": 9
+     },
+     "exportHash": "98a6e01d8cca57fd170b"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 21,
+     "noteHash": "046a0fefe7835d5d3dfd",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      74
+     ],
+     "ccPoints": 44,
+     "ccHash": "5eac2a35abe581db2f42",
+     "pitchLow": 48,
+     "pitchHigh": 72,
+     "velocitySum": 2106,
+     "durationSum": 5340,
+     "articulations": {
+      "pizz": 15,
+      "spiccato": 6
+     },
+     "exportHash": "721d85015699e0a93d75"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 26,
+     "noteHash": "f68c125ce3e97433a0e6",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 45,
+     "ccHash": "4ad28dc08e351795ad83",
+     "pitchLow": 38,
+     "pitchHigh": 50,
+     "velocitySum": 2371,
+     "durationSum": 57690,
+     "articulations": {
+      "legato": 26
+     },
+     "exportHash": "30855370003a6312259a"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 19,
+     "noteHash": "6e9395adb0c9392b9e88",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 46,
+     "ccHash": "ef011b15b33d84ebfd0a",
+     "pitchLow": 28,
+     "pitchHigh": 38,
+     "velocitySum": 1853,
+     "durationSum": 38405,
+     "articulations": {
+      "legato": 19
+     },
+     "exportHash": "6ce3c945fb004baa59b8"
+    }
+   },
+   "otherFamiliesHash": "df33c109f9fa7c95176e",
+   "conductorHash": "54e55af282c888291c6d"
+  },
+  "cinematic__multi-chorus-16bars__seed1__take0": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 67,
+     "noteHash": "0fca3678f72af61b0055",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 58,
+     "ccHash": "31a7ce6fb8a0cf19b233",
+     "pitchLow": 62,
+     "pitchHigh": 86,
+     "velocitySum": 6096,
+     "durationSum": 55944,
+     "articulations": {
+      "legato": 34,
+      "marcato": 1,
+      "tremolo": 32
+     },
+     "exportHash": "aee0e34d46b368e3ae55"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 45,
+     "noteHash": "bdfc0e0046d9f0132359",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 62,
+     "ccHash": "7dc5c5b52bb3cb2f423b",
+     "pitchLow": 57,
+     "pitchHigh": 74,
+     "velocitySum": 3957,
+     "durationSum": 52055,
+     "articulations": {
+      "legato": 22,
+      "marcato": 1,
+      "spiccato": 22
+     },
+     "exportHash": "b0258a651e4bdd99f1bc"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 39,
+     "noteHash": "ab0e75596f9f8cd39d9f",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 53,
+     "ccHash": "a54fcde0f2e3ab80d528",
+     "pitchLow": 48,
+     "pitchHigh": 74,
+     "velocitySum": 3385,
+     "durationSum": 24075,
+     "articulations": {
+      "legato": 12,
+      "marcato": 1,
+      "pizz": 16,
+      "spiccato": 10
+     },
+     "exportHash": "2a49204c7e071a503c41"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 18,
+     "noteHash": "993a9832a8aedf0d39f3",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 54,
+     "ccHash": "2b46a938fd0e09a2a041",
+     "pitchLow": 36,
+     "pitchHigh": 47,
+     "velocitySum": 1380,
+     "durationSum": 40256,
+     "articulations": {
+      "legato": 17,
+      "marcato": 1
+     },
+     "exportHash": "10da2d3e21c7a0fefb63"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 32,
+     "noteHash": "b1231a7f8ce46b48573d",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 60,
+     "ccHash": "2f7da14d94f36266a5cc",
+     "pitchLow": 29,
+     "pitchHigh": 62,
+     "velocitySum": 2688,
+     "durationSum": 48297,
+     "articulations": {
+      "legato": 32
+     },
+     "exportHash": "ae1ed904b97e5c48d3c0"
+    }
+   },
+   "otherFamiliesHash": "5ee55ad5e3132e8d0b90",
+   "conductorHash": "db87aa37626d79a1bf80"
+  },
+  "cinematic__multi-chorus-16bars__seed1__take3": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 81,
+     "noteHash": "08ba6f45d6d7ab50f849",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 54,
+     "ccHash": "48c9827966193a8d8680",
+     "pitchLow": 69,
+     "pitchHigh": 84,
+     "velocitySum": 6753,
+     "durationSum": 57899,
+     "articulations": {
+      "legato": 48,
+      "marcato": 1,
+      "tremolo": 32
+     },
+     "exportHash": "565fa4553c8b536e5bba"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 60,
+     "noteHash": "a655605aaa7c9f5ea70c",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 51,
+     "ccHash": "cc6e8b9f4c3f8edc06bf",
+     "pitchLow": 55,
+     "pitchHigh": 84,
+     "velocitySum": 4823,
+     "durationSum": 25158,
+     "articulations": {
+      "legato": 16,
+      "marcato": 1,
+      "pizz": 11,
+      "spiccato": 32
+     },
+     "exportHash": "03cdc9d557ee25042bc4"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 49,
+     "noteHash": "2d74c18e70700e413e75",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 47,
+     "ccHash": "fbd24a949f9cf286853f",
+     "pitchLow": 48,
+     "pitchHigh": 74,
+     "velocitySum": 3766,
+     "durationSum": 33591,
+     "articulations": {
+      "legato": 23,
+      "marcato": 1,
+      "spiccato": 25
+     },
+     "exportHash": "8f9adb2c0f055b4492e4"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 34,
+     "noteHash": "4f2808eb4a86407d6033",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 50,
+     "ccHash": "f378f20e0c03e48282c4",
+     "pitchLow": 50,
+     "pitchHigh": 72,
+     "velocitySum": 2694,
+     "durationSum": 57907,
+     "articulations": {
+      "legato": 33,
+      "marcato": 1
+     },
+     "exportHash": "91181789619cfa8876fd"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 34,
+     "noteHash": "c88c46803781b15fd153",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 50,
+     "ccHash": "d5989d22eceac7daa5c8",
+     "pitchLow": 38,
+     "pitchHigh": 60,
+     "velocitySum": 2713,
+     "durationSum": 57713,
+     "articulations": {
+      "legato": 33,
+      "marcato": 1
+     },
+     "exportHash": "0adeaf2053b0040ccab0"
+    }
+   },
+   "otherFamiliesHash": "8fd75cd5f82b9e585646",
+   "conductorHash": "264fe047f2f702eaa944"
+  },
+  "cinematic__three-chorus-40bars__seed1__take0": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 269,
+     "noteHash": "3aa4707c23cea8768aeb",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 141,
+     "ccHash": "88cbd3f9e294aee93531",
+     "pitchLow": 60,
+     "pitchHigh": 94,
+     "velocitySum": 24976,
+     "durationSum": 144565,
+     "articulations": {
+      "legato": 60,
+      "marcato": 1,
+      "tremolo": 208
+     },
+     "exportHash": "43740f7903c654cb3a5a"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 137,
+     "noteHash": "6a8dd3a62fed201b1634",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 120,
+     "ccHash": "e2bd058bf7645fd77e45",
+     "pitchLow": 55,
+     "pitchHigh": 86,
+     "velocitySum": 9332,
+     "durationSum": 133410,
+     "articulations": {
+      "legato": 45,
+      "marcato": 1,
+      "spiccato": 11,
+      "tremolo": 80
+     },
+     "exportHash": "f966ae53672c1700a334"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 141,
+     "noteHash": "c5a2a7ed790085e45e94",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 160,
+     "ccHash": "3cb96fc9397956453299",
+     "pitchLow": 48,
+     "pitchHigh": 84,
+     "velocitySum": 10152,
+     "durationSum": 75442,
+     "articulations": {
+      "legato": 26,
+      "marcato": 1,
+      "pizz": 34,
+      "tremolo": 80
+     },
+     "exportHash": "8cab31421bf21fc9300f"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 52,
+     "noteHash": "040e94d57a992c0b5493",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 129,
+     "ccHash": "751b7c7282184f61b5ad",
+     "pitchLow": 38,
+     "pitchHigh": 79,
+     "velocitySum": 3970,
+     "durationSum": 130460,
+     "articulations": {
+      "legato": 51,
+      "marcato": 1
+     },
+     "exportHash": "d96f25b3f4fcdc6ad5d0"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 72,
+     "noteHash": "d02d7fd639cd8de6bb75",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 137,
+     "ccHash": "2c29237fb283bc4439a4",
+     "pitchLow": 28,
+     "pitchHigh": 67,
+     "velocitySum": 5578,
+     "durationSum": 153010,
+     "articulations": {
+      "legato": 71,
+      "marcato": 1
+     },
+     "exportHash": "6674d92c313ea96f83af"
+    }
+   },
+   "otherFamiliesHash": "67b54cc13e7d20b311e0",
+   "conductorHash": "f34fa73e12052d51e2de"
+  },
+  "cinematic__three-chorus-40bars__seed1__take3": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 348,
+     "noteHash": "989f3751774a1d3d4caa",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 149,
+     "ccHash": "03b66b8aeec8587a26ff",
+     "pitchLow": 65,
+     "pitchHigh": 81,
+     "velocitySum": 32401,
+     "durationSum": 144662,
+     "articulations": {
+      "legato": 44,
+      "tremolo": 304
+     },
+     "exportHash": "dc6a1e1ac95577f1b476"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 72,
+     "noteHash": "3b5fd28d30c74d707486",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 106,
+     "ccHash": "4eacb211442073649232",
+     "pitchLow": 55,
+     "pitchHigh": 81,
+     "velocitySum": 5610,
+     "durationSum": 69726,
+     "articulations": {
+      "legato": 26,
+      "spiccato": 46
+     },
+     "exportHash": "fd0c571afa43965d75ac"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 50,
+     "noteHash": "368b6a246177ed4ad259",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 93,
+     "ccHash": "f906d2260c1be090c689",
+     "pitchLow": 48,
+     "pitchHigh": 69,
+     "velocitySum": 3793,
+     "durationSum": 47640,
+     "articulations": {
+      "legato": 21,
+      "pizz": 8,
+      "spiccato": 21
+     },
+     "exportHash": "b9ea38d51416914735c3"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 51,
+     "noteHash": "19716fe0277ff2e28a5e",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 121,
+     "ccHash": "01385ef03a14084183ed",
+     "pitchLow": 36,
+     "pitchHigh": 69,
+     "velocitySum": 4164,
+     "durationSum": 130626,
+     "articulations": {
+      "legato": 51
+     },
+     "exportHash": "22090e6fad054a60f5b2"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 71,
+     "noteHash": "d67ec41253abf919ac9e",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 111,
+     "ccHash": "40eb9363eb0f4ff32437",
+     "pitchLow": 29,
+     "pitchHigh": 57,
+     "velocitySum": 5584,
+     "durationSum": 150335,
+     "articulations": {
+      "legato": 71
+     },
+     "exportHash": "6d38678177bae659cdee"
+    }
+   },
+   "otherFamiliesHash": "4589a51056bbb2fc47c9",
+   "conductorHash": "702b0d6c19d6aac1d7f2"
+  },
+  "cinematic__dorian-16bars__seed7__take1": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 85,
+     "noteHash": "eb0c424aea0729cb6921",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 55,
+     "ccHash": "76bbc28664dfa697503f",
+     "pitchLow": 62,
+     "pitchHigh": 79,
+     "velocitySum": 8113,
+     "durationSum": 57622,
+     "articulations": {
+      "legato": 37,
+      "tremolo": 48
+     },
+     "exportHash": "31406ba917a6d1e0c9e3"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 37,
+     "noteHash": "9d63754276f5fe56a22a",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 42,
+     "ccHash": "c603a1a4ccd841bae64a",
+     "pitchLow": 60,
+     "pitchHigh": 74,
+     "velocitySum": 3259,
+     "durationSum": 36577,
+     "articulations": {
+      "legato": 21,
+      "spiccato": 16
+     },
+     "exportHash": "2f6715167bd5260d7ea9"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 75,
+     "noteHash": "9a645da55cf75e079826",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 50,
+     "ccHash": "88c67e570d23857ff2ab",
+     "pitchLow": 48,
+     "pitchHigh": 72,
+     "velocitySum": 7067,
+     "durationSum": 29180,
+     "articulations": {
+      "legato": 12,
+      "spiccato": 63
+     },
+     "exportHash": "71dea70126b3240621a6"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 20,
+     "noteHash": "684835c98edcbfc5896d",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 44,
+     "ccHash": "8737dfbe725f55932ebc",
+     "pitchLow": 38,
+     "pitchHigh": 72,
+     "velocitySum": 1590,
+     "durationSum": 42297,
+     "articulations": {
+      "legato": 20
+     },
+     "exportHash": "2e54cd5aaeafc604ca19"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 40,
+     "noteHash": "a688d0cdf42a47b81907",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 50,
+     "ccHash": "d58f9d176a51bd47c46b",
+     "pitchLow": 28,
+     "pitchHigh": 60,
+     "velocitySum": 3810,
+     "durationSum": 61987,
+     "articulations": {
+      "legato": 40
+     },
+     "exportHash": "b6944b9847921f1d3448"
+    }
+   },
+   "otherFamiliesHash": "487e7ae1822fa521f00b",
+   "conductorHash": "716601f205b9e68cc594"
+  },
+  "cinematic__dorian-16bars__seed1__take0__d0.9": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 84,
+     "noteHash": "e44077686c3f5046330d",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 55,
+     "ccHash": "29f47929251be6755851",
+     "pitchLow": 65,
+     "pitchHigh": 86,
+     "velocitySum": 8385,
+     "durationSum": 57149,
+     "articulations": {
+      "legato": 36,
+      "tremolo": 48
+     },
+     "exportHash": "5c314eb1041e38fa40b5"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 158,
+     "noteHash": "ff0bf36ead24a0aaef1c",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 60,
+     "ccHash": "585106213492accfa06e",
+     "pitchLow": 55,
+     "pitchHigh": 86,
+     "velocitySum": 13327,
+     "durationSum": 30129,
+     "articulations": {
+      "legato": 12,
+      "spiccato": 146
+     },
+     "exportHash": "6533449f77482138d2c8"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 125,
+     "noteHash": "7e98ab16f1bd8e696671",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 58,
+     "ccHash": "931e50fcc09fccbeabdc",
+     "pitchLow": 48,
+     "pitchHigh": 74,
+     "velocitySum": 10752,
+     "durationSum": 26747,
+     "articulations": {
+      "legato": 12,
+      "spiccato": 113
+     },
+     "exportHash": "30aba6fedc11dfdd665a"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 21,
+     "noteHash": "9c6959174542e78d087a",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 46,
+     "ccHash": "933ecd189c45b0150ca1",
+     "pitchLow": 38,
+     "pitchHigh": 50,
+     "velocitySum": 1720,
+     "durationSum": 42200,
+     "articulations": {
+      "legato": 21
+     },
+     "exportHash": "b69fa60ce555f685bc79"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 38,
+     "noteHash": "4da24d657a2df6e83b41",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 56,
+     "ccHash": "bbab4ec2efbeb86cbb78",
+     "pitchLow": 28,
+     "pitchHigh": 62,
+     "velocitySum": 3597,
+     "durationSum": 57924,
+     "articulations": {
+      "legato": 38
+     },
+     "exportHash": "1abfcf5dc0c6604ccb4c"
+    }
+   },
+   "otherFamiliesHash": "ad1dbf2b747bd0d0730f",
+   "conductorHash": "068fe52c81359b9e5b16"
+  },
+  "cinematic__dorian-16bars__seed1__take0__humanize-false": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 84,
+     "noteHash": "e44077686c3f5046330d",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 55,
+     "ccHash": "29f47929251be6755851",
+     "pitchLow": 65,
+     "pitchHigh": 86,
+     "velocitySum": 8385,
+     "durationSum": 57149,
+     "articulations": {
+      "legato": 36,
+      "tremolo": 48
+     },
+     "exportHash": "5c314eb1041e38fa40b5"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 158,
+     "noteHash": "ff0bf36ead24a0aaef1c",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 60,
+     "ccHash": "585106213492accfa06e",
+     "pitchLow": 55,
+     "pitchHigh": 86,
+     "velocitySum": 13327,
+     "durationSum": 30129,
+     "articulations": {
+      "legato": 12,
+      "spiccato": 146
+     },
+     "exportHash": "6533449f77482138d2c8"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 125,
+     "noteHash": "7e98ab16f1bd8e696671",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 58,
+     "ccHash": "931e50fcc09fccbeabdc",
+     "pitchLow": 48,
+     "pitchHigh": 74,
+     "velocitySum": 10752,
+     "durationSum": 26747,
+     "articulations": {
+      "legato": 12,
+      "spiccato": 113
+     },
+     "exportHash": "30aba6fedc11dfdd665a"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 21,
+     "noteHash": "9c6959174542e78d087a",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 46,
+     "ccHash": "933ecd189c45b0150ca1",
+     "pitchLow": 38,
+     "pitchHigh": 50,
+     "velocitySum": 1720,
+     "durationSum": 42200,
+     "articulations": {
+      "legato": 21
+     },
+     "exportHash": "b69fa60ce555f685bc79"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 38,
+     "noteHash": "4da24d657a2df6e83b41",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 56,
+     "ccHash": "bbab4ec2efbeb86cbb78",
+     "pitchLow": 28,
+     "pitchHigh": 62,
+     "velocitySum": 3597,
+     "durationSum": 57924,
+     "articulations": {
+      "legato": 38
+     },
+     "exportHash": "1abfcf5dc0c6604ccb4c"
+    }
+   },
+   "otherFamiliesHash": "6a23788d97dbfa604e23",
+   "conductorHash": "068fe52c81359b9e5b16"
+  },
+  "cinematic__dorian-16bars__seed1__take0__moments-false": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 136,
+     "noteHash": "6b3b892b1aca0ae84928",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 58,
+     "ccHash": "be27b7e0c8fd71266f98",
+     "pitchLow": 65,
+     "pitchHigh": 86,
+     "velocitySum": 14039,
+     "durationSum": 55659,
+     "articulations": {
+      "legato": 24,
+      "tremolo": 112
+     },
+     "exportHash": "e22c7ba04a9aa912b559"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 174,
+     "noteHash": "c23264f84ee37d30e787",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      74
+     ],
+     "ccPoints": 56,
+     "ccHash": "bef2f31ffdcf6d12b95d",
+     "pitchLow": 55,
+     "pitchHigh": 74,
+     "velocitySum": 15182,
+     "durationSum": 17385,
+     "articulations": {
+      "spiccato": 174
+     },
+     "exportHash": "4411c00f19bbc88c5fee"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 131,
+     "noteHash": "c991ab3d33ae304de3e2",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      74
+     ],
+     "ccPoints": 54,
+     "ccHash": "290cface864b3126696f",
+     "pitchLow": 48,
+     "pitchHigh": 62,
+     "velocitySum": 11516,
+     "durationSum": 13038,
+     "articulations": {
+      "spiccato": 131
+     },
+     "exportHash": "8ca6b531de3dbf58bca4"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 27,
+     "noteHash": "ec6cdf65c83cfb9d100e",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 50,
+     "ccHash": "0ad18fbf87df8379b0d6",
+     "pitchLow": 36,
+     "pitchHigh": 50,
+     "velocitySum": 2366,
+     "durationSum": 57650,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "6423ad04b319c2c4cfb8"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 17,
+     "noteHash": "55be174145b3a5168e3d",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 56,
+     "ccHash": "4c3a40d5a5ae7034597b",
+     "pitchLow": 28,
+     "pitchHigh": 38,
+     "velocitySum": 1475,
+     "durationSum": 34652,
+     "articulations": {
+      "legato": 17
+     },
+     "exportHash": "93ab158bd79336ab2cd1"
+    }
+   },
+   "otherFamiliesHash": "8bf4cabe94a25752eb23",
+   "conductorHash": "fca60ed40bddbf7fcdab"
+  },
+  "hybridstudio__dorian-16bars__seed1__take0": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 44,
+     "noteHash": "32ce265a3cfaa5d04046",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 48,
+     "ccHash": "38dddf92922e3aa8d943",
+     "pitchLow": 67,
+     "pitchHigh": 84,
+     "velocitySum": 3482,
+     "durationSum": 58720,
+     "articulations": {
+      "legato": 44
+     },
+     "exportHash": "a48565b174646292ab58"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 42,
+     "noteHash": "7cbcb319c845a9af44c5",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 72,
+     "ccHash": "e6851e092f1f28deb744",
+     "pitchLow": 60,
+     "pitchHigh": 74,
+     "velocitySum": 3319,
+     "durationSum": 48983,
+     "articulations": {
+      "legato": 42
+     },
+     "exportHash": "a53728a0dd634fda0cf6"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 33,
+     "noteHash": "1f625cb69acfff6b3480",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 44,
+     "ccHash": "cd2233e0555b710302a4",
+     "pitchLow": 48,
+     "pitchHigh": 72,
+     "velocitySum": 2754,
+     "durationSum": 58041,
+     "articulations": {
+      "legato": 33
+     },
+     "exportHash": "513c65866abe3057650b"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 21,
+     "noteHash": "11c3de5bf7183e227c30",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 44,
+     "ccHash": "e642e3180105302ecbdb",
+     "pitchLow": 36,
+     "pitchHigh": 62,
+     "velocitySum": 1635,
+     "durationSum": 42273,
+     "articulations": {
+      "legato": 21
+     },
+     "exportHash": "f170d265ae90b835c022"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 40,
+     "noteHash": "82a8c6036bb525f8fa60",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 52,
+     "ccHash": "2a984e6ce151271cf248",
+     "pitchLow": 33,
+     "pitchHigh": 60,
+     "velocitySum": 3407,
+     "durationSum": 64034,
+     "articulations": {
+      "legato": 40
+     },
+     "exportHash": "d32bc932189a10351607"
+    }
+   },
+   "otherFamiliesHash": "da38d45dc4e95a51b311",
+   "conductorHash": "2f727fd8f3fef0195d20"
+  },
+  "hybridstudio__dorian-16bars__seed1__take3": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 35,
+     "noteHash": "18187ac718ed94c262dd",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 46,
+     "ccHash": "4534095a84ae18fc4b67",
+     "pitchLow": 62,
+     "pitchHigh": 84,
+     "velocitySum": 2848,
+     "durationSum": 58377,
+     "articulations": {
+      "legato": 35
+     },
+     "exportHash": "0aaf55db89a68b73de89"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 26,
+     "noteHash": "86d9ebbf39071bc585b2",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 46,
+     "ccHash": "870c64d9345e49f1cdf1",
+     "pitchLow": 60,
+     "pitchHigh": 69,
+     "velocitySum": 2260,
+     "durationSum": 57654,
+     "articulations": {
+      "legato": 26
+     },
+     "exportHash": "63b97764c545d65839a2"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 63,
+     "noteHash": "f40539e6e9e8080cbc26",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 88,
+     "ccHash": "dc79546810aff709af26",
+     "pitchLow": 48,
+     "pitchHigh": 67,
+     "velocitySum": 5322,
+     "durationSum": 46089,
+     "articulations": {
+      "legato": 63
+     },
+     "exportHash": "8f6c81aad44585ecaae8"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 26,
+     "noteHash": "9923634210b6569a6858",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 46,
+     "ccHash": "d69705ed4433d5718dc9",
+     "pitchLow": 36,
+     "pitchHigh": 47,
+     "velocitySum": 2282,
+     "durationSum": 57729,
+     "articulations": {
+      "legato": 26
+     },
+     "exportHash": "6cea73f16906f00f2671"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 14,
+     "noteHash": "16e85bd736d97dbfdeef",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 53,
+     "ccHash": "89cdc9c9a46e0de45977",
+     "pitchLow": 28,
+     "pitchHigh": 35,
+     "velocitySum": 1217,
+     "durationSum": 28841,
+     "articulations": {
+      "legato": 14
+     },
+     "exportHash": "b2752e61efe8440e34a2"
+    }
+   },
+   "otherFamiliesHash": "cbaca2ef830637f92b46",
+   "conductorHash": "538502c32feaf3fca73c"
+  },
+  "hybridstudio__multi-chorus-16bars__seed1__take0": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 29,
+     "noteHash": "668e2a2d21de03138b36",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 44,
+     "ccHash": "032e4a019610fbcc0cff",
+     "pitchLow": 60,
+     "pitchHigh": 84,
+     "velocitySum": 2037,
+     "durationSum": 39011,
+     "articulations": {
+      "legato": 29
+     },
+     "exportHash": "688ae674d738d5b9224a"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 27,
+     "noteHash": "d60a7ec4c3e441aa0df2",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 54,
+     "ccHash": "ab16e577e32cf01a3936",
+     "pitchLow": 55,
+     "pitchHigh": 74,
+     "velocitySum": 1887,
+     "durationSum": 34202,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "87a3af23970ec82a802d"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 22,
+     "noteHash": "df3a99f3e535744fdb4e",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 44,
+     "ccHash": "b647567b5b01c0c44157",
+     "pitchLow": 48,
+     "pitchHigh": 64,
+     "velocitySum": 1576,
+     "durationSum": 38634,
+     "articulations": {
+      "legato": 22
+     },
+     "exportHash": "07c599d7385df0074c76"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 27,
+     "noteHash": "155cdd3cc783157af2c2",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 50,
+     "ccHash": "f5d0d1f6dc72e331b673",
+     "pitchLow": 36,
+     "pitchHigh": 55,
+     "velocitySum": 2042,
+     "durationSum": 49996,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "24369800b6da683ee96f"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 17,
+     "noteHash": "fe5c5e969f35c9b949e7",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 48,
+     "ccHash": "5bfc5597b51676de0b55",
+     "pitchLow": 28,
+     "pitchHigh": 43,
+     "velocitySum": 1263,
+     "durationSum": 28944,
+     "articulations": {
+      "legato": 17
+     },
+     "exportHash": "fcb0b10f597bd5338a92"
+    }
+   },
+   "otherFamiliesHash": "903ef4693572bd424ba9",
+   "conductorHash": "cd7e2adaaed2b75b023f"
+  },
+  "hybridstudio__multi-chorus-16bars__seed1__take3": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 25,
+     "noteHash": "23765ff600a421a19b24",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 46,
+     "ccHash": "f2c2d29ea938ba10f169",
+     "pitchLow": 67,
+     "pitchHigh": 93,
+     "velocitySum": 1935,
+     "durationSum": 38824,
+     "articulations": {
+      "legato": 25
+     },
+     "exportHash": "16fa7c690bf7b5ded694"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 31,
+     "noteHash": "373031785f026eeb0e13",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 64,
+     "ccHash": "77ec30ecfcac23874ec5",
+     "pitchLow": 59,
+     "pitchHigh": 74,
+     "velocitySum": 2625,
+     "durationSum": 33501,
+     "articulations": {
+      "legato": 31
+     },
+     "exportHash": "dc2c767620c3c222dc31"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 24,
+     "noteHash": "7e411a18a93a9509d995",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 50,
+     "ccHash": "156e06b337be582053ab",
+     "pitchLow": 53,
+     "pitchHigh": 65,
+     "velocitySum": 2034,
+     "durationSum": 49904,
+     "articulations": {
+      "legato": 24
+     },
+     "exportHash": "9ef0fb45e2b7a1680f17"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 18,
+     "noteHash": "3e38374c7657ec760031",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 46,
+     "ccHash": "efa1147034e5a5fa6892",
+     "pitchLow": 36,
+     "pitchHigh": 62,
+     "velocitySum": 1478,
+     "durationSum": 38275,
+     "articulations": {
+      "legato": 18
+     },
+     "exportHash": "2b0aefc48e8c07ef364e"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 10,
+     "noteHash": "eaf81a83071c8ee8c2e2",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 45,
+     "ccHash": "71e27ceea44dc6586a61",
+     "pitchLow": 29,
+     "pitchHigh": 50,
+     "velocitySum": 811,
+     "durationSum": 21107,
+     "articulations": {
+      "legato": 10
+     },
+     "exportHash": "a6a9adf604d3bf6046a2"
+    }
+   },
+   "otherFamiliesHash": "329304bfbad71c0553f5",
+   "conductorHash": "86e356109dbec5236bdc"
+  },
+  "hybridstudio__three-chorus-40bars__seed1__take0": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 85,
+     "noteHash": "afb079d1ad26d1950de0",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 138,
+     "ccHash": "5dd2e58bb8801d6b8a91",
+     "pitchLow": 65,
+     "pitchHigh": 96,
+     "velocitySum": 6963,
+     "durationSum": 132574,
+     "articulations": {
+      "legato": 85
+     },
+     "exportHash": "c8c7ff12e80c049a3ef8"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 58,
+     "noteHash": "2166aa9a408037a5983f",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 142,
+     "ccHash": "baff934508ffdd29d81b",
+     "pitchLow": 57,
+     "pitchHigh": 89,
+     "velocitySum": 4539,
+     "durationSum": 127155,
+     "articulations": {
+      "legato": 58
+     },
+     "exportHash": "af4b5465bc8e9bf40638"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 59,
+     "noteHash": "2dd92fcfd0a34cb93751",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 133,
+     "ccHash": "6e7cd076d906d6085f1d",
+     "pitchLow": 48,
+     "pitchHigh": 86,
+     "velocitySum": 4608,
+     "durationSum": 130999,
+     "articulations": {
+      "legato": 59
+     },
+     "exportHash": "1172cb4fc17bb24eab8f"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 59,
+     "noteHash": "bb007582455ef818fe75",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 133,
+     "ccHash": "cd117dc13e954ae7a50b",
+     "pitchLow": 41,
+     "pitchHigh": 79,
+     "velocitySum": 4612,
+     "durationSum": 130764,
+     "articulations": {
+      "legato": 59
+     },
+     "exportHash": "02086583b0d3bcc7c6ec"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 59,
+     "noteHash": "1dcac4645e4975468089",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 127,
+     "ccHash": "497340d6afd234306da5",
+     "pitchLow": 29,
+     "pitchHigh": 67,
+     "velocitySum": 4634,
+     "durationSum": 130640,
+     "articulations": {
+      "legato": 59
+     },
+     "exportHash": "2dbee56d6790bdf31a7c"
+    }
+   },
+   "otherFamiliesHash": "0f2db49d492cb971dca9",
+   "conductorHash": "02b2ccd80503045c3615"
+  },
+  "hybridstudio__three-chorus-40bars__seed1__take3": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 63,
+     "noteHash": "b16be688442e7bce85d9",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 123,
+     "ccHash": "4cb26576b8602f325236",
+     "pitchLow": 62,
+     "pitchHigh": 93,
+     "velocitySum": 4832,
+     "durationSum": 136290,
+     "articulations": {
+      "legato": 62,
+      "marcato": 1
+     },
+     "exportHash": "507d63fe094d3bdf50bc"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 99,
+     "noteHash": "1027dd0bd6353787f7ce",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 222,
+     "ccHash": "57afa1beb55a6f695248",
+     "pitchLow": 55,
+     "pitchHigh": 81,
+     "velocitySum": 7432,
+     "durationSum": 115909,
+     "articulations": {
+      "legato": 98,
+      "marcato": 1
+     },
+     "exportHash": "62e2cbb3a2f8c2b9d484"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 54,
+     "noteHash": "ce2454cb14c55b3e4519",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 123,
+     "ccHash": "b52fd063f51f0387e88e",
+     "pitchLow": 48,
+     "pitchHigh": 70,
+     "velocitySum": 4238,
+     "durationSum": 138493,
+     "articulations": {
+      "legato": 53,
+      "marcato": 1
+     },
+     "exportHash": "87d67bd6ce88ef20fc9f"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 38,
+     "noteHash": "b6b6259858a56a903ec0",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 125,
+     "ccHash": "55c26f779c72dcde9394",
+     "pitchLow": 36,
+     "pitchHigh": 69,
+     "velocitySum": 2883,
+     "durationSum": 88597,
+     "articulations": {
+      "legato": 38
+     },
+     "exportHash": "3e209d2f9465468197b2"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 40,
+     "noteHash": "f6c11e8c77f24f129683",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 122,
+     "ccHash": "63ae5579e1a2be2ae917",
+     "pitchLow": 29,
+     "pitchHigh": 57,
+     "velocitySum": 3254,
+     "durationSum": 99872,
+     "articulations": {
+      "legato": 39,
+      "marcato": 1
+     },
+     "exportHash": "32ba907a4fa4952df0c6"
+    }
+   },
+   "otherFamiliesHash": "63eee22ceccb09ee7478",
+   "conductorHash": "ca0fa4a5fae575d6e11a"
+  },
+  "hybridstudio__dorian-16bars__seed7__take1": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 42,
+     "noteHash": "5d7d3581eea31e0d3a38",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 46,
+     "ccHash": "265f0c619453de89df55",
+     "pitchLow": 59,
+     "pitchHigh": 96,
+     "velocitySum": 3583,
+     "durationSum": 58772,
+     "articulations": {
+      "legato": 42
+     },
+     "exportHash": "cb9a085c5a2b1fc3bf5b"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 38,
+     "noteHash": "4ae9fba6898e798bca57",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 54,
+     "ccHash": "853438e49aeb3cad39c0",
+     "pitchLow": 55,
+     "pitchHigh": 79,
+     "velocitySum": 3148,
+     "durationSum": 55533,
+     "articulations": {
+      "legato": 38
+     },
+     "exportHash": "fdc92fd06b6c58c44d27"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 34,
+     "noteHash": "aba7db8ce06c5e109ac5",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 46,
+     "ccHash": "68a88f059fa98e6552fb",
+     "pitchLow": 52,
+     "pitchHigh": 67,
+     "velocitySum": 2889,
+     "durationSum": 58123,
+     "articulations": {
+      "legato": 34
+     },
+     "exportHash": "d19f5e2e8f395b4a3d89"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 20,
+     "noteHash": "f598127936a2ecf1db50",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 42,
+     "ccHash": "175159b5d5ad2a1daa7d",
+     "pitchLow": 36,
+     "pitchHigh": 53,
+     "velocitySum": 1607,
+     "durationSum": 42295,
+     "articulations": {
+      "legato": 20
+     },
+     "exportHash": "6d68757ba753e054f0d7"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 42,
+     "noteHash": "6516ad24b18ffea3924c",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 50,
+     "ccHash": "d77fe95f6690f56a9535",
+     "pitchLow": 31,
+     "pitchHigh": 55,
+     "velocitySum": 3581,
+     "durationSum": 64247,
+     "articulations": {
+      "legato": 42
+     },
+     "exportHash": "5b1b64e6445af99623b0"
+    }
+   },
+   "otherFamiliesHash": "b16376e76a371ad76562",
+   "conductorHash": "17a94a86303b6d65b78d"
+  },
+  "hybridstudio__dorian-16bars__seed1__take0__d0.9": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 44,
+     "noteHash": "32ce265a3cfaa5d04046",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 48,
+     "ccHash": "38dddf92922e3aa8d943",
+     "pitchLow": 67,
+     "pitchHigh": 84,
+     "velocitySum": 3482,
+     "durationSum": 58720,
+     "articulations": {
+      "legato": 44
+     },
+     "exportHash": "a48565b174646292ab58"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 42,
+     "noteHash": "7cbcb319c845a9af44c5",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 72,
+     "ccHash": "e6851e092f1f28deb744",
+     "pitchLow": 60,
+     "pitchHigh": 74,
+     "velocitySum": 3319,
+     "durationSum": 48983,
+     "articulations": {
+      "legato": 42
+     },
+     "exportHash": "a53728a0dd634fda0cf6"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 33,
+     "noteHash": "1f625cb69acfff6b3480",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 44,
+     "ccHash": "cd2233e0555b710302a4",
+     "pitchLow": 48,
+     "pitchHigh": 72,
+     "velocitySum": 2754,
+     "durationSum": 58041,
+     "articulations": {
+      "legato": 33
+     },
+     "exportHash": "513c65866abe3057650b"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 21,
+     "noteHash": "11c3de5bf7183e227c30",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 44,
+     "ccHash": "e642e3180105302ecbdb",
+     "pitchLow": 36,
+     "pitchHigh": 62,
+     "velocitySum": 1635,
+     "durationSum": 42273,
+     "articulations": {
+      "legato": 21
+     },
+     "exportHash": "f170d265ae90b835c022"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 40,
+     "noteHash": "82a8c6036bb525f8fa60",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 52,
+     "ccHash": "2a984e6ce151271cf248",
+     "pitchLow": 33,
+     "pitchHigh": 60,
+     "velocitySum": 3407,
+     "durationSum": 64034,
+     "articulations": {
+      "legato": 40
+     },
+     "exportHash": "d32bc932189a10351607"
+    }
+   },
+   "otherFamiliesHash": "75a26f766924b401ae44",
+   "conductorHash": "2f727fd8f3fef0195d20"
+  },
+  "hybridstudio__dorian-16bars__seed1__take0__humanize-false": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 44,
+     "noteHash": "32ce265a3cfaa5d04046",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 48,
+     "ccHash": "38dddf92922e3aa8d943",
+     "pitchLow": 67,
+     "pitchHigh": 84,
+     "velocitySum": 3482,
+     "durationSum": 58720,
+     "articulations": {
+      "legato": 44
+     },
+     "exportHash": "a48565b174646292ab58"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 42,
+     "noteHash": "7cbcb319c845a9af44c5",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 72,
+     "ccHash": "e6851e092f1f28deb744",
+     "pitchLow": 60,
+     "pitchHigh": 74,
+     "velocitySum": 3319,
+     "durationSum": 48983,
+     "articulations": {
+      "legato": 42
+     },
+     "exportHash": "a53728a0dd634fda0cf6"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 33,
+     "noteHash": "1f625cb69acfff6b3480",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 44,
+     "ccHash": "cd2233e0555b710302a4",
+     "pitchLow": 48,
+     "pitchHigh": 72,
+     "velocitySum": 2754,
+     "durationSum": 58041,
+     "articulations": {
+      "legato": 33
+     },
+     "exportHash": "513c65866abe3057650b"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 21,
+     "noteHash": "11c3de5bf7183e227c30",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 44,
+     "ccHash": "e642e3180105302ecbdb",
+     "pitchLow": 36,
+     "pitchHigh": 62,
+     "velocitySum": 1635,
+     "durationSum": 42273,
+     "articulations": {
+      "legato": 21
+     },
+     "exportHash": "f170d265ae90b835c022"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 40,
+     "noteHash": "82a8c6036bb525f8fa60",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 52,
+     "ccHash": "2a984e6ce151271cf248",
+     "pitchLow": 33,
+     "pitchHigh": 60,
+     "velocitySum": 3407,
+     "durationSum": 64034,
+     "articulations": {
+      "legato": 40
+     },
+     "exportHash": "d32bc932189a10351607"
+    }
+   },
+   "otherFamiliesHash": "da38d45dc4e95a51b311",
+   "conductorHash": "2f727fd8f3fef0195d20"
+  },
+  "hybridstudio__dorian-16bars__seed1__take0__moments-false": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 44,
+     "noteHash": "9929320a7c5b0c66c6d9",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 48,
+     "ccHash": "38dddf92922e3aa8d943",
+     "pitchLow": 67,
+     "pitchHigh": 84,
+     "velocitySum": 3605,
+     "durationSum": 58720,
+     "articulations": {
+      "legato": 44
+     },
+     "exportHash": "d1de982ffa09be931401"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 36,
+     "noteHash": "68aacebd3ffc1678c918",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 72,
+     "ccHash": "e128cb5d946b09236a9a",
+     "pitchLow": 60,
+     "pitchHigh": 74,
+     "velocitySum": 2829,
+     "durationSum": 48575,
+     "articulations": {
+      "legato": 36
+     },
+     "exportHash": "9b20e35de066f1780acf"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 27,
+     "noteHash": "e5ad842c7c6558601354",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 44,
+     "ccHash": "68029eaec6c672b47847",
+     "pitchLow": 48,
+     "pitchHigh": 65,
+     "velocitySum": 2280,
+     "durationSum": 57682,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "badcbf7116f781e959ab"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 27,
+     "noteHash": "617ead220f67164b8fe0",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 48,
+     "ccHash": "912070bc3a45428db6f3",
+     "pitchLow": 36,
+     "pitchHigh": 62,
+     "velocitySum": 2245,
+     "durationSum": 57706,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "8bd2cd86c8fae6632de2"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 19,
+     "noteHash": "cd331d52fa98d4bc2c7a",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 52,
+     "ccHash": "f8cdbcea0b471953ddc6",
+     "pitchLow": 29,
+     "pitchHigh": 50,
+     "velocitySum": 1512,
+     "durationSum": 40330,
+     "articulations": {
+      "legato": 19
+     },
+     "exportHash": "a363c47a598798d09ca4"
+    }
+   },
+   "otherFamiliesHash": "dd9149d018946126c79f",
+   "conductorHash": "3c9ec65d5eafaee361be"
+  },
+  "symphony__dorian-16bars__seed1__take0": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 41,
+     "noteHash": "49b8e25c2a1c0d8a744b",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 49,
+     "ccHash": "c66656224b2fdd36e21c",
+     "pitchLow": 55,
+     "pitchHigh": 96,
+     "velocitySum": 3155,
+     "durationSum": 58134,
+     "articulations": {
+      "legato": 41
+     },
+     "exportHash": "74a0d844ad79c7ab84cf"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 37,
+     "noteHash": "4502b7218fbee153a816",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 49,
+     "ccHash": "aa2b038d8d29ded036b7",
+     "pitchLow": 55,
+     "pitchHigh": 93,
+     "velocitySum": 2890,
+     "durationSum": 58034,
+     "articulations": {
+      "legato": 37
+     },
+     "exportHash": "6ecc2d712f320e4cb155"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 40,
+     "noteHash": "20aa2cec17de7903303d",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 49,
+     "ccHash": "e80c7c2c67155b0d7e28",
+     "pitchLow": 48,
+     "pitchHigh": 69,
+     "velocitySum": 3138,
+     "durationSum": 58109,
+     "articulations": {
+      "legato": 40
+     },
+     "exportHash": "437e555d64d8ee198132"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 35,
+     "noteHash": "ae495c46a14035b872ff",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 51,
+     "ccHash": "9bc42b9811416663c656",
+     "pitchLow": 36,
+     "pitchHigh": 69,
+     "velocitySum": 2662,
+     "durationSum": 54269,
+     "articulations": {
+      "legato": 35
+     },
+     "exportHash": "767327de0d7279354a67"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 32,
+     "noteHash": "0e9a9407d260a1538372",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 53,
+     "ccHash": "51b758f32879147179f7",
+     "pitchLow": 31,
+     "pitchHigh": 57,
+     "velocitySum": 2462,
+     "durationSum": 48369,
+     "articulations": {
+      "legato": 32
+     },
+     "exportHash": "1298337c59ba0815e840"
+    }
+   },
+   "otherFamiliesHash": "1d80cda11dff2d2e48d7",
+   "conductorHash": "2629656927983867d113"
+  },
+  "symphony__dorian-16bars__seed1__take3": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 30,
+     "noteHash": "fb22098868398a3b3fc1",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 46,
+     "ccHash": "c53e010e0f8c9860512a",
+     "pitchLow": 65,
+     "pitchHigh": 96,
+     "velocitySum": 2510,
+     "durationSum": 58073,
+     "articulations": {
+      "legato": 30
+     },
+     "exportHash": "1059a0d07bf6e91c82b0"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 30,
+     "noteHash": "cb8d70b933d96eeb2d86",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 46,
+     "ccHash": "f00218afed9d2947841b",
+     "pitchLow": 55,
+     "pitchHigh": 93,
+     "velocitySum": 2341,
+     "durationSum": 57697,
+     "articulations": {
+      "legato": 30
+     },
+     "exportHash": "7ce07f64544a95b5cf2c"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 26,
+     "noteHash": "27ff6ee2d0d7d0d8c4eb",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 46,
+     "ccHash": "079af70ba3c7a67e090d",
+     "pitchLow": 53,
+     "pitchHigh": 86,
+     "velocitySum": 2101,
+     "durationSum": 57584,
+     "articulations": {
+      "legato": 26
+     },
+     "exportHash": "b008dc153042939a13a6"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 27,
+     "noteHash": "57592c89edc62a045ff9",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 54,
+     "ccHash": "a16e36563fbd7f0d1473",
+     "pitchLow": 45,
+     "pitchHigh": 79,
+     "velocitySum": 2158,
+     "durationSum": 48447,
+     "articulations": {
+      "legato": 21,
+      "pizz": 6
+     },
+     "exportHash": "8206972d50a90c5aa33c"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 27,
+     "noteHash": "e24049da7df5b9b579c7",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 54,
+     "ccHash": "1ae358772ce50da4fe93",
+     "pitchLow": 33,
+     "pitchHigh": 67,
+     "velocitySum": 2156,
+     "durationSum": 48314,
+     "articulations": {
+      "legato": 21,
+      "pizz": 6
+     },
+     "exportHash": "b86c90fdb24cfe3c097c"
+    }
+   },
+   "otherFamiliesHash": "b4a76272ac5e134d41aa",
+   "conductorHash": "21eb93205af0c892cea5"
+  },
+  "symphony__multi-chorus-16bars__seed1__take0": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 34,
+     "noteHash": "595ebcce46b9616b4e83",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 57,
+     "ccHash": "bf815606580d857eeb12",
+     "pitchLow": 64,
+     "pitchHigh": 96,
+     "velocitySum": 2493,
+     "durationSum": 52277,
+     "articulations": {
+      "legato": 33,
+      "marcato": 1
+     },
+     "exportHash": "1129fcdc04d4456ffcf9"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 44,
+     "noteHash": "952bc67e35c91fc62abf",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 55,
+     "ccHash": "3b4bd4ee8e6a0dc79304",
+     "pitchLow": 55,
+     "pitchHigh": 89,
+     "velocitySum": 2992,
+     "durationSum": 56318,
+     "articulations": {
+      "legato": 43,
+      "marcato": 1
+     },
+     "exportHash": "08b9d113a7fd4ff6ae6f"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 33,
+     "noteHash": "095d722e1489abc95702",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 62,
+     "ccHash": "190d93ae00dafd773dff",
+     "pitchLow": 52,
+     "pitchHigh": 86,
+     "velocitySum": 2395,
+     "durationSum": 52285,
+     "articulations": {
+      "legato": 32,
+      "marcato": 1
+     },
+     "exportHash": "323bd6c401fe3fa70ca9"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 18,
+     "noteHash": "5944617fce9a5fcef79f",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 52,
+     "ccHash": "71bc64461ad7508bbf7b",
+     "pitchLow": 38,
+     "pitchHigh": 74,
+     "velocitySum": 1315,
+     "durationSum": 30260,
+     "articulations": {
+      "legato": 13,
+      "marcato": 1,
+      "pizz": 4
+     },
+     "exportHash": "6b63072bde62319c6528"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 47,
+     "noteHash": "1ff7a1e9530ff3bcb6f4",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 53,
+     "ccHash": "ac2fb6634827b67f65d3",
+     "pitchLow": 28,
+     "pitchHigh": 62,
+     "velocitySum": 3410,
+     "durationSum": 57086,
+     "articulations": {
+      "legato": 44,
+      "marcato": 1,
+      "pizz": 2
+     },
+     "exportHash": "25df22a021086b9f3c16"
+    }
+   },
+   "otherFamiliesHash": "523cb385cd57a571cba7",
+   "conductorHash": "d00c6a3fef9432a32a51"
+  },
+  "symphony__multi-chorus-16bars__seed1__take3": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 49,
+     "noteHash": "2fbbfdf215f36c8900d2",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 50,
+     "ccHash": "e95414a39e4b714d1f27",
+     "pitchLow": 62,
+     "pitchHigh": 96,
+     "velocitySum": 3396,
+     "durationSum": 58889,
+     "articulations": {
+      "legato": 48,
+      "marcato": 1
+     },
+     "exportHash": "34028b5aee50a68f3838"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 34,
+     "noteHash": "a9cabae1a22f4130c66d",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 50,
+     "ccHash": "0066af08ac92ebf44bee",
+     "pitchLow": 59,
+     "pitchHigh": 81,
+     "velocitySum": 2423,
+     "durationSum": 58004,
+     "articulations": {
+      "legato": 33,
+      "marcato": 1
+     },
+     "exportHash": "876417903f32d6baa304"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 34,
+     "noteHash": "ad4dbb208047ab1f54f7",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 55,
+     "ccHash": "bbcfb51e78ee1dbd916d",
+     "pitchLow": 48,
+     "pitchHigh": 69,
+     "velocitySum": 2419,
+     "durationSum": 58005,
+     "articulations": {
+      "legato": 33,
+      "marcato": 1
+     },
+     "exportHash": "73eff542aba38e85e9ad"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 21,
+     "noteHash": "4f5802113d88432531c1",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      74
+     ],
+     "ccPoints": 56,
+     "ccHash": "05c932143273f9773488",
+     "pitchLow": 36,
+     "pitchHigh": 50,
+     "velocitySum": 1418,
+     "durationSum": 11182,
+     "articulations": {
+      "marcato": 1,
+      "pizz": 20
+     },
+     "exportHash": "b82a72a3d5824e0196e5"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 43,
+     "noteHash": "ed8ce93fc31d71e72a6a",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 51,
+     "ccHash": "49e6be490aea5c8331d5",
+     "pitchLow": 29,
+     "pitchHigh": 57,
+     "velocitySum": 3018,
+     "durationSum": 35508,
+     "articulations": {
+      "legato": 32,
+      "pizz": 11
+     },
+     "exportHash": "a74232751abd473cc039"
+    }
+   },
+   "otherFamiliesHash": "d5bdd52ee49a740ae26b",
+   "conductorHash": "1d47a0bac70db9cf1083"
+  },
+  "symphony__three-chorus-40bars__seed1__take0": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 96,
+     "noteHash": "21e47fa047a60e889c69",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 125,
+     "ccHash": "e38aa0a46d0f728f58f3",
+     "pitchLow": 55,
+     "pitchHigh": 96,
+     "velocitySum": 6359,
+     "durationSum": 172762,
+     "articulations": {
+      "legato": 96
+     },
+     "exportHash": "80eee6ef9d9c514ea0bc"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 101,
+     "noteHash": "cb68be2965618431f3e5",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 134,
+     "ccHash": "aed455ec7f582764a78c",
+     "pitchLow": 57,
+     "pitchHigh": 71,
+     "velocitySum": 7468,
+     "durationSum": 136685,
+     "articulations": {
+      "legato": 101
+     },
+     "exportHash": "8b04b70d7d10d02d92c2"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 64,
+     "noteHash": "5f2d01cdc6762c99ce57",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 134,
+     "ccHash": "4cb6c8870b850f53fcc7",
+     "pitchLow": 50,
+     "pitchHigh": 65,
+     "velocitySum": 4329,
+     "durationSum": 134825,
+     "articulations": {
+      "legato": 64
+     },
+     "exportHash": "f6d982b2433eaf49d617"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 74,
+     "noteHash": "87620dd8835c8677a832",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 144,
+     "ccHash": "a40c15bace2411686dcd",
+     "pitchLow": 36,
+     "pitchHigh": 59,
+     "velocitySum": 5126,
+     "durationSum": 50250,
+     "articulations": {
+      "legato": 22,
+      "pizz": 52
+     },
+     "exportHash": "7e2b7b52aa9e7254556f"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 66,
+     "noteHash": "0df241033237395cf2f1",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 129,
+     "ccHash": "84d8601f482c734e077d",
+     "pitchLow": 29,
+     "pitchHigh": 47,
+     "velocitySum": 4725,
+     "durationSum": 47035,
+     "articulations": {
+      "legato": 22,
+      "pizz": 44
+     },
+     "exportHash": "1b00d7115cdf4580f0ee"
+    }
+   },
+   "otherFamiliesHash": "44e5a830c495517690c0",
+   "conductorHash": "7d12b5f277d7fa58f5ed"
+  },
+  "symphony__three-chorus-40bars__seed1__take3": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 96,
+     "noteHash": "ac361f9700eefcf50346",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 114,
+     "ccHash": "bea5dd11c55bbd0415e8",
+     "pitchLow": 55,
+     "pitchHigh": 83,
+     "velocitySum": 7076,
+     "durationSum": 133233,
+     "articulations": {
+      "legato": 95,
+      "marcato": 1
+     },
+     "exportHash": "0ff0585c71ba6624a489"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 64,
+     "noteHash": "fed5f7684d0559fea6c8",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 114,
+     "ccHash": "97e4d1ee0af718d3c814",
+     "pitchLow": 55,
+     "pitchHigh": 77,
+     "velocitySum": 4654,
+     "durationSum": 147306,
+     "articulations": {
+      "legato": 63,
+      "marcato": 1
+     },
+     "exportHash": "6addcbb8c004eb34cc26"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 60,
+     "noteHash": "0c630ba76d9a144cb1ba",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 110,
+     "ccHash": "66cb0fdf51300135ee14",
+     "pitchLow": 50,
+     "pitchHigh": 77,
+     "velocitySum": 4287,
+     "durationSum": 131691,
+     "articulations": {
+      "legato": 59,
+      "marcato": 1
+     },
+     "exportHash": "95163a7e430635fb4063"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 73,
+     "noteHash": "fa559df1d1383d76fba3",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 145,
+     "ccHash": "d8798bd9afc38ad50f15",
+     "pitchLow": 36,
+     "pitchHigh": 70,
+     "velocitySum": 5247,
+     "durationSum": 62638,
+     "articulations": {
+      "legato": 30,
+      "marcato": 1,
+      "pizz": 42
+     },
+     "exportHash": "122fe0d060966a3ff8b9"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 74,
+     "noteHash": "b80ade5bf2f2f88c971d",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 149,
+     "ccHash": "be73378c24ca2d50c5cc",
+     "pitchLow": 29,
+     "pitchHigh": 58,
+     "velocitySum": 5416,
+     "durationSum": 56253,
+     "articulations": {
+      "legato": 27,
+      "marcato": 1,
+      "pizz": 46
+     },
+     "exportHash": "b9ecbe2f4c0b7dee40d8"
+    }
+   },
+   "otherFamiliesHash": "fcab38a0ae539899165e",
+   "conductorHash": "4762df0d238ce90799bb"
+  },
+  "symphony__dorian-16bars__seed7__take1": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 43,
+     "noteHash": "0abc13a2d5d1bc3eda7f",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 44,
+     "ccHash": "b13864eaa794abe5bc9d",
+     "pitchLow": 64,
+     "pitchHigh": 93,
+     "velocitySum": 3296,
+     "durationSum": 58844,
+     "articulations": {
+      "legato": 43
+     },
+     "exportHash": "c3d2992e4c0d67d63c4e"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 32,
+     "noteHash": "0345193976efdfa06cd3",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 44,
+     "ccHash": "e730bcaf86af8ceeeb6f",
+     "pitchLow": 60,
+     "pitchHigh": 84,
+     "velocitySum": 2518,
+     "durationSum": 57951,
+     "articulations": {
+      "legato": 32
+     },
+     "exportHash": "6c9c9ff0bf7c2d995c7c"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 32,
+     "noteHash": "c4569dd951b8675491ab",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 44,
+     "ccHash": "8a8ff685134f8d03d2ab",
+     "pitchLow": 50,
+     "pitchHigh": 74,
+     "velocitySum": 2498,
+     "durationSum": 58114,
+     "articulations": {
+      "legato": 32
+     },
+     "exportHash": "0d3fcda86fa7547a211b"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 22,
+     "noteHash": "a48080c0df45b5e9a8a6",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      74
+     ],
+     "ccPoints": 57,
+     "ccHash": "4af8f93c87641e4ac918",
+     "pitchLow": 38,
+     "pitchHigh": 74,
+     "velocitySum": 1615,
+     "durationSum": 8140,
+     "articulations": {
+      "pizz": 22
+     },
+     "exportHash": "6a76aa037576b898b1e2"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 42,
+     "noteHash": "670e18318a858cb7bb0d",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 59,
+     "ccHash": "6fc6a65b5321db54ac93",
+     "pitchLow": 28,
+     "pitchHigh": 62,
+     "velocitySum": 3320,
+     "durationSum": 37873,
+     "articulations": {
+      "legato": 24,
+      "pizz": 18
+     },
+     "exportHash": "861ed05557233349ce90"
+    }
+   },
+   "otherFamiliesHash": "f226d9d5ca22e1734fe6",
+   "conductorHash": "312402e7f8d88d8ec719"
+  },
+  "symphony__dorian-16bars__seed1__take0__d0.9": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 41,
+     "noteHash": "49b8e25c2a1c0d8a744b",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 49,
+     "ccHash": "c66656224b2fdd36e21c",
+     "pitchLow": 55,
+     "pitchHigh": 96,
+     "velocitySum": 3155,
+     "durationSum": 58134,
+     "articulations": {
+      "legato": 41
+     },
+     "exportHash": "74a0d844ad79c7ab84cf"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 37,
+     "noteHash": "4502b7218fbee153a816",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 49,
+     "ccHash": "aa2b038d8d29ded036b7",
+     "pitchLow": 55,
+     "pitchHigh": 93,
+     "velocitySum": 2890,
+     "durationSum": 58034,
+     "articulations": {
+      "legato": 37
+     },
+     "exportHash": "6ecc2d712f320e4cb155"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 40,
+     "noteHash": "20aa2cec17de7903303d",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 49,
+     "ccHash": "e80c7c2c67155b0d7e28",
+     "pitchLow": 48,
+     "pitchHigh": 69,
+     "velocitySum": 3138,
+     "durationSum": 58109,
+     "articulations": {
+      "legato": 40
+     },
+     "exportHash": "437e555d64d8ee198132"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 35,
+     "noteHash": "ae495c46a14035b872ff",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 51,
+     "ccHash": "9bc42b9811416663c656",
+     "pitchLow": 36,
+     "pitchHigh": 69,
+     "velocitySum": 2662,
+     "durationSum": 54269,
+     "articulations": {
+      "legato": 35
+     },
+     "exportHash": "767327de0d7279354a67"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 32,
+     "noteHash": "0e9a9407d260a1538372",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 53,
+     "ccHash": "51b758f32879147179f7",
+     "pitchLow": 31,
+     "pitchHigh": 57,
+     "velocitySum": 2462,
+     "durationSum": 48369,
+     "articulations": {
+      "legato": 32
+     },
+     "exportHash": "1298337c59ba0815e840"
+    }
+   },
+   "otherFamiliesHash": "f6888469450e9c407ab1",
+   "conductorHash": "2629656927983867d113"
+  },
+  "symphony__dorian-16bars__seed1__take0__humanize-false": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 41,
+     "noteHash": "49b8e25c2a1c0d8a744b",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 49,
+     "ccHash": "c66656224b2fdd36e21c",
+     "pitchLow": 55,
+     "pitchHigh": 96,
+     "velocitySum": 3155,
+     "durationSum": 58134,
+     "articulations": {
+      "legato": 41
+     },
+     "exportHash": "74a0d844ad79c7ab84cf"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 37,
+     "noteHash": "4502b7218fbee153a816",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 49,
+     "ccHash": "aa2b038d8d29ded036b7",
+     "pitchLow": 55,
+     "pitchHigh": 93,
+     "velocitySum": 2890,
+     "durationSum": 58034,
+     "articulations": {
+      "legato": 37
+     },
+     "exportHash": "6ecc2d712f320e4cb155"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 40,
+     "noteHash": "20aa2cec17de7903303d",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 49,
+     "ccHash": "e80c7c2c67155b0d7e28",
+     "pitchLow": 48,
+     "pitchHigh": 69,
+     "velocitySum": 3138,
+     "durationSum": 58109,
+     "articulations": {
+      "legato": 40
+     },
+     "exportHash": "437e555d64d8ee198132"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 35,
+     "noteHash": "ae495c46a14035b872ff",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 51,
+     "ccHash": "9bc42b9811416663c656",
+     "pitchLow": 36,
+     "pitchHigh": 69,
+     "velocitySum": 2662,
+     "durationSum": 54269,
+     "articulations": {
+      "legato": 35
+     },
+     "exportHash": "767327de0d7279354a67"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 32,
+     "noteHash": "0e9a9407d260a1538372",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 53,
+     "ccHash": "51b758f32879147179f7",
+     "pitchLow": 31,
+     "pitchHigh": 57,
+     "velocitySum": 2462,
+     "durationSum": 48369,
+     "articulations": {
+      "legato": 32
+     },
+     "exportHash": "1298337c59ba0815e840"
+    }
+   },
+   "otherFamiliesHash": "1d80cda11dff2d2e48d7",
+   "conductorHash": "2629656927983867d113"
+  },
+  "symphony__dorian-16bars__seed1__take0__moments-false": {
+   "strings": {
+    "trk_03_violins1": {
+     "role": "violins1",
+     "notes": 31,
+     "noteHash": "addb6775ecaacd0dd4f4",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 49,
+     "ccHash": "c66656224b2fdd36e21c",
+     "pitchLow": 64,
+     "pitchHigh": 96,
+     "velocitySum": 2460,
+     "durationSum": 57860,
+     "articulations": {
+      "legato": 31
+     },
+     "exportHash": "3d5892809903409ca20e"
+    },
+    "trk_04_violins2": {
+     "role": "violins2",
+     "notes": 27,
+     "noteHash": "5fb71d8b8beb56e3b510",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 49,
+     "ccHash": "aa2b038d8d29ded036b7",
+     "pitchLow": 57,
+     "pitchHigh": 93,
+     "velocitySum": 2174,
+     "durationSum": 57785,
+     "articulations": {
+      "legato": 27
+     },
+     "exportHash": "058023666c8c231175e1"
+    },
+    "trk_05_violas": {
+     "role": "violas",
+     "notes": 40,
+     "noteHash": "2c7266d56348750644e2",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 49,
+     "ccHash": "98011860a420d23381a1",
+     "pitchLow": 55,
+     "pitchHigh": 69,
+     "velocitySum": 3374,
+     "durationSum": 58064,
+     "articulations": {
+      "legato": 40
+     },
+     "exportHash": "47dd830438923a9ca27f"
+    },
+    "trk_06_cellosBasses": {
+     "role": "cellosBasses",
+     "notes": 25,
+     "noteHash": "bcc87a66c835729ed39b",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 51,
+     "ccHash": "9bc42b9811416663c656",
+     "pitchLow": 36,
+     "pitchHigh": 69,
+     "velocitySum": 1945,
+     "durationSum": 53890,
+     "articulations": {
+      "legato": 25
+     },
+     "exportHash": "f9e9101c2891ecb3f6b3"
+    },
+    "trk_basses": {
+     "role": "basses",
+     "notes": 22,
+     "noteHash": "72d867c07768a2229cbb",
+     "ccLanes": [
+      1,
+      7,
+      11,
+      68,
+      74
+     ],
+     "ccPoints": 53,
+     "ccHash": "761b47e0ba5316727b86",
+     "pitchLow": 33,
+     "pitchHigh": 57,
+     "velocitySum": 1741,
+     "durationSum": 48060,
+     "articulations": {
+      "legato": 22
+     },
+     "exportHash": "da3197e191cff075df77"
+    }
+   },
+   "otherFamiliesHash": "ad134fc585f7e15a75db",
+   "conductorHash": "a627d65e1d374f748e0f"
+  }
+ }
+}

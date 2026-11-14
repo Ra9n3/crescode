@@ -10,6 +10,9 @@
 import { PPQ } from '../../shared/schema/types';
 import type { PianoAnalyzerReport, PianoInstrumentObservedFacts, PianoIntervalActivity } from './piano-analyzer';
 import type { PianoEngineInput, PianoGenerationIdentity, PianoMomentKind, PianoTemplateRule } from './piano-engine';
+import { composeTextureTheme, reconcilePianoLeadBalance, type PianoCompositionDiagnostics } from './piano-texture-theme';
+import type { PianoCompositionMode } from './piano-composition-identity';
+import { verifyPianoTransition, type PianoTransitionBar, type PianoTransitionDecision, type PianoTransitionNote, type PianoTransitionRendering } from './piano-transitions';
 import { createPianoScore, type PianoScore, type PianoScoreEvent, type PianoScoreRest, type PianoScoreTarget, type PianoScoreVoiceId, type PianoMusicalRole, type PianoGestureIntent, type PianoTechniqueIntent } from './piano-score';
 
 export type PianoPlanStatus = 'composed' | 'ineligible' | 'insufficient-harmony';
@@ -2558,6 +2561,32 @@ function fillDecisions(
   return decisions;
 }
 
+/**
+ * Stage 2A, identity composer only. A conductor fill window rests the other parts so that the
+ * Piano can fill the bar. When the plan then declines the fill and nothing else is written in
+ * the window, the whole ensemble is silent for a bar at the end of the section. Such a window is
+ * handed to the Piano's transition decision instead: the bar is no longer forced silent, and the
+ * decision for that boundary (which may still be a break, or nothing at all) shapes it.
+ *
+ * A window in which any other part is written keeps its leave-space decision. Only
+ * `fillDecisions` changes; Classic never calls this.
+ */
+export function openPianoOwnedTransitionBars(plan: PianoComposerPlan): PianoComposerPlan {
+  let changed = false;
+  const fillDecisions = plan.fillDecisions.map((decision): PianoFillDecision => {
+    if (decision.target.toLowerCase() !== 'piano' || decision.decision !== 'leave-space'
+      || decision.observedWrittenActivity.availability !== 'available'
+      || decision.observedWrittenActivity.activeTrackIds.length > 0) return decision;
+    changed = true;
+    return {
+      ...decision,
+      decision: 'consider-brief-gesture',
+      rationale: 'The window is reserved for the Piano and no other part is written in it, so leaving it open would silence the whole ensemble for the bar. The Piano\'s transition decision for this boundary shapes the bar; it is not required to add a figure.',
+    };
+  });
+  return changed ? { ...plan, fillDecisions } : plan;
+}
+
 function attackRestrictions(input: PianoEngineInput): PianoAttackRestriction[] {
   const energyByBar = new Map(input.context.energy.map((energy) => [energy.bar, energy]));
   return input.context.barWindows.flatMap((bar) => {
@@ -3473,13 +3502,13 @@ function scoreRests(plan: PianoComposerPlan, events: readonly PianoScoreEvent[],
 }
 
 /**
- * Write Composer-owned MIDI note events from the established phrase/harmony
- * plan. The Realizer receives this score in production and only converts it to
- * the shared Note shape, applies existing template safety policy, and builds
- * the existing CC64 lane. Target ranges and the supplied project endpoint are
- * hard inputs; no range or song length is inferred here.
+ * Legacy per-chord foundation writer (Stages 1-4A). Production no longer uses
+ * its bass, support, inner or motif-cell notes: `composePianoScore` writes the
+ * Texture-and-Theme composition and borrows only this writer's prepared
+ * suspension voice. It is retained for that voice and for the regression
+ * tests that pin the earlier voice-leading and contextual-technique rules.
  */
-export function composePianoScore(
+export function composePianoFoundationScore(
   input: PianoEngineInput,
   plan: PianoComposerPlan,
   target: PianoScoreTarget | null,
@@ -4261,4 +4290,309 @@ export function composePianoScore(
     events,
     rests,
   });
+}
+
+export interface PianoScoreComposition {
+  readonly score: PianoScore;
+  /** Ephemeral sidecar; null when no score could be written. Never persisted. */
+  readonly diagnostics: PianoCompositionDiagnostics | null;
+}
+
+/**
+ * Write the Composer-owned Piano score.
+ *
+ *   Section Arc Plan -> Theme Layer -> Pattern/Texture Layer
+ *     -> Bounded Orchestral Adaptation -> PianoScore
+ *
+ * The Realizer receives the frozen score and only converts it to Note values,
+ * applies the existing template safety policy and builds the CC64 lane.
+ * Target ranges and the supplied project endpoint are hard inputs.
+ */
+export function composePianoScoreWithDiagnostics(
+  input: PianoEngineInput,
+  plan: PianoComposerPlan,
+  target: PianoScoreTarget | null,
+  projectEndTick: number,
+  /** 'identity' (default) or 'classic'; Classic runs the Texture-and-Theme Composer exactly as accepted. */
+  mode?: PianoCompositionMode,
+): PianoScoreComposition {
+  const validEnd = Number.isInteger(projectEndTick) && projectEndTick > 0 ? projectEndTick : 0;
+  const validTarget = target !== null
+    && target.family === 'Keys'
+    && target.role === 'piano'
+    && !target.locked
+    && Number.isInteger(target.lowestNote)
+    && Number.isInteger(target.highestNote)
+    && target.lowestNote >= 0
+    && target.highestNote <= 127
+    && target.lowestNote <= target.highestNote;
+  if (!validTarget || validEnd <= 0 || !plan.template.eligible || plan.status !== 'composed'
+    || !input.context.template.pianoEligible || !plan.harmonicEvents.length) {
+    return {
+      score: createPianoScore({
+        generationIdentity: plan.generationIdentity,
+        templateId: plan.template.id,
+        projectEndTick: validEnd,
+        events: [],
+        rests: [],
+      }),
+      diagnostics: null,
+    };
+  }
+  const density = scoreClamp(generationDensity(input), 0.1, 1);
+  const composition = composeTextureTheme(input, plan, target!, validEnd, density, mode);
+  const harmonicById = new Map(plan.harmonicEvents.map((event) => [event.chord.id, event]));
+  const fallbackHarmony = plan.harmonicEvents[0];
+  let nextEventId = 0;
+  const events: PianoScoreEvent[] = composition.events.map((draft) => {
+    const source = harmonicById.get(draft.chordId) ?? fallbackHarmony;
+    return {
+      id: `${plan.generationIdentity.key}:score:${nextEventId++}`,
+      pitch: draft.pitch,
+      startTick: draft.startTick,
+      durationTicks: draft.durationTicks,
+      hand: draft.hand,
+      voiceId: draft.voiceId,
+      musicalRole: draft.musicalRole,
+      phraseId: draft.phraseId,
+      sectionId: draft.sectionId || null,
+      gestureIntent: draft.gestureIntent,
+      techniqueIntent: draft.techniqueIntent,
+      noteRoleTag: draft.noteRoleTag,
+      articulation: draft.articulation,
+      dynamicIntent: {
+        intensity: Math.round(draft.intensity * 100) / 100,
+        velocity: draft.velocity,
+        phraseShape: source.dynamicIntent.gesture,
+        sourceEnergyTarget: source.dynamicIntent.sourceEnergyTarget,
+      },
+      harmonicContext: scoreHarmonicContext(source),
+    };
+  });
+
+  // Prepared suspensions remain a Composer decision. Each planned pair is
+  // placed under the theme as an inner voice where it fits the right hand and
+  // does not collide with a theme attack; otherwise it is left out and the
+  // Realizer audit reports it as not written.
+  const foundation = composePianoFoundationScore(input, plan, target, projectEndTick);
+  const suspensionVoice = foundation.events.filter((event) => event.voiceId === 'rh.suspension');
+  const endOf = (event: PianoScoreEvent) => event.startTick + event.durationTicks;
+  const lastSuspensionPitch = new Map<string, number>();
+  // Stage 2A, identity composer only. A suspension is an inner voice of a sounding texture. It is
+  // not written into a near-silence or leave-space window, not across a section boundary whose
+  // transition decision is a different gesture, not into a phrase in which the Piano is restrained,
+  // and never where it would be the only Piano note sounding.
+  const performance = mode === 'classic' ? null : composition.diagnostics.performance ?? null;
+  const silentWindows = [
+    ...plan.attackRestrictions.map(({ startTick, endTick }) => ({ startTick, endTick })),
+    ...plan.fillDecisions
+      .filter((decision) => decision.target.toLowerCase() === 'piano' && decision.decision === 'leave-space')
+      .map(({ startTick, endTick }) => ({ startTick, endTick })),
+  ];
+  const transitionWindows = (performance?.transitions ?? []).flatMap((decision) => {
+    const bar = input.context.barWindows.find((window) => window.bar === decision.bar);
+    return bar ? [{ bar: decision.bar, startTick: bar.startTick, endTick: bar.endTick, gesture: decision.gesture as string }] : [];
+  });
+  const figureStillWritten = (): Set<number> => new Set(performance
+    ? verifyPianoTransitions(input, plan, performance.transitions, pianoTransitionNotes(events)).filter((entry) => entry.rendered).map((entry) => entry.bar)
+    : []);
+  const restrainedPhrases = new Set((performance?.roles ?? []).filter((entry) => entry.role === 'restrained').map((entry) => entry.phraseId));
+  const SUSPENSION_FRIENDLY = new Set(['none', 'minimal', 'cadence', 'sustained-handover', 'descending-resolution']);
+  const suspensionOmission = (tension: PianoScoreEvent, resolution: PianoScoreEvent): string | null => {
+    if (!performance) return null;
+    const from = tension.startTick;
+    const to = endOf(resolution);
+    if (silentWindows.some((window) => window.startTick < to && window.endTick > from)) {
+      return 'The suspension would sound inside a near-silence or leave-space window.';
+    }
+    if ((tension.phraseId && restrainedPhrases.has(tension.phraseId)) || (resolution.phraseId && restrainedPhrases.has(resolution.phraseId))) {
+      return 'The Piano is restrained in this phrase.';
+    }
+    // The dissonance is struck before a chord change and held across it. It is not written into, or out
+    // of, the last bar of a section whose transition decision is a figure of its own.
+    const figureBar = transitionWindows.find((window) => window.startTick < to && window.endTick >= from && !SUSPENSION_FRIENDLY.has(window.gesture));
+    if (figureBar) {
+      return `The transition decision of bar ${figureBar.bar} is "${figureBar.gesture}", which a held dissonance would contradict.`;
+    }
+    const accompanied = (start: number, end: number) => events.some((event) => event.startTick < end && endOf(event) > start);
+    if (!accompanied(tension.startTick, endOf(tension)) || !accompanied(resolution.startTick, to)) {
+      return 'No other Piano note sounds with it; it would be an isolated note.';
+    }
+    return null;
+  };
+  const suspensionAllowed = (tension: PianoScoreEvent, resolution: PianoScoreEvent): boolean => {
+    const reason = suspensionOmission(tension, resolution);
+    if (reason && performance) performance.omittedSuspensions.push({ startTick: tension.startTick, resolutionTick: resolution.startTick, reason });
+    return reason === null;
+  };
+  for (let index = 0; index + 1 < suspensionVoice.length; index++) {
+    const tension = suspensionVoice[index];
+    const resolution = suspensionVoice[index + 1];
+    if (tension.techniqueIntent !== 'prepared-suspension' || resolution.techniqueIntent !== 'stepwise-resolution'
+      || endOf(tension) !== resolution.startTick) continue;
+    index++;
+    if (!suspensionAllowed(tension, resolution)) continue;
+    // A suspension may take the theme's place for a beat. It may not take the place of a transition
+    // figure: the state is kept, and restored if a figure that was written is no longer there.
+    const snapshot = performance ? { events: [...events], nextEventId, pitches: new Map(lastSuspensionPitch), written: figureStillWritten() } : null;
+    const windowStart = tension.startTick;
+    const windowEnd = endOf(resolution);
+    const overlapping = () => events.filter((event) => event.startTick < windowEnd && endOf(event) > windowStart);
+    const upperLine = () => overlapping().filter((event) => event.voiceId === 'rh.melody' || event.voiceId === 'rh.octave');
+    const leftTop = Math.max(-1, ...overlapping().filter((event) => event.hand === 'left').map((event) => event.pitch));
+    // The suspension voice stays in one register inside a phrase.
+    const previousInVoice = tension.phraseId ? lastSuspensionPitch.get(tension.phraseId) : undefined;
+    const withinVoiceReach = (pitch: number) => previousInVoice === undefined || Math.abs(pitch - previousInVoice) <= 12;
+    const fitUnder = (): number | null => {
+      const melody = upperLine();
+      if (!melody.length) return null;
+      const melodyLow = Math.min(...melody.map((event) => event.pitch));
+      const melodyHigh = Math.max(...melody.map((event) => event.pitch));
+      // Prefer a placement the right hand can hold with the theme (within an octave). Otherwise
+      // accept one the pedal carries, still inside the validator's hard span limit, so that the
+      // theme is not displaced by its own inner suspension.
+      for (const reach of [12, 19]) {
+        for (const candidate of [0, -12, 12, -24, 24]) {
+          const pitches = [tension.pitch + candidate, resolution.pitch + candidate];
+          if (pitches.every((pitch) => withinVoiceReach(pitch) && pitch > leftTop && pitch < melodyLow - 1
+            && melodyHigh - pitch <= reach
+            && pitch >= target!.lowestNote && pitch <= target!.highestNote)) return candidate;
+        }
+      }
+      return null;
+    };
+    let takeoverEnd: number | null = null;
+    let shift = fitUnder();
+    if (shift === null) {
+      // No room beneath the theme: the suspension takes the theme's place for the boundary beat
+      // only. The theme note struck with it gives way, a theme note already sounding is released
+      // as the dissonance enters, and the theme resumes at its next attack, where the resolution ends.
+      const resume = events
+        .filter((event) => (event.voiceId === 'rh.melody' || event.voiceId === 'rh.octave')
+          && event.startTick >= resolution.startTick + PPQ / 2 && event.startTick < windowEnd)
+        .reduce((earliest, event) => Math.min(earliest, event.startTick), windowEnd);
+      takeoverEnd = resume;
+      for (let eventIndex = events.length - 1; eventIndex >= 0; eventIndex--) {
+        const event = events[eventIndex];
+        if (event.voiceId !== 'rh.melody' && event.voiceId !== 'rh.octave') continue;
+        if (event.startTick >= resume || endOf(event) <= windowStart) continue;
+        if (event.startTick < windowStart) events[eventIndex] = { ...event, durationTicks: windowStart - event.startTick };
+        else events.splice(eventIndex, 1);
+      }
+      const before = events.filter((event) => event.voiceId === 'rh.melody' && event.startTick < windowStart)
+        .sort((x, y) => y.startTick - x.startTick)[0];
+      const reference = previousInVoice ?? before?.pitch ?? Math.max(leftTop + 12, 67);
+      const fits = [0, -12, 12, -24, 24].filter((candidate) =>
+        [tension.pitch + candidate, resolution.pitch + candidate].every((pitch) => pitch > leftTop + 2
+          && pitch >= target!.lowestNote && pitch <= target!.highestNote));
+      fits.sort((x, y) => Math.abs(tension.pitch + x - reference) - Math.abs(tension.pitch + y - reference) || x - y);
+      shift = fits.length ? fits[0] : null;
+    }
+    if (shift === null) continue;
+    const tensionPitch = tension.pitch + shift;
+    const resolutionPitch = resolution.pitch + shift;
+    if (resolution.phraseId) lastSuspensionPitch.set(resolution.phraseId, resolutionPitch);
+    if (tension.phraseId && tension.phraseId !== resolution.phraseId) lastSuspensionPitch.set(tension.phraseId, tensionPitch);
+    // Clear inner support that would smear the dissonance or its resolution.
+    for (let eventIndex = events.length - 1; eventIndex >= 0; eventIndex--) {
+      const event = events[eventIndex];
+      if (event.voiceId !== 'rh.inner' || event.startTick >= windowEnd || endOf(event) <= windowStart) continue;
+      if (Math.abs(event.pitch - tensionPitch) > 2 && Math.abs(event.pitch - resolutionPitch) > 1
+        && Math.abs(event.pitch - Math.min(tensionPitch, resolutionPitch)) <= 12) continue;
+      if (event.startTick < windowStart - PPQ / 2) {
+        events[eventIndex] = { ...event, durationTicks: windowStart - event.startTick };
+      } else {
+        events.splice(eventIndex, 1);
+      }
+    }
+    events.push(
+      { ...tension, id: `${plan.generationIdentity.key}:score:${nextEventId++}`, pitch: tensionPitch },
+      {
+        ...resolution,
+        id: `${plan.generationIdentity.key}:score:${nextEventId++}`,
+        pitch: resolutionPitch,
+        durationTicks: takeoverEnd === null ? resolution.durationTicks
+          : Math.max(1, Math.min(resolution.durationTicks, takeoverEnd - resolution.startTick)),
+      },
+    );
+    if (snapshot && performance) {
+      const after = figureStillWritten();
+      const broken = [...snapshot.written].filter((bar) => !after.has(bar));
+      if (broken.length) {
+        events.length = 0;
+        events.push(...snapshot.events);
+        nextEventId = snapshot.nextEventId;
+        lastSuspensionPitch.clear();
+        for (const [phraseId, pitch] of snapshot.pitches) lastSuspensionPitch.set(phraseId, pitch);
+        performance.omittedSuspensions.push({
+          startTick: tension.startTick, resolutionTick: resolution.startTick,
+          reason: `Writing it would have replaced notes of the transition figure in bar ${broken.join(', ')}.`,
+        });
+      }
+    }
+  }
+
+  const cleaned = avoidScoreUnisonRearticulation(events);
+  if (performance) {
+    // The last word on every boundary: the decision against the notes of the finished score.
+    performance.transitionRendering.length = 0;
+    performance.transitionRendering.push(...verifyPianoTransitions(input, plan, performance.transitions, pianoTransitionNotes(cleaned)));
+    // The balance under a lead, measured again on the finished score.
+    reconcilePianoLeadBalance(composition.diagnostics, 'score', cleaned.map((event) => ({ startTick: event.startTick, velocity: event.dynamicIntent.velocity })));
+  }
+  return {
+    score: createPianoScore({
+      generationIdentity: plan.generationIdentity,
+      templateId: plan.template.id,
+      projectEndTick: validEnd,
+      events: cleaned,
+      rests: scoreRests(plan, cleaned, validEnd),
+    }),
+    diagnostics: composition.diagnostics,
+  };
+}
+
+/** The notes of a score as a transition check reads them: no octave doublings, no suspension voice. */
+export function pianoTransitionNotes(
+  events: readonly Pick<PianoScoreEvent, 'startTick' | 'durationTicks' | 'pitch' | 'voiceId' | 'techniqueIntent'>[],
+): PianoTransitionNote[] {
+  return events.filter((event) => event.voiceId !== 'rh.octave' && event.voiceId !== 'rh.suspension')
+    .map((event) => ({
+      startTick: event.startTick, durationTicks: event.durationTicks, pitch: event.pitch,
+      melody: event.voiceId === 'rh.melody' || event.techniqueIntent === 'independent-counterline',
+    }));
+}
+
+/** The bar of a transition decision, with the chord changes inside it. */
+export function pianoTransitionBar(
+  input: PianoEngineInput, plan: PianoComposerPlan, decision: Pick<PianoTransitionDecision, 'bar' | 'fromThemeRun'>,
+): PianoTransitionBar | null {
+  const window = input.context.barWindows.find((entry) => entry.bar === decision.bar);
+  if (!window) return null;
+  return {
+    startTick: window.startTick, endTick: window.endTick,
+    chordStarts: plan.harmonicEvents.map((event) => event.chord.startTick).filter((tick) => tick > window.startTick && tick < window.endTick),
+    existingRun: decision.fromThemeRun,
+  };
+}
+
+/** Every transition decision of a composition against a set of written notes. */
+export function verifyPianoTransitions(
+  input: PianoEngineInput, plan: PianoComposerPlan, decisions: readonly PianoTransitionDecision[], notes: readonly PianoTransitionNote[],
+): PianoTransitionRendering[] {
+  return decisions.flatMap((decision) => {
+    const bar = pianoTransitionBar(input, plan, decision);
+    return bar ? [verifyPianoTransition(decision, bar, notes)] : [];
+  });
+}
+
+/** Production score entry point; see `composePianoScoreWithDiagnostics`. */
+export function composePianoScore(
+  input: PianoEngineInput,
+  plan: PianoComposerPlan,
+  target: PianoScoreTarget | null,
+  projectEndTick: number,
+  mode?: PianoCompositionMode,
+): PianoScore {
+  return composePianoScoreWithDiagnostics(input, plan, target, projectEndTick, mode).score;
 }

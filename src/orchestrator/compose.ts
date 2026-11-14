@@ -47,12 +47,23 @@ import { KEYS_PARTS } from './keys/profile';
 import { EMPTY_KEYS_PLAN } from './keys/plan';
 import { buildPianoEngineInput, type PianoEngineInput } from './keys/piano-engine';
 import { analyzePianoInput } from './keys/piano-analyzer';
-import { composePianoPlan, composePianoScore } from './keys/piano-composer';
+import { composePianoPlan, composePianoScoreWithDiagnostics, openPianoOwnedTransitionBars } from './keys/piano-composer';
+import type { PianoCompositionMode } from './keys/piano-composition-identity';
+import { reconcilePianoLeadBalance, type PianoCompositionDiagnostics } from './keys/piano-texture-theme';
 import { validatePianoScorePlayability } from './keys/piano-playability';
 import type { PianoScore } from './keys/piano-score';
 import type { PianoPlayabilityReport } from './keys/piano-playability';
 import { realizePianoPlanWithAudit, type PianoRealizedScoreEvent } from './keys/piano-realizer';
 import type { OrchestratorContext } from './module';
+// Strings V1 (mode-guarded): classic strings stay the default; see ./strings/mode
+import { resolveStringsCompositionMode, type StringsCompositionMode } from './strings/mode';
+import { createStringsV1Context, prepareStringsForMode, stringsDiagnosticsOf, withStringsV1Composition, withStringsV1Ensemble, withStringsV1Viola, withStringsV1Cello, withStringsV1DoubleBass, type StringsCompositionDiagnostics } from './strings/bridge';
+import { composeStringsV1Voice, type StringsV1VoiceInput } from './strings/composition';
+import { composeStringsV1Companion } from './strings/ensemble/compose';
+import { composeStringsV1Viola } from './strings/ensemble/third';
+import { composeStringsV1Cello } from './strings/ensemble/fourth';
+import { composeStringsV1DoubleBass } from './strings/ensemble/fifth';
+import { buildStringsUnderstanding } from './strings/understanding';
 
 export interface ComposeOptions {
   seed: number;
@@ -61,6 +72,18 @@ export interface ComposeOptions {
   /** Phase 7: plan moments (default true). Tests disable them to pin that
    *  the texture draws are untouched outside moment bars. */
   moments?: boolean;
+  /**
+   * Piano composition mode. Default 'identity': every generation gets a
+   * coordinated composition identity. 'classic' is the regression mode and
+   * reproduces the accepted Texture-and-Theme Composer exactly.
+   */
+  pianoComposition?: PianoCompositionMode;
+  /**
+   * Strings composition mode. Default 'classic': the existing string engine,
+   * unchanged. 'v1' selects the Strings V1 path (Stage 1: a pass-through that
+   * equals classic output). Independent of `pianoComposition`.
+   */
+  stringsComposition?: StringsCompositionMode;
 }
 
 export interface ComposeResult {
@@ -85,6 +108,10 @@ export interface ComposeResult {
   readonly pianoRealizedScoreEvents: readonly PianoRealizedScoreEvent[];
   /** Report-only diagnostics over the immutable score, before realization. */
   readonly pianoPlayability: PianoPlayabilityReport;
+  /** Ephemeral Piano composition diagnostics. Non-enumerable; never persisted. */
+  readonly pianoDiagnostics: PianoCompositionDiagnostics | null;
+  /** Ephemeral string diagnostics: the mode and the string information other families read. Non-enumerable; never persisted. */
+  readonly stringsDiagnostics: StringsCompositionDiagnostics;
 }
 
 /** Merge V5-generated pedal automation with authored CC64 when supplied. */
@@ -170,10 +197,19 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   // to silence (locked lanes are never written either way).
   const arc = energyCurve(project, ctx.sections, orchestration.take, template, template !== null && voiceTracks.length > 0);
   ctx.arc = arc;
+  // Strings V1 (mode-guarded): the understanding is read before the conductor
+  // runs and attached to the context. Classic mode never enters this branch.
+  const stringsMode = resolveStringsCompositionMode(options.stringsComposition);
+  if (stringsMode === 'v1') {
+    ctx.stringsV1 = createStringsV1Context(buildStringsUnderstanding({
+      project: ctx.project, template, ensemble, spans: ctx.spans, sections: ctx.sections, arc, take: orchestration.take,
+    }));
+  }
   const plan = conduct(ctx, arc, options.moments !== false);
   // Phase 4b: prepare the lines (motif + counterline + constrained voicing)
   // once per compose — the per-section render calls slice the result
-  ctx.lines = prepareStrings(ctx, orchestration.take);
+  // (Strings V1: the bridge routes by mode; classic is exactly prepareStrings)
+  ctx.lines = prepareStringsForMode(stringsMode, ctx, orchestration.take, prepareStrings);
   // Phase 4.6: which texture each section type drew this take (the plan report)
   const typeOrder = [...new Set(ctx.sections.map((s) => sectionTypeKeyOf(s.name)))];
   ctx.lines.reports.push(`textures (take ${orchestration.take}): ${typeOrder.map((t) => `${t}=${textureForType(ctx, t).id}`).join(', ')}`);
@@ -774,11 +810,15 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     finalizedTracks: tracks,
   });
   const pianoAnalyzerReport = analyzePianoInput(pianoEngineInput);
-  const pianoPlanV5 = composePianoPlan(pianoEngineInput, pianoAnalyzerReport);
+  // Identity mode: a fill window that would leave the whole ensemble silent goes to the Piano's
+  // transition decision. Classic keeps the plan exactly as composed.
+  const pianoPlanComposed = composePianoPlan(pianoEngineInput, pianoAnalyzerReport);
+  const pianoPlanV5 = options.pianoComposition === 'classic' ? pianoPlanComposed : openPianoOwnedTransitionBars(pianoPlanComposed);
   const pianoTrack = project.tracks.find((track) => isInstrumentTrack(track)
     && track.family === 'Keys' && track.role === 'piano' && !track.locked
     && isInBand(track.role, ensemble, template));
-  const pianoScore = composePianoScore(pianoEngineInput, pianoPlanV5, pianoTrack ?? null, projectEndTick(project));
+  const pianoComposition = composePianoScoreWithDiagnostics(pianoEngineInput, pianoPlanV5, pianoTrack ?? null, projectEndTick(project), options.pianoComposition);
+  const pianoScore = pianoComposition.score;
   const pianoPlayability = validatePianoScorePlayability(pianoScore, {
     lowestNote: pianoTrack?.lowestNote,
     highestNote: pianoTrack?.highestNote,
@@ -826,6 +866,10 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
             .filter((track) => isInstrumentTrack(track) && track.role !== 'piano')
             .map((track) => ({ role: track.role, notes: track.notes })),
         });
+        // Stage 2A: the balance report is measured on these final notes, after the Realizer and
+        // the mix guard above, against the final notes of the lead. Report only; no note changes.
+        reconcilePianoLeadBalance(pianoComposition.diagnostics, 'track', outputPiano.notes,
+          tracks.flatMap((track) => (isInstrumentTrack(track) && track.role !== 'piano' ? [{ id: track.id, notes: track.notes }] : [])));
       }
     }
     const completeSuspensions = pianoRealization.suspensions.filter((audit) => audit.complete).length;
@@ -839,7 +883,104 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     );
   }
 
-  const result: Omit<ComposeResult, 'pianoEngineInput' | 'pianoScore' | 'pianoRealizedScoreEvents' | 'pianoPlayability'> = {
+  // Strings V1 (mode-guarded), Stage 2: ONE composed voice replaces the
+  // classic part of the track chosen for it — the notes and controller lanes
+  // of that track only. It is composed HERE, after every family (the Piano
+  // included) has been written against the classic strings, so no other
+  // track ever shares a pass with the V1 notes and none can change.
+  // Classic mode never enters this branch.
+  if (stringsMode === 'v1' && ctx.stringsV1) {
+    const v1Input: StringsV1VoiceInput = {
+      project: ctx.project,
+      template,
+      sections: ctx.sections,
+      arc,
+      understanding: ctx.stringsV1.understanding,
+      seed,
+      voiceTracks,
+      reservedTrackIds: splitOn && cbTrack ? [{ trackId: cbTrack.id, reason: 'its notes feed the separate Double Basses desk' }] : [],
+      assignment: ctx.lines!.assignment,
+      carrierByBar: ctx.lines!.carrierByBar,
+      classicNotesByTrackId: Object.fromEntries(stringsTrackIds.map((id) => [id, notesByTrackId[id] ?? []])),
+    };
+    const v1Voice = composeStringsV1Voice(v1Input);
+    ctx.stringsV1 = withStringsV1Composition(ctx.stringsV1, v1Voice);
+    if (v1Voice.written && v1Voice.trackId) {
+      const { trackId, notes, cc } = v1Voice;
+      tracks = tracks.map((t) => (t.id === trackId && isInstrumentTrack(t) ? { ...t, notes: [...notes], cc: [...cc] } : t));
+      ctx.lines!.reports.push(`strings V1 (take ${orchestration.take}): composed voice on ${project.tracks.find((t) => t.id === trackId)?.name ?? trackId} — ${notes.length} notes in ${v1Voice.phrases.length} phrase(s), replacing ${v1Voice.replacedClassicNotes.length} classic notes`);
+    } else {
+      ctx.lines!.reports.push(`strings V1 (take ${orchestration.take}): no voice written, classic strings kept — ${v1Voice.reason}`);
+    }
+    // Stage 3: a SECOND composed voice, on the other violin, written against
+    // the first (which it reads and never changes). It replaces the notes and
+    // controller lanes of that one track only, here at the very end, for the
+    // same reason as above. Viola, Cello and Double Bass stay classic.
+    const v1Companion = composeStringsV1Companion(v1Input, v1Voice);
+    ctx.stringsV1 = withStringsV1Ensemble(ctx.stringsV1, v1Companion);
+    if (v1Companion.written && v1Companion.companion) {
+      const { notes, cc } = v1Companion;
+      const companionId = v1Companion.companion.trackId;
+      tracks = tracks.map((t) => (t.id === companionId && isInstrumentTrack(t) ? { ...t, notes: [...notes], cc: [...cc] } : t));
+      ctx.lines!.reports.push(`strings V1 (take ${orchestration.take}): second voice on ${project.tracks.find((t) => t.id === companionId)?.name ?? companionId} — ${notes.length} notes, replacing ${v1Companion.replacedClassicNotes.length} classic notes; ${v1Companion.review.unresolved.length} unresolved finding(s) after ${v1Companion.review.passes.length} review pass(es)`);
+    } else if (v1Voice.written) {
+      ctx.lines!.reports.push(`strings V1 (take ${orchestration.take}): no second voice, its classic part kept — ${v1Companion.reason}`);
+    }
+    // Stage 4: the Viola as a THIRD composed voice, written against both
+    // violins as they stand (it reads them and never changes them). It
+    // replaces the notes and controller lanes of the Viola track only, here
+    // at the very end. Cello and Double Bass stay classic.
+    const v1Viola = composeStringsV1Viola(v1Input, v1Voice, v1Companion);
+    ctx.stringsV1 = withStringsV1Viola(ctx.stringsV1, v1Viola);
+    if (v1Viola.written && v1Viola.viola) {
+      const { notes, cc } = v1Viola;
+      const violaId = v1Viola.viola.trackId;
+      tracks = tracks.map((t) => (t.id === violaId && isInstrumentTrack(t) ? { ...t, notes: [...notes], cc: [...cc] } : t));
+      ctx.lines!.reports.push(`strings V1 (take ${orchestration.take}): Viola as third voice on ${project.tracks.find((t) => t.id === violaId)?.name ?? violaId} — ${notes.length} notes, replacing ${v1Viola.replacedClassicNotes.length} classic notes; ${v1Viola.review.passes.length} review pass(es)`);
+    } else if (v1Voice.written) {
+      ctx.lines!.reports.push(`strings V1 (take ${orchestration.take}): no Viola voice, its classic part kept — ${v1Viola.reason}`);
+    }
+    // Stage 5: the Cello as a FOURTH composed voice, written against the two
+    // violins and the Viola as they stand (it reads them and never changes
+    // them). It replaces the notes and controller lanes of the Cello track
+    // only. The Double Basses desk — already derived from the classic Cello
+    // line further up — is passed in read-only and is not touched: no Cello
+    // note composed here is copied to it or marked for it.
+    const v1BassDesk = tracks.find((t) => t.role === BASSES_ROLE && isInstrumentTrack(t));
+    const v1Cello = composeStringsV1Cello(v1Input, v1Voice, v1Companion, v1Viola, {
+      doubleBass: v1BassDesk && isInstrumentTrack(v1BassDesk) ? { trackId: v1BassDesk.id, notes: v1BassDesk.notes.map((n) => ({ ...n })) } : null,
+    });
+    ctx.stringsV1 = withStringsV1Cello(ctx.stringsV1, v1Cello);
+    if (v1Cello.written && v1Cello.cello) {
+      const { notes, cc } = v1Cello;
+      const celloId = v1Cello.cello.trackId;
+      tracks = tracks.map((t) => (t.id === celloId && isInstrumentTrack(t) ? { ...t, notes: [...notes], cc: [...cc] } : t));
+      ctx.lines!.reports.push(`strings V1 (take ${orchestration.take}): Cello as fourth voice on ${project.tracks.find((t) => t.id === celloId)?.name ?? celloId} — ${notes.length} notes, replacing ${v1Cello.replacedClassicNotes.length} classic notes; ${v1Cello.thematic.length} thematic entr${v1Cello.thematic.length === 1 ? 'y' : 'ies'}; Double Bass untouched (${v1Cello.doubleBass.notes} notes)`);
+    } else if (v1Voice.written) {
+      ctx.lines!.reports.push(`strings V1 (take ${orchestration.take}): no Cello voice, its classic part kept — ${v1Cello.reason}`);
+    }
+    // Stage 6: the Double Bass as a FIFTH composed voice, written against the
+    // four voices above as they stand (it reads them and never changes them).
+    // It is written onto the Double Basses desk the classic split created
+    // further up and replaces that desk's notes and controller lanes — the
+    // split itself ran on classic notes only and is not run again, so the desk
+    // never holds both. Where the band has no desk, none is created.
+    const v1DeskNow = tracks.find((t) => t.role === BASSES_ROLE && isInstrumentTrack(t));
+    const v1DoubleBass = composeStringsV1DoubleBass(v1Input, v1Voice, v1Companion, v1Viola, v1Cello, {
+      desk: v1DeskNow && isInstrumentTrack(v1DeskNow) ? { trackId: v1DeskNow.id, name: v1DeskNow.name, role: v1DeskNow.role, locked: !!v1DeskNow.locked, notes: v1DeskNow.notes.map((n) => ({ ...n })) } : null,
+    });
+    ctx.stringsV1 = withStringsV1DoubleBass(ctx.stringsV1, v1DoubleBass);
+    if (v1DoubleBass.written && v1DoubleBass.doubleBass) {
+      const { notes, cc } = v1DoubleBass;
+      const deskId = v1DoubleBass.doubleBass.trackId;
+      tracks = tracks.map((t) => (t.id === deskId && isInstrumentTrack(t) ? { ...t, notes: [...notes], cc: [...cc] } : t));
+      ctx.lines!.reports.push(`strings V1 (take ${orchestration.take}): Double Bass as fifth voice on ${v1DeskNow?.name ?? deskId} — ${notes.length} notes, replacing ${v1DoubleBass.replacedClassicNotes.length} notes of the classic split; ${v1DoubleBass.thematic.length} thematic entr${v1DoubleBass.thematic.length === 1 ? 'y' : 'ies'}; ${v1DoubleBass.review.passes.length} review pass(es)`);
+    } else if (v1Voice.written) {
+      ctx.lines!.reports.push(`strings V1 (take ${orchestration.take}): no Double Bass voice, the desk unchanged — ${v1DoubleBass.reason}`);
+    }
+  }
+
+  const result: Omit<ComposeResult, 'pianoEngineInput' | 'pianoScore' | 'pianoRealizedScoreEvents' | 'pianoPlayability' | 'pianoDiagnostics' | 'stringsDiagnostics'> = {
     tracks,
     orchestration,
     stringsTrackIds,
@@ -851,6 +992,8 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     ['pianoScore', pianoScore],
     ['pianoRealizedScoreEvents', pianoRealization.realizedScoreEvents],
     ['pianoPlayability', pianoPlayability],
+    ['pianoDiagnostics', pianoComposition.diagnostics],
+    ['stringsDiagnostics', stringsDiagnosticsOf(stringsMode, ctx.lines!, ctx.stringsV1 ?? null)],
   ] as const) {
     Object.defineProperty(result, key, {
       value,

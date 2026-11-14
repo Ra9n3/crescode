@@ -41,7 +41,7 @@ function productionCase(templateId: TemplateId, priorTake = 0): ProductionCase {
   // but mixer-mute all non-Piano lanes so the Piano is the sole visible writer.
   project.tracks = project.tracks.map((track) =>
     isInstrumentTrack(track) && track.role !== 'piano' ? { ...track, muted: true } : track);
-  const result = composeAllTracks(project, { seed: 11 });
+  const result = composeAllTracks(project, { seed: 11, pianoComposition: 'classic' });
   const pianoTarget = project.tracks.find((track) =>
     isInstrumentTrack(track) && track.family === 'Keys' && track.role === 'piano');
   if (!pianoTarget) throw new Error(`${templateId} fixture has no Piano target.`);
@@ -104,7 +104,7 @@ function realize(input: PianoEngineInput, project: Project, targetTrack: Track, 
       .filter((track) => template.roster.some((entry) => entry.role === track.role))
       .map(({ id, role, notes }) => ({ id, role, notes }))
     : [];
-  const score = composePianoScore(input, plan, targetTrack, projectEndTick(project));
+  const score = composePianoScore(input, plan, targetTrack, projectEndTick(project), 'classic');
   return realizePianoPlanWithAudit({
     plan,
     score,

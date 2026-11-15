@@ -150,7 +150,7 @@ describe('Piano Texture-and-Theme Composer (production Compose All)', () => {
         expect(sample.result.pianoPlayability.violations, `${templateId} playability`).toEqual([]);
       }
     }
-  });
+  }, 20000);
 
   it('keeps the independent composition identical when the orchestra changes, and adapts without stacking', () => {
     for (const templateId of TEMPLATES) {

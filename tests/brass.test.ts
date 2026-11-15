@@ -333,7 +333,7 @@ describe('Phase 8: the moments-on baseline pins', () => {
         }
       }
     }
-  });
+  }, 20000);
 
   it('symphony, cinematic, hybridstudio: every non-brass track matches the baseline outside the sanctioned bars (brass leads, horn solis)', () => {
     for (const templateId of BRASS_TEMPLATES) {

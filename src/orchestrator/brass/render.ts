@@ -125,6 +125,15 @@ export function renderBrass(input: BrassRenderInput): BrassRenderResult {
   // Variety pitch tracking per section type
   const ostPitchByType = new Map<string, number | null>();
   const ostBarsSinceChange = new Map<string, number>();
+  const CONTOUR_PRESET_WEIGHTS: Record<string, number> = { stepwise: 0.5, leapy: 0.3, static: 0.2 };
+  const brassContourByType = new Map<string, 'stepwise'|'leapy'|'static'>();
+  if (variety && brassVarietyRng) {
+    for (const sec of ctx.sections) {
+      const key = secTypeKey(sec.name);
+      if (brassContourByType.has(key)) continue;
+      brassContourByType.set(key, drawWeighted(brassVarietyRng, CONTOUR_PRESET_WEIGHTS) as any);
+    }
+  }
 
   const planByBar = new Map(plan.bars.map((b) => [b.bar, b]));
   const momentVelocity = (bar: number): number => {
@@ -393,7 +402,9 @@ export function renderBrass(input: BrassRenderInput): BrassRenderResult {
         if (span) {
           const leadBars = new Set<number>();
           for (let b = span.startBar; b <= span.endBar; b++) leadBars.add(b);
-          const line = motifLine({ project, spans: ctx.spans, sections: ctx.sections, leadBars, comfortable: BRASS_PROFILES.trumpets.sweet, take });
+          const secForPreset = ctx.sections.find(s=> span.startBar >= s.startBar && span.startBar < s.startBar + s.lengthBars);
+          const preset = variety ? (brassContourByType.get(secTypeKey(secForPreset?.name ?? '*')) ?? undefined) : undefined;
+          const line = motifLine({ project, spans: ctx.spans, sections: ctx.sections, leadBars, comfortable: BRASS_PROFILES.trumpets.sweet, take, ...(preset ? { contourPreset: preset } : {}) });
           for (const n of line) {
             if (n.startTick < barStart || n.startTick >= barEnd) continue;
             const pitch = kind === 'lead' ? n.pitch : fitOctave(n.pitch - 12, sweetLo, sweetHi);

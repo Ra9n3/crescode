@@ -26,6 +26,7 @@ import { chordTones } from '../voicing/chordTones';
 import { leadingTonePcOf } from '../voicing/voiceLead';
 import { scalePitchClasses } from '../../shared/schema/modes';
 import { PPQ, isInstrumentTrack, type Note, type Project, type Track } from '../../shared/schema/types';
+import { barTicks, beatOffsets, beatTicks, projectBars } from '../../shared/schema/meter';
 import { mulberry32, hashString } from '../../engine/generate';
 import { orchestrationSeedFor } from '../spine';
 import { drawWeighted } from '../conductor/layers';
@@ -143,6 +144,15 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
     }
   }
   const isOctaveDoublingAllowed = (template.rules.find((r) => r.type === 'octaveDoubling')?.params as { policy?: string } | undefined)?.policy === 'allowed';
+  const CONTOUR_PRESET_WEIGHTS: Record<string, number> = { stepwise: 0.5, leapy: 0.3, static: 0.2 };
+  const windsContourByType = new Map<string, 'stepwise'|'leapy'|'static'>();
+  if (variety && windsVarietyRng) {
+    for (const sec of ctx.sections) {
+      const key = secTypeKeyW(sec.name);
+      if (windsContourByType.has(key)) continue;
+      windsContourByType.set(key, drawWeighted(windsVarietyRng, CONTOUR_PRESET_WEIGHTS) as any);
+    }
+  }
 
   const planByBar = new Map(plan.bars.map((b) => [b.bar, b]));
   const momentVelocity = (bar: number): number => {
@@ -227,7 +237,9 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
     const hi = prof.softCeiling !== null ? Math.min(prof.sweet[1], prof.softCeiling) : prof.sweet[1];
     const leadBars = new Set<number>();
     for (let b = span.startBar; b <= span.endBar; b++) leadBars.add(b);
-    const line = motifLine({ project, spans: ctx.spans, sections: ctx.sections, leadBars, comfortable: [loFit, Math.min(track.highestNote, hi)], take });
+    const secForPreset = ctx.sections.find(s=> span.startBar >= s.startBar && span.startBar < s.startBar + s.lengthBars);
+    const preset = variety ? (windsContourByType.get(secTypeKeyW(secForPreset?.name ?? '*')) ?? undefined) : undefined;
+    const line = motifLine({ project, spans: ctx.spans, sections: ctx.sections, leadBars, comfortable: [loFit, Math.min(track.highestNote, hi)], take, ...(preset ? { contourPreset: preset } : {}) });
     if (line.length) windLeadLineByTrackId[track.id] = [...(windLeadLineByTrackId[track.id] ?? []), ...line];
   }
 

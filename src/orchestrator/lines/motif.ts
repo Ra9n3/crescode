@@ -48,6 +48,8 @@ export interface MotifInput {
   comfortable: [number, number];
   /** The take counter (D8): same inputs + take → identical motif. */
   take: number;
+  /** Variety contour preset: when set, degreeWalk uses this distribution instead of the fixed 0.4/0.4/0.1/0.1. */
+  contourPreset?: 'stepwise' | 'leapy' | 'static';
 }
 
 /** The chord sounding at a tick (spans are normalized and non-overlapping). */
@@ -92,11 +94,15 @@ function makeRhythmCell(beatsPerBar: number, simple: boolean, rng: () => number)
 }
 
 /** Cumulative scale-degree walk for the cell: one entry per onset. */
-function degreeWalk(onsets: number[], rng: () => number): number[] {
+function degreeWalk(onsets: number[], rng: () => number, preset: string | null = null): number[] {
   const out = [0];
   for (let i = 1; i < onsets.length; i++) {
     const r = rng();
-    const step = r < 0.4 ? 1 : r < 0.8 ? -1 : r < 0.9 ? 2 : -2;
+    let step: number;
+    if (preset === 'stepwise') step = r < 0.45 ? 1 : r < 0.90 ? -1 : r < 0.95 ? 2 : -2;
+    else if (preset === 'leapy') step = r < 0.25 ? 1 : r < 0.50 ? -1 : r < 0.75 ? 2 : -2;
+    else if (preset === 'static') step = r < 0.35 ? 0 : r < 0.55 ? 1 : r < 0.75 ? -1 : r < 0.875 ? 2 : -2;
+    else step = r < 0.4 ? 1 : r < 0.8 ? -1 : r < 0.9 ? 2 : -2;
     out.push(out[i - 1] + step);
   }
   return out;
@@ -150,7 +156,7 @@ export function motifLine(input: MotifInput): Note[] {
   const sorted = [...sections].sort((a, b) => a.startBar - b.startBar);
   const finalSection = sorted[sorted.length - 1];
   const cell = makeRhythmCell(beatsPerBar, simple, rng);
-  const walk = degreeWalk(cell.onsets, rng);
+  const walk = degreeWalk(cell.onsets, rng, (input as any).contourPreset ?? null);
   const statementStartDegree = 2 + Math.floor(rng() * 3); // around the 3rd..5th degree
   // absolute degree anchor: the tonic pitch nearest ~1.5 octaves below the
   // middle of the writing window, so the starting degrees land mid-window

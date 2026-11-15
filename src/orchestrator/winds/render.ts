@@ -26,7 +26,9 @@ import { chordTones } from '../voicing/chordTones';
 import { leadingTonePcOf } from '../voicing/voiceLead';
 import { scalePitchClasses } from '../../shared/schema/modes';
 import { PPQ, isInstrumentTrack, type Note, type Project, type Track } from '../../shared/schema/types';
-import { barTicks, beatOffsets, beatTicks, projectBars } from '../../shared/schema/meter';
+import { mulberry32, hashString } from '../../engine/generate';
+import { orchestrationSeedFor } from '../spine';
+import { drawWeighted } from '../conductor/layers';
 import { secondsToTicks } from '../spine';
 import { maxMeanVelocityFor } from '../energy';
 import { sanitizeNotes } from '../../engine/generate';
@@ -127,6 +129,20 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
   const scalePcs = new Set(scale);
   const ltPc = leadingTonePcOf(project.key, scale);
   const take = project.orchestration?.take ?? 0;
+  const variety = ctx.variety === true;
+  const windsVarietyRng = variety ? mulberry32((orchestrationSeedFor(project, { take }) ^ Math.imul(hashString('winds-variety'), 0x9e3779b1)) >>> 0) : null;
+  const FLUTE_CUTOVER_WEIGHTS: Record<string, number> = { exact: 0.40, everyOther: 0.20, delayedEighth: 0.15, none: 0.15, policyExact: 0.10 };
+  const cutoverByType = new Map<string, string>();
+  const secTypeKeyW = (name: string) => name.trim().toLowerCase() || '*';
+  if (variety && windsVarietyRng) {
+    for (const sec of ctx.sections) {
+      const key = secTypeKeyW(sec.name);
+      if (cutoverByType.has(key)) continue;
+      const mode = drawWeighted(windsVarietyRng, FLUTE_CUTOVER_WEIGHTS);
+      cutoverByType.set(key, mode);
+    }
+  }
+  const isOctaveDoublingAllowed = (template.rules.find((r) => r.type === 'octaveDoubling')?.params as { policy?: string } | undefined)?.policy === 'allowed';
 
   const planByBar = new Map(plan.bars.map((b) => [b.bar, b]));
   const momentVelocity = (bar: number): number => {
@@ -606,6 +622,46 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
           ghosting = true;
           writeKind(ord, bar, barStart, barEnd, norm);
           ghosting = false;
+        }
+        if (variety) {
+          const secHere = ctx.sections.find((s) => bar >= s.startBar && bar < s.startBar + s.lengthBars);
+          const key = secTypeKeyW(secHere?.name ?? '*');
+          let mode = cutoverByType.get(key) ?? 'exact';
+          // policy guard: unison an octave higher not allowed to break octaveDoubling
+          if (mode === 'policyExact' && !isOctaveDoublingAllowed) mode = 'exact';
+          if (mode === 'none') {
+            // no cut-over: flutes keep their own line (already ghost-advanced, now render it for real)
+            const start = candidates.length;
+            writeKind(kind, bar, barStart, barEnd, norm);
+            const produced = candidates.splice(start);
+            // still apply gap rules for none? flutes keep own line, so gaps apply like other winds
+            const brassOnsets = brassOnsetsAtBar(bar);
+            let kept = produced.filter((c) => {
+              if (isSoft(c.articulation) && c.durationTicks >= beat) return true;
+              return !brassOnsets.some((o) => c.startTick >= o && c.startTick < o + eighth);
+            });
+            const leadHere = plan.leads.find((l) => bar >= l.startBar && bar <= l.endBar);
+            if (leadHere && part !== leadHere.part && !planBar.moment) {
+              const ceiling = ceilingAtBar(bar);
+              if (ceiling !== null) kept = kept.filter((c) => c.pitch <= ceiling);
+            }
+            candidates.push(...kept);
+            continue;
+          }
+          const capHi = norm >= 0.72 ? Math.min(sweetHi, 91) : Math.min(sweetHi, softHi);
+          const tuneNotes = tuneAtBar(bar);
+          let filtered = tuneNotes;
+          if (mode === 'everyOther') filtered = tuneNotes.filter((_,i)=> i%2===0);
+          const delay = mode === 'delayedEighth' ? eighth : 0;
+          for (const n of filtered) {
+            const s = Math.max(n.startTick + delay, barStart);
+            const e = Math.min(n.startTick + n.durationTicks + delay, barEnd);
+            if (e - s < 1) continue;
+            const pitch = fitOctave(n.pitch + 12, sweetLo, capHi);
+            if (ltPc !== null && (((pitch % 12) + 12) % 12) === ltPc) continue;
+            candidates.push({ pitch, startTick: s, durationTicks: e - s, articulation: artFor(pitch, 'legato', 'marcato') });
+          }
+          continue;
         }
         // the cut-over: the tune's notes at the octave above, fitted; notes
         // above MIDI 84 only when the bar's energy allows them (§14.6), and

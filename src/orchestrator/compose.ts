@@ -65,6 +65,8 @@ export interface ComposeOptions {
   moments?: boolean;
   /** Arrangement seed offset (default 0). effectiveTake = persistedTake + arrangementSeed * 1000. */
   arrangementSeed?: number;
+  /** Variety switch (default false). When true brass/winds use extra seeded variety draws behind their own salted streams. */
+  variety?: boolean;
   /**
    * Piano composition mode. Default 'identity': every generation gets a
    * coordinated composition identity. 'classic' is the regression mode and
@@ -185,7 +187,7 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     ...(orchestration.sectionLocks ? { sectionLocks: [...orchestration.sectionLocks] } : {}),
   };
 
-  const ctx: OrchestratorContext = { project: { ...project, orchestration: effectiveOrchestration }, template, ensemble, spans: chordSpans(project), sections: sectionMap(project) };
+  const ctx: OrchestratorContext = { project: { ...project, orchestration: effectiveOrchestration }, template, ensemble, spans: chordSpans(project), sections: sectionMap(project), ...(options?.variety !== undefined ? { variety: options.variety } : {}) } as OrchestratorContext;
   const seed = orchestrationSeedFor(project, effectiveOrchestration);
   const voiceTracks = stringVoiceTracks(ctx);
   // Phase 3c/3d: the per-bar energy arc, seeded per D8 — the near-silence

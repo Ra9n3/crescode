@@ -47,6 +47,8 @@ export interface OrchestratorContext {
    *  after the percussion. An in-memory annotation — never persisted; the
    *  keys renderer realises it after the percussion renderer. */
   keysPlan?: KeysPlan;
+  /** Variety switch: when true extra brass/wind variety draws are enabled behind their own salted streams. */
+  variety?: boolean;
 }
 
 /** The string layer vocabulary the orchestrator renders today (Phase 4a) —

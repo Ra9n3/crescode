@@ -18,6 +18,11 @@ import { chordTones } from '../voicing/chordTones';
 import { leadingTonePcOf } from '../voicing/voiceLead';
 import { scalePitchClasses } from '../../shared/schema/modes';
 import { PPQ, isInstrumentTrack, type Note, type Project, type Track } from '../../shared/schema/types';
+import { mulberry32, hashString } from '../../engine/generate';
+import { orchestrationSeedFor } from '../spine';
+import { drawWeighted } from '../conductor/layers';
+import { cellGrid } from '../lines/ostinato';
+import type { OstinatoCellId, OstinatoRate } from '../conductor/layers';
 import { barTicks, beatOffsets, beatTicks, projectBars } from '../../shared/schema/meter';
 import { secondsToTicks } from '../spine';
 import { maxMeanVelocityFor } from '../energy';
@@ -99,6 +104,27 @@ export function renderBrass(input: BrassRenderInput): BrassRenderResult {
   const scale = scalePitchClasses(project.key, project.mode);
   const ltPc = leadingTonePcOf(project.key, scale);
   const take = project.orchestration?.take ?? 0;
+  const variety = ctx.variety === true;
+  // Brass variety stream — own salt, never shifts existing draws
+  const brassVarietyRng = variety ? mulberry32((orchestrationSeedFor(project, { take }) ^ Math.imul(hashString('brass-variety'), 0x9e3779b1)) >>> 0) : null;
+  // Per-section-type ostinato cell/rate draws for variety
+  const OST_CELL_WEIGHTS: Record<OstinatoCellId, number> = { straight: 30, syncopated: 20, gallop: 12, offBeat: 18, sparse: 20 };
+  const RATE_WEIGHTS: Record<OstinatoRate, number> = { eighths: 75, sixteenths: 25 };
+  const ostStyleByType = new Map<string, { cell: OstinatoCellId; rate: OstinatoRate; pitchEveryBars: number }>();
+  const secTypeKey = (name: string) => name.trim().toLowerCase() || '*';
+  if (variety && brassVarietyRng) {
+    for (const sec of ctx.sections) {
+      const key = secTypeKey(sec.name);
+      if (ostStyleByType.has(key)) continue;
+      const cell = drawWeighted(brassVarietyRng, OST_CELL_WEIGHTS) as OstinatoCellId;
+      const rate = drawWeighted(brassVarietyRng, RATE_WEIGHTS) as OstinatoRate;
+      const pitchEveryBars = brassVarietyRng() < 0.5 ? 1 : 2;
+      ostStyleByType.set(key, { cell, rate, pitchEveryBars });
+    }
+  }
+  // Variety pitch tracking per section type
+  const ostPitchByType = new Map<string, number | null>();
+  const ostBarsSinceChange = new Map<string, number>();
 
   const planByBar = new Map(plan.bars.map((b) => [b.bar, b]));
   const momentVelocity = (bar: number): number => {
@@ -311,14 +337,52 @@ export function renderBrass(input: BrassRenderInput): BrassRenderResult {
           push('hit', nearest(pool, target), onset, Math.min(beat, barEnd - onset), 'marcato');
         }
       } else if (kind === 'ostinato') {
-        // the trailer's pinned grid: straight sixteenths (§13.4); horns and
-        // trumpets only — the planner never assigns trombones/tuba here
-        const step = PPQ / 4;
-        const pool = noLt(tonePitches(spanAt(barStart).parsed, sweetLo, sweetHi));
-        if (pool.length) {
-          const pitch = nearest(pool, groups.rep.prevPitch ?? (sweetLo + sweetHi) / 2);
-          for (let t = barStart; t < barEnd; t += step) {
-            push('rep', pitch, t, Math.min(step, barEnd - t), 'spiccato');
+        if (variety) {
+          const secHere = ctx.sections.find((s) => bar >= s.startBar && bar < s.startBar + s.lengthBars);
+          const key = secTypeKey(secHere?.name ?? '*');
+          const style = ostStyleByType.get(key) ?? { cell: 'straight' as OstinatoCellId, rate: 'eighths' as OstinatoRate, pitchEveryBars: 1 };
+          const grid = cellGrid(project.timeSignature, style.cell, style.rate);
+          const slots = grid.slots;
+          const perBeat = grid.perBeat;
+          // pitch moves every pitchEveryBars
+          const barsSince = ostBarsSinceChange.get(key) ?? 999;
+          const prevPitchVal = ostPitchByType.get(key) ?? null;
+          let pitch: number | null = prevPitchVal;
+          if (barsSince >= style.pitchEveryBars || pitch === null) {
+            const pool = noLt(tonePitches(spanAt(barStart).parsed, sweetLo, sweetHi));
+            if (pool.length) {
+              // pick new pitch distinct from previous when possible
+              const target = prevPitchVal ?? (sweetLo + sweetHi) / 2;
+              const sorted = [...pool].sort((a,b)=> Math.abs(a-target)-Math.abs(b-target));
+              pitch = sorted.find(p=> p!==prevPitchVal) ?? sorted[0];
+              ostPitchByType.set(key, pitch);
+              ostBarsSinceChange.set(key, 1);
+            }
+          } else {
+            ostBarsSinceChange.set(key, barsSince+1);
+          }
+          if (pitch !== null) {
+            const beatTicksVal = beatTicks(project.timeSignature);
+            for (const slotIdx of slots) {
+              const t = barStart + Math.floor(slotIdx / perBeat) * beatTicksVal + (slotIdx % perBeat) * Math.floor(beatTicksVal / perBeat);
+              if (t < barStart || t >= barEnd) continue;
+              // spiccato length = step to next slot or beat/perBeat
+              const nextIdx = slots[slots.indexOf(slotIdx)+1];
+              const dur = nextIdx !== undefined ? (Math.floor(nextIdx / perBeat)*beatTicksVal + (nextIdx%perBeat)*Math.floor(beatTicksVal/perBeat)) - (Math.floor(slotIdx/perBeat)*beatTicksVal + (slotIdx%perBeat)*Math.floor(beatTicksVal/perBeat)) : Math.floor(beatTicksVal/perBeat);
+              push('rep', pitch, t, Math.min(Math.max(PPQ/8, dur*0.75), barEnd - t), 'spiccato');
+            }
+            groups.rep.prevPitch = pitch;
+          }
+        } else {
+          // the trailer's pinned grid: straight sixteenths (§13.4); horns and
+          // trumpets only — the planner never assigns trombones/tuba here
+          const step = PPQ / 4;
+          const pool = noLt(tonePitches(spanAt(barStart).parsed, sweetLo, sweetHi));
+          if (pool.length) {
+            const pitch = nearest(pool, groups.rep.prevPitch ?? (sweetLo + sweetHi) / 2);
+            for (let t = barStart; t < barEnd; t += step) {
+              push('rep', pitch, t, Math.min(step, barEnd - t), 'spiccato');
+            }
           }
         }
       } else if (kind === 'lead' || kind === 'leadDouble') {

@@ -1,7 +1,0 @@
-01-lyrical-dorian__seed-1__take-1 designed/retained 34/34 flutes:12 oboes:25 clarinets:8 bassoons:18 independent bassoon 18
-02-dialogue-dorian__seed-1__take-1 designed/retained 109/109 flutes:54 oboes:0 clarinets:60 bassoons:0 independent bassoon 0
-03-low-support__seed-3__take-1 designed/retained 30/30 flutes:24 oboes:0 clarinets:8 bassoons:9 independent bassoon 9
-04-lyrical-aeolian__seed-1__take-1 designed/retained 40/40 flutes:22 oboes:22 clarinets:16 bassoons:25 independent bassoon 25
-01-lyrical-dorian__seed-7__take-1 designed/retained 31/31 flutes:19 oboes:19 clarinets:13 bassoons:16 independent bassoon 16
-02-dialogue-dorian__seed-1__take-2 designed/retained 101/101 flutes:55 oboes:0 clarinets:58 bassoons:0 independent bassoon 0
-Wrote 329 package files; 306 MIDI files. README is maintained alongside generated evidence.

@@ -14,7 +14,6 @@ import { barTicks, projectEndTick } from '../shared/schema/meter';
 import { MODES } from '../shared/schema/modes';
 import { PPQ, isInstrumentTrack, type CcLane, type Note, type Project, type Track } from '../shared/schema/types';
 import { chunksForTrack, type ExportProfile, type FoldStats } from './profile';
-import { observeWindExport } from './wind-audit';
 
 type Abs = MidiEvent & { abs: number; order: number };
 
@@ -103,28 +102,10 @@ export function exportableTracks(p: Project, mode: 'all' | 'selected' | 'unlocke
   return p.tracks.filter((t) => isInstrumentTrack(t) && (mode === 'all' || (mode === 'selected' ? selected.includes(t.id) : !t.locked)));
 }
 
-/** Queue observers from the SAME chunks used for serialization. No second
- * profile run and no speculative claim that composing already exported. */
-function exportChunks(p: Project, tracks: Track[], profile: ExportProfile | null, stats: FoldStats | undefined, scope: 'merged' | 'per-track') {
-  const observations: (() => void)[] = [];
-  const sum = (rec: Record<string, number>) => Object.values(rec).reduce((a, b) => a + b, 0);
-  const chunks = tracks.flatMap((t) => {
-    const beforeFold = stats ? sum(stats.folded) : 0;
-    const beforeDrop = stats ? sum(stats.droppedHardRange) + sum(stats.droppedDoubling) : 0;
-    const cs = chunksForTrack(p, t, profile, stats);
-    const folded = stats ? sum(stats.folded) - beforeFold : 0;
-    const dropped = stats ? sum(stats.droppedHardRange) + sum(stats.droppedDoubling) - beforeDrop : 0;
-    if (stats?.winds) observations.push(() => observeWindExport(t, cs, scope, projectEndTick(p), folded, dropped, stats, !!profile?.unmapped?.includes(t.role)));
-    return cs;
-  });
-  return { chunks, observed: () => observations.forEach((observe) => observe()) };
-}
-
 /** Single Type-1 file: conductor track + one track per instrument (per profile part when a profile is given). Parts whose fileScope is 'fileOnly' (Phase 12) export as their own files only — the merged file carries what fits and skips them. */
 export function buildMergedMidi(p: Project, tracks: Track[], profile: ExportProfile | null = null, stats?: FoldStats): Uint8Array {
   const end = projectEndTick(p);
-  const prepared = exportChunks(p, tracks, profile, stats, 'merged');
-  const chunks = prepared.chunks.filter((c) => !c.fileOnly);
+  const chunks = tracks.flatMap((t) => chunksForTrack(p, t, profile, stats)).filter((c) => !c.fileOnly);
   const data: MidiData = {
     header: { format: 1, numTracks: chunks.length + 1, ticksPerBeat: PPQ },
     tracks: [
@@ -132,9 +113,7 @@ export function buildMergedMidi(p: Project, tracks: Track[], profile: ExportProf
       ...chunks.map((c) => finalize([nameEvent(c.name), ...ccEvents(c.cc, c.channel, end), ...noteEvents(c.notes, c.channel, end)], end)),
     ],
   };
-  const bytes = new Uint8Array(writeMidi(data));
-  prepared.observed();
-  return bytes;
+  return new Uint8Array(writeMidi(data));
 }
 
 export function perTrackFileName(p: Project, t: Track): string {
@@ -146,9 +125,9 @@ export function perTrackFileName(p: Project, t: Track): string {
 /** One Type-1 file per instrument (per profile part when a profile is given); each has tempo/time/key and ends at the project end tick. fileScope 'fileOnly' parts get their file here too (Phase 12). */
 export function buildPerTrackMidi(p: Project, tracks: Track[], profile: ExportProfile | null = null, stats?: FoldStats): { fileName: string; data: Uint8Array }[] {
   const end = projectEndTick(p);
-  const prepared = exportChunks(p, tracks, profile, stats, 'per-track');
-  const files = prepared.chunks.map((c) => ({
-      fileName: c.fileName ?? perTrackFileName(p, { ...tracks.find((t) => t.id === c.trackId)!, name: c.name }),
+  return tracks.flatMap((t) =>
+    chunksForTrack(p, t, profile, stats).map((c) => ({
+      fileName: c.fileName ?? perTrackFileName(p, { ...t, name: c.name }),
       data: new Uint8Array(writeMidi({
         header: { format: 1, numTracks: 2, ticksPerBeat: PPQ },
         tracks: [
@@ -156,9 +135,8 @@ export function buildPerTrackMidi(p: Project, tracks: Track[], profile: ExportPr
           finalize([nameEvent(c.name), ...ccEvents(c.cc, c.channel, end), ...noteEvents(c.notes, c.channel, end)], end),
         ],
       })),
-    }));
-  prepared.observed();
-  return files;
+    })),
+  );
 }
 
 export interface ParsedCcEvent { cc: number; tick: number; value: number }

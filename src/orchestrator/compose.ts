@@ -39,7 +39,6 @@ import { EMPTY_BRASS_PLAN } from './brass/plan';
 import { renderWinds, governWindsVelocities } from './winds/render';
 import { WIND_PARTS } from './winds/profile';
 import { EMPTY_WIND_PLAN } from './winds/plan';
-import { completeWindsV1, compatibilityWindDiagnostics, type WindDiagnostics } from './winds/production';
 import { renderPercussion, governPercussionVelocities } from './percussion/render';
 import { PERC_PARTS } from './percussion/profile';
 import { EMPTY_PERC_PLAN } from './percussion/plan';
@@ -69,8 +68,6 @@ import { composeStringsV1DoubleBass } from './strings/ensemble/fifth';
 import { buildStringsUnderstanding } from './strings/understanding';
 
 export interface ComposeOptions {
-  /** Explicit API-only opt-in. No UI/default change; classic preserves all historical output. */
-  windsComposition?: 'classic' | 'v1';
   seed: number;
   density?: number;
   humanize?: boolean;
@@ -121,8 +118,6 @@ export interface ComposeResult {
   readonly pianoDiagnostics: PianoCompositionDiagnostics | null;
   /** Ephemeral string diagnostics: the mode and the string information other families read. Non-enumerable; never persisted. */
   readonly stringsDiagnostics: StringsCompositionDiagnostics;
-  /** Ephemeral production provenance; export is observed separately at the MIDI boundary. */
-  readonly windDiagnostics: WindDiagnostics;
 }
 
 /** Merge V5-generated pedal automation with authored CC64 when supplied. */
@@ -1007,15 +1002,7 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     } // explicit historical development: sequential Stage 2–6 handoffs
   }
 
-  // One-way finalization boundary: all accepted non-wind writers have completed.
-  // Their compatibility/reservation pass is deliberately not replanned.
-  const finalWinds = options.windsComposition === 'v1'
-    ? completeWindsV1(ctx, tracks, options.seed)
-    : { tracks, diagnostics: compatibilityWindDiagnostics(ctx, tracks) };
-  tracks = finalWinds.tracks;
-  if (options.windsComposition === 'v1') ctx.lines!.reports.push(`winds V1: ${finalWinds.diagnostics.route}; ${finalWinds.diagnostics.parts.map((p) => `${p.part}: ${p.state} (${p.retainedNotes})`).join('; ')}`);
-
-  const result: Omit<ComposeResult, 'pianoEngineInput' | 'pianoScore' | 'pianoRealizedScoreEvents' | 'pianoPlayability' | 'pianoDiagnostics' | 'stringsDiagnostics' | 'windDiagnostics'> = {
+  const result: Omit<ComposeResult, 'pianoEngineInput' | 'pianoScore' | 'pianoRealizedScoreEvents' | 'pianoPlayability' | 'pianoDiagnostics' | 'stringsDiagnostics'> = {
     tracks,
     orchestration,
     stringsTrackIds,
@@ -1023,7 +1010,6 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     reports: [...ctx.lines!.reports],
   };
   for (const [key, value] of [
-    ['windDiagnostics', finalWinds.diagnostics],
     ['pianoEngineInput', pianoEngineInput],
     ['pianoScore', pianoScore],
     ['pianoRealizedScoreEvents', pianoRealization.realizedScoreEvents],

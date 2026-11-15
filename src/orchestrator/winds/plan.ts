@@ -25,7 +25,6 @@
  * ordinary winds. Moment kinds (tutti/unison/soli) and the wind lead are
  * exempt: each carries its own placement contract from its planner.
  */
-import type { WindEnsembleScore } from './ensemble';
 import { mulberry32, hashString } from '../../engine/generate';
 import { orchestrationSeedFor, ticksToSeconds, type ArcBar, type SpineSection } from '../spine';
 import { barTicks, beatTicks, projectBars } from '../../shared/schema/meter';
@@ -45,7 +44,7 @@ import {
 } from './profile';
 
 export type WindVoiceKind =
-  | 'phrase' | 'colour' | 'leadDouble' | 'counter' | 'bassDouble' | 'harmony' | 'ostinato'
+  | 'colour' | 'leadDouble' | 'counter' | 'bassDouble' | 'harmony' | 'ostinato'
   | 'lead' | 'tutti' | 'unison' | 'soli';
 
 export interface WindBarPlan {
@@ -90,8 +89,6 @@ export interface LeadDoubleChoice {
 }
 
 export interface WindPlan {
-  /** Present only on the final V1 path; Classic reservations remain unchanged. */
-  ensemble?: WindEnsembleScore;
   bars: WindBarPlan[];
   leads: WindLeadSpan[];
   /** The drawn lead double per section-type key. */
@@ -187,12 +184,7 @@ export function planWindLeads(
  * brass renderer so the velocity math and the windowing see every other
  * family's notes.
  */
-/** Only V1 supplies these hooks. Classic preserves its historical stream/order. */
-export interface WindPlanningOptions {
-  readonly reservedLeads: readonly WindLeadSpan[];
-  readonly rngFor: (category: 'casting' | 'instrument-variation', key: string) => () => number;
-}
-export function planWinds(ctx: OrchestratorContext, options?: WindPlanningOptions): WindPlan {
+export function planWinds(ctx: OrchestratorContext): WindPlan {
   const { project, template, sections, arc } = ctx;
   const moments = ctx.moments ?? [];
   const take = project.orchestration?.take ?? 0;
@@ -203,7 +195,7 @@ export function planWinds(ctx: OrchestratorContext, options?: WindPlanningOption
   if (!roster.length) return EMPTY_WIND_PLAN;
 
   const rng = windRng(project, take);
-  const leads = options ? options.reservedLeads.map((l) => ({ ...l })) : planWindLeads(project, template, sections, arc, rng);
+  const leads = planWindLeads(project, template, sections, arc, rng);
 
   // the lead double, one draw pair per section type (first-occurrence order)
   const doubleParts = roster.filter((p) => p === 'flutes' || p === 'oboes');
@@ -211,8 +203,8 @@ export function planWinds(ctx: OrchestratorContext, options?: WindPlanningOption
   for (const sec of sections) {
     const key = secTypeKey(sec.name);
     if (leadDoubleByType[key] !== undefined) continue;
-    const mode = drawWeighted(options?.rngFor('casting', `double-mode:${key}`) ?? rng, LEAD_DOUBLE_MODE_WEIGHTS);
-    const part = doubleParts.length ? drawWeighted(options?.rngFor('casting', `double-part:${key}`) ?? rng, LEAD_DOUBLE_PART_WEIGHTS, doubleParts) : null;
+    const mode = drawWeighted(rng, LEAD_DOUBLE_MODE_WEIGHTS);
+    const part = doubleParts.length ? drawWeighted(rng, LEAD_DOUBLE_PART_WEIGHTS, doubleParts) : null;
     leadDoubleByType[key] = { mode, part: mode === 'none' ? null : part };
   }
 
@@ -220,15 +212,14 @@ export function planWinds(ctx: OrchestratorContext, options?: WindPlanningOption
   const flutterBars: Partial<Record<WindPart, number[]>> = {};
   for (const part of ['flutes', 'clarinets'] as WindPart[]) {
     if (!roster.includes(part)) continue;
-    const flutterRng = options?.rngFor('instrument-variation', `flutter:${part}`) ?? rng;
-    if (flutterRng() >= FLUTTER_WEIGHTS[part]) continue;
+    if (rng() >= FLUTTER_WEIGHTS[part]) continue;
     const peakBars: number[] = [];
     for (let b = 1; b <= arc.length; b++) {
       if ((arc[b - 1]?.target ?? 0) / clampMax < WIND_GATES.peak) continue;
       if (leads.some((l) => b >= l.startBar && b <= l.endBar)) continue;
       peakBars.push(b);
     }
-    if (peakBars.length) flutterBars[part] = [peakBars[Math.floor(flutterRng() * peakBars.length)]];
+    if (peakBars.length) flutterBars[part] = [peakBars[Math.floor(rng() * peakBars.length)]];
   }
 
   // the pickup runs: structural candidates only — the bar before a
@@ -244,11 +235,10 @@ export function planWinds(ctx: OrchestratorContext, options?: WindPlanningOption
     const bar = sec.startBar - 1; // the pickup bar
     if (bar < 1 || noGo.has(bar)) continue;
     if (!((arc[bar - 1]?.target ?? 0) < (arc[sec.startBar - 1]?.target ?? 0))) continue; // the dip clears the entry
-    const pickupRng = options?.rngFor('casting', `pickup:${sec.startBar}`) ?? rng;
-    if (pickupRng() >= PICKUP_RUN_CHANCE) continue;
+    if (rng() >= PICKUP_RUN_CHANCE) continue;
     if (pickupRuns.length >= PICKUP_RUN_MAX) break;
     if (!runParts.length) continue;
-    const part = drawWeighted(options?.rngFor('casting', `pickup-part:${sec.startBar}`) ?? rng, PICKUP_RUN_PART_WEIGHTS, runParts);
+    const part = drawWeighted(rng, PICKUP_RUN_PART_WEIGHTS, runParts);
     // the landing pitch: the leading-tone-free chord tone of the downbeat
     // span inside the part's sweet window, nearest the window's middle
     const downbeatTick = (sec.startBar - 1) * btBar;

@@ -3,9 +3,8 @@
  *
  * 'classic' is the existing string engine and stays the default: a caller
  * that omits the option, or passes anything unknown, gets classic strings.
- * 'v1' selects the Strings V1 path through `ComposeOptions.stringsComposition`.
- * Browser development sessions supply it for local audition; production
- * pages and direct API callers keep the classic default.
+ * 'v1' selects the Strings V1 path. It is reachable only through
+ * `ComposeOptions.stringsComposition`; the app store never passes it.
  */
 export type StringsCompositionMode = 'classic' | 'v1';
 

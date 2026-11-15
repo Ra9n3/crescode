@@ -16,12 +16,6 @@ npm run dev          # http://localhost:5173 — open in Edge or Chrome
 npm run build        # produces dist/index.html (one self-contained file; open it directly)
 ```
 
-### Listen to Strings V1 + Woodwinds V1 locally
-
-Normal `npm run dev` browser sessions now use **both Strings V1 and Woodwinds V1** when you click **Compose All**. Open `http://localhost:5173/`—no query parameters or API setup. Select an ensemble (use **Symphony** to include all four winds), unlock the parts you want regenerated, then click **Compose All** and play or export MIDI. Existing notes are not replaced until you compose again. Locks and band membership still apply.
-
-The local audition selection is not saved into projects. Built/production pages (`npm run build` / `npm run preview`) and direct API calls retain Classic defaults unless explicitly opted in. Browser preview uses the built-in synth, not UVI samples; use the unchanged UVI MIDI export for Studio One/sample-library listening.
-
 Nothing goes over the network at runtime. The fonts are bundled. The engine connection is off by default, and when turned on it only targets 127.0.0.1.
 
 ## Test

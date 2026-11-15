@@ -1,16 +1,17 @@
-/// <reference types="vite/client" />
 /**
- * Browser development defaults for local audition.
+ * Development-only audition switch for Strings V1.
  *
- * Normal `npm run dev` Compose All uses Strings V1 AND Woodwinds V1,
- * without URL flags. Nothing is persisted and no project schema changes.
- * Production builds and non-browser/API callers keep their classic defaults.
- * The historical helper name is retained for existing callers/tests.
+ * Opening the DEV server with `?strings=v1` in the address makes Compose All
+ * request the V1 string composition for that page load. Nothing is stored:
+ * no setting, no project field, no UI control. Without the query parameter,
+ * and in every production build, this returns no override and Compose All
+ * runs exactly as before (classic strings).
  */
 import type { ComposeOptions } from '../orchestrator/compose';
 
-export function devStringsAuditionOverride(): Pick<ComposeOptions, 'stringsComposition' | 'windsComposition'> {
-  if (import.meta.env?.DEV !== true) return {};
+export function devStringsAuditionOverride(): Pick<ComposeOptions, 'stringsComposition'> {
+  const env = (import.meta as unknown as { env?: { DEV?: boolean } }).env;
+  if (!env || env.DEV !== true) return {};
   if (typeof window === 'undefined' || !window.location) return {};
-  return { stringsComposition: 'v1', windsComposition: 'v1' };
+  return new URLSearchParams(window.location.search).get('strings') === 'v1' ? { stringsComposition: 'v1' } : {};
 }

@@ -9,7 +9,7 @@ import {
 import { ENSEMBLE_BY_ID, resolveTemplate } from '../config/ensembles';
 import { composeAllTracks } from '../orchestrator/compose';
 import { devStringsAuditionOverride } from '../dev/stringsAudition';
-const stringsDiagnosticsOfResult = (res: object): unknown => (res as { stringsDiagnostics?: unknown }).stringsDiagnostics;
+const stringsDiagnosticsOfResult = (res: object): unknown => (res as { stringsDiagnostics?: { v1?: { composition?: unknown } | null } }).stringsDiagnostics?.v1?.composition;
 import { transformProjectMode, transposeProjectKey } from '../engine/suggestion/transpose';
 import type { FollowMode } from '../engine/transport/follow';
 
@@ -66,11 +66,7 @@ const loadSettings = (): Settings => {
   try { return { ...d, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') }; } catch { return d; }
 };
 
-export interface ComposeOptions {
-  seed: number; density: number; humanize: boolean;
-  /** Explicit API/test selection; browser dev sessions audition V1 by default. Not persisted. */
-  windsComposition?: 'classic' | 'v1';
-}
+export interface ComposeOptions { seed: number; density: number; humanize: boolean }
 
 interface State {
   project: Project;
@@ -404,10 +400,10 @@ export const useStore = create<State>((set, get) => ({
     // fail silently: surface the real error and leave the project untouched.
     let res;
     try {
-      // dev-only audition switch defaults both families to V1 in a normal browser dev session; production/API unchanged
+      // dev-only audition switch (`?strings=v1` on the dev server); an empty override otherwise
       const auditionOverride = devStringsAuditionOverride();
       res = composeAllTracks(project, { ...composeOptions, ...auditionOverride });
-      if (Object.keys(auditionOverride).length > 0) console.info('[composeAll] local audition: Strings V1 + Woodwinds V1', { strings: stringsDiagnosticsOfResult(res), winds: res.windDiagnostics });
+      if (Object.keys(auditionOverride).length > 0) console.info('[composeAll] dev audition: Strings V1', stringsDiagnosticsOfResult(res));
     } catch (e) {
       console.error('[composeAll] composing threw — the project is untouched', e);
       get().toast('error', `Compose All failed — ${e instanceof Error ? e.message : String(e)}`);

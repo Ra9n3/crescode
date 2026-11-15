@@ -38,10 +38,7 @@ import type { OrchestratorContext } from '../module';
 import { WIND_PROFILES, windRosterOf, type WindPart, type WindProfile } from './profile';
 import type { WindPlan, WindVoiceKind } from './plan';
 
-import { windJobKey, type WindTraceEvent } from './trace';
-
 interface WindCandidate {
-  origins?: string[];
   pitch: number;
   startTick: number;
   durationTicks: number;
@@ -84,11 +81,6 @@ const bpmAtTick = (tick: number, tempoMap: { tick: number; bpm: number }[]): num
 const HARMONY_ORDER: readonly WindPart[] = ['flutes', 'oboes', 'clarinets', 'bassoons'];
 
 export interface WindRenderInput {
-  /** V1 only; no historical caller changes its stream or collects events. */
-  motifRng?: (part: WindPart, key: string) => () => number;
-  trace?: (event: WindTraceEvent) => void;
-  /** V1 authoritative low-picture input, including the separate final Bass desk. */
-  finalNonWindNotes?: readonly Note[];
   ctx: OrchestratorContext;
   plan: WindPlan;
   /** The strings module's notes by track id (the cello line + ostinato onsets). */
@@ -153,10 +145,10 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
   const lowBrassNotes = Object.entries(brassNotes)
     .filter(([id]) => ['trombones', 'tuba'].includes(project.tracks.find((t) => t.id === id)?.role ?? ''))
     .flatMap(([, notes]) => notes);
-  const lowOthers: { startTick: number; durationTicks: number; pitch: number }[] = (input.finalNonWindNotes ?? [
+  const lowOthers: { startTick: number; durationTicks: number; pitch: number }[] = [
     ...(celloTrack ? (stringsNotes[celloTrack.id] ?? []) : []),
     ...lowBrassNotes,
-  ]).map((n) => ({ startTick: n.startTick, durationTicks: n.durationTicks, pitch: n.pitch }));
+  ].map((n) => ({ startTick: n.startTick, durationTicks: n.durationTicks, pitch: n.pitch }));
 
   // the tune carriers' lines (pure texture plan) for the lead double + cut-over
   const leads = ctx.lines?.leads ?? [];
@@ -219,7 +211,7 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
     const hi = prof.softCeiling !== null ? Math.min(prof.sweet[1], prof.softCeiling) : prof.sweet[1];
     const leadBars = new Set<number>();
     for (let b = span.startBar; b <= span.endBar; b++) leadBars.add(b);
-    const line = motifLine({ project, spans: ctx.spans, sections: ctx.sections, leadBars, comfortable: [loFit, Math.min(track.highestNote, hi)], take, rng: input.motifRng?.(span.part, `lead:${span.startBar}`) });
+    const line = motifLine({ project, spans: ctx.spans, sections: ctx.sections, leadBars, comfortable: [loFit, Math.min(track.highestNote, hi)], take });
     if (line.length) windLeadLineByTrackId[track.id] = [...(windLeadLineByTrackId[track.id] ?? []), ...line];
   }
 
@@ -327,14 +319,6 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
     let partPrevEnd = -Infinity; // the last (real or ghosted) note end
     let partRestUntil = -Infinity; // after a cap cut: the part rests at least one beat
 
-    let activeJob = '';
-    const trace = (stage: WindTraceEvent['stage'], reason: string, note?: WindTraceEvent['note']) => {
-      if (!ghosting) {
-        const origins = stage === 'discarded' && note && 'origins' in note ? (note as WindCandidate).origins : undefined;
-        for (const job of origins ?? [activeJob]) input.trace?.({ part, job, stage, reason, ...(note ? { note: { pitch: note.pitch, startTick: note.startTick, durationTicks: note.durationTicks } } : {}) });
-      }
-    };
-    const allocatedEnd = (tick: number): number => plan.ensemble?.windows.find((w) => w.part === part && w.bar === Math.floor(tick / btBar) + 1)?.endTick ?? endTick;
     let ghosting = false; // ghost mode: advance the state, emit nothing
     // fresh: the gesture starts a new phrase (the wind lead, the pickup run).
     // exempt: the moment gestures (tutti/unison/soli) neither consult nor
@@ -343,18 +327,11 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
     const push = (group: GroupKey, pitch: number, start: number, dur: number, articulation: Note['articulation'], moment = false, mode: 'run' | 'fresh' | 'exempt' = 'run') => {
       // the leading tone is NEVER doubled across families: the winds open
       // where the leading tone crosses (the hard rule wins over every role)
-      if (ltPc !== null && (((pitch % 12) + 12) % 12) === ltPc) { trace('rejected', 'leading-tone exclusion'); return; }
+      if (ltPc !== null && (((pitch % 12) + 12) % 12) === ltPc) return;
       const st = groups[group];
       const s = Math.max(0, Math.round(start));
-      const rawEnd = Math.min(endTick, Math.round(start + dur));
-      const e = Math.min(rawEnd, allocatedEnd(s));
-      if (plan.ensemble && s >= allocatedEnd(s)) { trace('not-generated', 'planned ensemble breath window; source gesture leaves air'); return; }
-      if (e < rawEnd) trace('adjusted', 'source gate shaped to planned ensemble breath', { pitch, startTick: s, durationTicks: e - s });
-      if (e - s < 1) { trace('rejected', 'outside piece or zero duration'); return; }
-      if (input.finalNonWindNotes && part === 'bassoons' && input.finalNonWindNotes.some((n) => {
-        if (n.startTick >= e || n.startTick + n.durationTicks <= s || Math.min(pitch, n.pitch) >= 48) return false;
-        const d = Math.abs(pitch - n.pitch); return !(d === 0 || d % 12 === 0 || d >= 7);
-      })) { trace('rejected', 'bassoon final low-interval clash'); return; }
+      const e = Math.min(endTick, Math.round(start + dur));
+      if (e - s < 1) return;
       let start2 = s;
       let end2 = e;
       // the cap-free doubling group neither consults nor advances the part
@@ -363,17 +340,14 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
       if (mode !== 'exempt' && group !== 'dbl') {
         if (mode === 'fresh') { partRunStart = s; partRestUntil = -Infinity; }
         start2 = Math.max(s, partRestUntil);
-        if (start2 >= e) { trace('rejected', 'breath rest'); return; }
+        if (start2 >= e) return;
         if (start2 - partPrevEnd >= beat || partRunStart === null || mode === 'fresh') partRunStart = start2;
         const limit = partRunStart + capTicks;
         end2 = Math.min(e, limit);
         partPrevEnd = end2;
         if (end2 >= limit) partRestUntil = limit + beat; // cap reached: breathe
       }
-      if (!ghosting) {
-        const candidate = { pitch, startTick: start2, durationTicks: end2 - start2, articulation, ...(moment ? { moment: true } : {}), ...(input.trace ? { origins: [activeJob] } : {}) };
-        candidates.push(candidate); trace('generated', 'writer candidate', candidate);
-      }
+      if (!ghosting) candidates.push({ pitch, startTick: start2, durationTicks: end2 - start2, articulation, ...(moment ? { moment: true } : {}) });
       st.prevPitch = pitch;
     };
     // chord-tone pools with the leading tone removed (the picker never sees it)
@@ -387,13 +361,7 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
     const susWindow = (): [number, number] => [colourLo, Math.min(sweetHi, softHi)];
 
     const writeKind = (kind: WindVoiceKind, bar: number, barStart: number, barEnd: number, norm: number) => {
-      if (kind === 'phrase') {
-        const phrases = plan.ensemble?.phrases.filter((p) => p.part === part && p.bar === bar) ?? [];
-        if (!phrases.length) trace('not-generated', 'ensemble phrase has no allocated material');
-        for (const phrase of phrases) for (const [i, n] of phrase.notes.entries()) {
-          push('line', n.pitch, n.startTick, n.durationTicks, n.articulation, false, i === 0 ? 'fresh' : 'run');
-        }
-      } else if (kind === 'colour' || kind === 'harmony') {
+      if (kind === 'colour' || kind === 'harmony') {
         // one sustained chord tone per span piece; harmony reads the
         // per-(bar, span) spread pre-pass; the ceiling holds (§14.5)
         const ceiling = ceilingAtBar(bar);
@@ -406,18 +374,18 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
           const target = st.prevPitch ?? (sweetLo + sweetHi) / 2;
           const [wLo, wHi] = susWindow();
           const pool = noLt(tonePitches(sp.parsed, wLo, wHi));
-          if (!pool.length) { trace('rejected', 'no legal chord-tone pool'); continue; }
+          if (!pool.length) continue;
           let pick: number;
           const preset = harmonyPick.get(harmonyKey(bar, si, part));
           if (kind === 'harmony' && preset !== undefined) {
             pick = fitOctave(preset, wLo, wHi);
             if (ceiling !== null && pick > ceiling) {
               pick = fitOctave(pick, wLo, Math.max(wLo, Math.min(wHi, ceiling - 1)));
-              if (pick > ceiling) { trace('rejected', 'harmony above lead ceiling'); continue; }
+              if (pick > ceiling) continue;
             }
           } else {
             const under = ceiling !== null ? pool.filter((p) => p <= ceiling) : pool;
-            if (!under.length) { trace('rejected', 'no chord tone below lead ceiling'); continue; }
+            if (!under.length) continue;
             pick = nearest(under, target);
           }
           push('sus', pick, s, e - s, artFor(pick, 'sustain', 'marcato'));
@@ -427,7 +395,7 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
         // the drawn choice rides the PURE carrier line (moment-independent)
         const secHere = ctx.sections.find((s) => bar >= s.startBar && bar < s.startBar + s.lengthBars);
         const choice = secHere ? plan.leadDoubleByType[secHere.name.trim().toLowerCase() || '*'] : undefined;
-        if (!choice || choice.part !== part) { trace('not-generated', 'no matching lead-double choice'); return; }
+        if (!choice || choice.part !== part) return;
         const interval = (choice.mode === 'none' ? 'octaveAbove' : choice.mode) === 'octaveAbove' ? 12 : 0;
         for (const n of lineNotesAtBar(bar)) {
           const s = Math.max(n.startTick, barStart);
@@ -444,7 +412,6 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
         const line = ctx.lines?.counter;
         const notes = line ? line.notes.filter((n) => n.startTick < barEnd && n.startTick + n.durationTicks > barStart) : [];
         if (!notes.length) {
-          trace('not-generated', 'counter unavailable: explicit colour substitution');
           writeKind('colour', bar, barStart, barEnd, norm);
           return;
         }
@@ -453,7 +420,7 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
           const e = Math.min(n.startTick + n.durationTicks, barEnd);
           if (e - s < 1) continue;
           const pitch = fitOctave(n.pitch, sweetLo, sweetHi);
-          if (prof.leadBan && pitch >= prof.leadBan[0] && pitch <= prof.leadBan[1]) { trace('rejected', 'counter register ban'); continue; }
+          if (prof.leadBan && pitch >= prof.leadBan[0] && pitch <= prof.leadBan[1]) continue;
           push('line', pitch, s, e - s, artFor(pitch, 'legato', 'marcato'));
         }
       } else if (kind === 'bassDouble') {
@@ -501,7 +468,7 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
             const d = Math.abs(pitch - ans);
             return !(d === 0 || d % 12 === 0 || d >= 7);
           })();
-          if (clash || answerClash) { trace('rejected', 'bassoon final low-interval clash'); continue; }
+          if (clash || answerClash) continue;
           push('dbl', pitch, s, e - s, e - s < beat ? 'staccato' : artFor(pitch, 'sustain', 'marcato'));
         }
         if (!celloSounds) {
@@ -606,7 +573,6 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
       const planBar = planByBar.get(bar);
       if (!planBar) continue;
       const kind = planBar.voices[part];
-      activeJob = windJobKey(part, bar, kind ?? 'rest');
       const ordinaryKind = planBar.ordinary[part];
       const barStart = (bar - 1) * btBar;
       const barEnd = bar * btBar;
@@ -632,7 +598,7 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
       // voice-leading group) so the ordinary line's state — and therefore
       // every later bar — stays byte-identical with and without the moments.
       const brassActive = brassActiveAtBar(bar);
-      if (brassActive && !planBar.moment && part === 'flutes' && kind !== 'phrase') {
+      if (brassActive && !planBar.moment && part === 'flutes' && kind !== undefined) {
         // the ordinary line's state advances exactly as the moment-driven
         // ghost would (the two runs stay byte-identical outside moment bars)
         const ord = planBar.ordinary[part];
@@ -648,12 +614,11 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
         const capHi = norm >= 0.72 ? Math.min(sweetHi, 91) : Math.min(sweetHi, softHi);
         for (const n of tuneAtBar(bar)) {
           const s = Math.max(n.startTick, barStart);
-          const e = Math.min(n.startTick + n.durationTicks, barEnd, allocatedEnd(s));
-          if (e - s < 1) { trace('not-generated', 'planned ensemble breath window; cut-over leaves air'); continue; }
+          const e = Math.min(n.startTick + n.durationTicks, barEnd);
+          if (e - s < 1) continue;
           const pitch = fitOctave(n.pitch + 12, sweetLo, capHi);
           if (ltPc !== null && (((pitch % 12) + 12) % 12) === ltPc) continue;
-          const candidate = { pitch, startTick: s, durationTicks: e - s, articulation: artFor(pitch, 'legato', 'marcato'), ...(input.trace ? { origins: [activeJob] } : {}) };
-          candidates.push(candidate); trace('generated', 'brass cut-over candidate', candidate);
+          candidates.push({ pitch, startTick: s, durationTicks: e - s, articulation: artFor(pitch, 'legato', 'marcato') });
         }
         continue;
       }
@@ -683,19 +648,17 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
         const ceiling = ceilingAtBar(bar);
         if (ceiling !== null) kept = kept.filter((c) => c.pitch <= ceiling);
       }
-      for (const c of produced) if (!kept.includes(c)) trace('discarded', 'brass window or wind lead ceiling', c);
       candidates.push(...kept);
     }
 
     // the pickup run (§14.5): replaces the ordinary line on its bar; ends
     // on a chord tone at the downbeat
     for (const run of plan.pickupRuns.filter((r) => r.part === part)) {
-      activeJob = windJobKey(part, run.bar, 'pickup');
       if (run.bar < 1 || run.bar > bars || run.downbeatBar > bars) continue;
       const momentBar = momentForBar(ctx.moments, run.bar);
       const momentDown = momentForBar(ctx.moments, run.downbeatBar);
       const leadHere = plan.leads.find((l) => run.bar >= l.startBar && run.bar <= l.endBar);
-      if (momentBar || momentDown?.kind === 'unison' || momentDown?.kind === 'soli' || leadHere) { trace('not-generated', 'pickup withheld: reserved gesture owns bar'); continue; } // a gesture owns the bar
+      if (momentBar || momentDown?.kind === 'unison' || momentDown?.kind === 'soli' || leadHere) continue; // a gesture owns the bar
       const barStart = (run.bar - 1) * btBar;
       const barEnd = run.bar * btBar;
       // drop the ordinary candidates of the pickup bar (the run replaces
@@ -704,7 +667,7 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
       for (let i = candidates.length - 1; i >= 0; i--) {
         const c = candidates[i];
         if (c.moment) continue;
-        if ((c.startTick >= barStart && c.startTick < barEnd) || (c.startTick >= downStart && c.startTick < run.downbeatTick + beat)) { trace('discarded', 'pickup replacement', c); candidates.splice(i, 1); }
+        if ((c.startTick >= barStart && c.startTick < barEnd) || (c.startTick >= downStart && c.startTick < run.downbeatTick + beat)) candidates.splice(i, 1);
       }
       // the diatonic run: scale tones rising into the landing, staying inside
       // the part's sweet window (the out-of-sweet high-energy rule), the
@@ -723,7 +686,7 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
         walked.unshift(p);
         if (landing - p >= 14) break;
       }
-      if (walked.length < 3) { trace('rejected', 'pickup cannot fit three legal scale notes'); continue; }
+      if (walked.length < 3) continue;
       const runNotes: { pitch: number; startTick: number }[] = [];
       const n = walked.length;
       for (let i = 0; i < n; i++) {
@@ -731,7 +694,7 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
         if (startTick < run.startTick) continue;
         runNotes.push({ pitch: walked[i], startTick });
       }
-      if (runNotes.length < 2) { trace('rejected', 'pickup cannot fit two onsets'); continue; }
+      if (runNotes.length < 2) continue;
       const planRunBar = planByBar.get(run.bar);
       if (planRunBar) {
         // the dropped ordinary line already advanced the state (it was
@@ -773,30 +736,12 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
         last && last.pitch === c.pitch && isSoft(last.articulation) && isSoft(c.articulation)
         && c.startTick <= last.startTick + last.durationTicks && !c.moment && !last.moment
       ) {
-        if (c.origins) last.origins = [...new Set([...(last.origins ?? []), ...c.origins])];
         last.durationTicks = Math.min(endTick, Math.max(last.durationTicks, c.startTick + c.durationTicks - last.startTick));
       } else {
         merged.push({ ...c });
       }
     }
-    if (input.finalNonWindNotes) {
-      // Final string notes may carry legato overlaps/divisi. Do not copy that
-      // polyphony into a single wind voice, and never shorten the source.
-      const mono: WindCandidate[] = [];
-      for (const c of merged) {
-        const previous = mono[mono.length - 1];
-        if (previous && previous.startTick + previous.durationTicks > c.startTick) {
-          if (previous.startTick === c.startTick) {
-            for (const job of c.origins ?? []) input.trace?.({ part: p.part, job, stage: 'discarded', reason: 'final single-voice guard: simultaneous source voice', note: c });
-            continue;
-          }
-          previous.durationTicks = c.startTick - previous.startTick;
-          for (const job of previous.origins ?? []) input.trace?.({ part: p.part, job, stage: 'adjusted', reason: 'final single-voice guard: source legato tail shortened', note: previous });
-        }
-        mono.push(c);
-      }
-      p.candidates = mono;
-    } else p.candidates = merged;
+    p.candidates = merged;
   }
 
   /* ---------------- phase B: velocities over ALL wind roles -------------- */
@@ -847,15 +792,6 @@ export function renderWinds(input: WindRenderInput): WindRenderResult {
       };
     });
     notesByTrackId[track.id] = sanitizeNotes(notes, track.lowestNote, track.highestNote, endTick);
-    if (input.trace) {
-      for (const c of candidates) {
-        const fitted = sanitizeNotes([{ ...c, velocity: 64 }], track.lowestNote, track.highestNote, endTick)[0];
-        const retained = fitted && notesByTrackId[track.id].find((n) => n.pitch === fitted.pitch && n.startTick === fitted.startTick);
-        for (const job of c.origins ?? []) input.trace({ part, job,
-          stage: retained ? 'retained' : 'discarded', reason: retained ? 'associated with retained note (merged/deduplicated jobs are not additive)' : 'sanitizer removed candidate',
-          ...(retained ? { note: retained } : {}) });
-      }
-    }
     const count = notesByTrackId[track.id].length;
     if (count) reports.push(`winds ${part}: ${count} notes (sweet ${sweetLo}-${sweetHi}${profile.softCeiling !== null ? `, soft ≤ ${profile.softCeiling}` : ''}${profile.softFloor !== null ? `, soft ≥ ${profile.softFloor}` : ''}, cap ${profile.phraseCapSec}s${profile.phraseCapBars !== null ? `/${profile.phraseCapBars} bars` : ''})`);
   }

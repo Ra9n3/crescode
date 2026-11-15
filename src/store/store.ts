@@ -398,7 +398,7 @@ export const useStore = create<State>((set, get) => ({
     // fail silently: surface the real error and leave the project untouched.
     let res;
     try {
-      res = composeAllTracks(project, composeOptions);
+      res = composeAllTracks(project, { ...composeOptions, arrangementSeed: Math.max(0, (composeOptions.seed ?? 1) - 1) });
     } catch (e) {
       console.error('[composeAll] composing threw — the project is untouched', e);
       get().toast('error', `Compose All failed — ${e instanceof Error ? e.message : String(e)}`);

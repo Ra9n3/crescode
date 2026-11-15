@@ -63,6 +63,8 @@ export interface ComposeOptions {
   /** Phase 7: plan moments (default true). Tests disable them to pin that
    *  the texture draws are untouched outside moment bars. */
   moments?: boolean;
+  /** Arrangement seed offset (default 0). effectiveTake = persistedTake + arrangementSeed * 1000. */
+  arrangementSeed?: number;
   /**
    * Piano composition mode. Default 'identity': every generation gets a
    * coordinated composition identity. 'classic' is the regression mode and
@@ -165,25 +167,36 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   const template: EnsembleTemplate | null = resolveTemplate(project.ensemble);
   const lockedTrackIds = project.tracks.filter((t) => t.locked).map((t) => t.id);
 
-  // the take this compose produces (increments the previous one)
+  // the take this compose produces (increments the previous one); the arrangement
+  // seed shifts the effective take by arrangementSeed*1000 so arrangementSeed 0
+  // is byte-identical to today while any other seed re-rolls every take-varying
+  // stream. effectiveTake is never written to project.orchestration.take.
+  const persistedTake = (project.orchestration?.take ?? 0) + 1;
+  const arrangementOffset = (options?.arrangementSeed ?? 0) * 1000;
+  const effectiveTake = persistedTake + arrangementOffset;
   const orchestration: OrchestrationState = {
-    take: (project.orchestration?.take ?? 0) + 1,
+    take: persistedTake,
     ...(project.orchestration?.sectionTakes ? { sectionTakes: { ...project.orchestration.sectionTakes } } : {}),
     ...(project.orchestration?.sectionLocks ? { sectionLocks: [...project.orchestration.sectionLocks] } : {}),
   };
+  const effectiveOrchestration: OrchestrationState = {
+    take: effectiveTake,
+    ...(orchestration.sectionTakes ? { sectionTakes: { ...orchestration.sectionTakes } } : {}),
+    ...(orchestration.sectionLocks ? { sectionLocks: [...orchestration.sectionLocks] } : {}),
+  };
 
-  const ctx: OrchestratorContext = { project: { ...project, orchestration }, template, ensemble, spans: chordSpans(project), sections: sectionMap(project) };
-  const seed = orchestrationSeedFor(project, orchestration);
+  const ctx: OrchestratorContext = { project: { ...project, orchestration: effectiveOrchestration }, template, ensemble, spans: chordSpans(project), sections: sectionMap(project) };
+  const seed = orchestrationSeedFor(project, effectiveOrchestration);
   const voiceTracks = stringVoiceTracks(ctx);
   // Phase 3c/3d: the per-bar energy arc, seeded per D8 — the near-silence
   // bar only when a template is active and unlocked in-band strings exist
   // to silence (locked lanes are never written either way).
-  const arc = energyCurve(project, ctx.sections, orchestration.take, template, template !== null && voiceTracks.length > 0);
+  const arc = energyCurve(project, ctx.sections, effectiveTake, template, template !== null && voiceTracks.length > 0);
   ctx.arc = arc;
   const plan = conduct(ctx, arc, options.moments !== false);
   // Phase 4b: prepare the lines (motif + counterline + constrained voicing)
   // once per compose — the per-section render calls slice the result
-  ctx.lines = prepareStrings(ctx, orchestration.take);
+  ctx.lines = prepareStrings(ctx, effectiveTake);
   // Phase 4.6: which texture each section type drew this take (the plan report)
   const typeOrder = [...new Set(ctx.sections.map((s) => sectionTypeKeyOf(s.name)))];
   ctx.lines.reports.push(`textures (take ${orchestration.take}): ${typeOrder.map((t) => `${t}=${textureForType(ctx, t).id}`).join(', ')}`);

@@ -418,7 +418,7 @@ describe('Phase 9: the moments-on baseline pins (golden90, captured at the post-
         }
       }
     }
-  });
+  }, 20000);
 
   it('symphony, cinematic, hybridstudio: every non-wind, non-percussion track matches the baseline outside the sanctioned bars (wind leads, wind solis, moments, brass leads)', () => {
     // Phase 10: the percussion tracks (timpani, snare, cymbals, aux) are

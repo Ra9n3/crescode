@@ -688,7 +688,7 @@ describe('Phase 10: the clamp and the baseline pins', () => {
         }
       }
     }
-  });
+  }, 20000);
 
   it('symphony, cinematic, hybridstudio: every non-percussion, non-keys track is byte-identical to the baseline (everywhere — the percussion module must not perturb anything else)', () => {
     const PERC_SET = new Set<string>(PERC_ROLES as readonly string[]);

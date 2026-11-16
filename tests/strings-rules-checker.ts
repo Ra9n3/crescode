@@ -204,7 +204,7 @@ export function checkRulesForTake(p: Project, templateId: string): Record<RuleId
       res.R7.examined++;
       const v1Bars = new Set<number>();
       const doubledBars = new Set<number>();
-      for (let b = Math.floor(sec.startTick / btBar) + 1; b <= Math.round(sec.endTick / btBar); b++) {
+      for (let b = Math.floor(secStartTick(sec, btBar) / btBar) + 1; b <= Math.round(secEndTick(sec, btBar) / btBar); b++) {
         const s = (b - 1) * btBar;
         const e = s + btBar;
         if (notesInWindow(v1.notes, s, e).length) {

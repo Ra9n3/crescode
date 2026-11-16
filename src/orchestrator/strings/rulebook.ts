@@ -1,12 +1,17 @@
 import type { Note, Project } from '../../shared/schema/project';
 import { VOCAL_ZONE } from '../profiles/strings';
 
-const INTRO_ORDERS: readonly (readonly string[])[] = [
-  ['cellosBasses', 'violas', 'violins2', 'violins1'],
-  ['cellosBasses', 'violins2', 'violas', 'violins1'],
-  ['violas', 'cellosBasses', 'violins2', 'violins1'],
-  ['cellosBasses', 'violas', 'violins1', 'violins2'],
-];
+const mulberry32 = (seed: number) => {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+const SOFT_INTRO_BOWING = ['conSord', 'sulTasto'] as const;
 
 const median = (arr: number[]): number => {
   if (!arr.length) return 0;
@@ -46,27 +51,44 @@ export function applyStringsRulebookVariety(project: Project, take: number): voi
     }
   }
 
-  // R9: CINEMATIC INTRO (lead-free sections build as a low bed with 4 drawn entry orders + register)
+  // R9: INTRO VARIETY WITH GUARDRAILS (seeded per take, no fixed recipes)
   const intro = sections.find((s) => s.name.toLowerCase().includes('intro'));
   if (intro) {
-    const order = INTRO_ORDERS[(take - 1) % INTRO_ORDERS.length];
-    const regVariant = Math.floor((take - 1) / INTRO_ORDERS.length);
+    const rng = mulberry32((take * 2654435761) >>> 0);
     const introBars = Math.max(1, Math.round((intro.endTick - intro.startTick) / btBar));
-    order.forEach((role, idx) => {
+    const roleOrder = ['cellosBasses', 'violas', 'violins2', 'violins1'] as const;
+    const entryBars: number[] = roleOrder.map(() => 1 + Math.floor(rng() * Math.min(6, introBars)));
+    // Guardrail (a): at least 2 distinct entry bars across desks
+    if (new Set(entryBars).size < 2 && introBars >= 2) {
+      entryBars[entryBars.length - 1] = (entryBars[0] % Math.min(6, introBars)) + 1;
+    }
+    const bandOffsets = { low: 0, mid: 7, high: 12 } as const;
+    const bands = ['low', 'mid', 'high'] as const;
+    let prevPitch = 0;
+
+    roleOrder.forEach((role, idx) => {
       const tr = byRole(role);
       if (!tr) return;
-      const enterBar = Math.min(introBars - 1, idx * 2);
-      const enterTick = intro.startTick + enterBar * btBar;
+      const enterBar = entryBars[idx];
+      const enterTick = intro.startTick + (enterBar - 1) * btBar;
       const hasNotes = tr.notes.some((n) => n.startTick >= intro.startTick && n.startTick < intro.endTick);
       if (!hasNotes && enterTick < intro.endTick) {
-        const basePitch = role === 'cellosBasses' ? 45 : role === 'violas' ? 57 : role === 'violins2' ? 64 : 76;
-        const pitch = basePitch + (regVariant % 2 === 1 && role !== 'cellosBasses' ? 12 : 0);
+        const band = bands[Math.floor(rng() * bands.length)];
+        const basePitch = role === 'cellosBasses' ? 40 : role === 'violas' ? 52 : role === 'violins2' ? 60 : 72;
+        let pitch = Math.min(tr.highestNote ?? 96, Math.max(tr.lowestNote ?? 36, basePitch + bandOffsets[band]));
+        // Guardrail (c): R1 voice order & R4 low-interval limit
+        if (pitch < prevPitch) pitch = Math.min(tr.highestNote ?? 96, prevPitch);
+        if (prevPitch > 0 && prevPitch < 48 && pitch - prevPitch > 0 && pitch - prevPitch <= 4) {
+          pitch = Math.min(tr.highestNote ?? 96, prevPitch + 7);
+        }
+        prevPitch = pitch;
+        const art = SOFT_INTRO_BOWING[Math.floor(rng() * SOFT_INTRO_BOWING.length)];
         tr.notes.push({
-          pitch: Math.min(tr.highestNote ?? 96, Math.max(tr.lowestNote ?? 36, pitch)),
+          pitch,
           startTick: enterTick,
           durationTicks: intro.endTick - enterTick,
           velocity: 48,
-          articulation: idx % 2 === 0 ? 'conSord' : 'sulTasto',
+          articulation: art,
         });
       }
     });

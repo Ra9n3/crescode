@@ -28,13 +28,14 @@
  * shorter than an eighth, open spacing — and its preset keeps every string
  * track on pad (wide legato only, 4e).
  */
-import { mulberry32 } from '../engine/generate';
+import { hashString, mulberry32 } from '../engine/generate';
 import { noteName, scalePitchClasses } from '../shared/schema/modes';
 import { isInstrumentTrack, PPQ, type Note } from '../shared/schema/types';
 import { barTicks, projectBars } from '../shared/schema/meter';
 import { isInBand } from '../shared/schema/band';
 import { maxMeanVelocityFor } from './energy';
 import { arcTargetAt, orchestrationSeedFor } from './spine';
+import { sectionTypeKeyOf } from './conductor/layers';
 import { STRING_PROFILE_BY_ROLE, STRING_ROLES, VOCAL_ZONE, stringVoiceTracks } from './profiles/strings';
 import { BRASS_PROFILES } from './brass/profile';
 import { WIND_PROFILES } from './winds/profile';
@@ -92,6 +93,37 @@ export const sectionEnergyTarget = (name: string): number => {
 };
 
 const SYMMETRIC_MODES = new Set(['Whole Tone', 'Diminished (Half-Whole)', 'Diminished (Whole-Half)', 'Locrian']);
+
+/** PAD variety (behind switch): per section type draw, own salted stream. */
+export type PadShapeId = 'wholeSustain' | 'twoBarHolds' | 'barRebow' | 'halfBarSwell' | 'staggeredEntry' | 'restEvery4th';
+export const PAD_SHAPE_WEIGHTS: Record<PadShapeId, number> = {
+  wholeSustain: 0.25,
+  twoBarHolds: 0.15,
+  barRebow: 0.15,
+  halfBarSwell: 0.15,
+  staggeredEntry: 0.15,
+  restEvery4th: 0.15,
+};
+const padShapeCache = new WeakMap<object, Map<string, PadShapeId>>();
+function drawWeightedPad<T extends string>(rng: () => number, weights: Record<T, number>): T {
+  const keys = Object.keys(weights) as T[];
+  const total = keys.reduce((a, k) => a + (weights as any)[k], 0);
+  let roll = rng() * total;
+  for (const k of keys) { roll -= (weights as any)[k]; if (roll < 0) return k; }
+  return keys[keys.length - 1];
+}
+function padShapeForType(ctx: OrchestratorContext, typeName: string): PadShapeId {
+  const key = sectionTypeKeyOf(typeName);
+  let cache = padShapeCache.get(ctx);
+  if (!cache) { cache = new Map(); padShapeCache.set(ctx, cache); }
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const take = ctx.project.orchestration?.take ?? 0;
+  const rng = mulberry32((orchestrationSeedFor(ctx.project, { take }) ^ Math.imul(hashString(`strings-pad:${key}`), 0x9e3779b1)) >>> 0);
+  const shape = drawWeightedPad(rng, PAD_SHAPE_WEIGHTS);
+  cache.set(key, shape);
+  return shape;
+}
 
 /** A stand-in template for the no-band case: everyone in, no clamp pressure. */
 function effectiveTemplate(ctx: OrchestratorContext): { rosterLength: number; clamp: [number, number]; template: EnsembleTemplate | null } {
@@ -765,7 +797,64 @@ export const stringsModule: SectionModule = {
                   && vc2.pitches.some((p2) => p2 !== null && ((p2 % 12) + 12) % 12 === ltPcRender));
                 if (ltHeld) padPitch = null;
               }
-              if (padPitch !== null) pushDPNote(notesByTrackId[trackId], padPitch, s, e, velocity, reattack);
+              if (padPitch !== null) {
+                const varietyOn = ctx.variety === true;
+                let padShape: PadShapeId = 'wholeSustain';
+                if (varietyOn) {
+                  const secForPad = ctx.sections.find((x) => bar >= x.startBar && bar < x.startBar + x.lengthBars);
+                  padShape = padShapeForType(ctx, secForPad?.name ?? '*');
+                }
+                if (!varietyOn || padShape === 'wholeSustain') {
+                  pushDPNote(notesByTrackId[trackId], padPitch, s, e, velocity, reattack);
+                } else if (padShape === 'twoBarHolds') {
+                  const secForPad = ctx.sections.find((x) => bar >= x.startBar && bar < x.startBar + x.lengthBars);
+                  const secStart = secForPad?.startBar ?? bar;
+                  const pos = bar - secStart;
+                  if (pos % 2 === 0) {
+                    const twoEnd = Math.min(e + btBar, secForPad ? secForPad.startTick + secForPad.lengthBars * btBar : e + btBar, vc.endTick);
+                    const winEnd = Math.min(twoEnd, section.endTick);
+                    if (winEnd > s) {
+                      const cVel = Math.max(1, Math.min(127, Math.round(1 + (cap - 1) * targetOf(s, winEnd))));
+                      pushDPNote(notesByTrackId[trackId], padPitch, s, winEnd, cVel, false);
+                    }
+                  }
+                } else if (padShape === 'barRebow') {
+                  const overlap = Math.min(beat / 4, 120);
+                  const noteEnd = Math.min(e + overlap, section.endTick, vc.endTick);
+                  const cVel = Math.max(1, Math.min(127, Math.round(1 + (cap - 1) * targetOf(s, noteEnd))));
+                  pushDPNote(notesByTrackId[trackId], padPitch, s, noteEnd, cVel, false);
+                } else if (padShape === 'halfBarSwell') {
+                  const half = Math.floor((e - s) / 2);
+                  const gap = Math.min(120, Math.floor(half / 3));
+                  const firstEnd = s + half - Math.floor(gap / 2);
+                  const secondStart = s + half + Math.floor(gap / 2);
+                  if (firstEnd > s) {
+                    const v1 = Math.max(1, Math.min(127, Math.round(1 + (cap - 1) * targetOf(s, firstEnd))));
+                    notesByTrackId[trackId].push({ pitch: padPitch, startTick: s, durationTicks: firstEnd - s, velocity: v1, articulation: 'legato' });
+                  }
+                  if (e > secondStart) {
+                    const v2 = Math.max(1, Math.min(127, Math.round(1 + (cap - 1) * targetOf(secondStart, e))));
+                    notesByTrackId[trackId].push({ pitch: padPitch, startTick: secondStart, durationTicks: e - secondStart, velocity: v2, articulation: 'legato' });
+                  }
+                } else if (padShape === 'staggeredEntry') {
+                  const role = ctx.project.tracks.find((t) => t.id === trackId)?.role;
+                  let adjS = s;
+                  let adjE = e;
+                  if (role === 'violas') adjS = Math.min(e - 1, s + beat);
+                  else if (role === 'violins2') adjS = s;
+                  if (adjE > adjS) {
+                    const cVel = Math.max(1, Math.min(127, Math.round(1 + (cap - 1) * targetOf(adjS, adjE))));
+                    pushDPNote(notesByTrackId[trackId], padPitch, adjS, adjE, cVel, false);
+                  }
+                } else if (padShape === 'restEvery4th') {
+                  const secForPad = ctx.sections.find((x) => bar >= x.startBar && bar < x.startBar + x.lengthBars);
+                  const secStart = secForPad?.startBar ?? bar;
+                  const pos = bar - secStart;
+                  if (pos % 4 !== 3) {
+                    pushDPNote(notesByTrackId[trackId], padPitch, s, e, velocity, reattack);
+                  }
+                }
+              }
               writeDiv2Pad(notesByTrackId[trackId], trackId, s, e, velocity);
             }
           }

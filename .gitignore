@@ -3,3 +3,15 @@ dist/
 docs/screenshot.png
 *.log
 diagnostics/harmony/audit/latest/
+ignored
+
+strings-artic-test-output.txt
+strings-artic-test-output2.txt
+strings-test-output.txt
+intro-table.md
+hist-artic.mjs
+check-artic-identity.mjs
+export-check.mjs
+gen-intro-table.mjs
+check-hist2.mjs
+break-colLegno-output.txt

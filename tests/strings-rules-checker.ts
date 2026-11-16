@@ -232,7 +232,9 @@ export function checkRulesForTake(p: Project, templateId: string): Record<RuleId
   const intro = sections.find((s) => s.name.toLowerCase().includes('intro'));
   if (intro) {
     res.R9.examined++;
-    const introDesks = desks.filter((d) => notesInWindow(d.notes, intro.startTick, intro.endTick).length > 0);
+    const iStart = secStartTick(intro, btBar);
+    const iEnd = secEndTick(intro, btBar);
+    const introDesks = desks.filter((d) => notesInWindow(d.notes, iStart, iEnd).length > 0);
     if (introDesks.length === 0) res.R9.violations++;
   }
 
@@ -242,7 +244,9 @@ export function checkRulesForTake(p: Project, templateId: string): Record<RuleId
       const energy = sectionEnergyTarget(sec.name);
       if (energy >= 0.75) {
         res.R10.examined++;
-        const activeDesks = desks.filter((d) => notesInWindow(d.notes, sec.startTick, sec.endTick).length > 0);
+        const sStart = secStartTick(sec, btBar);
+        const sEnd = secEndTick(sec, btBar);
+        const activeDesks = desks.filter((d) => notesInWindow(d.notes, sStart, sEnd).length > 0);
         if (activeDesks.length < 3) res.R10.violations++;
       }
     }
@@ -309,14 +313,18 @@ export function checkRulesForTake(p: Project, templateId: string): Record<RuleId
   const chorus = sections.find((s) => s.name.toLowerCase().includes('chorus'));
   if (verse && chorus && v1) {
     res.R15.examined++;
+    const vStart = secStartTick(verse, btBar);
+    const vEnd = secEndTick(verse, btBar);
+    const cStart = secStartTick(chorus, btBar);
+    const cEnd = secEndTick(chorus, btBar);
     let diffs = 0;
-    const vNotes = desks.flatMap((d) => notesInWindow(d.notes, verse.startTick, verse.endTick));
-    const cNotes = desks.flatMap((d) => notesInWindow(d.notes, chorus.startTick, chorus.endTick));
-    const v1V = notesInWindow(v1.notes, verse.startTick, verse.endTick);
-    const v1C = notesInWindow(v1.notes, chorus.startTick, chorus.endTick);
+    const vNotes = desks.flatMap((d) => notesInWindow(d.notes, vStart, vEnd));
+    const cNotes = desks.flatMap((d) => notesInWindow(d.notes, cStart, cEnd));
+    const v1V = notesInWindow(v1.notes, vStart, vEnd);
+    const v1C = notesInWindow(v1.notes, cStart, cEnd);
     if (v1V.length && v1C.length && Math.abs(median(v1V.map((n) => n.pitch)) - median(v1C.map((n) => n.pitch))) >= 2) diffs++;
-    const vDesks = desks.filter((d) => notesInWindow(d.notes, verse.startTick, verse.endTick).length > 0).length;
-    const cDesks = desks.filter((d) => notesInWindow(d.notes, chorus.startTick, chorus.endTick).length > 0).length;
+    const vDesks = desks.filter((d) => notesInWindow(d.notes, vStart, vEnd).length > 0).length;
+    const cDesks = desks.filter((d) => notesInWindow(d.notes, cStart, cEnd).length > 0).length;
     if (vDesks !== cDesks) diffs++;
     const vVel = vNotes.length ? vNotes.reduce((a, b) => a + b.velocity, 0) / vNotes.length : 0;
     const cVel = cNotes.length ? cNotes.reduce((a, b) => a + b.velocity, 0) / cNotes.length : 0;

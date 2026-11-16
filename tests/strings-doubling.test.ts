@@ -6,6 +6,7 @@ import { DOUBLING_WEIGHTS, feasibleStrategiesForSection, selectSectionDoubling }
 import { sectionEnergyTarget } from '../src/orchestrator/render';
 import { assignStringLayers } from '../src/orchestrator/conductor/layers';
 import { resolveTemplate } from '../src/config/ensembles';
+import { orchestrationSeedFor } from '../src/orchestrator/spine';
 import type { Project } from '../src/shared/schema/project';
 
 const loadAeolian = (): Project => {
@@ -76,7 +77,7 @@ describe('strings doubling (E2-FIX)', () => {
           }
         }
         const stringIds = composed.tracks.filter((t) => t.family === 'Strings').map((t) => t.id);
-        const dp = selectSectionDoubling(ctx, sec, leadBars.length > 0, energy, stringIds, take);
+        const dp = selectSectionDoubling(ctx, sec, leadBars.length > 0, energy, stringIds, orchestrationSeedFor(base, { take }));
         if (dp.strategy === 'none') continue;
         if (energy < 0.70) {
           expect(dp.strategy).not.toBe('full');

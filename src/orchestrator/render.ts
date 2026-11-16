@@ -548,7 +548,7 @@ export const stringsModule: SectionModule = {
     const minDuration = isVocalBacking ? PPQ / 2 : 1; // no notes under an eighth
 
     const stringVoices = stringVoiceTracks(ctx);
-    const hasLeadInSection = ctx.variety === true && plan.layer === 'pad' && (() => {
+    const hasLeadInSection = ctx.variety === true && (() => {
       for (let b = section.startBar; b < section.startBar + section.lengthBars; b++) {
         for (const v of stringVoices) {
           if (stringLayerForBar(ctx, b, v.id) === 'lead') return true;
@@ -556,7 +556,7 @@ export const stringsModule: SectionModule = {
       }
       return false;
     })();
-    const doublingPlan = (ctx.variety === true && plan.layer === 'pad')
+    const doublingPlan = (ctx.variety === true)
       ? selectSectionDoubling(ctx, section, hasLeadInSection, sectionEnergyTarget(section.name), stringVoices.map((v) => v.id), orchestrationSeedFor(ctx.project, { take: ctx.project.orchestration?.take ?? 0 }))
       : null;
     const take = ctx.project.orchestration?.take ?? 0;
@@ -680,7 +680,18 @@ export const stringsModule: SectionModule = {
         for (const trackId of plan.voiceTrackIds) {
           const barLayer = stringLayerForBar(ctx, bar, trackId);
           const isDoublingDesk = doublingPlan !== null && doublingPlan.strategy !== 'none' && doublingPlan.desks.includes(trackId);
-          if (barLayer !== plan.layer && !(isDoublingDesk && barLayer === 'tacet')) continue; // another plan carries this bar
+          if (plan.layer === 'pad') {
+            if (barLayer !== 'pad' && !(isDoublingDesk && (barLayer === 'tacet' || barLayer === 'ostinato' || barLayer === 'tremolo'))) continue;
+          } else {
+            if (barLayer !== plan.layer) continue; // another plan carries this bar
+            if (isDoublingDesk && (plan.layer === 'ostinato' || plan.layer === 'tremolo')) {
+              const barStartTick = (bar - 1) * btBar;
+              const barEndTick = barStartTick + btBar;
+              if (lines.leads.some((l) => l.notes.some((n) => n.startTick < barEndTick && n.startTick + n.durationTicks > barStartTick))) {
+                continue; // relinquish ostinato/tremolo in doubled bars
+              }
+            }
+          }
           if (plan.layer === 'ostinato' && !ostWin) continue; // gated bar (4.6): the ostinato rests, it is not a pad
           const vi = voiceIndex.get(trackId);
           const dpPitch = vi !== undefined ? vc.pitches[vi] : null;

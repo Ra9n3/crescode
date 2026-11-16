@@ -80,8 +80,8 @@ export const feasibleStrategiesForSection = (
   };
   const v2Id = resolveDesk('violins2');
   const vaId = resolveDesk('violas');
-  const hasV2 = v2Id !== null && isPadOrTacetInSection(ctx, sec, v2Id);
-  const hasVa = vaId !== null && isPadOrTacetInSection(ctx, sec, vaId);
+  const hasV2 = v2Id !== null;
+  const hasVa = vaId !== null;
 
   const out: DoublingStrategy[] = ['none'];
   if (hasV2) out.push('v2ThirdSixth');

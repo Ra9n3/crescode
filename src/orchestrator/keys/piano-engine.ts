@@ -7,8 +7,8 @@ import { hashString } from '../../engine/generate';
 import { isInBand } from '../../shared/schema/band';
 import type { EnsembleRule, EnsembleTemplate } from '../../shared/schema/ensembleTemplate';
 import { isInstrumentTrack, type Project, type ProjectEnsemble, type Track } from '../../shared/schema/types';
-import type { ConductorPlan, LayerName } from '../conductor';
-import type { MomentKind } from '../conductor/moments';
+import type { LayerName } from '../conductor';
+import type { MomentKind, MomentPlan } from '../conductor/moments';
 import type { ArcBar, ResolvedChord, SpineSection } from '../spine';
 import { buildPianoAnalysisSnapshot, type DeepReadonly, type PianoAnalysis, type PianoAnalysisTrackCompositionState } from './analysis';
 
@@ -101,7 +101,7 @@ export interface PianoLayerSlot {
  */
 export interface PianoLayerInformation {
   readonly availability: 'partial';
-  readonly source: 'ConductorPlan.bars[].layers';
+  readonly source: 'ComposePlan.bars[].layers';
   readonly annotatedFamilies: readonly ['Strings'];
   readonly perBar: readonly {
     readonly bar: number;
@@ -136,12 +136,12 @@ export interface PianoContextProvenance {
   readonly pianoEligibility: 'template roster plus unlocked in-band piano track';
   readonly applicableRules: 'EnsembleTemplate.rules + src/orchestrator/energy/rules.ts severity contracts';
   readonly sections: 'src/orchestrator/spine/index.ts: sectionMap(project)';
-  readonly barWindows: 'src/orchestrator/conductor/index.ts: ConductorPlan.bars[].startTick/endTick';
+  readonly barWindows: 'src/orchestrator/compose.ts: ComposePlan.bars[].startTick/endTick';
   readonly harmony: 'src/orchestrator/spine/index.ts: chordSpans(project)';
   readonly energy: 'src/orchestrator/spine/energyArc.ts: ArcBar.target and ArcBar.nearSilence';
-  readonly layerInformation: 'src/orchestrator/conductor/index.ts: ConductorPlan.bars[].layers (strings-only, partial)';
-  readonly moments: 'src/orchestrator/conductor/index.ts: ConductorPlan.moments (keys-relevant kinds)';
-  readonly fillWindows: 'src/orchestrator/conductor/index.ts: ConductorPlan.fills (piano/Keys targets)';
+  readonly layerInformation: 'src/orchestrator/compose.ts: ComposePlan.bars[].layers (strings-only, partial)';
+  readonly moments: 'src/orchestrator/compose.ts: ComposePlan.moments (keys-relevant kinds)';
+  readonly fillWindows: 'src/orchestrator/compose.ts: ComposePlan.fills (piano/Keys targets)';
   readonly generationIdentity: 'piano-engine-v5: orchestration seed + ComposeOptions seed/take/density, hashed with hashString';
   readonly seed: 'PianoGenerationIdentity.seed: deterministic Composer decisions';
   readonly analysis: 'composeAllTracks finalized tracks, excluding piano; production mute/solo/lock/band state is snapshotted';
@@ -174,6 +174,20 @@ export interface PianoEngineInput {
   readonly analysis: PianoAnalysis;
 }
 
+/** The subset of the pipeline's per-bar plan the Piano Engine actually reads. */
+export interface PianoPlanSource {
+  readonly bars: readonly {
+    readonly bar: number;
+    readonly startTick: number;
+    readonly endTick: number;
+    readonly sectionId: string;
+    readonly sectionName: string;
+    readonly layers: readonly { readonly layer: LayerName; readonly trackIds: readonly string[]; readonly source: 'strings' }[];
+  }[];
+  readonly moments: readonly MomentPlan[];
+  readonly fills: readonly { readonly target: string; readonly startTick: number; readonly endTick: number }[];
+}
+
 export interface BuildPianoEngineInputOptions {
   readonly project: Project;
   readonly ensemble: ProjectEnsemble;
@@ -184,7 +198,10 @@ export interface BuildPianoEngineInputOptions {
   readonly harmony: readonly ResolvedChord[];
   /** Existing energyCurve result; nearSilence is not reconstructed. */
   readonly energy: readonly ArcBar[];
-  readonly conductor: ConductorPlan;
+  /** The bar plan the pipeline hands the engine: exact per-bar windows, the
+   *  moments/fills that could concern the piano, and the layer annotation.
+   *  Structurally typed so the caller need not build a full conductor plan. */
+  readonly conductor: PianoPlanSource;
   /** Existing orchestrationSeedFor(project, orchestration) value. */
   readonly seed: number;
   /** User-facing ComposeOptions.seed. */
@@ -302,7 +319,7 @@ function snapshotHarmony(span: ResolvedChord): DeepReadonly<ResolvedChord> {
   return Object.freeze({ ...span, parsed }) as DeepReadonly<ResolvedChord>;
 }
 
-function snapshotMoment(moment: ConductorPlan['moments'][number]): PianoRelevantMoment {
+function snapshotMoment(moment: PianoPlanSource['moments'][number]): PianoRelevantMoment {
   return Object.freeze({
     kind: moment.kind as PianoMomentKind,
     startBar: moment.startBar,
@@ -319,12 +336,12 @@ const PROVENANCE: PianoContextProvenance = Object.freeze({
   pianoEligibility: 'template roster plus unlocked in-band piano track',
   applicableRules: 'EnsembleTemplate.rules + src/orchestrator/energy/rules.ts severity contracts',
   sections: 'src/orchestrator/spine/index.ts: sectionMap(project)',
-  barWindows: 'src/orchestrator/conductor/index.ts: ConductorPlan.bars[].startTick/endTick',
+  barWindows: 'src/orchestrator/compose.ts: ComposePlan.bars[].startTick/endTick',
   harmony: 'src/orchestrator/spine/index.ts: chordSpans(project)',
   energy: 'src/orchestrator/spine/energyArc.ts: ArcBar.target and ArcBar.nearSilence',
-  layerInformation: 'src/orchestrator/conductor/index.ts: ConductorPlan.bars[].layers (strings-only, partial)',
-  moments: 'src/orchestrator/conductor/index.ts: ConductorPlan.moments (keys-relevant kinds)',
-  fillWindows: 'src/orchestrator/conductor/index.ts: ConductorPlan.fills (piano/Keys targets)',
+  layerInformation: 'src/orchestrator/compose.ts: ComposePlan.bars[].layers (strings-only, partial)',
+  moments: 'src/orchestrator/compose.ts: ComposePlan.moments (keys-relevant kinds)',
+  fillWindows: 'src/orchestrator/compose.ts: ComposePlan.fills (piano/Keys targets)',
   generationIdentity: 'piano-engine-v5: orchestration seed + ComposeOptions seed/take/density, hashed with hashString',
   seed: 'PianoGenerationIdentity.seed: deterministic Composer decisions',
   analysis: 'composeAllTracks finalized tracks, excluding piano; production mute/solo/lock/band state is snapshotted',
@@ -366,7 +383,7 @@ export function buildPianoEngineInput(options: BuildPianoEngineInputOptions): Pi
   const pianoEligible = isPianoEngineEligible(project, ensemble, template);
   const layerInformation: PianoLayerInformation = Object.freeze({
     availability: 'partial',
-    source: 'ConductorPlan.bars[].layers',
+    source: 'ComposePlan.bars[].layers',
     annotatedFamilies: Object.freeze(['Strings'] as const),
     perBar: Object.freeze(conductor.bars.map((bar) => Object.freeze({
       bar: bar.bar,

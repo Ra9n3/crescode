@@ -14,13 +14,12 @@
  * and seeds the strings module via orchestrationSeedFor: each Compose All is
  * a fresh take; same (inputs, take) → byte-identical.
  */
-import { generate } from '../engine/generate';
 import { freshEnsemble, isInBand } from '../shared/schema/band';
-import { isInstrumentTrack, type CcLane, type CcPoint, type Note, type OrchestrationState, type Project, type Track } from '../shared/schema/types';
+import { isInstrumentTrack, type CcLane, type CcPoint, type OrchestrationState, type Project, type Track } from '../shared/schema/types';
 import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
 import { resolveTemplate } from '../config/ensembles';
-import { chordSpans, sectionMap, orchestrationSeedFor, energyCurve } from './spine';
-import { textureForType, sectionTypeKeyOf } from './conductor/layers';
+import { chordSpans, sectionMap, orchestrationSeedFor, energyCurve, sectionAtBar } from './spine';
+import type { LayerName } from './conductor';
 import { barTicks, projectEndTick } from '../shared/schema/meter';
 import { buildPianoEngineInput, type PianoEngineInput } from './keys/piano-engine';
 import { analyzePianoInput } from './keys/piano-analyzer';
@@ -52,15 +51,38 @@ export interface ComposeOptions {
   pianoComposition?: PianoCompositionMode;
 }
 
+export interface ComposeBarPlan {
+  bar: number;
+  startTick: number;
+  endTick: number;
+  sectionId: string;
+  sectionName: string;
+  layers: { layer: LayerName; trackIds: string[]; source: 'strings' }[];
+  energyTarget: number;
+}
+
+/** The exact plan shape the piano engine consumes. In-memory only. */
+export interface ComposePlan {
+  templateId: string | null;
+  maxLayers: number;
+  octaveDoublingPolicy: 'allowed' | 'climaxOnly' | 'forbidden' | 'none';
+  bars: ComposeBarPlan[];
+  breaths: never[];
+  fills: never[];
+  unannotatedRoles: string[];
+  moments: never[];
+  [extra: string]: unknown;
+}
+
 export interface ComposeResult {
   tracks: Track[];
   /** The take state to write in the SAME edit as the tracks. */
   orchestration: OrchestrationState;
   /** Track IDs written by the strings module; other output comes from family renderers and/or the generic rules interpreter. */
   stringsTrackIds: string[];
-  /** The conductor's per-bar layer plan (3a) — an in-memory annotation for
-   *  the audit stage. Never persisted; the store writes only tracks + take. */
-  plan: ConductorPlan;
+  /** The per-bar annotation the piano engine reads (source windows + sections).
+   *  Never persisted; the store writes only tracks + take. */
+  plan: ComposePlan;
   /** Phase 4: renderer notes for the report (fallbacks, skipped layerings). */
   reports: string[];
   /**
@@ -144,7 +166,6 @@ function composePianoCc64(
 export function composeAllTracks(project: Project, options: ComposeOptions): ComposeResult {
   const ensemble = project.ensemble ?? freshEnsemble();
   const template: EnsembleTemplate | null = resolveTemplate(project.ensemble);
-  const lockedTrackIds = project.tracks.filter((t) => t.locked).map((t) => t.id);
 
   // the take this compose produces (increments the previous one); the arrangement
   // seed shifts the effective take by arrangementSeed*1000 so arrangementSeed 0
@@ -170,8 +191,33 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   ctx.arc = arc;
   ctx.lines = { reports: [], leads: [], tremoloRepeats: 0 } as any;
   const stringsTrackIds: string[] = [];
-  const plan = { breaths: [], moments: [], sections: [], reports: [], bars: arc.map((a) => ({ bar: a.bar, layers: [] })), fills: [] } as any;
-  let tracks = project.tracks.map((t) => ({ ...t, notes: [], cc: undefined }));
+  // The piano engine reads its exact source windows from the conductor plan:
+  // barWindows carry startTick/endTick/sectionId/sectionName. Orchestra
+  // generation is gone, so the bar plan is built here directly from the spine
+  // instead of from conduct(); the piano is the only consumer left.
+  const bars = arc.map((a) => {
+    const section = sectionAtBar(ctx.sections, a.bar);
+    return {
+      bar: a.bar,
+      startTick: a.startTick,
+      endTick: a.endTick,
+      sectionId: section?.id ?? '__all',
+      sectionName: section?.name ?? '*',
+      layers: [] as { layer: LayerName; trackIds: string[]; source: 'strings' }[],
+      energyTarget: a.target,
+    };
+  });
+  const plan: ComposePlan = {
+    templateId: template?.id ?? null,
+    maxLayers: template?.budget.maxLayers ?? 0,
+    octaveDoublingPolicy: 'none',
+    bars,
+    breaths: [],
+    fills: [],
+    unannotatedRoles: [],
+    moments: [],
+  };
+  let tracks: Track[] = project.tracks.map((t) => ({ ...t, notes: [], cc: undefined }));
 
   // Piano Engine V5 runs after every non-Piano part (including Harp) has
   // been composed and finalized. Its frozen analysis snapshot reads those
@@ -276,12 +322,6 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
       configurable: false,
       writable: false,
     });
-  }
-  for (const t of tracks) {
-    if (t.family !== 'Keys') {
-      t.notes = [];
-      t.cc = {};
-    }
   }
   return result as ComposeResult;
 }

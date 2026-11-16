@@ -221,9 +221,7 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     timeSignature: project.timeSignature,
   });
   if (pianoTrack) {
-    const pianoNotes = pianoEngineInput.context.template.pianoEligible
-      ? pianoRealization.notes.map((note) => ({ ...note }))
-      : [];
+    const pianoNotes = pianoRealization.notes.map((note) => ({ ...note }));
     // Piano Engine V5 supplies its own CC64 lane. Authored CC64 points, when
     // present, are retained in that same lane; generated values win at ties.
     const pianoPedalCc = composePianoCc64(

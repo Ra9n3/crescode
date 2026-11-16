@@ -44,10 +44,10 @@ describe('strings doubling (E2-FIX)', () => {
   it('audibility: doubled bars / lead bars >= 80% when strategy != none across takes 1-10', () => {
     const base = loadAeolian();
     const btBar = 1920; // 4/4 at 480 PPQ
-    const sections = base.sections.map((s) => ({
-      ...s,
-      startBar: Math.floor(s.startTick / btBar) + 1,
-      lengthBars: Math.max(1, Math.round((s.endTick - s.startTick) / btBar)),
+    const sections = base.sections.map((sec: any) => ({
+      ...sec,
+      startTick: sec.startTick ?? sec.startBar * btBar,
+      endTick: sec.endTick ?? (sec.startBar + sec.lengthBars) * btBar,
     }));
 
     let nonNoneSections = 0;

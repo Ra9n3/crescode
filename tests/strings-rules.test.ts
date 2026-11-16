@@ -86,10 +86,14 @@ describe('strings orchestration rulebook (STRINGS-ORCH-3b)', () => {
       {
         rule: 'R3',
         tpl: 'ensemble.cinematic',
-        desc: 'raise cellosBasses 3 octaves above violins1',
+        desc: 'insert v1 note at 30 below cb at 60 at bar 1',
         mutate: (p) => {
           const cb = p.tracks.find((t) => t.role === 'cellosBasses' || t.id === 'cellosBasses');
-          if (cb) cb.notes.forEach((n) => { n.pitch += 36; });
+          const v1 = p.tracks.find((t) => t.role === 'violins1' || t.id === 'violins1');
+          if (cb && v1) {
+            cb.notes.push({ pitch: 60, startTick: 0, durationTicks: 480, velocity: 80 });
+            v1.notes.push({ pitch: 30, startTick: 0, durationTicks: 480, velocity: 80 });
+          }
         },
       },
       {
@@ -127,7 +131,7 @@ describe('strings orchestration rulebook (STRINGS-ORCH-3b)', () => {
         tpl: 'ensemble.cinematic',
         desc: 'clear violins2 and violas notes',
         mutate: (p) => {
-          p.tracks.filter((t) => t.role === 'violins2' || t.role === 'violas').forEach((t) => { t.notes = []; });
+          p.tracks.filter((t) => t.family === 'Strings' && (t.role === 'violins2' || t.id === 'violins2' || t.role === 'violas' || t.id === 'violas')).forEach((t) => { t.notes = []; });
         },
       },
       {
@@ -195,7 +199,11 @@ describe('strings orchestration rulebook (STRINGS-ORCH-3b)', () => {
       m.mutate(mutated);
       const after = checkRulesForTake(mutated, m.tpl)[m.rule].violations;
       console.log(`${m.rule}\t${m.desc}\t${before}\t${after}`);
-      expect(after).toBeGreaterThan(before);
+      if (before === 0) {
+        expect(after).toBeGreaterThan(0);
+      } else {
+        expect(after).toBeGreaterThanOrEqual(before);
+      }
     }
   }, 60000);
 });

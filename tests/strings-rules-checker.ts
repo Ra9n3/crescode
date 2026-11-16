@@ -272,17 +272,16 @@ export function checkRulesForTake(p: Project, templateId: string): Record<RuleId
     }
   }
 
-  // R13: VOCAL BACKING
+  // R13: VOCAL BACKING (1 unit = 1 note; at most 1 violation per note)
   if (templateId === 'ensemble.vocalbacking') {
     const allowedArt = new Set(['sustain', 'legato', 'pizz', 'conSord', 'sulTasto']);
     for (const d of desks) {
       for (const n of d.notes) {
         res.R13.examined++;
-        if (n.velocity > 80) res.R13.violations++;
-        if (n.articulation && !allowedArt.has(n.articulation)) res.R13.violations++;
-        if (n.pitch >= VOCAL_ZONE[0] && n.pitch <= VOCAL_ZONE[1] && n.velocity > 60) {
-          res.R13.violations++;
-        }
+        const badVel = n.velocity > 80;
+        const badArt = !!(n.articulation && !allowedArt.has(n.articulation));
+        const badZone = n.pitch >= VOCAL_ZONE[0] && n.pitch <= VOCAL_ZONE[1] && n.velocity > 60;
+        if (badVel || badArt || badZone) res.R13.violations++;
       }
     }
   }

@@ -45,6 +45,7 @@ import { leadingTonePcOf, voiceLead, type VoicedChord, type VoiceFix, type Voice
 import type { EnsembleTemplate } from '../shared/schema/ensembleTemplate';
 import type { LayerPlan, OrchestratorContext, SectionModule, SectionPatch, StringsLayer } from './module';
 import { assignStringLayers, stringLayerForBar, textureForType, sectionTypeNameAtBar, tuneCarrierForBar } from './conductor/layers';
+import { selectSectionDoubling, realizeDoublingNote } from './strings/doubling';
 import { momentForBar, imitationAnswer, resolveDivisiSpans, type MomentPlan, type MomentSpanPitch } from './conductor/moments';
 import { motifLine } from './lines/motif';
 import { counterlineLine } from './lines/counterline';
@@ -520,6 +521,19 @@ export const stringsModule: SectionModule = {
           else if (!arr.includes(v.id)) arr.push(v.id); // unique track ids across the section's bars
         }
       }
+      if (ctx.variety === true) {
+        const hasLeadInSection = byLayer.has('lead');
+        const energy = sectionEnergyTarget(sec.name);
+        const take = ctx.project.orchestration?.take ?? 1;
+        const dp = selectSectionDoubling(ctx, sec, hasLeadInSection, energy, voices.map((v) => v.id), orchestrationSeedFor(ctx.project, { take }));
+        if (dp.strategy !== 'none') {
+          const padArr = byLayer.get('pad') ?? [];
+          for (const d of dp.desks) {
+            if (!padArr.includes(d)) padArr.push(d);
+          }
+          if (padArr.length) byLayer.set('pad', padArr);
+        }
+      }
       for (const [layer, trackIds] of byLayer) out.push({ moduleId: MODULE_ID, sectionId: sec.id, layer, voiceTrackIds: trackIds });
     }
     return out;
@@ -532,6 +546,19 @@ export const stringsModule: SectionModule = {
     const { rosterLength, clamp } = effectiveTemplate(ctx);
     const isVocalBacking = ctx.template?.id === 'ensemble.vocalbacking';
     const minDuration = isVocalBacking ? PPQ / 2 : 1; // no notes under an eighth
+
+    const stringVoices = stringVoiceTracks(ctx);
+    const hasLeadInSection = ctx.variety === true && plan.layer === 'pad' && (() => {
+      for (let b = section.startBar; b < section.startBar + section.lengthBars; b++) {
+        for (const v of stringVoices) {
+          if (stringLayerForBar(ctx, b, v.id) === 'lead') return true;
+        }
+      }
+      return false;
+    })();
+    const doublingPlan = (ctx.variety === true && plan.layer === 'pad')
+      ? selectSectionDoubling(ctx, section, hasLeadInSection, sectionEnergyTarget(section.name), stringVoices.map((v) => v.id), orchestrationSeedFor(ctx.project, { take: ctx.project.orchestration?.take ?? 0 }))
+      : null;
     const take = ctx.project.orchestration?.take ?? 0;
     const lines = ctx.lines ?? (ctx.lines = prepareStrings(ctx, take));
     const { voiced, voiceIndex, fallbackSpanIds } = lines;
@@ -651,7 +678,9 @@ export const stringsModule: SectionModule = {
           }
         }
         for (const trackId of plan.voiceTrackIds) {
-          if (stringLayerForBar(ctx, bar, trackId) !== plan.layer) continue; // another plan carries this bar
+          const barLayer = stringLayerForBar(ctx, bar, trackId);
+          const isDoublingDesk = doublingPlan !== null && doublingPlan.strategy !== 'none' && doublingPlan.desks.includes(trackId);
+          if (barLayer !== plan.layer && !(isDoublingDesk && barLayer === 'tacet')) continue; // another plan carries this bar
           if (plan.layer === 'ostinato' && !ostWin) continue; // gated bar (4.6): the ostinato rests, it is not a pad
           const vi = voiceIndex.get(trackId);
           const dpPitch = vi !== undefined ? vc.pitches[vi] : null;
@@ -890,7 +919,28 @@ export const stringsModule: SectionModule = {
                   // sparse already one note, keep as is (downbeat only)
                 }
               }
-            } else if (dpPitch !== null) {
+            } else if (isDoublingDesk && (() => {
+              const barStartTick = (bar - 1) * btBar;
+              const barEndTick = barStartTick + btBar;
+              return lines.leads.some((l) => l.notes.some((n) => n.startTick < barEndTick && n.startTick + n.durationTicks > barStartTick));
+            })()) {
+              const tr = ctx.project.tracks.find((t) => t.id === trackId);
+              const low = tr?.lowestNote ?? 36;
+              const high = tr?.highestNote ?? 96;
+              const mode = doublingPlan!.deskMode[trackId] ?? 'octave';
+              for (const l of lines.leads) {
+                for (const n of l.notes) {
+                  if (n.startTick >= e || n.startTick + n.durationTicks <= s) continue;
+                  const st = Math.max(n.startTick, s);
+                  const en = Math.min(n.startTick + n.durationTicks, e);
+                  if (en - st < minDuration) continue;
+                  const dPitch = realizeDoublingNote(ctx, n, trackId, mode, low, high, isVocalBacking);
+                  if (dPitch === null) continue;
+                  const art = articulationFor(ctx, 'lead', bar, trackId, dPitch);
+                  notesByTrackId[trackId].push({ pitch: dPitch, startTick: st, durationTicks: en - st, velocity, articulation: art });
+                }
+              }
+            } else if (dpPitch !== null && barLayer === 'pad') {
               // pad / bass (sustained outside the symphony pizz textures).
               // Phase 8: on a brass-lead bar the suppressed pad OPENS where
               // its DP pitch would double a leading tone another voice holds

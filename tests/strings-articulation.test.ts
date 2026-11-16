@@ -179,13 +179,13 @@ describe('strings bowing coherent (STRINGS-ORCH-1b)', () => {
       expect(total, `take${take} totalChanges ${total} >30 (coherent requires ≤30, old per-bar was ~56)`).toBeLessThanOrEqual(30);
       expect(total/24, `take${take} avgPerBar ${total/24} >1.2 (old 2.35)`).toBeLessThanOrEqual(1.2);
       // phrase plateau: within each 4-bar phrase, each desk must not change bow (bars in same phrase same art)
-      // Exclude intro bars 1-8 (R9 intro bed uses conSord/sulTasto per desk); check intro bed articulations instead.
+      // Exclude intro bars 1-8 (R9 intro bed uses soft sustained palette per desk); check intro bed articulations instead.
       for(const tr of r.tracks){
         if(tr.family!=='Strings') continue;
         for(const n of tr.notes){
           const bar=Math.floor(n.startTick/bt)+1;
           if(bar<=8 && n.velocity===48 && n.durationTicks>=bt*2){
-            expect(['conSord','sulTasto']).toContain(n.articulation);
+            expect(['conSord','sulTasto','sustain','legato','tremolo']).toContain(n.articulation);
           }
         }
       }

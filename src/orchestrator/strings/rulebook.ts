@@ -11,7 +11,7 @@ const mulberry32 = (seed: number) => {
   };
 };
 
-const SOFT_INTRO_BOWING = ['conSord', 'sulTasto'] as const;
+const SOFT_INTRO_BOWING = ['conSord', 'sulTasto', 'sustain', 'legato', 'tremolo'] as const;
 
 const median = (arr: number[]): number => {
   if (!arr.length) return 0;
@@ -20,7 +20,7 @@ const median = (arr: number[]): number => {
   return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid];
 };
 
-export function applyStringsRulebookVariety(project: Project, take: number): void {
+export function applyStringsRulebookVariety(project: Project, take: number, seed?: number): void {
   const templateId = project.orchestration?.templateId ?? 'ensemble.symphony';
   const btBar = Math.round(project.timeSignature.numerator * 480 * (4 / project.timeSignature.denominator));
   const sections = project.sections ?? [];
@@ -51,10 +51,11 @@ export function applyStringsRulebookVariety(project: Project, take: number): voi
     }
   }
 
-  // R9: INTRO VARIETY WITH GUARDRAILS (seeded per take, no fixed recipes)
+  // R9: INTRO VARIETY WITH GUARDRAILS (seeded from arrangementSeed + take, no fixed recipes)
   const intro = sections.find((s) => s.name.toLowerCase().includes('intro'));
   if (intro) {
-    const rng = mulberry32((take * 2654435761) >>> 0);
+    const baseSeed = seed ?? (take * 2654435761) >>> 0;
+    const rng = mulberry32((baseSeed ^ 0x9e3779b1) >>> 0);
     const introBars = Math.max(1, Math.round((intro.endTick - intro.startTick) / btBar));
     const roleOrder = ['cellosBasses', 'violas', 'violins2', 'violins1'] as const;
     const entryBars: number[] = roleOrder.map(() => 1 + Math.floor(rng() * Math.min(6, introBars)));

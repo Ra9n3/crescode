@@ -895,7 +895,7 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     });
   }
   if (options?.variety === true) {
-    applyStringsRulebookVariety({ ...project, tracks }, options.take ?? 1);
+    applyStringsRulebookVariety({ ...project, tracks }, options.take ?? 1, orchestrationSeedFor(project, { take: options.take ?? 1 }));
   }
   return result as ComposeResult;
 }

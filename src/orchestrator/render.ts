@@ -30,6 +30,7 @@
  */
 import { hashString, mulberry32 } from '../engine/generate';
 import { noteName, scalePitchClasses } from '../shared/schema/modes';
+import { articulationFor } from './strings/articulationPalette';
 import { isInstrumentTrack, PPQ, type Note } from '../shared/schema/types';
 import { barTicks, projectBars } from '../shared/schema/meter';
 import { isInBand } from '../shared/schema/band';
@@ -563,22 +564,26 @@ export const stringsModule: SectionModule = {
     }));
     const ltPcRender = leadingTonePcOf(ctx.project.key, scalePitchClasses(ctx.project.key, ctx.project.mode));
 
-    const pushDPNote = (sink: Note[], pitch: number, s: number, e: number, velocity: number, reattack: boolean) => {
+    const pushDPNote = (sink: Note[], pitch: number, s: number, e: number, velocity: number, reattack: boolean, bar: number, trackId: string) => {
+      const varietyOnArt = ctx.variety === true;
+      const art = varietyOnArt ? articulationFor(ctx, 'pad', bar, trackId, pitch) : 'legato' as const;
       const len = e - s;
       if (reattack && len >= minDuration * 2) {
         const half = Math.floor(len / 2);
-        sink.push({ pitch, startTick: s, durationTicks: half, velocity, articulation: 'legato' });
-        sink.push({ pitch, startTick: s + half, durationTicks: len - half, velocity, articulation: 'legato' });
+        sink.push({ pitch, startTick: s, durationTicks: half, velocity, articulation: art });
+        sink.push({ pitch, startTick: s + half, durationTicks: len - half, velocity, articulation: art });
       } else {
-        sink.push({ pitch, startTick: s, durationTicks: len, velocity, articulation: 'legato' });
+        sink.push({ pitch, startTick: s, durationTicks: len, velocity, articulation: art });
       }
     };
-    const writeLineNotes = (sink: Note[], line: Note[], s: number, e: number, velocity: number) => {
+    const writeLineNotes = (sink: Note[], line: Note[], s: number, e: number, velocity: number, bar: number, trackId: string, layer: string) => {
       for (const n of line) {
         if (n.startTick >= e || n.startTick + n.durationTicks <= s) continue;
         const st = Math.max(n.startTick, s);
         const en = Math.min(n.startTick + n.durationTicks, e);
-        sink.push({ pitch: n.pitch, startTick: st, durationTicks: en - st, velocity, articulation: n.articulation ?? 'legato' });
+        const varietyOnArt = ctx.variety === true;
+        const art = varietyOnArt ? articulationFor(ctx, layer, bar, trackId, n.pitch) : (n.articulation ?? 'legato');
+        sink.push({ pitch: n.pitch, startTick: st, durationTicks: en - st, velocity, articulation: art });
       }
     };
     // Phase 7: the divisi second line for one track in one window (empty
@@ -589,20 +594,24 @@ export const stringsModule: SectionModule = {
       if (!moment || moment.kind !== 'divisi' || moment.divTrackId !== trackId || !moment.divSpans) return [];
       return moment.divSpans.filter((sp) => sp.startTick < e && sp.endTick > s);
     };
-    const writeDiv2Pad = (sink: Note[], trackId: string, s: number, e: number, velocity: number) => {
+    const writeDiv2Pad = (sink: Note[], trackId: string, s: number, e: number, velocity: number, bar: number) => {
+      const varietyOnArt = ctx.variety === true;
+      const art = varietyOnArt ? articulationFor(ctx, 'pad', bar, trackId, null) : 'legato' as const;
       for (const sp of div2SpansIn(trackId, s, e)) {
         const st = Math.max(sp.startTick, s);
         const en = Math.min(sp.endTick, e);
         if (en - st < 1) continue;
-        sink.push({ pitch: sp.pitch, startTick: st, durationTicks: en - st, velocity, articulation: 'legato', layer: 'div2' });
+        sink.push({ pitch: sp.pitch, startTick: st, durationTicks: en - st, velocity, articulation: art, layer: 'div2' });
       }
     };
-    const writeDiv2Tremolo = (sink: Note[], trackId: string, s: number, e: number, velocity: number) => {
+    const writeDiv2Tremolo = (sink: Note[], trackId: string, s: number, e: number, velocity: number, bar: number) => {
+      const varietyOnArt = ctx.variety === true;
+      const art = varietyOnArt ? articulationFor(ctx, 'tremolo', bar, trackId, null) : 'tremolo' as const;
       for (const sp of div2SpansIn(trackId, s, e)) {
         const st = Math.max(sp.startTick, s);
         const en = Math.min(sp.endTick, e);
         for (let t = st; t < en; t += TREMOLO_STEP_TICKS) {
-          sink.push({ pitch: sp.pitch, startTick: t, durationTicks: Math.min(TREMOLO_STEP_TICKS, en - t), velocity, articulation: 'tremolo', layer: 'div2' });
+          sink.push({ pitch: sp.pitch, startTick: t, durationTicks: Math.min(TREMOLO_STEP_TICKS, en - t), velocity, articulation: art, layer: 'div2' });
         }
       }
     };
@@ -670,7 +679,8 @@ export const stringsModule: SectionModule = {
               if (moment?.kind === 'tutti' && s <= downbeat && downbeat < e && dpPitch !== null) {
                 const hitStart = Math.max(s, downbeat);
                 const hitLen = moment.shape === 'breath' ? beat : moment.shape === 'decay' ? beat * 2 : pe - downbeat;
-                notesByTrackId[trackId].push({ pitch: dpPitch, startTick: hitStart, durationTicks: Math.max(1, Math.min(hitLen, e - hitStart)), velocity: momentVelocity(downbeat, pe), articulation: 'marcato' });
+                const artTutti = ctx.variety === true ? articulationFor(ctx, 'tutti', bar, trackId, dpPitch) : 'marcato' as const;
+                notesByTrackId[trackId].push({ pitch: dpPitch, startTick: hitStart, durationTicks: Math.max(1, Math.min(hitLen, e - hitStart)), velocity: momentVelocity(downbeat, pe), articulation: artTutti });
               }
               continue; // the moment bar carries only the hit
             }
@@ -698,15 +708,17 @@ export const stringsModule: SectionModule = {
                   }
                   const st = Math.max(n.startTick, s);
                   const en = Math.min(n.startTick + n.durationTicks, e);
-                  notesByTrackId[trackId].push({ pitch, startTick: st, durationTicks: en - st, velocity: momentVelocity(s, e), articulation: n.articulation ?? 'legato' });
+                  const varietyOnU = ctx.variety === true;
+                  const artU = varietyOnU ? articulationFor(ctx, 'lead', bar, trackId, n.pitch) : (n.articulation ?? 'legato');
+                  notesByTrackId[trackId].push({ pitch, startTick: st, durationTicks: en - st, velocity: momentVelocity(s, e), articulation: artU });
                 }
               }
               continue;
             }
             if (plan.layer === 'lead' && carrierHere && !fellBack) {
-              writeLineNotes(notesByTrackId[trackId], carrierHere.notes, s, e, velocity);
+              writeLineNotes(notesByTrackId[trackId], carrierHere.notes, s, e, velocity, bar, trackId, 'lead');
             } else if (plan.layer === 'counterline' && lines.counter?.trackId === trackId && !fellBack) {
-              writeLineNotes(notesByTrackId[trackId], lines.counter.notes, s, e, velocity);
+              writeLineNotes(notesByTrackId[trackId], lines.counter.notes, s, e, velocity, bar, trackId, 'counterline');
             } else if (plan.layer === 'ostinato') {
               // Phase 4e: chord tones on the drawn rhythm cell (4.8: meter-
               // aware, over the felt beats — 8ths by default, the full 16th
@@ -798,20 +810,22 @@ export const stringsModule: SectionModule = {
               const isCarrierThisBar = lines.carrierByBar[bar - 1] === trackId;
               const leadHere = isCarrierThisBar && carrierHere && !fellBack ? carrierHere.notes : null;
               if (leadHere) {
+                const varArtTrem = ctx.variety === true ? articulationFor(ctx, 'tremolo', bar, trackId, dpPitch) : 'tremolo' as const;
                 for (const n of leadHere) {
                   const ns = Math.max(n.startTick, s);
                   const ne = Math.min(n.startTick + n.durationTicks, e);
                   for (let t = ns; t < ne; t += TREMOLO_STEP_TICKS) {
-                    notesByTrackId[trackId].push({ pitch: n.pitch, startTick: t, durationTicks: Math.min(TREMOLO_STEP_TICKS, ne - t), velocity, articulation: 'tremolo' });
+                    notesByTrackId[trackId].push({ pitch: n.pitch, startTick: t, durationTicks: Math.min(TREMOLO_STEP_TICKS, ne - t), velocity, articulation: varArtTrem });
                     lines.tremoloRepeats++;
                   }
                 }
               } else if (dpPitch !== null) {
+                const varArtTrem2 = ctx.variety === true ? articulationFor(ctx, 'tremolo', bar, trackId, dpPitch) : 'tremolo' as const;
                 for (let t = s; t < e; t += TREMOLO_STEP_TICKS) {
-                  notesByTrackId[trackId].push({ pitch: dpPitch, startTick: t, durationTicks: Math.min(TREMOLO_STEP_TICKS, e - t), velocity, articulation: 'tremolo' });
+                  notesByTrackId[trackId].push({ pitch: dpPitch, startTick: t, durationTicks: Math.min(TREMOLO_STEP_TICKS, e - t), velocity, articulation: varArtTrem2 });
                 }
               }
-              writeDiv2Tremolo(notesByTrackId[trackId], trackId, s, e, velocity);
+              writeDiv2Tremolo(notesByTrackId[trackId], trackId, s, e, velocity, bar);
             } else if (plan.layer === 'bass' && ctx.template?.id === 'ensemble.symphony' && textureForType(ctx, sectionTypeNameAtBar(ctx, bar)).style.bassPizz) {
               // Phase 4e: pizz-pulse on the strong beats under pads and lines
               // (4.6: only in the textures whose Cb axis is pizz, not sustained) — variety adds 6 cells, varied every 2-4 bars.
@@ -899,7 +913,7 @@ export const stringsModule: SectionModule = {
                   padShape = padShapeForType(ctx, secForPad?.name ?? '*');
                 }
                 if (!varietyOn || padShape === 'wholeSustain') {
-                  pushDPNote(notesByTrackId[trackId], padPitch, s, e, velocity, reattack);
+                  pushDPNote(notesByTrackId[trackId], padPitch, s, e, velocity, reattack, bar, trackId);
                 } else if (padShape === 'twoBarHolds') {
                   const secForPad = ctx.sections.find((x) => bar >= x.startBar && bar < x.startBar + x.lengthBars);
                   const secStart = secForPad?.startBar ?? bar;
@@ -909,14 +923,14 @@ export const stringsModule: SectionModule = {
                     const winEnd = Math.min(twoEnd, section.endTick);
                     if (winEnd > s) {
                       const cVel = Math.max(1, Math.min(127, Math.round(1 + (cap - 1) * targetOf(s, winEnd))));
-                      pushDPNote(notesByTrackId[trackId], padPitch, s, winEnd, cVel, false);
+                      pushDPNote(notesByTrackId[trackId], padPitch, s, winEnd, cVel, false, bar, trackId);
                     }
                   }
                 } else if (padShape === 'barRebow') {
                   const overlap = Math.min(beat / 4, 120);
                   const noteEnd = Math.min(e + overlap, section.endTick, vc.endTick);
                   const cVel = Math.max(1, Math.min(127, Math.round(1 + (cap - 1) * targetOf(s, noteEnd))));
-                  pushDPNote(notesByTrackId[trackId], padPitch, s, noteEnd, cVel, false);
+                  pushDPNote(notesByTrackId[trackId], padPitch, s, noteEnd, cVel, false, bar, trackId);
                 } else if (padShape === 'halfBarSwell') {
                   const half = Math.floor((e - s) / 2);
                   const gap = Math.min(120, Math.floor(half / 3));
@@ -924,11 +938,13 @@ export const stringsModule: SectionModule = {
                   const secondStart = s + half + Math.floor(gap / 2);
                   if (firstEnd > s) {
                     const v1 = Math.max(1, Math.min(127, Math.round(1 + (cap - 1) * targetOf(s, firstEnd))));
-                    notesByTrackId[trackId].push({ pitch: padPitch, startTick: s, durationTicks: firstEnd - s, velocity: v1, articulation: 'legato' });
+                    const a1 = ctx.variety === true ? articulationFor(ctx, 'pad', bar, trackId, padPitch) : 'legato' as const;
+                    notesByTrackId[trackId].push({ pitch: padPitch, startTick: s, durationTicks: firstEnd - s, velocity: v1, articulation: a1 });
                   }
                   if (e > secondStart) {
                     const v2 = Math.max(1, Math.min(127, Math.round(1 + (cap - 1) * targetOf(secondStart, e))));
-                    notesByTrackId[trackId].push({ pitch: padPitch, startTick: secondStart, durationTicks: e - secondStart, velocity: v2, articulation: 'legato' });
+                    const a2 = ctx.variety === true ? articulationFor(ctx, 'pad', bar, trackId, padPitch) : 'legato' as const;
+                    notesByTrackId[trackId].push({ pitch: padPitch, startTick: secondStart, durationTicks: e - secondStart, velocity: v2, articulation: a2 });
                   }
                 } else if (padShape === 'staggeredEntry') {
                   const role = ctx.project.tracks.find((t) => t.id === trackId)?.role;
@@ -938,18 +954,18 @@ export const stringsModule: SectionModule = {
                   else if (role === 'violins2') adjS = s;
                   if (adjE > adjS) {
                     const cVel = Math.max(1, Math.min(127, Math.round(1 + (cap - 1) * targetOf(adjS, adjE))));
-                    pushDPNote(notesByTrackId[trackId], padPitch, adjS, adjE, cVel, false);
+                    pushDPNote(notesByTrackId[trackId], padPitch, adjS, adjE, cVel, false, bar, trackId);
                   }
                 } else if (padShape === 'restEvery4th') {
                   const secForPad = ctx.sections.find((x) => bar >= x.startBar && bar < x.startBar + x.lengthBars);
                   const secStart = secForPad?.startBar ?? bar;
                   const pos = bar - secStart;
                   if (pos % 4 !== 3) {
-                    pushDPNote(notesByTrackId[trackId], padPitch, s, e, velocity, reattack);
+                    pushDPNote(notesByTrackId[trackId], padPitch, s, e, velocity, reattack, bar, trackId);
                   }
                 }
               }
-              writeDiv2Pad(notesByTrackId[trackId], trackId, s, e, velocity);
+              writeDiv2Pad(notesByTrackId[trackId], trackId, s, e, velocity, bar);
             }
           }
         }

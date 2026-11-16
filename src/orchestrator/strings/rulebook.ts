@@ -46,21 +46,23 @@ export function applyStringsRulebookVariety(project: Project, take: number): voi
     }
   }
 
-  // R9: CINEMATIC INTRO (lead-free sections build as a low bed with 4 drawn entry orders)
+  // R9: CINEMATIC INTRO (lead-free sections build as a low bed with 4 drawn entry orders + register)
   const intro = sections.find((s) => s.name.toLowerCase().includes('intro'));
   if (intro) {
     const order = INTRO_ORDERS[(take - 1) % INTRO_ORDERS.length];
+    const regVariant = Math.floor((take - 1) / INTRO_ORDERS.length);
     const introBars = Math.max(1, Math.round((intro.endTick - intro.startTick) / btBar));
     order.forEach((role, idx) => {
       const tr = byRole(role);
       if (!tr) return;
-      const enterBar = Math.min(introBars - 1, idx);
+      const enterBar = Math.min(introBars - 1, idx * 2);
       const enterTick = intro.startTick + enterBar * btBar;
       const hasNotes = tr.notes.some((n) => n.startTick >= intro.startTick && n.startTick < intro.endTick);
       if (!hasNotes && enterTick < intro.endTick) {
-        const pitch = role === 'cellosBasses' ? 45 : role === 'violas' ? 57 : role === 'violins2' ? 64 : 76;
+        const basePitch = role === 'cellosBasses' ? 45 : role === 'violas' ? 57 : role === 'violins2' ? 64 : 76;
+        const pitch = basePitch + (regVariant % 2 === 1 && role !== 'cellosBasses' ? 12 : 0);
         tr.notes.push({
-          pitch,
+          pitch: Math.min(tr.highestNote ?? 96, Math.max(tr.lowestNote ?? 36, pitch)),
           startTick: enterTick,
           durationTicks: intro.endTick - enterTick,
           velocity: 48,

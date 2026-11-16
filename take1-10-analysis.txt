@@ -1,0 +1,11 @@
+Take 1-10 variety:true analysis
+take1: hornsDense=false len=3 single=false sharedTicks>=5=6 maxSharing=5/7
+take2: hornsDense=false len=3 single=false sharedTicks>=5=20 maxSharing=6/7
+take3: hornsDense=false len=3 single=false sharedTicks>=5=28 maxSharing=6/7
+take4: hornsDense=false len=3 single=false sharedTicks>=5=24 maxSharing=6/7
+take5: hornsDense=false len=3 single=false sharedTicks>=5=16 maxSharing=6/7
+take6: hornsDense=false len=3 single=false sharedTicks>=5=6 maxSharing=5/7
+take7: hornsDense=false len=3 single=false sharedTicks>=5=9 maxSharing=5/7
+take8: hornsDense=false len=3 single=false sharedTicks>=5=2 maxSharing=5/7
+take9: hornsDense=false len=3 single=false sharedTicks>=5=32 maxSharing=6/7
+take10: hornsDense=false len=3 single=false sharedTicks>=5=24 maxSharing=6/7

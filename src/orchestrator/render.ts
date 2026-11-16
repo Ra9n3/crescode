@@ -125,6 +125,51 @@ function padShapeForType(ctx: OrchestratorContext, typeName: string): PadShapeId
   return shape;
 }
 
+/** PIZZ variety (behind switch): per section type draw, own salted stream. */
+export type PizzCellId = 'straightQuarters' | 'rootFifth' | 'offbeat' | 'syncopated' | 'halfNotes' | 'sparse';
+export const PIZZ_CELL_WEIGHTS: Record<PizzCellId, number> = {
+  straightQuarters: 0.25,
+  rootFifth: 0.15,
+  offbeat: 0.15,
+  syncopated: 0.15,
+  halfNotes: 0.15,
+  sparse: 0.15,
+};
+const pizzCellCache = new WeakMap<object, Map<string, PizzCellId>>();
+const pizzPeriodCache = new WeakMap<object, Map<string, number>>();
+function drawWeightedPizz<T extends string>(rng: () => number, weights: Record<T, number>): T {
+  const keys = Object.keys(weights) as T[];
+  const total = keys.reduce((a, k) => a + (weights as any)[k], 0);
+  let roll = rng() * total;
+  for (const k of keys) { roll -= (weights as any)[k]; if (roll < 0) return k; }
+  return keys[keys.length - 1];
+}
+function pizzCellForType(ctx: OrchestratorContext, typeName: string, block: number = 0): PizzCellId {
+  const key = sectionTypeKeyOf(typeName);
+  const cacheKey = `${key}:${block}`;
+  let cache = pizzCellCache.get(ctx);
+  if (!cache) { cache = new Map(); pizzCellCache.set(ctx, cache); }
+  const hit = cache.get(cacheKey);
+  if (hit) return hit;
+  const take = ctx.project.orchestration?.take ?? 0;
+  const rng = mulberry32((orchestrationSeedFor(ctx.project, { take }) ^ Math.imul(hashString(`strings-pizz:${cacheKey}`), 0x9e3779b1)) >>> 0);
+  const cell = drawWeightedPizz(rng, PIZZ_CELL_WEIGHTS);
+  cache.set(cacheKey, cell);
+  return cell;
+}
+function pizzPeriodForType(ctx: OrchestratorContext, typeName: string): number {
+  const key = sectionTypeKeyOf(typeName);
+  let cache = pizzPeriodCache.get(ctx);
+  if (!cache) { cache = new Map(); pizzPeriodCache.set(ctx, cache); }
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const take = ctx.project.orchestration?.take ?? 0;
+  const rng = mulberry32((orchestrationSeedFor(ctx.project, { take }) ^ Math.imul(hashString(`strings-pizz-period:${key}`), 0x9e3779b1)) >>> 0);
+  const period = [2,3,4][Math.floor(rng()*3)];
+  cache.set(key, period);
+  return period;
+}
+
 /** A stand-in template for the no-band case: everyone in, no clamp pressure. */
 function effectiveTemplate(ctx: OrchestratorContext): { rosterLength: number; clamp: [number, number]; template: EnsembleTemplate | null } {
   if (ctx.template) return { rosterLength: ctx.template.roster.length, clamp: ctx.template.budget.energyClamp, template: ctx.template };
@@ -769,19 +814,68 @@ export const stringsModule: SectionModule = {
               writeDiv2Tremolo(notesByTrackId[trackId], trackId, s, e, velocity);
             } else if (plan.layer === 'bass' && ctx.template?.id === 'ensemble.symphony' && textureForType(ctx, sectionTypeNameAtBar(ctx, bar)).style.bassPizz) {
               // Phase 4e: pizz-pulse on the strong beats under pads and lines
-              // (4.6: only in the textures whose Cb axis is pizz, not sustained)
+              // (4.6: only in the textures whose Cb axis is pizz, not sustained) — variety adds 6 cells, varied every 2-4 bars.
               if (dpPitch === null) continue;
-              const offsets = beatOffsets(ctx.project.timeSignature);
-              const nBeats = offsets.length;
-              const simple = !isCompound(ctx.project.timeSignature);
               const barStart = Math.floor(s / btBar) * btBar;
               const shortTicks = Math.max(1, secondsToTicks(SHORT_NOTE_SECONDS, ctx.project.tempoMap));
-              offsets.forEach((off, idx) => {
-                const strong = idx === 0 || (simple && idx * 2 === nBeats);
-                const t = barStart + off;
-                if (!strong || t < s || t >= e) return;
-                notesByTrackId[trackId].push({ pitch: dpPitch, startTick: t, durationTicks: Math.min(shortTicks, e - t), velocity, articulation: 'pizz' });
-              });
+              const varietyOnPizz = ctx.variety === true;
+              let pizzCell: PizzCellId = 'straightQuarters';
+              let pizzPeriod = 4;
+              if (varietyOnPizz) {
+                const secForPizz = ctx.sections.find((x) => bar >= x.startBar && bar < x.startBar + x.lengthBars);
+                const secName = secForPizz?.name ?? '*';
+                pizzPeriod = pizzPeriodForType(ctx, secName);
+                const block = Math.floor((bar - (secForPizz?.startBar ?? bar)) / pizzPeriod);
+                pizzCell = pizzCellForType(ctx, secName, block);
+              }
+              if (!varietyOnPizz || pizzCell === 'straightQuarters') {
+                const offsets = beatOffsets(ctx.project.timeSignature);
+                const nBeats = offsets.length;
+                const simple = !isCompound(ctx.project.timeSignature);
+                offsets.forEach((off, idx) => {
+                  const strong = idx === 0 || (simple && idx * 2 === nBeats);
+                  const t = barStart + off;
+                  if (!strong || t < s || t >= e) return;
+                  notesByTrackId[trackId].push({ pitch: dpPitch, startTick: t, durationTicks: Math.min(shortTicks, e - t), velocity, articulation: 'pizz' });
+                });
+              } else {
+                const bt = beatTicks(ctx.project.timeSignature);
+                const offsetsMap: Record<PizzCellId, number[]> = {
+                  straightQuarters: [],
+                  rootFifth: [],
+                  offbeat: [],
+                  syncopated: [],
+                  halfNotes: [],
+                  sparse: [],
+                };
+                // Define per-cell onset ticks relative to barStart
+                if (pizzCell === 'rootFifth') {
+                  offsetsMap.rootFifth = [0, 2*bt];
+                } else if (pizzCell === 'offbeat') {
+                  offsetsMap.offbeat = [240, 720, 1200, 1680];
+                } else if (pizzCell === 'syncopated') {
+                  offsetsMap.syncopated = [0, 720, 1440];
+                } else if (pizzCell === 'halfNotes') {
+                  offsetsMap.halfNotes = [0];
+                } else if (pizzCell === 'sparse') {
+                  offsetsMap.sparse = [0];
+                  // sparse: only on downbeat, and every other bar (block parity) rests — but we already vary per block, so just downbeat
+                }
+                const offs = offsetsMap[pizzCell] ?? [];
+                const isRootFifth = pizzCell === 'rootFifth';
+                const fifthPitch = isRootFifth ? (()=>{ const p=dpPitch+7; const tr=ctx.project.tracks.find(t=>t.id===trackId); if(tr && p>=tr.lowestNote && p<=tr.highestNote) return p; return dpPitch; })() : dpPitch;
+                offs.forEach((off, idx) => {
+                  const t = barStart + off;
+                  if (t < s || t >= e) return;
+                  const pitch = isRootFifth ? (idx%2===0 ? dpPitch : fifthPitch) : dpPitch;
+                  const dur = pizzCell === 'halfNotes' ? Math.min(2*bt, shortTicks*2, e - t) : Math.min(shortTicks, e - t);
+                  notesByTrackId[trackId].push({ pitch, startTick: t, durationTicks: dur, velocity, articulation: 'pizz' });
+                });
+                // empty offs for straightQuarters already handled
+                if (pizzCell === 'sparse' && offs.length===1) {
+                  // sparse already one note, keep as is (downbeat only)
+                }
+              }
             } else if (dpPitch !== null) {
               // pad / bass (sustained outside the symphony pizz textures).
               // Phase 8: on a brass-lead bar the suppressed pad OPENS where

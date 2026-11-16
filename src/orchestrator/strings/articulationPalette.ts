@@ -28,20 +28,20 @@ import type { Articulation } from '../../shared/schema/types';
  */
 export const ARTICULATION_WEIGHTS = {
   'ensemble.cinematic': {
-    lead: { legato: 48, detache: 20, portato: 14, marcato: 10, staccato: 4, spiccato: 4 } as Record<string, number>,
+    lead: { legato: 52, detache: 20, portato: 14, marcato: 10, spiccato: 4 } as Record<string, number>,
     counterline: { legato: 52, detache: 28, portato: 20 } as Record<string, number>,
     pad: { legato: 36, sulTasto: 28, detache: 12, conSord: 12, sulPont: 7, portato: 5 } as Record<string, number>,
     pad_intro: { sulTasto: 44, legato: 28, conSord: 14, sulPont: 8, detache: 6 } as Record<string, number>,
     tremolo: { tremolo: 78, sulPont: 12, legato: 10 } as Record<string, number>,
-    tutti: { marcato: 58, staccato: 22, spiccato: 15, legato: 5 } as Record<string, number>,
+    tutti: { marcato: 62, spiccato: 18, legato: 12, detache: 8 } as Record<string, number>,
   },
   'ensemble.symphony': {
-    lead: { legato: 55, detache: 18, portato: 12, marcato: 10, staccato: 3, spiccato: 2 } as Record<string, number>,
+    lead: { legato: 58, detache: 18, portato: 12, marcato: 10, spiccato: 2 } as Record<string, number>,
     counterline: { legato: 56, detache: 24, portato: 20 } as Record<string, number>,
     pad: { legato: 42, sulTasto: 22, conSord: 14, detache: 10, sulPont: 7, portato: 5 } as Record<string, number>,
     pad_intro: { sulTasto: 38, legato: 32, conSord: 16, sulPont: 8, detache: 6 } as Record<string, number>,
     tremolo: { tremolo: 88, sulPont: 7, legato: 5 } as Record<string, number>,
-    tutti: { marcato: 62, staccato: 20, spiccato: 13, legato: 5 } as Record<string, number>,
+    tutti: { marcato: 66, spiccato: 16, legato: 10, detache: 8 } as Record<string, number>,
   },
   'ensemble.chamber': {
     lead: { legato: 58, detache: 18, portato: 14, marcato: 6, conSord: 4 } as Record<string, number>,
@@ -49,15 +49,15 @@ export const ARTICULATION_WEIGHTS = {
     pad: { legato: 32, sulTasto: 24, conSord: 24, detache: 10, sulPont: 5, portato: 5 } as Record<string, number>,
     pad_intro: { conSord: 32, sulTasto: 30, legato: 26, sulPont: 7, detache: 5 } as Record<string, number>,
     tremolo: { tremolo: 86, sulPont: 8, legato: 6 } as Record<string, number>,
-    tutti: { marcato: 50, staccato: 26, spiccato: 18, legato: 6 } as Record<string, number>,
+    tutti: { marcato: 54, spiccato: 22, legato: 14, detache: 10 } as Record<string, number>,
   },
   'ensemble.sonata': {
-    lead: { legato: 60, detache: 16, portato: 12, marcato: 8, staccato: 4 } as Record<string, number>,
+    lead: { legato: 60, detache: 16, portato: 12, marcato: 8, spiccato: 4 } as Record<string, number>,
     counterline: { legato: 58, detache: 22, portato: 20 } as Record<string, number>,
     pad: { legato: 40, sulTasto: 26, conSord: 12, detache: 12, sulPont: 5, portato: 5 } as Record<string, number>,
     pad_intro: { sulTasto: 36, legato: 34, conSord: 16, sulPont: 8, detache: 6 } as Record<string, number>,
     tremolo: { tremolo: 90, sulPont: 5, legato: 5 } as Record<string, number>,
-    tutti: { marcato: 60, staccato: 22, spiccato: 12, legato: 6 } as Record<string, number>,
+    tutti: { marcato: 64, spiccato: 14, legato: 12, detache: 10 } as Record<string, number>,
   },
   'ensemble.vocalbacking': {
     lead: { legato: 62, detache: 14, portato: 10, marcato: 6, conSord: 8 } as Record<string, number>,
@@ -65,7 +65,7 @@ export const ARTICULATION_WEIGHTS = {
     pad: { legato: 30, sulTasto: 28, conSord: 26, detache: 8, sulPont: 4, portato: 4 } as Record<string, number>,
     pad_intro: { conSord: 36, sulTasto: 32, legato: 22, sulPont: 6, detache: 4 } as Record<string, number>,
     tremolo: { tremolo: 88, sulPont: 6, legato: 6 } as Record<string, number>,
-    tutti: { marcato: 48, staccato: 28, spiccato: 16, legato: 8 } as Record<string, number>,
+    tutti: { marcato: 52, spiccato: 22, legato: 16, detache: 10 } as Record<string, number>,
   },
   'ensemble.hybridstudio': {
     lead: { legato: 46, detache: 22, portato: 16, marcato: 10, spiccato: 6 } as Record<string, number>,
@@ -73,7 +73,7 @@ export const ARTICULATION_WEIGHTS = {
     pad: { legato: 34, sulTasto: 26, conSord: 16, detache: 12, sulPont: 7, portato: 5 } as Record<string, number>,
     pad_intro: { sulTasto: 40, legato: 30, conSord: 16, sulPont: 8, detache: 6 } as Record<string, number>,
     tremolo: { tremolo: 80, sulPont: 12, legato: 8 } as Record<string, number>,
-    tutti: { marcato: 56, staccato: 24, spiccato: 15, legato: 5 } as Record<string, number>,
+    tutti: { marcato: 60, spiccato: 18, legato: 12, detache: 10 } as Record<string, number>,
   },
 } as const;
 

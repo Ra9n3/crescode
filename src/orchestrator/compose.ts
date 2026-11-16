@@ -170,7 +170,7 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   ctx.arc = arc;
   ctx.lines = { reports: [], leads: [], tremoloRepeats: 0 } as any;
   const stringsTrackIds: string[] = [];
-  const plan = { breaths: [], moments: [], sections: [], reports: [], bars: [], fills: [] } as any;
+  const plan = { breaths: [], moments: [], sections: [], reports: [], bars: arc.map((a) => ({ bar: a.bar, layers: [] })), fills: [] } as any;
   let tracks = project.tracks.map((t) => ({ ...t, notes: [], cc: undefined }));
 
   // Piano Engine V5 runs after every non-Piano part (including Harp) has

@@ -23,6 +23,7 @@ import { chordSpans, sectionMap, orchestrationSeedFor, energyCurve } from './spi
 import { stringsModule, stringVoiceTracks, prepareStrings, maybeLayerCellosBasses } from './render';
 import { splitCelloLine, materializeBasses, bassesTrackFor, insertBassesTrack, splitEngaged, BASSES_ROLE, BASSES_TRACK_ID, type SplitResult } from './basses';
 import { textureForType, sectionTypeKeyOf } from './conductor/layers';
+import { applyStringsRulebookVariety } from './strings/rulebook';
 import { conduct, type ConductorPlan } from './conductor';
 import { governPadVelocities } from './energy/mix';
 import { maxMeanVelocityFor } from './energy';
@@ -892,6 +893,9 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
       configurable: false,
       writable: false,
     });
+  }
+  if (options?.variety === true) {
+    applyStringsRulebookVariety({ ...project, tracks }, options.take ?? 1);
   }
   return result as ComposeResult;
 }

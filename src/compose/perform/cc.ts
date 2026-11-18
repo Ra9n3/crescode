@@ -93,11 +93,16 @@ function buildLanesForPart(part: MusicalPart): CcLane[] {
   }
 
   // CC7: a balance offset by role, set once at the start.
-  const balance = part.notes[0].role === 'lead'
-    ? 108
-    : part.notes[0].role === 'bass'
-      ? 96
-      : 88;
+  //
+  // Two inner voices with the same role were handed the SAME curve, so
+  // violins2 and violas moved in lockstep: measured on three-chorus-40bars,
+  // both read cc11 32p/range 29/uniq 10. No real section balances its inner
+  // parts identically -- the violas sit further back than the second violins.
+  // A small, fixed per-track offset inside each role's band separates them
+  // without inventing automation the part does not need.
+  const role = part.notes[0].role;
+  const baseBalance = role === 'lead' ? 108 : role === 'bass' ? 96 : 88;
+  const balance = clamp(baseBalance - (voiceOffsetFor(part.trackId) % 3) * 3);
   const volume: CcPoint[] = [{ tick: start, value: balance }, { tick: end, value: balance }];
 
   return [
@@ -105,6 +110,19 @@ function buildLanesForPart(part: MusicalPart): CcLane[] {
     { cc: 7, points: volume },
     { cc: 11, points: dedupe(expression) },
   ];
+}
+
+/**
+ * A stable, small integer for a track, used to break the tie between voices
+ * that share a role. Derived from the id so it is deterministic across runs and
+ * does not depend on track order.
+ */
+function voiceOffsetFor(trackId: string): number {
+  let hash = 0;
+  for (let index = 0; index < trackId.length; index++) {
+    hash = (hash * 31 + trackId.charCodeAt(index)) | 0;
+  }
+  return Math.abs(hash);
 }
 
 function dedupe(points: CcPoint[]): CcPoint[] {

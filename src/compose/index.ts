@@ -328,6 +328,8 @@ export function composeOrchestra(
       harmony,
       bars,
       beatTicks: grid.beatTicks,
+      barTicks: grid.barTicks,
+      voiceCount: stringTracks.length,
       energyAt,
       leadPitchClasses: leadPitchClassesFor(track.id, plan, parts),
       chordToneSlot: chordToneSlots.get(track.id),

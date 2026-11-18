@@ -13,6 +13,7 @@
 import { scalePitchClasses } from '../../shared/schema/modes';
 import type { Project } from '../../shared/schema/types';
 import { fitDegreeToHarmony, statementDegrees, statementDurations } from '../material';
+import { expandFigure, rhythmicFigureFor } from './rhythm';
 import type {
   Articulation,
   BarCell,
@@ -437,6 +438,49 @@ export function articulationForRole(role: MusicalRole, phrase: Phrase): Articula
   return 'legato';
 }
 
+/**
+ * Articulation for one rhythmic cell, given the role's default bowing.
+ *
+ * The realization used to choose articulation per ROLE AND PHRASE only, so an
+ * ostinato and a sustained pad received the same bow even though the written
+ * rhythm demanded opposite treatment. A cell followed by a rest is separated
+ * by definition; a held cell is not.
+ *
+ * Only articulations in the shipped UVI profile are returned: sustain, legato,
+ * marcato, spiccato. `pizz` and `tremolo` are in the profile but nothing in the
+ * Director's vocabulary asks for them yet, so they are not invented here.
+ */
+function articulationForCell(
+  role: MusicalRole,
+  phrase: Phrase,
+  figure: readonly { beats: number; rest: number }[],
+  roleDefault: Articulation,
+): Articulation {
+  // Repeated equal short cells are an ostinato: spiccato is the idiom.
+  if (role === 'pulse') return 'spiccato';
+  if (role === 'accent') return 'marcato';
+  // A pad never gets chopped up by the figure: it is the sustained floor.
+  if (role === 'pad') return roleDefault;
+  // A bass foundation is normally sustained, but when the passage has already
+  // asked it to subdivide (the figure carries rests), bowing that subdivision
+  // as one unbroken sustain contradicts what is written. Marking the short
+  // cells gives the bass its own attack and definition without turning it into
+  // an ostinato.
+  if (role === 'bass') {
+    const separatedBass = figure.some((cell) => cell.rest > 0);
+    if (!separatedBass) return roleDefault;
+    return phrase.function === 'climax' ? 'marcato' : 'spiccato';
+  }
+  // A figure that STOPS between cells should be bowed so it can stop.
+  const separated = figure.some((cell) => cell.rest > 0);
+  if (!separated) return roleDefault;
+  if (phrase.function === 'climax') return 'marcato';
+  if (phrase.function === 'cadence') return 'sustain';
+  // Inner voices in a separated figure: a light, articulated bow rather than
+  // a wash of legato that contradicts the rests.
+  return 'spiccato';
+}
+
 /* ------------------------------------------------------- realization */
 
 export interface StringsRealizationInput {
@@ -454,6 +498,10 @@ export interface StringsRealizationInput {
   readonly bars: readonly BarCell[];
   /** Meter grid, so strong beats can be identified without guessing. */
   readonly beatTicks: number;
+  /** Bar length in ticks; used to look up the energy of a span's bar. */
+  readonly barTicks: number;
+  /** Number of string voices sounding in this texture (for density decisions). */
+  readonly voiceCount: number;
   readonly energyAt: (bar: number) => number;
   /** Pitch classes another part is sounding as lead, to avoid shadowing it. */
   readonly leadPitchClasses: ReadonlySet<number>;
@@ -725,11 +773,28 @@ export function realizeStrings(input: StringsRealizationInput): MusicalPart {
         // historical constants keeps this a pure refinement when unset.
         const voiceOffset = input.chordToneSlot
           ?? (participation.materialRole === 'inner' ? 1 : 0);
+        // Rhythm comes from the musical context, not from "one note per chord".
+        // See families/rhythm.ts for why a single 3840-tick pad per span was a
+        // musical defect rather than a simplification.
+        let spanOrdinal = 0;
         for (const span of harmony) {
-          const start = Math.max(span.startTick, phrase.startTick);
-          const end = Math.min(span.endTick, phrase.endTick);
+          const spanStart = Math.max(span.startTick, phrase.startTick);
+          const spanEndTick = Math.min(span.endTick, phrase.endTick);
+          if (spanEndTick <= spanStart) continue;
+          if (!spansContain(participation.spans, spanStart)) continue;
+          spanOrdinal++;
+          const figure = rhythmicFigureFor({
+            role: participation.materialRole,
+            phraseFunction: phrase.function,
+            energy: input.energyAt(Math.floor(spanStart / Math.max(1, input.barTicks)) + 1),
+            spanOrdinal,
+            voiceCount: input.voiceCount,
+          });
+          const slices = expandFigure(figure, spanStart, spanEndTick - spanStart, input.beatTicks);
+          for (const slice of slices) {
+          const start = slice.start;
+          const end = slice.end;
           if (end <= start) continue;
-          if (!spansContain(participation.spans, start)) continue;
           // Preferred tone: the chord's own bass for a bass voice, otherwise
           // the voice's slot in the chord.
           const spanTones = span.pitchClasses.length ? span.pitchClasses : [span.root];
@@ -875,12 +940,19 @@ export function realizeStrings(input: StringsRealizationInput): MusicalPart {
             pitch,
             startTick: start,
             durationTicks: Math.max(1, end - start),
+            // A repeated figure is articulated, not one unbroken swell: each
+            // attack carries the phrase dynamic at ITS position, so the texture
+            // crescendos through the span instead of jumping once at the chord.
             velocity: velocityAt(dynamic, (start - phrase.startTick) / phraseLength),
-            articulation,
+            // Articulation follows the figure. A cell with a rest after it is
+            // separated by definition, and playing that separation as a bowed
+            // legato contradicts what was written.
+            articulation: articulationForCell(participation.materialRole, phrase, figure, articulation),
             role: participation.materialRole,
             phraseId: phrase.id,
             statementId: null,
           });
+          }
         }
         break;
       }
@@ -888,7 +960,7 @@ export function realizeStrings(input: StringsRealizationInput): MusicalPart {
   }
 
   notes.sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
-  const deduped = resolvePitchOverlaps(dedupe(notes));
+  const deduped = resolvePitchOverlaps(dedupe(applyPhraseBreaths(notes, phrases, input.beatTicks)));
   // Merge the spans first: every phrase contributes its section's spans, so
   // the raw list repeats them and produces overlapping "rests" that are not
   // rests at all (the voice is sounding from an adjacent span).
@@ -995,6 +1067,56 @@ function mergeSpans(
 }
 
 /** Spans that carry no notes, stated explicitly rather than inferred. */
+/**
+ * Shortens the final note of a phrase so the ensemble actually breathes.
+ *
+ * Measured before this existed: on three-chorus-40bars/chamber 6 of 14 phrases
+ * ended with ALL four string voices still sounding right up to the boundary, so
+ * consecutive phrases ran into each other with no articulation between them. A
+ * string section that never lifts the bow sounds like an organ, not an ensemble.
+ *
+ * The rule is deliberately small and musical rather than a fixed clip:
+ *  - only the LAST sounding note of each phrase is touched;
+ *  - the voice keeps at least half its written length, so a long cadential note
+ *    is still long;
+ *  - the breath is at most one eighth note (half a beat);
+ *  - only a note that actually reaches the phrase boundary is a phrase ending.
+ */
+function applyPhraseBreaths(
+  notes: readonly RealizedNote[],
+  phrases: readonly Phrase[],
+  beatTicks: number,
+): RealizedNote[] {
+  if (!phrases.length || beatTicks <= 0) return [...notes];
+  const breath = Math.max(1, Math.round(beatTicks / 2));
+  const byPhrase = new Map<string, RealizedNote[]>();
+  for (const note of notes) {
+    if (!note.phraseId) continue;
+    const list = byPhrase.get(note.phraseId);
+    if (list) list.push(note); else byPhrase.set(note.phraseId, [note]);
+  }
+  const shortened = new Map<RealizedNote, number>();
+  for (const phrase of phrases) {
+    const list = byPhrase.get(phrase.id);
+    if (!list || !list.length) continue;
+    let last: RealizedNote | null = null;
+    for (const note of list) {
+      if (!last || note.startTick + note.durationTicks > last.startTick + last.durationTicks) last = note;
+    }
+    if (!last) continue;
+    const end = last.startTick + last.durationTicks;
+    if (end < phrase.endTick - 1) continue;
+    const floor = Math.max(1, Math.ceil(last.durationTicks / 2));
+    const target = Math.max(floor, last.durationTicks - breath);
+    if (target < last.durationTicks) shortened.set(last, target);
+  }
+  if (!shortened.size) return [...notes];
+  return notes.map((note) => {
+    const durationTicks = shortened.get(note);
+    return durationTicks === undefined ? note : { ...note, durationTicks };
+  });
+}
+
 function restSpansFor(
   spans: readonly { startTick: Tick; endTick: Tick }[],
   notes: readonly RealizedNote[],

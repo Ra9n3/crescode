@@ -31,7 +31,14 @@ import {
   makeRng,
 } from './material';
 import { direct, planFillsFromRealisation } from './director';
-import { comfyWindowOf, isStringRole, realizeStrings } from './families/strings';
+import { isStringRole, realizeStrings } from './families/strings';
+import {
+  coordinateVoices,
+  defaultRegisterPolicy,
+  planVoicing,
+  voicedWindowOf,
+  voicingQuery,
+} from './voicing';
 import type { RegisterBand } from './ir';
 import { compile, type CompileResult } from './compile';
 import { buildCcLanesFor } from './perform/cc';
@@ -263,20 +270,44 @@ export function composeOrchestra(
     return classes;
   };
 
-  // Family stack. The lead sings in the upper part of its own window; every
-  // other string voice is capped BELOW the lead's floor, so the choir cannot
-  // invert (an inner voice above the melody is a voice-crossing defect).
-  const leadBank = (band: RegisterBand): number => {
-    const [low] = comfyWindowOf(band);
-    // A fifth above the bottom of the window: high enough to sit over the
-    // inner voices, low enough that the melody is not forced into the rafters
-    // (a floor at 45% of a 25-semitone window forced 9-semitone leaps).
-    return Math.round(low + 7);
-  };
-  const anyLead = [...leadTrackIds]
-    .map((id) => registerField.get(id))
-    .find((band): band is RegisterBand => Boolean(band));
-  const leadFloor = anyLead ? leadBank(anyLead) : null;
+  // ---- coordinated voice-leading -----------------------------------------
+  // The stack used to be expressed as ONE number: a `leadFloor` derived from
+  // whichever instrument held the lead, imposed as a hard ceiling on every
+  // other voice. That is instrument-relative, and it was wrong whenever the
+  // lead instrument was not the highest one: when the cellos carried the tune
+  // the violins were capped at cello_floor - 1 and written at 49-56, a full
+  // octave below their own comfortable window (358 notes on the baseline).
+  //
+  // The stack is therefore no longer a single number. Each voice is bounded by
+  // ITS OWN instrument window, and the vertical ordering of the ensemble comes
+  // from the coordinated plan (`planVoicing`), which orders voices by musical
+  // role rather than by which instrument happens to be playing it.
+  //
+  // Register containment is unconditional: it does not depend on the doubling
+  // policy, because a note outside the instrument's own register is a defect
+  // under every template. Only chord-tone coordination is policy-gated.
+  const voicingPlan = planVoicing({
+    sections: plan.sections.map((section) => ({
+      sectionId: section.sectionId,
+      participation: section.participation,
+    })),
+    harmony,
+    bandFor: (trackId) => registerField.get(trackId) ?? null,
+    policy: defaultRegisterPolicy(policyKind !== 'allowed'),
+  });
+  const voicing = voicingQuery(voicingPlan);
+
+  // The floor depends on the voice's role IN THIS SECTION, not on a piece-wide
+  // union of everything it ever does. Keying it off the union meant a track
+  // that leads in one chorus lost its floor in every verse too, which is how
+  // violins1 kept landing at 49 while playing an inner line.
+  const stackFloorForSection = (trackId: string, band: RegisterBand) =>
+    (sectionId: string): number | null => {
+      const slot = participationBySection.get(sectionId)?.get(trackId);
+      if (!slot) return null;
+      if (slot.materialRole === 'lead') return null;
+      return voicedWindowOf(band)[0];
+    };
 
   // Iterate the choir order, NOT the raw roster order: the lead must be
   // realised before the voices that are bounded by it, or the counterline is
@@ -301,8 +332,21 @@ export function composeOrchestra(
       leadPitchClasses: leadPitchClassesFor(track.id, plan, parts),
       chordToneSlot: chordToneSlots.get(track.id),
       soundingPitchClasses: soundingPitchClassesAcross,
-      stackFloor: leadTrackIds.has(track.id) ? leadFloor : null,
-      stackCeiling: leadTrackIds.has(track.id) || leadFloor === null ? null : leadFloor - 1,
+      // The floor is the voice's OWN window, never another instrument's. The
+      // lead gets no floor (it sits where its window puts it) and the ceiling
+      // is applied per note from the sounding lead inside the realization
+      // loop, so a lower voice still cannot cross above the melody.
+      stackFloor: null,
+      stackFloorForSection: stackFloorForSection(track.id, band),
+      stackCeiling: null,
+      voicing,
+      coordinateChordTones: policyKind !== 'allowed',
+      // Chord-tone coordination is policy-gated: under 'allowed' the template
+      // asks for no coordination and the historical choice stands.
+      // Chord-tone allocation is done ONCE for the whole ensemble after every
+      // part exists (see `coordinateVoices` below), not per voice inside the
+      // realization loop. Deciding in the loop made the result depend on
+      // realization order, and the first voice had nothing to avoid.
       // The parts are realised lead-first (descending centroid), so when a
       // counterline is written the lead is already in `parts` and its real
       // pitches can bound the counter note by note.
@@ -327,6 +371,51 @@ export function composeOrchestra(
       `${realised.restSpans.length} rest span(s), ${registerSummary(realised)})`,
     );
   }
+  // ---- coordinated vertical resolution ----------------------------------
+  // Runs ONCE, after every part exists. This is the only position from which
+  // the whole sonority at an instant is visible; deciding inside the per-voice
+  // realization loop inevitably depends on which voice happened to be written
+  // first. Melodic voices keep their pitch class; accompanying voices move to
+  // the nearest free chord tone inside their OWN register.
+  const coordinated = coordinateVoices(
+    parts.map((part) => ({
+      trackId: part.trackId,
+      role: part.role,
+      register: part.register,
+      notes: part.notes.map((note) => ({
+        pitch: note.pitch,
+        startTick: note.startTick,
+        durationTicks: note.durationTicks,
+        role: note.role,
+      })),
+    })),
+    {
+      coordinateChordTones: policyKind !== 'allowed',
+      chordAt: (tick) => {
+        const span = harmony.find((candidate) => candidate.startTick <= tick && tick < candidate.endTick);
+        return span ? { pitchClasses: span.pitchClasses, bass: span.bass } : null;
+      },
+    },
+  );
+  const coordinatedByTrack = new Map(coordinated.parts.map((part) => [part.trackId, part]));
+  for (let index = 0; index < parts.length; index++) {
+    const next = coordinatedByTrack.get(parts[index].trackId);
+    if (!next) continue;
+    // Rebuild rather than mutate: RealizedNote is immutable by contract.
+    parts[index] = {
+      ...parts[index],
+      notes: next.notes.map((note, noteIndex) => ({
+        ...parts[index].notes[noteIndex],
+        pitch: note.pitch,
+      })),
+    };
+  }
+  reports.push(
+    `coordination: policy "${policyKind}"; ${coordinated.report.spanCount} vertical slice(s), ` +
+    `${coordinated.report.forcedDoublings} forced doubling(s), ` +
+    `${coordinated.report.accidentalDoublings} unresolved`,
+  );
+
   const unrealisedStringRoles = stringTracks
     .filter((track) => !parts.some((part) => part.trackId === track.id))
     .map((track) => track.role);

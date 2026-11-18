@@ -96,7 +96,16 @@ export function pitchForPitchClass(
   // A voice that must stay beneath the lead gets a shortened window rather
   // than an octave-dropped pitch: clamping the window keeps the voice inside
   // its comfortable register, which the post-hoc octave fold did not.
-  const low = winLow;
+  //
+  // The floor used to be a soft PREFERENCE only (see `meetsFloor`, which adds
+  // 1000 to a candidate's score rather than rejecting it). That let a note be
+  // written below the voice's own register whenever it happened to be the
+  // nearest legal pitch: with the cellos carrying the melody, violins playing
+  // an inner line were placed at 49-56 while their comfortable window starts at
+  // 61, because nothing ever rejected a pitch that was simply too low. The
+  // floor now CLIPS the window, so an out-of-register placement cannot be
+  // chosen in the first place.
+  const low = floor === null ? winLow : Math.max(winLow, floor);
   // The ceiling is HARD. This used to read
   // `Math.max(winLow + 11, Math.min(winHigh, ceiling))`, which silently raised
   // the ceiling back to a full octave whenever it left fewer than eleven
@@ -454,6 +463,13 @@ export interface StringsRealizationInput {
    * `null` means unconstrained (a single-voice texture).
    */
   readonly stackFloor: number | null;
+  /**
+   * Floor for a given section. Preferred over `stackFloor` when present: the
+   * floor must follow the voice's role in THAT section, because a track that
+   * leads in one section and plays an inner line in another needs its own
+   * register back when it is not the melody.
+   */
+  readonly stackFloorForSection?: (sectionId: string) => number | null;
   /** Pitch ceiling for this part, so a lower voice cannot rise above the lead. */
   readonly stackCeiling: number | null;
   /**
@@ -477,6 +493,40 @@ export interface StringsRealizationInput {
    * counter could still rise a tenth over a held lead note.
    */
   readonly leadPitchAt?: (tick: number) => number | null;
+  /**
+   * The coordinated vertical plan. When present, an accompanying voice takes
+   * its register window from the shared plan instead of deriving one from
+   * another instrument, and chord-tone choice is coordinated across voices.
+   * Absent keeps the historical independent behaviour exactly.
+   */
+  readonly voicing?: import('../voicing').VoicingQuery;
+  /**
+   * Whether chord tones are coordinated across voices. Register containment is
+   * NOT gated on this: that is corrected under every policy.
+   */
+  readonly coordinateChordTones?: boolean;
+  /**
+   * Coordinated chord-tone choice, asked once per harmony span for this voice.
+   *
+   * The caller owns the shared allocation because only it can see every voice
+   * at once; the family engine only knows its own part. When absent, the
+   * historical slot-based choice stands.
+   *
+   * `preferred` is the tone this voice would take on its own; `available` is
+   * every chord tone not yet claimed by another voice in this span; the return
+   * value must be one of `available` when it is non-empty, or one of the chord
+   * tones when every tone is taken (a forced doubling, which the caller has
+   * already classified).
+   */
+  readonly resolveChordTone?: (query: {
+    readonly spanId: string;
+    readonly startTick: Tick;
+    readonly endTick: Tick;
+    readonly materialRole: MusicalRole;
+    readonly preferred: number;
+    readonly available: readonly number[];
+    readonly chordTones: readonly number[];
+  }) => number;
 }
 
 export function realizeStrings(input: StringsRealizationInput): MusicalPart {
@@ -698,9 +748,34 @@ export function realizeStrings(input: StringsRealizationInput): MusicalPart {
           const toneOrder = participation.materialRole === 'bass'
             ? [span.bass, ...spanTones]
             : [...spanTones.slice(voiceOffset % Math.max(1, spanTones.length)), ...spanTones];
-          const tone = sounding && sounding.size
+          let tone = sounding && sounding.size
             ? (toneOrder.find((candidate) => !sounding.has(((candidate % 12) + 12) % 12)) ?? slotTone)
             : (participation.materialRole === 'bass' ? span.bass : slotTone);
+          // Coordinated choice. The caller sees every voice at once, so it --
+          // not this per-instrument loop -- decides which chord tone this voice
+          // takes. The old scheme gave each voice a STATIC slot index for the
+          // whole piece, which could not adapt when the chord changed and left
+          // 12.9% of simultaneous voice-pairs on a duplicated class.
+          //
+          // A bass keeps its own bass note: that anchor is what makes the
+          // harmony audible and it is the one part of the allocation that is
+          // musically fixed.
+          if (input.resolveChordTone && participation.materialRole !== 'bass') {
+            const chordTones = span.pitchClasses.length ? span.pitchClasses : [span.root];
+            const taken = sounding ?? EMPTY_CLASSES;
+            const available = chordTones.filter(
+              (cls) => !taken.has(((cls % 12) + 12) % 12),
+            );
+            tone = input.resolveChordTone({
+              spanId: span.id,
+              startTick: start,
+              endTick: end,
+              materialRole: participation.materialRole,
+              preferred: tone,
+              available,
+              chordTones,
+            });
+          }
           // Place the chord tone by PITCH CLASS, not via a scale degree: a
           // chord tone outside the scale (a borrowed tone) must still sound
           // as itself. Going through `degreeForPitchClass` silently snapped
@@ -723,8 +798,29 @@ export function realizeStrings(input: StringsRealizationInput): MusicalPart {
             }
           }
           const spanLeadLow = spanLeadPitches.length ? Math.min(...spanLeadPitches) : null;
-          const innerCeiling = participation.materialRole === 'inner' && spanLeadLow !== null
-            ? Math.min(input.stackCeiling ?? Number.POSITIVE_INFINITY, spanLeadLow - 1)
+          // "Stay under the melody" is only a legal instruction when the melody
+          // is actually within reach of this voice's register. When the cellos
+          // carry the tune in their tenor octave the sounding lead can sit at
+          // 50, and demanding that a violin stay below 49 is not counterpoint,
+          // it is an unplayable note — which is exactly how 358 notes were
+          // written below their own comfortable window on the baseline.
+          //
+          // A cello melody with the violins accompanying above it is ordinary
+          // orchestration, not a voice crossing: the parts are in different
+          // registers and read as separate lines. So the crossing bound is
+          // applied ONLY when it leaves the voice somewhere inside its own
+          // window; otherwise the voice keeps its own register and the vertical
+          // relationship is decided by the coordinated plan's role ordering.
+          const [ownLow] = comfyWindowOf(band);
+          const floorNow = input.stackFloorForSection
+            ? input.stackFloorForSection(phrase.sectionId)
+            : input.stackFloor;
+          const reachableLow = floorNow === null ? ownLow : Math.max(ownLow, floorNow);
+          const crossingBound = spanLeadLow !== null ? spanLeadLow - 1 : null;
+          const innerCeiling = participation.materialRole === 'inner'
+            ? (crossingBound !== null && crossingBound >= reachableLow
+                ? Math.min(input.stackCeiling ?? Number.POSITIVE_INFINITY, crossingBound)
+                : input.stackCeiling)
             : input.stackCeiling;
           // If the chosen tone has no representative inside the (possibly
           // shortened) window, offer the rest of the chord so the fallback
@@ -746,8 +842,11 @@ export function realizeStrings(input: StringsRealizationInput): MusicalPart {
             const leadNow = input.leadPitchAt?.(start) ?? null;
             if (leadNow !== null) avoidedClasses.add(((leadNow % 12) + 12) % 12);
           }
+          const sectionFloor = input.stackFloorForSection
+            ? input.stackFloorForSection(phrase.sectionId)
+            : input.stackFloor;
           let pitch = pitchForPitchClass(
-            tone, band, input.voiceSlot, previousSustained, input.stackFloor, innerCeiling,
+            tone, band, input.voiceSlot, previousSustained, sectionFloor, innerCeiling,
             fallbackTones, avoidedClasses,
           );
           if (participation.materialRole === 'inner') {

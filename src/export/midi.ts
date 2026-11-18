@@ -17,6 +17,16 @@ import { chunksForTrack, type ExportProfile, type FoldStats } from './profile';
 
 type Abs = MidiEvent & { abs: number; order: number };
 
+/**
+ * Export resolution. The project stores ticks at 960 PPQ everywhere; files are
+ * written at 480 by default. Halving at the boundary keeps every file
+ * standard-resolution without re-timing a single stored note, and 960 divides
+ * by 2 exactly, so no rounding ever accumulates. Callers that need the file to
+ * carry the project's own ticks (golden/round-trip checks) pass `PPQ`.
+ */
+/** The resolution the app writes: 480 PPQ, as the output spec requires. */
+export const EXPORT_PPQ = 480;
+
 const MAJOR_SHARPS: Record<number, number> = { 0: 0, 7: 1, 2: 2, 9: 3, 4: 4, 11: 5, 6: 6, 1: -5, 8: -4, 3: -3, 10: -2, 5: -1 };
 const RELATIVE_MAJOR_OFFSET: Record<string, number> = { Ionian: 0, Dorian: 2, Phrygian: 4, Lydian: 5, Mixolydian: 7, Aeolian: 9, Locrian: 11 };
 
@@ -37,6 +47,11 @@ function conductorEvents(p: Project, withMarkers: boolean): Abs[] {
     { abs: 0, order: 0, deltaTime: 0, meta: true, type: 'timeSignature', numerator: p.timeSignature.numerator, denominator: p.timeSignature.denominator, metronome: 24, thirtyseconds: 8 } as Abs,
     { abs: 0, order: 0, deltaTime: 0, meta: true, type: 'keySignature', key: k.key, scale: k.scale } as Abs,
   ];
+  // Traceability: the generation seed travels in the file as text, never in the
+  // interface.
+  if (withMarkers && p.orchestration?.seed !== undefined) {
+    ev.push({ abs: 0, order: 0, deltaTime: 0, meta: true, type: 'text', text: `crescode-seed:${p.orchestration.seed}` } as Abs);
+  }
   if (withMarkers) {
     const bt = barTicks(p.timeSignature);
     for (const s of [...p.sections].sort((a, b) => a.startBar - b.startBar)) {
@@ -82,8 +97,14 @@ function ccEvents(cc: CcLane[] | undefined, channel: number, endTick: number): A
 }
 
 /** Sorts absolute events, converts to delta times and appends end-of-track at endTick. */
-function finalize(events: Abs[], endTick: number): MidiEvent[] {
-  const sorted = events.map((e, i) => ({ e, i })).sort((a, b) => a.e.abs - b.e.abs || a.e.order - b.e.order || a.i - b.i).map((x) => x.e);
+function finalize(events: Abs[], endTick: number, ppq: number = PPQ): MidiEvent[] {
+  // Absolute ticks arrive at the project's 960 PPQ; the file may be 480. Scale
+  // here, at the one place every writer funnels through, so no caller has to
+  // know and no note can be missed.
+  const factor = PPQ / ppq;
+  const scaled = factor === 1 ? events : events.map((e) => ({ ...e, abs: Math.round(e.abs / factor) }));
+  const fileEnd = Math.round(endTick / factor);
+  const sorted = scaled.map((e, i) => ({ e, i })).sort((a, b) => a.e.abs - b.e.abs || a.e.order - b.e.order || a.i - b.i).map((x) => x.e);
   let last = 0;
   const out: MidiEvent[] = sorted.map((e) => {
     const { abs, order, ...rest } = e;
@@ -92,7 +113,7 @@ function finalize(events: Abs[], endTick: number): MidiEvent[] {
     last = abs;
     return ev;
   });
-  out.push({ deltaTime: Math.max(0, endTick - last), meta: true, type: 'endOfTrack' } as MidiEvent);
+  out.push({ deltaTime: Math.max(0, fileEnd - last), meta: true, type: 'endOfTrack' } as MidiEvent);
   return out;
 }
 
@@ -103,14 +124,14 @@ export function exportableTracks(p: Project, mode: 'all' | 'selected' | 'unlocke
 }
 
 /** Single Type-1 file: conductor track + one track per instrument (per profile part when a profile is given). Parts whose fileScope is 'fileOnly' (Phase 12) export as their own files only — the merged file carries what fits and skips them. */
-export function buildMergedMidi(p: Project, tracks: Track[], profile: ExportProfile | null = null, stats?: FoldStats): Uint8Array {
+export function buildMergedMidi(p: Project, tracks: Track[], profile: ExportProfile | null = null, stats?: FoldStats, ppq: number = PPQ): Uint8Array {
   const end = projectEndTick(p);
   const chunks = tracks.flatMap((t) => chunksForTrack(p, t, profile, stats)).filter((c) => !c.fileOnly);
   const data: MidiData = {
-    header: { format: 1, numTracks: chunks.length + 1, ticksPerBeat: PPQ },
+    header: { format: 1, numTracks: chunks.length + 1, ticksPerBeat: ppq },
     tracks: [
-      finalize([nameEvent(p.name || 'Crescode'), ...conductorEvents(p, true)], end),
-      ...chunks.map((c) => finalize([nameEvent(c.name), ...ccEvents(c.cc, c.channel, end), ...noteEvents(c.notes, c.channel, end)], end)),
+      finalize([nameEvent(p.name || 'Crescode'), ...conductorEvents(p, true)], end, ppq),
+      ...chunks.map((c) => finalize([nameEvent(c.name), ...ccEvents(c.cc, c.channel, end), ...noteEvents(c.notes, c.channel, end)], end, ppq)),
     ],
   };
   return new Uint8Array(writeMidi(data));
@@ -123,16 +144,16 @@ export function perTrackFileName(p: Project, t: Track): string {
 }
 
 /** One Type-1 file per instrument (per profile part when a profile is given); each has tempo/time/key and ends at the project end tick. fileScope 'fileOnly' parts get their file here too (Phase 12). */
-export function buildPerTrackMidi(p: Project, tracks: Track[], profile: ExportProfile | null = null, stats?: FoldStats): { fileName: string; data: Uint8Array }[] {
+export function buildPerTrackMidi(p: Project, tracks: Track[], profile: ExportProfile | null = null, stats?: FoldStats, ppq: number = PPQ): { fileName: string; data: Uint8Array }[] {
   const end = projectEndTick(p);
   return tracks.flatMap((t) =>
     chunksForTrack(p, t, profile, stats).map((c) => ({
       fileName: c.fileName ?? perTrackFileName(p, { ...t, name: c.name }),
       data: new Uint8Array(writeMidi({
-        header: { format: 1, numTracks: 2, ticksPerBeat: PPQ },
+        header: { format: 1, numTracks: 2, ticksPerBeat: ppq },
         tracks: [
-          finalize([nameEvent(c.name), ...conductorEvents(p, true)], end),
-          finalize([nameEvent(c.name), ...ccEvents(c.cc, c.channel, end), ...noteEvents(c.notes, c.channel, end)], end),
+          finalize([nameEvent(c.name), ...conductorEvents(p, true)], end, ppq),
+          finalize([nameEvent(c.name), ...ccEvents(c.cc, c.channel, end), ...noteEvents(c.notes, c.channel, end)], end, ppq),
         ],
       })),
     })),

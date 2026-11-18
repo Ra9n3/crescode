@@ -17,6 +17,7 @@ import { projectFromFixture, isInstrumentTrack, makeTrack, type Project, type Tr
 import { useStore } from '../../src/store/store';
 import { buildMergedMidi, parseMidiFile } from '../../src/export/midi';
 import { PPQ } from '../../src/shared/schema/types';
+import { generateStringPiece } from '../../src/compose/stylecard';
 
 const STRING_ROLES = ['violins1', 'violins2', 'violas', 'cellosBasses'] as const;
 
@@ -123,13 +124,23 @@ describe('C. piano only', () => {
     for (const role of STRING_ROLES) expect(byRole(result, role)).toBeUndefined();
   });
 
-  it('is deterministic: the same project and take compose the same piano', () => {
+  it('produces a different piece on every Compose All click', () => {
+    // Compose All is the "surprise me" button: it draws a fresh crypto seed per
+    // click, so two clicks on the same project must not hand back the same tune.
+    // Reproducibility moved one level down — see the seed test below.
     const source = buildProject((project) => {
       project.tracks = project.tracks.filter((track) => !STRING_ROLES.includes(track.role as never));
     });
     const first = composeAll(source).result;
     const second = composeAll(JSON.parse(JSON.stringify(source)) as Project).result;
-    expect(byRole(second, 'piano')!.notes).toEqual(byRole(first, 'piano')!.notes);
+    expect(byRole(second, 'piano')!.notes).not.toEqual(byRole(first, 'piano')!.notes);
+  });
+
+  it('is reproducible from a seed: the same seed composes the same piece', () => {
+    const a = generateStringPiece({ seed: 987654321 });
+    const b = generateStringPiece({ seed: 987654321 });
+    expect(b.fingerprint).toBe(a.fingerprint);
+    expect(b.tracks.get('violins1')).toEqual(a.tracks.get('violins1'));
   });
 });
 

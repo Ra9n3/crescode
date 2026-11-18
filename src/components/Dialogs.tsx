@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { create } from 'zustand';
 import { useStore } from '../store/store';
-import { buildMergedMidi, buildPerTrackMidi, exportableTracks, parseMidiFile } from '../export/midi';
+import { EXPORT_PPQ, buildMergedMidi, buildPerTrackMidi, exportableTracks, parseMidiFile } from '../export/midi';
 import { EXPORT_PROFILES } from '../export/profiles';
 import { profilePartSummary, profileScopeNote, type FoldStats } from '../export/profile';
 import { exportJson, getRecent, openProjectText, pickFile, saveFile, saveFilesToFolder, saveProject } from '../lib/files';
@@ -79,7 +79,7 @@ function ExportDialog() {
       return ` ${bits.join(' · ')}.`;
     };
     if (fmt === 'midi') {
-      const data = buildMergedMidi(p, tracks, chosenProfile, stats);
+      const data = buildMergedMidi(p, tracks, chosenProfile, stats, EXPORT_PPQ);
       const n = await saveFile(`${p.name || 'Crescode'}.mid`, data as BlobPart, 'audio/midi', 'mid');
       if (!n) return;
       const parsed = parseMidiFile(data);
@@ -87,7 +87,7 @@ function ExportDialog() {
       setReport(`Wrote ${n}: Type ${parsed.format}, ${parsed.ppq} PPQ, ${parsed.bpm} BPM, ${parsed.tracks.length - 1} instrument tracks + conductor, ${count} notes, ${projectBars(p)} bars, markers: ${parsed.markers.map((m) => m.text).join(', ') || 'none'}${chosenProfile ? `. Profile: ${chosenProfile.name}.` : ''}${statBits()}`);
       s.toast('success', `Exported ${n}`);
     } else {
-      const files = buildPerTrackMidi(p, tracks, chosenProfile, stats);
+      const files = buildPerTrackMidi(p, tracks, chosenProfile, stats, EXPORT_PPQ);
       const where = await saveFilesToFolder(files);
       if (!where) return;
       setReport(`Wrote ${files.length} files to ${where}: ${files.map((f) => f.fileName).join(', ')}. All end at bar ${projectBars(p) + 1}.${chosenProfile ? ` Profile: ${chosenProfile.name}.` : ''}${statBits()}`);

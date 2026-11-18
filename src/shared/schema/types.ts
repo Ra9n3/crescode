@@ -90,6 +90,12 @@ export interface OrchestrationState {
   sectionTakes?: Record<string, number>;
   /** Section ids locked against Compose All and re-rolls. */
   sectionLocks?: string[];
+  /**
+   * The seed Compose All used for the last string piece. Written into exported
+   * MIDI as a text meta event so a file can be traced back to its generation;
+   * never displayed in the interface.
+   */
+  seed?: number;
 }
 
 export interface Track {

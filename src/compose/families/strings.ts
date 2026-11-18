@@ -64,6 +64,8 @@ export function comfyWindowOf(band: RegisterBand): [number, number] {
  * is what produced 12-semitone leaps). Cost = motion from the previous note,
  * plus distance from the slot's preferred centre.
  */
+const EMPTY_CLASSES: ReadonlySet<number> = new Set<number>();
+
 export function pitchForPitchClass(
   pitchClass: number,
   band: RegisterBand,
@@ -73,6 +75,21 @@ export function pitchForPitchClass(
   floor: number | null = null,
   /** Never placed above this pitch (a voice beneath the lead). */
   ceiling: number | null = null,
+  /**
+   * Other chord tones the caller will accept when the requested class has NO
+   * representative inside the window. A hard ceiling under a low lead can leave
+   * fewer than twelve semitones; the requested class may genuinely be absent.
+   * The old fallback returned `target`, the arithmetic midpoint of the slot
+   * band — a pitch with an essentially arbitrary class. Downstream avoidance
+   * then filtered on the REQUESTED tone while the EMITTED note sang a different
+   * one, so every collision test silently passed the wrong note through
+   * (`tone=0` in C/E surfaced as pitch 67 = pc 7). Falling back to a real chord
+   * tone keeps the note harmonically legal; the caller orders these by
+   * preference.
+   */
+  alternatives: readonly number[] = [],
+  /** Classes the caller has already ruled out; substitutes on these are worst. */
+  avoided: ReadonlySet<number> = EMPTY_CLASSES,
 ): number {
   const pc = ((pitchClass % 12) + 12) % 12;
   const [winLow, winHigh] = comfyWindowOf(band);
@@ -120,12 +137,42 @@ export function pitchForPitchClass(
   // must never rise above the lead.
   const meetsFloor = (value: number): boolean => floor === null || value >= floor;
 
+  /** Same search as `choose`, for a pitch class supplied per call. */
+  const chooseForPc = (want: number): number | null => {
+    let best: number | null = null;
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (let pitch = low; pitch <= high; pitch++) {
+      if (((pitch % 12) + 12) % 12 !== want) continue;
+      const move = previous === null ? 0 : Math.abs(pitch - previous);
+      const score = (meetsFloor(pitch) ? 0 : 1000) + move;
+      if (score < bestScore) { best = pitch; bestScore = score; }
+    }
+    return best;
+  };
+
   const inBand = choose(bandLow, bandHigh);
   if (inBand !== null) return inBand;
   const nearby = choose(bandLow - 3, bandHigh + 3);
   if (nearby !== null) return nearby;
   const anywhere = choose(low, high);
-  return anywhere ?? target;
+  if (anywhere !== null) return anywhere;
+  // The requested class is absent from the window. Prefer a chord tone the
+  // caller offered, choosing the one that lands closest to this slot's centre
+  // so the choir keeps its layout, and only then give up on harmony.
+  let fallback: number | null = null;
+  let fallbackDistance = Number.POSITIVE_INFINITY;
+  for (const alt of alternatives) {
+    const altPc = ((alt % 12) + 12) % 12;
+    if (altPc === pc) continue;
+    const placed = chooseForPc(altPc);
+    if (placed === null) continue;
+    // Prefer a substitute whose class the caller did NOT already veto, otherwise
+    // the fallback simply swaps one doubling for another.
+    const penalty = avoided.has(altPc) ? 100 : 0;
+    const distance = penalty + Math.abs(placed - target);
+    if (distance < fallbackDistance) { fallback = placed; fallbackDistance = distance; }
+  }
+  return fallback ?? target;
 }
 
 /**
@@ -278,6 +325,7 @@ export function pitchForDegree(
  * jump). The voice moves to the nearest OTHER chord tone, staying inside the
  * comfortable window and close to where it already was.
  */
+
 export function avoidLeadCollision(
   pitch: number,
   chordPitchClasses: readonly number[],
@@ -287,9 +335,25 @@ export function avoidLeadCollision(
   leadPitch: number | null = null,
   /** Hard ceiling (usually the lead's pitch minus one): never search above it. */
   ceiling: number | null = null,
+  /**
+   * Pitch classes already sounding from ANY other part in this span, not just
+   * the lead. Guards only the lead could not prevent accompaniment-vs-
+   * accompaniment doublings: the bass is written before the inner voices, so
+   * an inner voice sharing the bass's pitch class is never caught by a
+   * lead-only test.
+   */
+  occupiedPitchClasses: ReadonlySet<number> = EMPTY_CLASSES,
 ): number {
   const pc = ((pitch % 12) + 12) % 12;
-  const collidesByClass = leadPitchClasses.has(pc);
+  // `leadPitchClasses` is the whole piece's worth of lead pitch classes — a
+  // union over every section. Using it as a per-moment exclusion bans almost
+  // every chord tone (a diatonic lead visits 7 of 12 classes), which left the
+  // search with no legal candidate and silently kept the colliding pitch. The
+  // real test is the ONE lead pitch sounding at this instant; the piece-wide
+  // set is only a fallback when no lead is sounding.
+  const collidesByClass = (leadPitch !== null
+    ? leadPitchClasses.has(pc) && ((leadPitch % 12) + 12) % 12 === pc
+    : leadPitchClasses.has(pc)) || occupiedPitchClasses.has(pc);
   // A unison or an octave against the lead is doubling, not counterpoint, even
   // when the pitch classes differ on paper (e.g. D4 under D5). Reject those
   // intervals outright whenever the lead is sounding.
@@ -305,7 +369,10 @@ export function avoidLeadCollision(
     if (ceiling !== null && candidate > ceiling) continue;
     const candidatePc = ((candidate % 12) + 12) % 12;
     if (!chordPitchClasses.includes(candidatePc)) continue;
-    if (leadPitchClasses.has(candidatePc)) continue;
+    if (leadPitch !== null
+      ? ((leadPitch % 12) + 12) % 12 === candidatePc
+      : leadPitchClasses.has(candidatePc)) continue;
+    if (occupiedPitchClasses.has(candidatePc)) continue;
     if (leadPitch !== null && ((candidate - leadPitch) % 12 + 12) % 12 === 0) continue;
     const distance = Math.abs(candidate - pitch);
     if (distance > 0 && distance < bestDistance) {
@@ -389,6 +456,20 @@ export interface StringsRealizationInput {
   readonly stackFloor: number | null;
   /** Pitch ceiling for this part, so a lower voice cannot rise above the lead. */
   readonly stackCeiling: number | null;
+  /**
+   * Pitch classes already sounding from OTHER parts across a span, supplied by
+   * the caller which realises them in order (lead first).
+   *
+   * Independent per-voice octave placement cannot prevent an octave doubling:
+   * the doubling rule is defined over pitch CLASS, so two voices handed the
+   * same chord tone collide however many octaves apart they sit. An
+   * accompanying voice therefore consults what is already sounding and takes a
+   * chord tone that is not among it. Absent (or when the doubling policy is
+   * 'allowed') the historical choice stands unchanged.
+   */
+  readonly soundingPitchClasses?: (start: Tick, end: Tick) => ReadonlySet<number>;
+  /** Which chord tone this voice prefers, as an index into `pitchClasses`. */
+  readonly chordToneSlot?: number;
   /**
    * The lead's realised pitch sounding at a tick, when this part is the
    * counterline. A counter may weave around the melody but must not cross above
@@ -589,15 +670,37 @@ export function realizeStrings(input: StringsRealizationInput): MusicalPart {
       default: {
         // Sustained chord writing: one note per harmony span, held so the
         // harmony is audible rather than implied.
-        const voiceOffset = participation.materialRole === 'inner' ? 1 : 0;
+        // Coordinated assignment: the slot is chosen by the caller so no two
+        // accompanying voices take the same chord tone. Falling back to the
+        // historical constants keeps this a pure refinement when unset.
+        const voiceOffset = input.chordToneSlot
+          ?? (participation.materialRole === 'inner' ? 1 : 0);
         for (const span of harmony) {
           const start = Math.max(span.startTick, phrase.startTick);
           const end = Math.min(span.endTick, phrase.endTick);
           if (end <= start) continue;
           if (!spansContain(participation.spans, start)) continue;
-          const tone = participation.materialRole === 'bass'
-            ? span.bass
-            : (span.pitchClasses[voiceOffset % Math.max(1, span.pitchClasses.length)] ?? span.root);
+          // Preferred tone: the chord's own bass for a bass voice, otherwise
+          // the voice's slot in the chord.
+          const spanTones = span.pitchClasses.length ? span.pitchClasses : [span.root];
+          const slotTone = spanTones[voiceOffset % Math.max(1, spanTones.length)] ?? span.root;
+          const accompaniment = participation.materialRole === 'bass'
+            || participation.materialRole === 'inner';
+          const sounding = accompaniment
+            ? input.soundingPitchClasses?.(start, end)
+            : undefined;
+          // Take the first chord tone that is not already sounding from another
+          // part. Preference order keeps the musical primacy of the voice: a
+          // bass still tries its own bass note first, an inner voice its slot.
+          // When every chord tone is already sounding (more voices than
+          // distinct tones) the preferred tone stands — that doubling is forced
+          // by the chord, not chosen, and is exempt from the rule.
+          const toneOrder = participation.materialRole === 'bass'
+            ? [span.bass, ...spanTones]
+            : [...spanTones.slice(voiceOffset % Math.max(1, spanTones.length)), ...spanTones];
+          const tone = sounding && sounding.size
+            ? (toneOrder.find((candidate) => !sounding.has(((candidate % 12) + 12) % 12)) ?? slotTone)
+            : (participation.materialRole === 'bass' ? span.bass : slotTone);
           // Place the chord tone by PITCH CLASS, not via a scale degree: a
           // chord tone outside the scale (a borrowed tone) must still sound
           // as itself. Going through `degreeForPitchClass` silently snapped
@@ -623,7 +726,30 @@ export function realizeStrings(input: StringsRealizationInput): MusicalPart {
           const innerCeiling = participation.materialRole === 'inner' && spanLeadLow !== null
             ? Math.min(input.stackCeiling ?? Number.POSITIVE_INFINITY, spanLeadLow - 1)
             : input.stackCeiling;
-          let pitch = pitchForPitchClass(tone, band, input.voiceSlot, previousSustained, input.stackFloor, innerCeiling);
+          // If the chosen tone has no representative inside the (possibly
+          // shortened) window, offer the rest of the chord so the fallback
+          // stays harmonic instead of landing on an arbitrary slot-centre
+          // pitch. Anything another voice or the lead is already sounding is
+          // omitted here so the substitute does not create the very doubling
+          // this is meant to remove.
+          // Every OTHER chord tone is a legal substitute; `avoidedClasses` ranks
+          // them so a tone nobody is holding wins. Filtering occupied classes
+          // out here would empty the list in a shortened window and push the
+          // note straight back onto the slot-centre pitch.
+          const fallbackTones = span.pitchClasses.filter(
+            (cls) => (((cls % 12) + 12) % 12) !== (((tone % 12) + 12) % 12),
+          );
+          // Classes the substitute must not land on: what the lead is sounding
+          // right now and everything other voices are already holding.
+          const avoidedClasses = new Set<number>(sounding ?? []);
+          {
+            const leadNow = input.leadPitchAt?.(start) ?? null;
+            if (leadNow !== null) avoidedClasses.add(((leadNow % 12) + 12) % 12);
+          }
+          let pitch = pitchForPitchClass(
+            tone, band, input.voiceSlot, previousSustained, input.stackFloor, innerCeiling,
+            fallbackTones, avoidedClasses,
+          );
           if (participation.materialRole === 'inner') {
             // The nudge must respect the same ceiling that placed the note.
             // Called without it, this search walked up to the top of the
@@ -638,6 +764,11 @@ export function realizeStrings(input: StringsRealizationInput): MusicalPart {
               band,
               input.leadPitchAt?.(start) ?? null,
               innerCeiling,
+              // Everything else already sounding in this span: the bass and any
+              // earlier-written voice. Without this an inner voice is free to
+              // sit on the bass's pitch class, which is the largest remaining
+              // class of doubling.
+              sounding ?? EMPTY_CLASSES,
             );
           }
           previousSustained = pitch;
@@ -658,7 +789,7 @@ export function realizeStrings(input: StringsRealizationInput): MusicalPart {
   }
 
   notes.sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
-  const deduped = dedupe(notes);
+  const deduped = resolvePitchOverlaps(dedupe(notes));
   // Merge the spans first: every phrase contributes its section's spans, so
   // the raw list repeats them and produces overlapping "rests" that are not
   // rests at all (the voice is sounding from an adjacent span).
@@ -688,6 +819,53 @@ function harmonyAt(harmony: readonly HarmonicSpan[], tick: Tick): HarmonicSpan |
 }
 
 /** Drops exact duplicates (same pitch and onset) that spans can create. */
+/**
+ * Resolve same-pitch overlaps.
+ *
+ * A monophonic string part cannot play two notes of the same pitch at once.
+ * The phrase-final hold below is the usual source: it runs once per statement,
+ * so an earlier statement's last note is held to the phrase end and the next
+ * statement then begins inside it (24 of 40 seeds on the dorian/symphony
+ * sweep). `dedupe` only catches notes sharing a start tick, so these survived.
+ *
+ * The earlier note is TRIMMED to end where the later one begins; nothing is
+ * moved and no pitch is invented. Output that has no overlap is returned
+ * byte-identical, so every already-correct part is untouched.
+ */
+function resolvePitchOverlaps(notes: readonly RealizedNote[]): RealizedNote[] {
+  // `RealizedNote` is immutable by contract, so build a new note rather than
+  // mutating one. Only the notes that actually cross another are rebuilt;
+  // everything else keeps its identity, so already-correct output is exact.
+  const trims = new Map<RealizedNote, Tick>();
+  const byPitch = new Map<number, RealizedNote[]>();
+  for (const note of notes) {
+    const list = byPitch.get(note.pitch);
+    if (list) list.push(note); else byPitch.set(note.pitch, [note]);
+  }
+  for (const list of byPitch.values()) {
+    list.sort((a, b) => a.startTick - b.startTick || b.durationTicks - a.durationTicks);
+    for (let index = 1; index < list.length; index++) {
+      const previous = list[index - 1];
+      const current = list[index];
+      const previousEnd = previous.startTick + previous.durationTicks;
+      if (previousEnd <= current.startTick) continue;
+      // Trim the earlier note to end where the later one begins. A note can be
+      // trimmed more than once if two later onsets fall inside it, so always
+      // measure from the ORIGINAL end and keep the smallest span.
+      const trimmed = current.startTick - previous.startTick;
+      const limit = Math.max(1, trimmed);
+      const existing = trims.get(previous);
+      const next = existing === undefined ? limit : Math.min(existing, limit);
+      if (next < previous.durationTicks) trims.set(previous, next);
+    }
+  }
+  if (!trims.size) return notes as RealizedNote[];
+  return notes.map((note) => {
+    const durationTicks = trims.get(note);
+    return durationTicks === undefined ? note : { ...note, durationTicks };
+  });
+}
+
 function dedupe(notes: readonly RealizedNote[]): RealizedNote[] {
   const seen = new Set<string>();
   const out: RealizedNote[] = [];

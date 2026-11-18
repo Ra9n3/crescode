@@ -31,6 +31,7 @@ import type { PianoScore } from './keys/piano-score';
 import type { PianoPlayabilityReport } from './keys/piano-playability';
 import { realizePianoPlanWithAudit, type PianoRealizedScoreEvent } from './keys/piano-realizer';
 import type { OrchestratorContext } from './module';
+import { composeStringsIntoProject } from './compose-strings';
 
 export interface ComposeOptions {
   seed: number;
@@ -190,7 +191,6 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   const arc = energyCurve(project, ctx.sections, effectiveTake, template, false);
   ctx.arc = arc;
   ctx.lines = { reports: [], leads: [], tremoloRepeats: 0 } as any;
-  const stringsTrackIds: string[] = [];
   // The piano engine reads its exact source windows from the conductor plan:
   // barWindows carry startTick/endTick/sectionId/sectionName. Orchestra
   // generation is gone, so the bar plan is built here directly from the spine
@@ -218,6 +218,20 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     moments: [],
   };
   let tracks: Track[] = project.tracks.map((t) => ({ ...t, notes: [], cc: undefined }));
+
+  // EARLY VERTICAL INTEGRATION: the new engine (src/compose/) owns strings.
+  // This must happen BEFORE buildPianoEngineInput below, because V5's analysis
+  // snapshot reads finalizedTracks — composing the Piano against blank strings
+  // would be composing against silence. The pass writes only the tracks the
+  // engine realised a part for; every other track keeps what it had.
+  const stringsPass = composeStringsIntoProject(
+    project,
+    { seed: orchestrationSeedFor(project, effectiveOrchestration) >>> 0, take: effectiveTake },
+    (role) => isInBand(role, ensemble, template),
+  );
+  tracks = stringsPass.tracks;
+  ctx.lines!.reports.push(...stringsPass.reports);
+  const stringsTrackIdsOut = [...stringsPass.writtenTrackIds];
 
   // Piano Engine V5 runs after every non-Piano part (including Harp) has
   // been composed and finalized. Its frozen analysis snapshot reads those
@@ -305,7 +319,7 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
   const result: Omit<ComposeResult, 'pianoEngineInput' | 'pianoScore' | 'pianoRealizedScoreEvents' | 'pianoPlayability' | 'pianoDiagnostics'> = {
     tracks,
     orchestration,
-    stringsTrackIds,
+    stringsTrackIds: stringsTrackIdsOut,
     plan,
     reports: [...ctx.lines!.reports],
   };

@@ -231,7 +231,7 @@ export interface PianoExistingContextFacts {
   };
   readonly layers: {
     readonly availability: 'partial';
-    readonly source: 'ConductorPlan.bars[].layers';
+    readonly source: 'ComposePlan.bars[].layers';
     readonly annotatedFamilies: readonly string[];
     readonly perBar: PianoLayerInformation['perBar'];
     readonly totalCapacity: null;

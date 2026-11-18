@@ -443,6 +443,10 @@ export function resolveDivisiSpans(
     checkParallels: !/whole tone|diminished|locrian/i.test(project.mode),
     openSpacing: false,
     zoneFree: null,
+    // the second line must find a DISTINCT tone under the parent anywhere in
+    // the instrument — restricting it to the comfortable window can leave no
+    // candidate at all and silently drop the divisi
+    comfyCandidates: false,
     // the moment's own stream — decorrelated from every other draw (D8)
     rng: mulberry32((orchestrationSeedFor(project, project.orchestration) ^ Math.imul(hashString(`moments-div:${moment.startBar}:${moment.divTrackId ?? ''}`), 0x85ebca6b)) >>> 0),
   };

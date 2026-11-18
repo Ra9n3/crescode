@@ -70,6 +70,12 @@ export interface VoicingOptions {
   leadingTonePc: number | null;
   checkParallels: boolean;
   openSpacing: boolean;
+  /** Draw pad candidates from the voice's COMFORTABLE window (default true).
+   *  The strings pad voicer wants this: a pad note at the hard ceiling is not
+   *  idiomatic writing. Callers deliberately searching a register — the divisi
+   *  second line, which must find a distinct tone under the parent anywhere in
+   *  the instrument — set this false to search the full range. */
+  comfyCandidates?: boolean;
   /** Sounding zone kept free of notes (Vocal Backing), or null. */
   zoneFree: readonly [number, number] | null;
   /** Deterministic per-take stream for the tie-break jitter and register lean. */
@@ -119,9 +125,23 @@ function voiceCandidates(v: VoiceSpec, allowedPcs: number[], bassPc: number, opt
   // When voices outnumber distinct tones, doubling is unavoidable — restrict
   // it to the BASS pitch class (classic root doubling) instead of resting.
   // `exclude` removes pcs the pad may not double against the fixed lines (4b).
-  const pcs = v.isBass
+  // A bass voice normally sings the bass pc. When a fixed line already owns
+  // that pc, the bass may take any remaining chord tone instead (it must not
+  // duplicate the melody, and it must not fall silent and mute the chord).
+  // the bass sings the bass pc unless that pc is excluded AND another tone is
+  // actually available — never fall back to a pc that is off-limits
+  // Root doubling in the bass is the traditional escape, so the bass may still
+  // sing the bass pc when a fixed line elsewhere owns it. NOTE: this is only
+  // safe because the caller keeps the LEAD off the bass pitch class (see
+  // comfyOf's melodic-window handling); without that the bass pc would sit an
+  // octave from the melody, which is the doubling the template forbids.
+  const bassOnlyBassPc = v.isBass;
+  const pcs = bassOnlyBassPc
     ? [bassPc]
     : [...new Set(mustDouble ? [bassPc, ...allowedPcs] : allowedPcs)].filter((pc) => !exclude?.has(pc));
+    // A bass voice whose bass pc is off-limits may take any remaining tone —
+    // but it must still have somewhere to sing; the caller falls back only
+  // when the whole chord is empty.
   const zone = opts.zoneFree;
   const rankOf = new Map(allowedPcs.map((pc, i) => [pc, i]));
   // Cap per PITCH CLASS, not globally: a global cap lets one pc crowd the
@@ -130,7 +150,10 @@ function voiceCandidates(v: VoiceSpec, allowedPcs: number[], bassPc: number, opt
   // reachable while bounding the tuple space.
   const perPc = Math.max(2, Math.ceil((opts.candidateCap ?? MAX_CANDIDATES_PER_VOICE) / Math.max(1, pcs.length)));
   const byPc = new Map<number, Candidate[]>();
-  for (let p = v.low; p <= v.high; p++) {
+  const useComfy = opts.comfyCandidates !== false;
+  const comfyLo = useComfy ? Math.max(v.low, Math.min(v.high, v.comfortable[0])) : v.low;
+  const comfyHi = useComfy ? Math.max(v.low, Math.min(v.high, v.comfortable[1])) : v.high;
+  for (let p = comfyLo; p <= comfyHi; p++) {
     if (zone && p >= zone[0] && p <= zone[1]) continue;
     if (!pcs.includes(p % 12)) continue;
     const rank = v.isBass ? 0 : (rankOf.get(p % 12) ?? 0);
@@ -179,6 +202,9 @@ function tupleFeasible(pitches: (number | null)[], opts: VoicingOptions, doubleP
   }
   return true;
 }
+
+const freeAllowedPcsFor = (allowed: number[], isForbidden: (pc: number) => boolean): number[] =>
+  allowed.filter((pc) => !isForbidden(pc));
 
 /** Static (within-chord) spacing cost between adjacent sounding voices. */
 function spacingCost(placed: number[], opts: VoicingOptions): number {
@@ -269,7 +295,11 @@ export function voiceLead(chords: VoicingChord[], voices: VoiceSpec[], opts: Voi
       (opts.leadingTonePc !== null && pc === opts.leadingTonePc && linePcs.has(opts.leadingTonePc)) ||
       (opts.forbidOctaveDoubling && linePcs.has(pc));
     const forbiddenPcs = new Set(allowedPcs.filter(padForbidden));
-    const bassBlocked = voices.some((v) => v.isBass) && padForbidden(chord.ct.bassPc);
+    // A bass voice does not have to sing the bass pc: when the fixed line owns
+    // that pc, let the bass take another available chord tone (the voicer's
+    // normal behaviour when the bass pc is unavailable) instead of muting the
+    // whole chord. Only when NOTHING is left does the chord fall back.
+    const bassBlocked = voices.some((v) => v.isBass) && freeAllowedPcsFor(allowedPcs, padForbidden).length === 0;
     const allNulls: (number | null)[] = new Array(nVoices).fill(null);
     if (bassBlocked) {
       const entries: BeamEntry[] = ci === 0
@@ -281,9 +311,18 @@ export function voiceLead(chords: VoicingChord[], voices: VoiceSpec[], opts: Voi
       prev = entries;
       return;
     }
-    const freeAllowedPcs = allowedPcs.filter((pc) => !padForbidden(pc));
+    const freeAllowedPcs = freeAllowedPcsFor(allowedPcs, padForbidden);
     const mustDouble = new Set(freeAllowedPcs).size < nVoices;
-    const doublePc = mustDouble ? chord.ct.bassPc : null;
+    // The permitted doubling is the bass pc — but ONLY when the bass pc is
+    // itself available. When a fixed line already sounds the bass pc it is in
+    // padForbidden, and choosing it here re-introduced exactly the doubling
+    // the line was excluded to prevent (an unforced octave against the
+    // melody). Prefer the bass pc, else any still-available tone.
+    const doublePc = !mustDouble
+      ? null
+      : (padForbidden(chord.ct.bassPc)
+          ? (freeAllowedPcs[0] ?? null)
+          : chord.ct.bassPc);
 
     // per-voice candidates; a voice with none simply rests on this chord.
     // A FIXED voice (4b) gets exactly one candidate — its pitch — or rests

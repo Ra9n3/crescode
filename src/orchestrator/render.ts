@@ -390,9 +390,12 @@ export function prepareStrings(ctx: OrchestratorContext, take: number): StringLi
   const runDp = (round: number): VoicedChord[] => {
     const chords: VoicingChord[] = ctx.spans.map((s) => ({
       id: s.id, startTick: s.startTick, endTick: s.endTick, ct: chordTones(s.parsed),
-      // constraints (and the line-pc exclusions they justify) only bind while
-      // the span still carries its fixed lines — a fallback span re-joins as
-      // an unconstrained pad, bass pc included
+      // A fallback span drops the FIXES (the lines could not be honoured), but
+      // it must keep the line-pc exclusions: otherwise the pad is free to sit
+      // an octave from a line note that is still sounding — an unforced octave
+      // the template's doubling policy forbids. Dropping the exclusions along
+      // with the fixes is what let fallback spans produce exactly the doublings
+      // the rule exists to prevent.
       ...(pending.get(s.id) ? { fixed: pending.get(s.id) } : {}),
       ...(pending.get(s.id) && linePcsBySpan.get(s.id) ? { linePcs: linePcsBySpan.get(s.id) } : {}),
     }));

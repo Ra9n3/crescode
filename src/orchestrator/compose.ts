@@ -657,6 +657,38 @@ export function composeAllTracks(project: Project, options: ComposeOptions): Com
     }
   }
 
+  // ---- unforced-octave guard (doubling policy) ---------------------------
+  // Pad voicing and melodic lines come from separate stages: the DP voices the
+  // pads against the chords, the motif/counterline write the lines, so an upper
+  // pad voice can land exactly an octave from a melody note. Where the template
+  // forbids unforced doubling, the UPPER note of such a pair is dropped (never
+  // moved — a moved note invents a pitch no stage chose).
+  //
+  // Runs BEFORE the CC lanes are built, so the lanes derive from the notes that
+  // will actually sound: thinning afterwards left CC68 legato windows open over
+  // silence and pulled the CC11 arc off its baseline.
+  if (template && template.rules.some((r) => r.type === 'octaveDoubling' && r.params.policy !== 'allowed')) {
+    const STRINGS = new Set(['violins1', 'violins2', 'violas', 'cellosBasses']);
+    const sounding = ctx.project.tracks.filter((t) => isInstrumentTrack(t) && STRINGS.has(t.role)
+      && !t.locked && isInBand(t.role, ensemble, template) && (notesByTrackId[t.id]?.length ?? 0));
+    let thinned = 0;
+    for (const t of sounding) {
+      if (t.role === 'cellosBasses') continue;   // root doubling is the permitted doubling
+      const others = sounding.filter((o) => o !== t).flatMap((o) => notesByTrackId[o.id] ?? []);
+      // a `div2` note IS the divisi's second line — a distinct tone chosen by
+      // the voicer against its own parent, never an unforced doubling
+      const kept = (notesByTrackId[t.id] ?? []).filter((n) => n.layer === 'div2'
+        || !others.some((m) => m.pitch < n.pitch && (n.pitch - m.pitch) % 12 === 0
+          && m.startTick < n.startTick + n.durationTicks
+          && n.startTick < m.startTick + m.durationTicks));
+      if (kept.length !== notesByTrackId[t.id].length) {
+        thinned += notesByTrackId[t.id].length - kept.length;
+        notesByTrackId[t.id] = kept;
+      }
+    }
+    if (thinned) ctx.lines!.reports.push(`octave doubling guard: ${thinned} upper-voice note(s) thinned (unforced octave under a melody note; policy ${template.rules.find((r) => r.type === 'octaveDoubling')?.params.policy})`);
+  }
+
   // Phase 5c: CC lanes for the strings the orchestrator wrote — phrase arcs
   // (CC1/CC11), CC7 balance, CC74 spikes, CC68 legato windows, soft-entry
   // S-curves. Only in-band unlocked string tracks appear in notesByTrackId,

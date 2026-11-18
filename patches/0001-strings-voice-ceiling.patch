@@ -1,0 +1,60 @@
+--- a/src/compose/families/strings.ts
++++ b/src/compose/families/strings.ts
+@@ -80,8 +80,14 @@
+   // than an octave-dropped pitch: clamping the window keeps the voice inside
+   // its comfortable register, which the post-hoc octave fold did not.
+   const low = winLow;
+-  // Keep at least an octave of window so every pitch class stays reachable.
+-  const high = ceiling === null ? winHigh : Math.max(winLow + 11, Math.min(winHigh, ceiling));
++  // The ceiling is HARD. This used to read
++  // `Math.max(winLow + 11, Math.min(winHigh, ceiling))`, which silently raised
++  // the ceiling back to a full octave whenever it left fewer than eleven
++  // semitones — so an inner voice bounded under a lead at 68 could still be
++  // placed at 72, above the lead it was supposed to sit beneath. When the
++  // remaining window is shorter than an octave we keep it short and let the
++  // band/nearby/anywhere fallbacks below cover the missing pitch classes.
++  const high = ceiling === null ? winHigh : Math.min(winHigh, ceiling);
+   const span = Math.max(1, high - low);
+ 
+   // Each slot owns a horizontal band of the window, so voices STACK instead of
+@@ -589,9 +595,38 @@
+           // static family ceiling: with a static ceiling of leadFloor-1 an
+           // inner voice still crossed a melody that had descended (dorian
+           // violins2 held 72 under a lead at 64-67 in bars 6-8).
+-          let pitch = pitchForPitchClass(tone, band, input.voiceSlot, previousSustained, input.stackFloor, input.stackCeiling);
++          // Sample the lead across the whole span, not just at its onset: an
++          // inner voice that clears the ceiling at the start still crosses
++          // when the melody descends underneath the sustained note (bar 7,
++          // violins2 held 66 while the lead fell to 64). The lowest lead
++          // pitch in the span is therefore the binding ceiling.
++          const spanLeadPitches: number[] = [];
+           if (participation.materialRole === 'inner') {
+-            pitch = avoidLeadCollision(pitch, span.pitchClasses, input.leadPitchClasses, band);
++            for (let probe = start; probe < end; probe += Math.max(1, input.beatTicks)) {
++              const lead = input.leadPitchAt?.(probe);
++              if (lead !== null && lead !== undefined) spanLeadPitches.push(lead);
++            }
++          }
++          const spanLeadLow = spanLeadPitches.length ? Math.min(...spanLeadPitches) : null;
++          const innerCeiling = participation.materialRole === 'inner' && spanLeadLow !== null
++            ? Math.min(input.stackCeiling ?? Number.POSITIVE_INFINITY, spanLeadLow - 1)
++            : input.stackCeiling;
++          let pitch = pitchForPitchClass(tone, band, input.voiceSlot, previousSustained, input.stackFloor, innerCeiling);
++          if (participation.materialRole === 'inner') {
++            // The nudge must respect the same ceiling that placed the note.
++            // Called without it, this search walked up to the top of the
++            // comfortable window and lifted inner voices back ABOVE the lead
++            // that `pitchForPitchClass` had just clamped them under (dorian
++            // violins2 sounded at 72 over a lead at 64-67). Pass the sounding
++            // lead pitch so a unison/octave against the tune is rejected too.
++            pitch = avoidLeadCollision(
++              pitch,
++              span.pitchClasses,
++              input.leadPitchClasses,
++              band,
++              input.leadPitchAt?.(start) ?? null,
++              innerCeiling,
++            );
+           }
+           previousSustained = pitch;
+           notes.push({

@@ -77,7 +77,7 @@ describe('orchestrationSeed per D8: inputs = chords, structure, key, mode, tempo
     expect(orchestrationSeedFor(p, { take: 1, sectionTakes: { sec_chorus: 2 } })).toBe(all(1));
   });
 
-  it('same inputs + same take compose byte-identical string tracks; a new take re-seeds', () => {
+  it('same inputs + same take compose byte-identical piano tracks; a new take re-seeds', () => {
     const run = () => {
       const p = BASE();
       p.ensemble = { templateId: 'ensemble.chamber', overrides: {}, pins: {} };
@@ -86,8 +86,10 @@ describe('orchestrationSeed per D8: inputs = chords, structure, key, mode, tempo
     };
     const a = run();
     const b = run();
-    expect(JSON.stringify(a.tracks.filter((t) => t.family === 'Strings').map((t) => t.notes)))
-      .toBe(JSON.stringify(b.tracks.filter((t) => t.family === 'Strings').map((t) => t.notes)));
+    // The Piano is the only composer left, so its track is what determinism is
+    // measured on now.
+    expect(JSON.stringify(a.tracks.filter((t) => t.role === 'piano').map((t) => t.notes)))
+      .toBe(JSON.stringify(b.tracks.filter((t) => t.role === 'piano').map((t) => t.notes)));
     expect(a.orchestration.take).toBe(1); // each compose increments from 0
     // different take → different stream (the phrase mask alone guarantees it, but
     // the D8 seed must agree: take 4 vs take 5 produce different output)
@@ -95,7 +97,7 @@ describe('orchestrationSeed per D8: inputs = chords, structure, key, mode, tempo
     const d = { ...BASE(), ensemble: { templateId: 'ensemble.chamber' as const, overrides: {}, pins: {} }, orchestration: { take: 5 } };
     const rc = composeAllTracks(c, { ...SEED_OPTS });
     const rd = composeAllTracks(d, { ...SEED_OPTS });
-    expect(JSON.stringify(rc.tracks.filter((t) => t.family === 'Strings').map((t) => t.notes)))
-      .not.toBe(JSON.stringify(rd.tracks.filter((t) => t.family === 'Strings').map((t) => t.notes)));
+    expect(JSON.stringify(rc.tracks.filter((t) => t.role === 'piano').map((t) => t.notes)))
+      .not.toBe(JSON.stringify(rd.tracks.filter((t) => t.role === 'piano').map((t) => t.notes)));
   });
 });

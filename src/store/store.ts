@@ -8,7 +8,6 @@ import {
 } from '../shared/schema';
 import { ENSEMBLE_BY_ID, resolveTemplate } from '../config/ensembles';
 import { composeAllTracks } from '../orchestrator/compose';
-import { freshSeed, generateStringPiece } from '../compose/stylecard';
 import { transformProjectMode, transposeProjectKey } from '../engine/suggestion/transpose';
 import type { FollowMode } from '../engine/transport/follow';
 
@@ -195,20 +194,6 @@ interface State {
 
 const initialProject = (): Project => projectFromFixture(JSON.parse(JSON.stringify(fixture)) as Partial<Project>);
 
-/**
- * The last 20 melody fingerprints Compose All produced.
- *
- * Module scope, not project scope: this is a property of the SESSION's history,
- * not of the document. Persisting it into the project would put it in the undo
- * stack and in saved files, and a project reopened elsewhere has no memory of
- * what was heard there anyway.
- */
-const RECENT_FINGERPRINTS: string[] = [];
-const FINGERPRINT_MEMORY = 20;
-const rememberFingerprint = (fingerprint: string): void => {
-  RECENT_FINGERPRINTS.push(fingerprint);
-  while (RECENT_FINGERPRINTS.length > FINGERPRINT_MEMORY) RECENT_FINGERPRINTS.shift();
-};
 const mapTrack = (p: Project, id: string, fn: (t: Track) => Track): Project => ({ ...p, tracks: p.tracks.map((t) => (t.id === id ? fn(t) : t)) });
 
 export const useStore = create<State>((set, get) => ({
@@ -402,53 +387,14 @@ export const useStore = create<State>((set, get) => ({
     const template = resolveTemplate(project.ensemble);
     const bandSkipped = project.tracks.filter((t) => isInstrumentTrack(t) && !t.locked && !isInBand(t.role, ensemble, template)).length;
     const lockedKept = project.tracks.filter((t) => t.locked).length;
-    // Production orchestrator: strings and dedicated family renderers run
-    // alongside the generic rules generator for remaining work/compatibility
-    // inputs; Piano Engine V5 finalizes Piano. The take increments INSIDE this
+    // Piano Engine V5 is the only composer. The take increments INSIDE this
     // same edit, so one Ctrl+Z restores notes and take together.
-    // Phase 8.2: res.tracks carries the composed basses desk too (inserted
-    // after the cellos in score order when the project lacked it) — written
-    // in this SAME edit, so one undo removes track and notes together.
-    // A throw here used to bubble into the click handler and die there —
-    // no toast, no notes, "the button does not work". Compose must never
-    // fail silently: surface the real error and leave the project untouched.
-    // A fresh crypto seed on EVERY click. The stored composeOptions.seed is a
-    // user-facing handle, but leaving it in charge meant every click replayed
-    // the same take of the same tune. The seed decides the style card, form,
-    // harmony and melody together, so a new one is a genuinely new piece.
-    const seed = freshSeed();
-    let piece;
-    try {
-      // 12 candidates per round, up to 5 rounds; any candidate repeating one of
-      // the last 20 melodies is rejected outright.
-      piece = generateStringPiece({ seed, recentFingerprints: RECENT_FINGERPRINTS });
-    } catch (e) {
-      console.error('[composeAll] string generator threw — the project is untouched', e);
-      get().toast('error', `Compose All failed — ${e instanceof Error ? e.message : String(e)}`);
-      return null;
-    }
-    rememberFingerprint(piece.fingerprint);
-    // The piece's form, key, tempo and meter become the project's: the header
-    // must agree with the notes, and the section list must cover every bar the
-    // piece writes or the export truncates the rest.
-    const sections: Section[] = piece.form.sections.map((section, index) => ({
-      id: `sec_${index}_${section.kind.toLowerCase()}`,
-      name: section.kind,
-      startBar: section.startBar,
-      lengthBars: section.bars,
-    }));
-    const scoredProject: Project = {
-      ...project,
-      bpm: piece.card.bpm,
-      key: piece.card.tonic as PitchClass,
-      mode: piece.card.mode,
-      timeSignature: { numerator: piece.card.meter.numerator, denominator: piece.card.meter.denominator },
-      tempoMap: [{ tick: 0, bpm: piece.card.bpm }],
-      sections,
-    };
+    // A throw here used to bubble into the click handler and die there — no
+    // toast, no notes, "the button does not work". Compose must never fail
+    // silently: surface the real error and leave the project untouched.
     let res;
     try {
-      res = composeAllTracks(scoredProject, { ...composeOptions, seed, arrangementSeed: Math.max(0, (composeOptions.seed ?? 1) - 1), variety: true, stringPiece: piece });
+      res = composeAllTracks(project, { ...composeOptions, arrangementSeed: Math.max(0, (composeOptions.seed ?? 1) - 1), variety: true });
     } catch (e) {
       console.error('[composeAll] composing threw — the project is untouched', e);
       get().toast('error', `Compose All failed — ${e instanceof Error ? e.message : String(e)}`);
@@ -457,14 +403,7 @@ export const useStore = create<State>((set, get) => ({
     get().edit((p) => ({
       ...p,
       tracks: res.tracks,
-      // Record the seed with the result so the export can stamp it into the file.
-      orchestration: { ...res.orchestration, seed },
-      bpm: scoredProject.bpm,
-      key: scoredProject.key,
-      mode: scoredProject.mode,
-      timeSignature: scoredProject.timeSignature,
-      tempoMap: scoredProject.tempoMap,
-      sections: scoredProject.sections,
+      orchestration: res.orchestration,
     }));
     return { ms: performance.now() - t0, bandSkipped, lockedKept };
   },

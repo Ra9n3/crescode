@@ -160,8 +160,12 @@ const leftOf = (score: PianoScore) => score.events.filter((event) => event.hand 
 describe('Piano Stage 4A contextual accompaniment from finalized tracks', () => {
   it('uses the production Compose All snapshot and records exact chord-window activity without inferring a lead', () => {
     const sample = productionSample();
-    expect(sample.input.analysis.tracks.length).toBeGreaterThan(0);
-    expect(sample.input.analysis.tracks.some((track) => track.notes.length > 0)).toBe(true);
+    // The orchestra generators are gone: the Piano is the only composer, so the
+    // snapshot it reads has no OTHER part sounding. Everything below still runs
+    // against the real Compose All snapshot.
+    // The snapshot is built BEFORE the Piano writes itself, so it lists the
+    // project's other desks and none of them sound.
+    expect(sample.input.analysis.tracks.every((track) => track.notes.length === 0)).toBe(true);
 
     const { plan, score } = writeScore(sample);
     expect(plan.status).toBe('composed');

@@ -44,7 +44,9 @@ describe('ccValueAt matches the export interpolation', () => {
   const tracks = exportableTracks(p, 'all');
 
   it('at a point its value; between points the previous one; before the first the first', () => {
-    const lane = trackOf(p, 'violins1').cc!.find((l) => l.cc === 11)!;
+    // `ccValueAt` is what is under test here, not which lane feeds it. The
+    // Piano's CC64 pedal lane is the one real lane in a composed project now.
+    const lane = trackOf(p, 'piano').cc!.find((l) => l.cc === 64)!;
     const pts = lane.points;
     expect(pts.length).toBeGreaterThan(4);
     for (const pt of pts) expect(ccValueAt(lane, pt.tick)).toBe(pt.value);
@@ -87,7 +89,7 @@ describe('ccValueAt matches the export interpolation', () => {
   });
 
   it('playing from the middle: ccValueAt at the start tick is the value the file holds there', () => {
-    const lane = trackOf(p, 'violins1').cc!.find((l) => l.cc === 1)!;
+    const lane = trackOf(p, 'piano').cc!.find((l) => l.cc === 64)!;
     const bt = projectEndTick(p) > 8 * 3840 ? 3840 : 1920;
     for (const start of [0, 3 * bt, 7 * bt, Math.floor(projectEndTick(p) / 2)]) {
       const held = ccValueAt(lane, start)!;
@@ -185,8 +187,15 @@ describe('voiceParams: the articulation table', () => {
 
 /* ---------------- 3. tremolo merge == the export merge ---------------- */
 describe('tremolo: the preview reuses the export merge', () => {
-  const p = composed();
-  const v1 = trackOf(p, 'violins1');
+  // The string generators that used to populate this fixture are gone, so the
+  // track is built directly. The export merge under test is unchanged.
+  const v1 = stringTrack({ role: 'violins1', notes: [
+    note({ pitch: 60, startTick: 0, durationTicks: 240, articulation: 'tremolo' }),
+    note({ pitch: 60, startTick: 240, durationTicks: 240, articulation: 'tremolo' }),
+    note({ pitch: 60, startTick: 480, durationTicks: 240, articulation: 'tremolo' }),
+    note({ pitch: 67, startTick: 960, durationTicks: 480, articulation: 'staccato' }),
+    note({ pitch: 69, startTick: 1440, durationTicks: 960 }),
+  ] });
 
   it('planTrackNotes(expressive) groups exactly like mergeTremoloGroups, and merged spans carry tremolo for the AM', () => {
     const exported = mergeTremoloGroups(v1.notes);
@@ -327,7 +336,9 @@ describe('automation events: coalesced and bounded', () => {
       lines.push(`  ${tr.name}: CC11 events ${cc11}, lanes 1+7+11 coalesced ${total}`);
       if (cc11 > worst.cc11) worst = { name: tr.name, cc11, total };
     }
-    expect(worst.cc11).toBeGreaterThan(0);
+    // The string generators that wrote CC11 arches are gone; the Piano writes
+    // CC64 pedal instead, so the bound is what is still enforced here.
+    expect(worst.cc11).toBeGreaterThanOrEqual(0);
     expect(worst.cc11).toBeLessThanOrEqual(MAX_CC_POINTS_PER_LANE);
     console.log(`[phase6] max automation events per track (three-chorus): ${worst.cc11} CC11 events on "${worst.name}"`);
     console.log(`[phase6] per-track event counts (three-chorus, cinematic take 1):\n${lines.join('\n')}`);

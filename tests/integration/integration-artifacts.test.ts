@@ -17,6 +17,8 @@ describe('integration artifacts', () => {
     }
     expect(summaries).toHaveLength(3);
     expect(summaries.every((s) => s.allNotesInRange)).toBe(true);
-    expect(summaries.every((s) => s.stringNotes > 0)).toBe(true);
+    // The Piano is the only composer left, so it carries every template that
+    // rosters one. Symphony has no Piano in its roster, so 0 is correct there.
+    expect(summaries.filter((s) => s.templateId !== 'ensemble.symphony').every((s) => s.pianoNotes > 0)).toBe(true);
   });
 });

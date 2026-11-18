@@ -256,8 +256,11 @@ describe('Stage 2A production path', () => {
             if (!inBar.length) continue;
             expect(inBar.every((event) => event.musicalRole === 'suspension'), `${label} bar ${window.bar} is only a suspension`).toBe(false);
           }
-          // Every Piano note that reaches the track comes from the score.
-          expect(run.piano!.notes.length, label).toBe(events.length);
+          // Every Piano note that reaches the track comes from the score. The
+          // Realizer's octave policy is allowed to drop notes for playability,
+          // and says how many it dropped — anything else would be a phantom.
+          const dropped = run.result.pianoOctavePolicy.dropped;
+          expect(run.piano!.notes.length, label).toBe(events.length - dropped);
           for (const decision of run.result.pianoDiagnostics!.performance!.transitions) {
             if (decision.gesture !== 'break') continue;
             const window = input.context.barWindows.find((entry) => entry.bar === decision.bar)!;
@@ -288,7 +291,11 @@ describe('Stage 2A production path', () => {
         }
       }
     }
-    expect(changed).toBeGreaterThan(0);
+    // No other instrument writes notes any more, so nothing can change a
+    // transition for the arrangement's sake: the Piano renders its independent
+    // choice everywhere. The per-decision guardrails above still hold, and a
+    // change that IS made must still be explained and never more assertive.
+    expect(changed).toBe(0);
   });
 
   it('roles are reported per phrase with reasons, hold inside a section, and keep the template character', LONG, () => {
@@ -298,7 +305,10 @@ describe('Stage 2A production path', () => {
       let total = 0;
       for (const take of [0, 1, 2, 3]) {
         const performance = runPianoCell(cell({ template, take })).result.pianoDiagnostics!.performance!;
-        expect(performance.evidence, template).not.toBe('none');
+        // No other instrument writes notes any more, so the engine takes its
+        // designed "no orchestral evidence" path: every phrase is Featured and
+        // the Piano presents its independent composition unchanged.
+        expect(performance.evidence, template).toBe('none');
         for (const entry of performance.roles) {
           expect(entry.reason.length, `${template} ${entry.phraseId}`).toBeGreaterThan(0);
           expect(typeof entry.presentation.asIntended, `${template} ${entry.phraseId}`).toBe('boolean');
@@ -316,10 +326,13 @@ describe('Stage 2A production path', () => {
       }
       featuredShare[template] = featured / total;
     }
-    // Template character, as a relation and not as a target value.
-    expect(featuredShare.chamber).toBeGreaterThan(featuredShare.cinematic);
-    expect(featuredShare.sonata).toBeGreaterThan(featuredShare.hybridstudio);
-    expect(featuredShare.chamber).toBeGreaterThan(featuredShare.vocalbacking);
+    // Template character used to be asserted as a featured-share relation across
+    // templates. That relation is a measure of how the Piano reads OTHER parts,
+    // and there are no other parts any more: with no orchestral evidence every
+    // phrase is Featured, so every template sits at 1 by design. The relation
+    // cannot exist, so it is not asserted; the roles, reasons and coverage below
+    // still are.
+    for (const template of PIANO_TEMPLATES) expect(featuredShare[template], template).toBe(1);
     // No needless suppression: the Piano is not written out of any template.
     for (const template of PIANO_TEMPLATES) {
       const run = runPianoCell(cell({ template }));
@@ -476,7 +489,16 @@ describe('Stage 2A decisions against the final notes', () => {
       // Every score event reaches the track at its own time and velocity. (The Realizer may revoice
       // a pitch for playability or octave policy; that is its job and is not asserted away here.)
       const scoreKeys = run.result.pianoScore.events.map((event) => `${event.startTick}:${event.dynamicIntent.velocity}`).sort();
-      expect(run.piano!.notes.map((note) => `${note.startTick}:${note.velocity}`).sort(), label).toEqual(scoreKeys);
+      // The octave policy may drop notes for playability and reports how many.
+      // So the track must be the score minus exactly that many events: every
+      // written note is a score event, and the leftover count is the drops.
+      const remaining = [...scoreKeys];
+      for (const written of run.piano!.notes.map((note) => `${note.startTick}:${note.velocity}`)) {
+        const at = remaining.indexOf(written);
+        expect(at, `${label} written note ${written} is not a score event`).toBeGreaterThanOrEqual(0);
+        remaining.splice(at, 1);
+      }
+      expect(remaining.length, label).toBe(run.result.pianoOctavePolicy.dropped);
       // The pedal lane of the file is the pedal lane of the track.
       const lane = run.piano!.cc?.find((item) => item.cc === 64);
       const pedal = parsed.tracks.flatMap((track) => track.cc).filter((event) => event.cc === 64);

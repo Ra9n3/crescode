@@ -7,7 +7,7 @@ import { hashString } from '../../engine/generate';
 import { isInBand } from '../../shared/schema/band';
 import type { EnsembleRule, EnsembleTemplate } from '../../shared/schema/ensembleTemplate';
 import { isInstrumentTrack, type Project, type ProjectEnsemble, type Track } from '../../shared/schema/types';
-import type { LayerName } from '../conductor';
+import type { LayerName } from '../module';
 import type { MomentKind, MomentPlan } from '../conductor/moments';
 import type { ArcBar, ResolvedChord, SpineSection } from '../spine';
 import { buildPianoAnalysisSnapshot, type DeepReadonly, type PianoAnalysis, type PianoAnalysisTrackCompositionState } from './analysis';

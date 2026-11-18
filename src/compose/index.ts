@@ -12,6 +12,7 @@
  * `store.ts:401` is Phase 6 work.
  */
 import { isInstrumentTrack, type Project, type Track } from '../shared/schema/types';
+import { scalePitchClasses } from '../shared/schema/modes';
 import { resolveTemplate } from '../config/ensembles';
 import { isInBand } from '../shared/schema/band';
 import {
@@ -109,7 +110,8 @@ export function composeOrchestra(
   const primary = generateMotif(project, motifRng, grid.beatTicks, sections[0]?.startBar ?? 1);
   const secondary = generateCounterMotif(project, motifRng, grid.beatTicks, sections[0]?.startBar ?? 1);
   const phraseRng = makeRng((inputHash ^ hashString(`phrase:${take}`)) >>> 0);
-  const { phrases, statements } = buildPhrases(sections, grid, primary, secondary, phraseRng);
+  const scaleSize = Math.max(1, scalePitchClasses(project.key, project.mode).length);
+  const { phrases, statements } = buildPhrases(sections, grid, primary, secondary, phraseRng, scaleSize);
   const motifs = new Map<string, Motif>([[primary.id, primary], [secondary.id, secondary]]);
   reports.push(
     `material: motif "${primary.id}" (${primary.degrees.length} events), counter "${secondary.id}"; ` +

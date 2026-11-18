@@ -138,14 +138,35 @@ export interface Motif {
   readonly originBar: number;
 }
 
+/**
+ * How a statement develops its motif.
+ *
+ * Each operation transforms EXACTLY ONE dimension and declares what it
+ * preserves, so "developed" and "still recognisable" are both checkable rather
+ * than asserted. See `statementDegrees`/`statementDurations` in material/.
+ *
+ *  identity    - nothing changes (deliberate restatement)
+ *  transpose   - register;   preserves intervals, rhythm, contour
+ *  invert      - direction;  preserves interval magnitudes and rhythm
+ *  fragment    - length;     preserves the opening of the cell
+ *  augment     - weight;     preserves intervals, doubles durations
+ *  diminish    - weight;     preserves intervals, halves durations
+ *  displace    - metric placement; preserves pitches AND durations exactly,
+ *                only their position relative to the pulse moves
+ *
+ * 'reorchestrate' was removed: colour belongs to the Director (role
+ * assignment) and the family realization, not to the material layer. It was
+ * unreachable — `phraseFunctionFor` never returned 'transition' — so removing
+ * it changes no output.
+ */
 export type DevelopmentOp =
   | 'identity'
   | 'transpose'
   | 'invert'
   | 'fragment'
   | 'augment'
-  | 'displace'
-  | 'reorchestrate';
+  | 'diminish'
+  | 'displace';
 
 /** One concrete statement of a motif, and how it was derived. */
 export interface MotifStatement {
@@ -158,6 +179,21 @@ export interface MotifStatement {
   readonly endTick: Tick;
   /** Transposition in scale degrees (for 'transpose'). */
   readonly degreesShift: number;
+  /**
+   * The statement this one develops, or null when it states a motif afresh.
+   *
+   * Lineage makes an arch of derivation checkable (primary -> A' -> A''), and
+   * lets a later variation answer an EARLIER DEVELOPMENT rather than always the
+   * original. Always an id created earlier in the same piece: `buildPhrases`
+   * appends statements in creation order, so a parent is never a forward
+   * reference.
+   */
+  readonly parentStatementId: string | null;
+  /**
+   * For 'displace': the tick offset applied to the whole cell, so the metric
+   * reorientation is auditable rather than implicit.
+   */
+  readonly displacementTicks?: Tick;
 }
 
 export interface Phrase {

@@ -228,7 +228,17 @@ export function pitchForMelody(
     if (belowComfort.length) {
       return nearestTo(belowComfort, previous === null ? target : previous)!;
     }
-    const underCeiling = legalIn(band.low, Math.min(ceiling, band.high));
+    // Last resort under the ceiling: keep the DECLARED comfortable register as
+    // the hard limit even here. The old fallback searched down to the
+    // instrument's floor and put the counterline at 55 — the very bottom of the
+    // violin — whenever the lead descended near the counter's own register.
+    // This function's own principle, stated above, is that a brief unison at a
+    // phrase boundary is far less damaging than a note at the bottom of the
+    // range; apply it consistently instead of violating it in the last branch.
+    const underCeiling = legalIn(
+      Math.max(band.low, band.comfortable[0]),
+      Math.min(ceiling, band.high),
+    );
     if (underCeiling.length) {
       return nearestTo(underCeiling, previous === null ? target : previous)!;
     }
@@ -426,7 +436,9 @@ export function realizeStrings(input: StringsRealizationInput): MusicalPart {
           const motif = motifs.get(statement.motifId);
           if (!motif) continue;
           const degrees = statementDegrees(motif, statement, scaleLength(project));
-          const durations = statementDurations(motif, statement);
+          // Pass the beat subdivision so a 'diminish' contraction is floored at
+          // one subdivision rather than degenerating into sub-tick slivers.
+          const durations = statementDurations(motif, statement, Math.round(input.beatTicks / 2));
           const total = durations.reduce((sum, value) => sum + value, 0) || 1;
           let cursor = statement.startTick;
           for (let index = 0; index < degrees.length; index++) {
